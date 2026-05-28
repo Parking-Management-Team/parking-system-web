@@ -33,8 +33,8 @@ const config: Config = {
         },
       },
       borderRadius: {
-        card: '1rem',
-        btn:  '0.5rem',
+        card: '1.5rem',
+        btn:  '9999px',
       },
       maxWidth: {
         container: '1400px',

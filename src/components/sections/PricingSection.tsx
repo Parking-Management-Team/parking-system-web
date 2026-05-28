@@ -67,7 +67,7 @@ export function PricingSection() {
                         {window === 'DAY' ? t('time_day') : t('time_night')}
                       </h3>
                     </div>
-                    <span className="text-2xl">🏍️</span>
+                    <span className="text-xs font-mono bg-[var(--color-surface-2)] text-[var(--color-ink)] px-2.5 py-1 rounded-full border border-[var(--color-border)] uppercase tracking-wider">MOTO</span>
                   </div>
                   <div className="space-y-3 border-t border-[var(--color-border)] pt-4">
                     <div className="flex justify-between items-baseline">
@@ -101,7 +101,7 @@ export function PricingSection() {
                         {window === 'DAY' ? t('time_day') : t('time_night')}
                       </h3>
                     </div>
-                    <span className="text-2xl">🚗</span>
+                    <span className="text-xs font-mono bg-[var(--color-surface-2)] text-[var(--color-ink)] px-2.5 py-1 rounded-full border border-[var(--color-border)] uppercase tracking-wider">CAR</span>
                   </div>
                   <div className="space-y-3 border-t border-[var(--color-border)] pt-4">
                     <div className="flex justify-between items-baseline">
@@ -128,14 +128,14 @@ export function PricingSection() {
           <div className="animate-fade-in">
             <p className="text-[var(--color-muted)] mb-8 max-w-prose">{t('monthly_desc')}</p>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-2xl">
-              <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-card p-8 text-center">
-                <div className="text-4xl mb-4">🏍️</div>
+              <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-card p-8 text-center flex flex-col justify-between">
+                <span className="text-xs font-mono bg-[var(--color-surface-2)] text-[var(--color-ink)] px-2.5 py-1 rounded-full border border-[var(--color-border)] uppercase tracking-wider mx-auto mb-4">MOTORBIKE PASS</span>
                 <p className="text-sm font-semibold text-[var(--color-muted)] mb-2">{t('vehicle_motorbike')}</p>
                 <PriceTag amount={MONTHLY_PRICING.MOTORBIKE} accent size="lg" />
                 <p className="text-xs text-[var(--color-muted)] mt-2">/ tháng</p>
               </div>
-              <div className="bg-[var(--color-accent)] rounded-card p-8 text-center text-white relative overflow-hidden">
-                <div className="text-4xl mb-4">🚗</div>
+              <div className="bg-[var(--color-accent)] rounded-card p-8 text-center text-white relative overflow-hidden flex flex-col justify-between">
+                <span className="text-xs font-mono bg-emerald-700/50 text-white px-2.5 py-1 rounded-full border border-emerald-600/50 uppercase tracking-wider mx-auto mb-4">CAR PASS</span>
                 <p className="text-sm font-semibold opacity-80 mb-2">{t('vehicle_car')}</p>
                 <span className="font-mono font-bold text-3xl">1.500.000 ₫</span>
                 <p className="text-xs opacity-70 mt-2">/ tháng</p>
@@ -188,10 +188,19 @@ export function PricingSection() {
             {/* Rounding rules note */}
             <div className="mt-6 p-5 bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-card">
               <h4 className="font-semibold text-[var(--color-ink)] mb-3">{t('rounding_title')}</h4>
-              <ul className="space-y-2 text-sm text-[var(--color-muted)]">
-                <li>⏱ Ân hạn 15 phút — lố ≤ 15 phút không tính block mới</li>
-                <li>💵 Tiền mặt: làm tròn đến 1.000 ₫ (lẻ &lt; 500 → xuống, ≥ 500 → lên)</li>
-                <li>📱 Online (QR/ví điện tử): giữ nguyên từng đồng</li>
+              <ul className="space-y-3.5 text-sm text-[var(--color-muted)] list-none pl-0">
+                <li className="flex items-start gap-2.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-accent)] mt-2 flex-shrink-0" />
+                  <span><strong>Ân hạn 15 phút:</strong> lố ≤ 15 phút không tính block mới</span>
+                </li>
+                <li className="flex items-start gap-2.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-accent)] mt-2 flex-shrink-0" />
+                  <span><strong>Tiền mặt:</strong> làm tròn đến 1.000 ₫ (lẻ &lt; 500 → xuống, ≥ 500 → lên)</span>
+                </li>
+                <li className="flex items-start gap-2.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-accent)] mt-2 flex-shrink-0" />
+                  <span><strong>Online (QR/ví điện tử):</strong> giữ nguyên từng đồng</span>
+                </li>
               </ul>
             </div>
           </div>

@@ -6,9 +6,9 @@ export function HowItWorksSection() {
   const t = useTranslations('how_it_works');
 
   const steps = [
-    { num: '01', titleKey: 'step1_title', descKey: 'step1_desc', icon: '📱' },
-    { num: '02', titleKey: 'step2_title', descKey: 'step2_desc', icon: '🚗' },
-    { num: '03', titleKey: 'step3_title', descKey: 'step3_desc', icon: '💳' },
+    { num: '01', titleKey: 'step1_title', descKey: 'step1_desc' },
+    { num: '02', titleKey: 'step2_title', descKey: 'step2_desc' },
+    { num: '03', titleKey: 'step3_title', descKey: 'step3_desc' },
   ] as const;
 
   return (
@@ -31,18 +31,17 @@ export function HowItWorksSection() {
             {steps.map((step, i) => (
               <div key={step.num} className={`relative flex gap-8 reveal stagger-${i + 1}`}>
                 {/* Step number circle */}
-                <div className="relative z-10 flex-shrink-0 w-14 h-14 rounded-full border-2 border-[var(--color-accent)] bg-[var(--color-canvas)] flex items-center justify-center">
+                <div className="relative z-10 flex-shrink-0 w-14 h-14 rounded-full border-2 border-[var(--color-accent)] bg-[var(--color-canvas)] flex items-center justify-center shadow-sm">
                   <span className="font-mono font-bold text-sm text-[var(--color-accent)]">
                     {step.num}
                   </span>
                 </div>
 
                 <div className="pt-3 pb-6">
-                  <div className="text-2xl mb-2">{step.icon}</div>
                   <h3 className="text-[var(--color-ink)] mb-2">
                     {t(step.titleKey)}
                   </h3>
-                  <p className="text-[var(--color-muted)]">
+                  <p className="text-[var(--color-muted)] max-w-prose">
                     {t(step.descKey)}
                   </p>
                 </div>

@@ -2773,5 +2773,94 @@ erDiagram
 | Monthly card vehicle count | Không còn `max_registered_plate`; mỗi monthly card gắn một `vehicle_id`. |
 | Config table | Không có table cấu hình riêng cho pricing/timeout/grace/penalty/rounding trong phiên bản hiện tại. |
 
+---
+
+# 9. Technology Stack & Web Architecture
+
+## 9.1 Web Frontend Module
+
+| Module | Technology | Core Functions | Deployment |
+|---|---|---|---|
+| Frontend (Web Interface) | React / Next.js 14 App Router + Tailwind CSS v4 + TypeScript | Web Booking for customers; Dashboard for guards and managers | Vercel (Free tier, auto CI/CD on push) |
+| Internationalization | next-intl | Bilingual VI/EN, locale routing `/vi/...` and `/en/...` | - |
+| Font System | Be Vietnam Pro + JetBrains Mono | Vietnamese-native sans-serif + monospace for prices/codes | Google Fonts |
+| API Layer | Native Fetch | Consume REST API from separate backend repository | - |
+
+**Architecture Principle:** This repository contains ONLY frontend code. No backend, database, or business logic. All data fetched from `NEXT_PUBLIC_API_BASE_URL`.
+
+## 9.2 Source Code File Tree
+
+```
+parking-system-web/
+├── DESIGN.md                          ← Stitch design system spec
+├── messages/vi.json & en.json         ← i18n translations (VI default)
+├── tailwind.config.ts                 ← Design tokens (Emerald/Deep Slate)
+└── src/
+    ├── app/[locale]/
+    │   ├── layout.tsx                 ← Root layout (Be Vietnam Pro, i18n)
+    │   ├── page.tsx                   ← Landing page (/)
+    │   ├── (public)/booking/          ← Web Booking for customers
+    │   ├── (public)/pricing/          ← Detailed pricing page
+    │   ├── (public)/parking-map/      ← Slot availability map
+    │   ├── (dashboard)/dashboard/     ← Operations overview
+    │   ├── (dashboard)/checkin/       ← Vehicle check-in
+    │   └── (dashboard)/checkout/      ← Vehicle check-out + fee
+    ├── components/
+    │   ├── ui/                        ← Button, Card, Badge, PriceTag (reusable)
+    │   ├── layout/                    ← Navbar, ThemeToggle, LanguageSwitch
+    │   ├── sections/                  ← Hero, Features, HowItWorks, Pricing, UserTypes, CTA
+    │   └── domain/                    ← parking/, booking/, session/, payment/
+    ├── lib/
+    │   ├── api/client.ts              ← Base fetch wrapper
+    │   ├── hooks/                     ← useScrollReveal, useTheme
+    │   └── utils/format.ts            ← formatVND(), formatDateVI(), formatPlate()
+    └── constants/parking.constants.ts ← VNĐ pricing data, status enums
+```
+
+## 9.3 NexPark Standard Pricing Tables
+
+### PHẦN 1: BẢNG GIÁ TIÊU CHUẨN (KHÁCH VÃNG LAI)
+
+| Loại xe | Khung giờ | Giá cơ bản | Giá lũy tiến | Tối đa |
+|---|---|---|---|---|
+| Xe máy | Ban ngày (06:00–18:00) | 5.000 ₫ / 4 giờ đầu | +1.000 ₫ / block 1 giờ | 10.000 ₫ / ngày |
+| Xe máy | Ban đêm (18:00–06:00) | 5.000 ₫ / 4 giờ đầu | +2.000 ₫ / block 1 giờ | 20.000 ₫ / đêm |
+| Ô tô | Ban ngày (06:00–18:00) | 30.000 ₫ / 4 giờ đầu | +10.000 ₫ / block 1 giờ | 100.000 ₫ / ngày |
+| Ô tô | Ban đêm (18:00–06:00) | 30.000 ₫ / 4 giờ đầu | +12.000 ₫ / block 1 giờ | 120.000 ₫ / đêm |
+
+### PHẦN 2: BẢNG GIÁ VÉ THÁNG (MEMBER / VIP)
+
+| Loại xe | Giá tháng |
+|---|---|
+| Xe máy | 200.000 ₫ / tháng |
+| Ô tô | 1.500.000 ₫ / tháng |
+
+**Quy tắc Downgrade:** Khi vé tháng hết hạn (00:00 mỗi ngày), nếu chưa gia hạn mà xe còn trong bãi → Chuyển sang "Vé thường", tính phí theo bảng giá vãng lai đến khi xe rời bãi.
+
+### PHẦN 3: PHÍ ĐẶT CHỖ (BOOKING)
+
+| Loại phí | Mức | Chính sách |
+|---|---|---|
+| Phí giữ chỗ (Deposit) | 5.000 ₫ | Thanh toán trước, khóa slot → RESERVED. Cấn trừ vào hóa đơn cuối. |
+| Phí hủy / Quá hạn | Mất cọc | Quá 45 phút không check-in → hủy tự động, không hoàn cọc. |
+| Phụ phí quá giờ | Block lũy tiến | Check-out trễ hơn booking → tính thêm theo bảng giá vãng lai. |
+
+### PHẦN 4: PHỤ PHÍ & PHẠT SỰ CỐ
+
+| Loại phạt | Mức phí | Kích hoạt |
+|---|---|---|
+| Phạt mất thẻ (Lost Card) | 50.000 ₫ / lần | Staff đổi trạng thái thẻ sang LOST. Phải đóng phí + cước để lấy xe. |
+| Phạt đỗ sai khu (Wrong Zone) | 100.000 ₫ / lần | Xe ô tô đỗ sai khu > 10 phút, Staff/Camera xác nhận. |
+
+### PHẦN 5: QUY TẮC LÀM TRÒN
+
+**Thời gian (Grace Period 15 phút):**
+- Lố ≤ 15 phút → không tính block mới (Ví dụ: 2h10m → 2h = 30.000 ₫)
+- Lố > 15 phút → tính thêm 1 block (Ví dụ: 2h16m → 3h = 40.000 ₫)
+
+**Tiền tệ (chỉ khi có discount/VAT):**
+- Tiền mặt: làm tròn đến 1.000 ₫ (lẻ < 500 → xuống, ≥ 500 → lên)
+- Online (QR/ví điện tử): không làm tròn, giữ nguyên từng đồng
+
 <!-- Author: Nguyen Hoang Gia Thai -->
 <!-- Copyright (c) 2026 Nguyen Hoang Gia Thai -->

@@ -3,13 +3,12 @@
 import { motion } from 'framer-motion'
 import TypewriterText from '@/components/ui/TypewriterText'
 import CountUp from '@/components/ui/CountUp'
-import Button from '@/components/ui/Button'
 
 interface HeroProps {
-  onNavigate: (sectionId: string) => void
+  scrollToSection: (id: string) => void;
 }
 
-export default function Hero({ onNavigate }: HeroProps) {
+export default function Hero({ scrollToSection }: HeroProps) {
   return (
     <section id="home" className="relative min-h-screen flex items-center justify-center overflow-hidden bg-black pt-20">
       {/* Background Video */}
@@ -33,7 +32,7 @@ export default function Hero({ onNavigate }: HeroProps) {
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 1, ease: 'easeOut' }}
+            transition={{ duration: 1, ease: "easeOut" }}
             className="space-y-8 flex flex-col items-center justify-center w-full"
           >
             <h1 className="text-5xl lg:text-8xl font-extrabold font-heading text-white leading-tight tracking-tight text-center">
@@ -53,21 +52,24 @@ export default function Hero({ onNavigate }: HeroProps) {
             </p>
 
             <div className="flex flex-col sm:flex-row gap-5 pt-4 justify-center items-center">
-              <Button
-                onClick={() => onNavigate('pricing')}
-                variant="primary"
-                size="lg"
+              <motion.button
+                whileHover={{ scale: 1.05, y: -4 }}
+                whileTap={{ scale: 0.97 }}
+                transition={{ duration: 0.2 }}
+                onClick={() => scrollToSection('pricing')}
+                className="px-8 py-4 bg-emerald-500 hover:bg-emerald-600 border-none text-white rounded-xl font-semibold shadow-lg shadow-emerald-500/25 hover:shadow-emerald-500/40 text-lg cursor-pointer transition-all duration-300"
               >
                 Get Started
-              </Button>
-              
-              <Button
-                onClick={() => onNavigate('features')}
-                variant="outline"
-                size="lg"
+              </motion.button>
+              <motion.button
+                whileHover={{ scale: 1.05, y: -4 }}
+                whileTap={{ scale: 0.97 }}
+                transition={{ duration: 0.2 }}
+                onClick={() => scrollToSection('features')}
+                className="px-8 py-4 border-2 border-white/40 hover:border-white text-white rounded-xl font-semibold backdrop-blur-sm hover:bg-white/10 text-lg cursor-pointer transition-all duration-300"
               >
                 Learn More
-              </Button>
+              </motion.button>
             </div>
 
             {/* Premium Monospaced Stats */}

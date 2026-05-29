@@ -71,7 +71,7 @@ export function calculateParkingFee(
   }
 
   const surchargeSum = surchargesList.reduce((sum, item) => sum + item.amount, 0);
-  let totalWithSurcharge = Math.max(0, totalBeforeRounding + surchargeSum);
+  const totalWithSurcharge = Math.max(0, totalBeforeRounding + surchargeSum);
 
   return {
     basePrice,

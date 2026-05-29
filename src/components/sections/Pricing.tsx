@@ -3,13 +3,12 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { Bike, Car } from 'lucide-react'
-import Button from '@/components/ui/Button'
 
 export default function Pricing() {
   const [rateType, setRateType] = useState<'day' | 'night'>('day')
 
   return (
-    <section id="pricing" className="py-24 bg-gray-50">
+    <section id="pricing" className="section-padding bg-gray-50">
       <div className="container mx-auto px-6 lg:px-12 max-w-5xl">
         {/* Header */}
         <div className="text-center mb-12">
@@ -31,7 +30,7 @@ export default function Pricing() {
           <div className="inline-flex bg-white rounded-full p-1 shadow-md border border-gray-100">
             <button
               onClick={() => setRateType('day')}
-              className={`px-6 py-2.5 rounded-full font-medium transition-all flex items-center space-x-2 ${
+              className={`px-6 py-2.5 rounded-full font-medium transition-all flex items-center space-x-2 cursor-pointer ${
                 rateType === 'day'
                   ? 'bg-emerald-500 text-white shadow-md'
                   : 'text-gray-600 hover:text-gray-900'
@@ -42,7 +41,7 @@ export default function Pricing() {
             </button>
             <button
               onClick={() => setRateType('night')}
-              className={`px-6 py-2.5 rounded-full font-medium transition-all flex items-center space-x-2 ${
+              className={`px-6 py-2.5 rounded-full font-medium transition-all flex items-center space-x-2 cursor-pointer ${
                 rateType === 'night'
                   ? 'bg-gray-800 text-white shadow-md'
                   : 'text-gray-600 hover:text-gray-900'
@@ -61,7 +60,7 @@ export default function Pricing() {
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            className="bg-white rounded-2xl p-6 border-2 border-gray-200 hover:border-emerald-300 hover:shadow-lg transition-all"
+            className="bg-white rounded-2xl p-6 border border-gray-200 hover:border-emerald-300 hover:shadow-lg transition-all"
           >
             <div className="flex items-start justify-between mb-4">
               <div className="w-12 h-12 bg-emerald-100 rounded-xl flex items-center justify-center">
@@ -77,17 +76,17 @@ export default function Pricing() {
             <div className="space-y-2 mb-4">
               <div className="flex justify-between text-sm">
                 <span className="text-gray-600">Base (4h):</span>
-                <span className="font-semibold">5,000₫</span>
+                <span className="font-semibold text-gray-800">5,000₫</span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-gray-600">After 4h:</span>
-                <span className="font-semibold">
+                <span className="font-semibold text-gray-800">
                   {rateType === 'day' ? '+1,000₫/hour' : '+2,000₫/hour'}
                 </span>
               </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-600">Max cap:</span>
-                <span className="font-semibold text-emerald-600">
+              <div className="flex justify-between text-sm border-t border-gray-100 pt-2 mt-2">
+                <span className="text-gray-600 font-medium">Max cap:</span>
+                <span className="font-bold text-emerald-600">
                   {rateType === 'day' ? '10,000₫/day' : '20,000₫/night'}
                 </span>
               </div>
@@ -116,17 +115,17 @@ export default function Pricing() {
             <div className="space-y-2 mb-4">
               <div className="flex justify-between text-sm">
                 <span className="text-gray-600">Base (4h):</span>
-                <span className="font-semibold">30,000₫</span>
+                <span className="font-semibold text-gray-800">30,000₫</span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-gray-600">After 4h:</span>
-                <span className="font-semibold">
+                <span className="font-semibold text-gray-800">
                   {rateType === 'day' ? '+10,000₫/hour' : '+12,000₫/hour'}
                 </span>
               </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-600">Max cap:</span>
-                <span className="font-semibold text-emerald-600">
+              <div className="flex justify-between text-sm border-t border-gray-100 pt-2 mt-2">
+                <span className="text-gray-600 font-medium">Max cap:</span>
+                <span className="font-bold text-emerald-600">
                   {rateType === 'day' ? '100,000₫/day' : '120,000₫/night'}
                 </span>
               </div>
@@ -192,7 +191,7 @@ export default function Pricing() {
                           <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                         </svg>
                       </div>
-                      <span className="text-emerald-50">24/7 Priority Access</span>
+                      <span className="text-emerald-50 font-medium">24/7 Priority Access</span>
                     </div>
                     <div className="flex items-center space-x-3">
                       <div className="w-6 h-6 bg-emerald-400 rounded-full flex items-center justify-center flex-shrink-0">
@@ -200,7 +199,7 @@ export default function Pricing() {
                           <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                         </svg>
                       </div>
-                      <span className="text-emerald-50">Free EV Charging (Level 2)</span>
+                      <span className="text-emerald-50 font-medium">Free EV Charging (Level 2)</span>
                     </div>
                     <div className="flex items-center space-x-3">
                       <div className="w-6 h-6 bg-emerald-400 rounded-full flex items-center justify-center flex-shrink-0">
@@ -208,7 +207,7 @@ export default function Pricing() {
                           <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                         </svg>
                       </div>
-                      <span className="text-emerald-50">Reserved Executive Bays</span>
+                      <span className="text-emerald-50 font-medium">Reserved Executive Bays</span>
                     </div>
                     <div className="flex items-center space-x-3">
                       <div className="w-6 h-6 bg-emerald-400 rounded-full flex items-center justify-center flex-shrink-0">
@@ -216,20 +215,16 @@ export default function Pricing() {
                           <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                         </svg>
                       </div>
-                      <span className="text-emerald-50">Multi-Location Access</span>
+                      <span className="text-emerald-50 font-medium">Multi-Location Access</span>
                     </div>
                   </div>
                 </div>
 
                 {/* Right Side - CTA */}
-                <div className="md:text-right flex flex-col items-center md:items-end justify-center">
-                  <Button
-                    variant="secondary"
-                    size="lg"
-                    className="shadow-lg hover:shadow-xl"
-                  >
+                <div className="md:text-right self-center">
+                  <button className="w-full md:w-auto px-8 py-4 bg-white text-emerald-700 rounded-xl font-bold text-lg hover:bg-emerald-50 transition-all shadow-lg hover:shadow-xl hover:scale-105 cursor-pointer">
                     Upgrade Now
-                  </Button>
+                  </button>
                   <p className="text-emerald-100 text-sm mt-4">Cancel anytime. No hidden fees.</p>
                 </div>
               </div>
@@ -251,7 +246,7 @@ export default function Pricing() {
           </div>
           <div>
             <h4 className="font-bold font-heading text-gray-900 mb-1">GRACE PERIOD</h4>
-            <p className="text-gray-700">First 15 minutes excess time: no additional block charged. Over 15 minutes: charged as full additional block.</p>
+            <p className="text-gray-700 font-light">First 15 minutes excess time: no additional block charged. Over 15 minutes: charged as full additional block.</p>
           </div>
         </motion.div>
       </div>

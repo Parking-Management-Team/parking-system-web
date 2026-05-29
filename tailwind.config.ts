@@ -1,7 +1,6 @@
-import type { Config } from 'tailwindcss';
+import type { Config } from 'tailwindcss'
 
 const config: Config = {
-  darkMode: 'class',
   content: [
     './src/pages/**/*.{js,ts,jsx,tsx,mdx}',
     './src/components/**/*.{js,ts,jsx,tsx,mdx}',
@@ -9,63 +8,65 @@ const config: Config = {
   ],
   theme: {
     extend: {
-      fontFamily: {
-        sans: ['var(--font-be-vietnam)', 'sans-serif'],
-        mono: ['var(--font-jetbrains-mono)', 'monospace'],
-      },
       colors: {
-        // Emerald accent
-        emerald: {
-          signal: '#059669',
-          deep:   '#047857',
-          light:  '#10B981',
+        primary: {
+          50: '#ecfdf5',
+          100: '#d1fae5',
+          200: '#a7f3d0',
+          300: '#6ee7b7',
+          400: '#34d399',
+          500: '#10b981',
+          600: '#059669',
+          700: '#047857',
+          800: '#065f46',
+          900: '#064e3b',
+          950: '#022c22',
         },
-        // Deep Slate backgrounds
-        slate: {
-          canvas:   '#F8FAFC',
-          surface:  '#FFFFFF',
-          ink:      '#0F172A',
-          muted:    '#64748B',
-          pale:     '#CBD5E1',
-          dark:     '#0F172A',
-          midnight: '#1E293B',
-          abyss:    '#020617',
+        dark: {
+          DEFAULT: '#0f172a',
+          card: '#1e293b',
+          surface: '#334155',
+        },
+        accent: '#10b981',
+        text: {
+          primary: '#1e293b',
+          secondary: '#64748b',
+          light: '#94a3b8',
         },
       },
-      borderRadius: {
-        card: '1.5rem',
-        btn:  '9999px',
-      },
-      maxWidth: {
-        container: '1400px',
+      fontFamily: {
+        sans: ['Inter', 'system-ui', 'sans-serif'],
+        heading: ['Plus Jakarta Sans', 'system-ui', 'sans-serif'],
+        mono: ['JetBrains Mono', 'monospace'],
       },
       animation: {
-        'fade-up':    'fadeUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards',
-        'shimmer':    'shimmer 1.5s linear infinite',
-        'float':      'float 4s ease-in-out infinite',
-        'pulse-soft': 'pulseSoft 2s ease-in-out infinite',
+        'fade-in': 'fadeIn 0.5s ease-out',
+        'slide-up': 'slideUp 0.6s ease-out',
+        'slide-down': 'slideDown 0.6s ease-out',
+        'scale-in': 'scaleIn 0.3s ease-out',
+        'bounce-slow': 'bounce 3s infinite',
       },
       keyframes: {
-        fadeUp: {
-          from: { opacity: '0', transform: 'translateY(24px)' },
-          to:   { opacity: '1', transform: 'translateY(0)' },
+        fadeIn: {
+          '0%': { opacity: '0' },
+          '100%': { opacity: '1' },
         },
-        shimmer: {
-          '0%':   { backgroundPosition: '-200% 0' },
-          '100%': { backgroundPosition: '200% 0' },
+        slideUp: {
+          '0%': { transform: 'translateY(20px)', opacity: '0' },
+          '100%': { transform: 'translateY(0)', opacity: '1' },
         },
-        float: {
-          '0%, 100%': { transform: 'translateY(0px)' },
-          '50%':      { transform: 'translateY(-8px)' },
+        slideDown: {
+          '0%': { transform: 'translateY(-20px)', opacity: '0' },
+          '100%': { transform: 'translateY(0)', opacity: '1' },
         },
-        pulseSoft: {
-          '0%, 100%': { opacity: '1' },
-          '50%':      { opacity: '0.6' },
+        scaleIn: {
+          '0%': { transform: 'scale(0.9)', opacity: '0' },
+          '100%': { transform: 'scale(1)', opacity: '1' },
         },
       },
     },
   },
   plugins: [],
-};
+}
 
-export default config;
+export default config

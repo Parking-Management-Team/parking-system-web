@@ -1,132 +1,127 @@
-'use client';
+'use client'
 
-import { useState, useEffect } from 'react';
-import Link from 'next/link';
-import { useTranslations, useLocale } from 'next-intl';
-import { ThemeToggle } from './ThemeToggle';
-import { LanguageSwitch } from './LanguageSwitch';
-import { Button } from '@/components/ui';
-import { ROUTES } from '@/constants/routes';
-import { cn } from '@/lib/utils/cn';
+import { useState, useEffect } from 'react'
+import { motion } from 'framer-motion'
+import Link from 'next/link'
+import { Menu, X, LogIn, LogOut } from 'lucide-react'
+import WavyNavLink from '@/components/ui/WavyNavLink'
+import Button from '@/components/ui/Button'
 
-export function Navbar() {
-  const t      = useTranslations('nav');
-  const locale = useLocale();
-  const [isScrolled, setIsScrolled] = useState(false);
-  const [isMobileOpen, setIsMobileOpen] = useState(false);
+interface NavbarProps {
+  isLoggedIn: boolean
+  onToggleLogin: () => void
+  onNavigate: (sectionId: string) => void
+}
 
-  const localePath = (path: string) => `/${locale}${path}`;
+export default function Navbar({ isLoggedIn, onToggleLogin, onNavigate }: NavbarProps) {
+  const [isMenuOpen, setIsMenuOpen] = useState(false)
+  const [isScrolled, setIsScrolled] = useState(false)
 
   useEffect(() => {
-    const onScroll = () => setIsScrolled(window.scrollY > 24);
-    window.addEventListener('scroll', onScroll, { passive: true });
-    return () => window.removeEventListener('scroll', onScroll);
-  }, []);
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 20)
+    }
+    window.addEventListener('scroll', handleScroll)
+    return () => window.removeEventListener('scroll', handleScroll)
+  }, [])
 
-  const navLinks = [
-    { href: localePath(ROUTES.BOOKING),  label: t('booking') },
-    { href: localePath(ROUTES.PRICING),  label: t('pricing') },
-    { href: localePath(ROUTES.PARKING_MAP), label: t('map') },
-    { href: localePath(ROUTES.MONTHLY_CARD), label: t('monthly') },
-  ];
+  const handleNavClick = (id: string) => {
+    onNavigate(id)
+    setIsMenuOpen(false)
+  }
 
   return (
-    <header
-      className={cn(
-        'fixed top-0 left-0 right-0 z-50 transition-all duration-300',
-        isScrolled
-          ? 'bg-[var(--color-canvas)]/95 backdrop-blur-md border-b border-[var(--color-border)] shadow-[0_1px_8px_var(--color-shadow)]'
-          : 'bg-transparent'
-      )}
+    <motion.nav 
+      initial={{ y: -100, opacity: 0 }}
+      animate={{ y: 0, opacity: 1 }}
+      transition={{ duration: 0.6, ease: 'easeOut' }}
+      className={`fixed z-50 transition-all duration-500 ${
+        isScrolled 
+          ? 'top-4 left-4 right-4 bg-black/40 backdrop-blur-md border border-white/10 shadow-2xl rounded-2xl py-3 text-white' 
+          : 'top-0 left-0 right-0 bg-transparent shadow-none py-6 text-white'
+      }`}
     >
-      <div className="container-main">
-        <nav className="flex items-center justify-between h-16 md:h-18">
-          {/* Logo / Wordmark */}
-          <Link
-            href={localePath('/')}
-            className="flex items-center gap-2 group"
-            aria-label="NexPark home"
+      <div className="container mx-auto px-6 flex justify-between items-center">
+        <Link href="/" className="flex items-center space-x-2">
+          <span className="text-2xl font-bold text-white tracking-tight">NexPark</span>
+        </Link>
+
+        {/* Desktop Navigation */}
+        <div className="hidden md:flex items-center space-x-8">
+          <WavyNavLink onClick={() => handleNavClick('home')} className="text-white/80 hover:text-white font-medium transition-colors">Home</WavyNavLink>
+          <WavyNavLink onClick={() => handleNavClick('about')} className="text-white/80 hover:text-white font-medium transition-colors">About</WavyNavLink>
+          <WavyNavLink onClick={() => handleNavClick('features')} className="text-white/80 hover:text-white font-medium transition-colors">Features</WavyNavLink>
+          <WavyNavLink onClick={() => handleNavClick('pricing')} className="text-white/80 hover:text-white font-medium transition-colors">Pricing</WavyNavLink>
+          <WavyNavLink onClick={() => handleNavClick('contact')} className="text-white/80 hover:text-white font-medium transition-colors">Contact</WavyNavLink>
+          
+          <Button
+            onClick={() => handleNavClick('booking')}
+            variant="primary"
+            size="sm"
           >
-            {/* Emerald signal square */}
-            <span className="w-7 h-7 rounded-sm bg-[var(--color-accent)] flex items-center justify-center text-white font-black text-sm select-none">
-              N
-            </span>
-            <span className="font-extrabold text-lg tracking-tight text-[var(--color-ink)]">
-              Nex<span className="text-[var(--color-accent)]">Park</span>
-            </span>
-          </Link>
+            Get Started
+          </Button>
 
-          {/* Desktop nav */}
-          <div className="hidden md:flex items-center gap-6">
-            {navLinks.map((link) => (
-              <Link
-                key={link.href}
-                href={link.href}
-                className={cn(
-                  'text-sm font-medium text-[var(--color-muted)]',
-                  'hover:text-[var(--color-ink)] transition-colors duration-150',
-                  'relative after:absolute after:bottom-[-2px] after:left-0 after:w-0 after:h-[2px]',
-                  'after:bg-[var(--color-accent)] after:transition-all after:duration-200',
-                  'hover:after:w-full'
-                )}
-              >
-                {link.label}
-              </Link>
-            ))}
-          </div>
+          <Button
+            onClick={onToggleLogin}
+            variant="outline"
+            size="sm"
+            className={`flex items-center gap-2 border ${
+              isLoggedIn 
+                ? 'border-red-500/30 text-red-400 bg-red-500/10 hover:bg-red-500/20' 
+                : 'border-white/20 text-white hover:bg-white/10'
+            }`}
+          >
+            {isLoggedIn ? <LogOut className="w-4 h-4" /> : <LogIn className="w-4 h-4" />}
+            <span>{isLoggedIn ? 'Logout' : 'Login'}</span>
+          </Button>
+        </div>
 
-          {/* Right controls */}
-          <div className="flex items-center gap-2">
-            <LanguageSwitch className="hidden sm:flex" />
-            <ThemeToggle />
-            <Button
-              variant="primary"
-              size="sm"
-              className="hidden md:inline-flex"
-              onClick={() => window.location.href = localePath(ROUTES.BOOKING)}
-            >
-              {t('booking')}
-            </Button>
-
-            {/* Mobile hamburger */}
-            <button
-              onClick={() => setIsMobileOpen(!isMobileOpen)}
-              className="md:hidden p-2 rounded-btn border border-[var(--color-border)] text-[var(--color-muted)]"
-              aria-label="Toggle mobile menu"
-              aria-expanded={isMobileOpen}
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                {isMobileOpen
-                  ? <><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></>
-                  : <><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></>
-                }
-              </svg>
-            </button>
-          </div>
-        </nav>
-
-        {/* Mobile menu */}
-        {isMobileOpen && (
-          <div className="md:hidden border-t border-[var(--color-border)] bg-[var(--color-canvas)] py-4 space-y-1">
-            {navLinks.map((link) => (
-              <Link
-                key={link.href}
-                href={link.href}
-                onClick={() => setIsMobileOpen(false)}
-                className="block px-4 py-3 text-sm font-medium text-[var(--color-muted)] hover:text-[var(--color-ink)] hover:bg-[var(--color-surface-2)] rounded-btn transition-colors"
-              >
-                {link.label}
-              </Link>
-            ))}
-            <div className="px-4 pt-3 flex items-center gap-3">
-              <LanguageSwitch />
-              <Button variant="primary" size="sm" className="flex-1" onClick={() => window.location.href = localePath(ROUTES.BOOKING)}>
-                {t('booking')}
-              </Button>
-            </div>
-          </div>
-        )}
+        {/* Mobile Menu Button */}
+        <button
+          className="md:hidden text-white hover:text-emerald-400 transition-colors focus:outline-none"
+          onClick={() => setIsMenuOpen(!isMenuOpen)}
+          aria-label="Toggle menu"
+        >
+          {isMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+        </button>
       </div>
-    </header>
-  );
+
+      {/* Mobile Navigation */}
+      {isMenuOpen && (
+        <div className="md:hidden absolute top-full left-4 right-4 bg-black/90 backdrop-blur-md shadow-2xl border border-white/10 rounded-2xl p-4 mt-2">
+          <div className="flex flex-col space-y-4">
+            <button onClick={() => handleNavClick('home')} className="text-left text-white/80 hover:text-white py-2 font-medium">Home</button>
+            <button onClick={() => handleNavClick('about')} className="text-left text-white/80 hover:text-white py-2 font-medium">About</button>
+            <button onClick={() => handleNavClick('features')} className="text-left text-white/80 hover:text-white py-2 font-medium">Features</button>
+            <button onClick={() => handleNavClick('pricing')} className="text-left text-white/80 hover:text-white py-2 font-medium">Pricing</button>
+            <button onClick={() => handleNavClick('contact')} className="text-left text-white/80 hover:text-white py-2 font-medium">Contact</button>
+            
+            <Button
+              onClick={() => handleNavClick('booking')}
+              variant="primary"
+              size="md"
+              className="w-full text-center"
+            >
+              Get Started
+            </Button>
+            
+            <Button
+              onClick={() => { onToggleLogin(); setIsMenuOpen(false); }}
+              variant="outline"
+              size="md"
+              className={`w-full flex items-center justify-center gap-2 ${
+                isLoggedIn 
+                  ? 'border-red-500/30 text-red-400 bg-red-500/10' 
+                  : 'border-white/20 text-white hover:bg-white/10'
+              }`}
+            >
+              {isLoggedIn ? <LogOut className="w-5 h-5" /> : <LogIn className="w-5 h-5" />}
+              <span>{isLoggedIn ? 'Logout' : 'Login'}</span>
+            </Button>
+          </div>
+        </div>
+      )}
+    </motion.nav>
+  )
 }

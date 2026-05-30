@@ -1,7 +1,8 @@
 // ─── Auth Feature Public API ─────────────────────────────────────────
 // Export your auth components, hooks, and services here.
-// Example:
-// export { LoginForm } from './components/LoginForm';
-// export { useAuth } from './hooks/useAuth';
 
-export {};
+export { LoginForm } from './components/LoginForm';
+export { RegisterForm } from './components/RegisterForm';
+export { AuthDrawer } from './components/AuthDrawer';
+export { AuthProvider, useAuth } from './context/AuthContext';
+export type { User } from './context/AuthContext';

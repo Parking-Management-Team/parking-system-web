@@ -2788,34 +2788,42 @@ erDiagram
 
 **Architecture Principle:** This repository contains ONLY frontend code. No backend, database, or business logic. All data fetched from `NEXT_PUBLIC_API_BASE_URL`.
 
+**React & TypeScript Integration Principle:** 
+- **React (Next.js):** The primary UI library/framework. All components, layouts, pages, and interactive UI states are React-based.
+- **TypeScript:** The programming language used to develop all React code (`.ts` and `.tsx` files). Strong static typing is strictly enforced across the codebase (`npx tsc --noEmit`) to eliminate runtime UI bugs, define deterministic data interfaces, and maximize developer productivity via intelligent IDE autocomplete.
+- *Note:* React and TypeScript are used in synergy, not as alternatives. Every new feature developer must conform to high-quality Type-Safe React standards.
+
+
 ## 9.2 Source Code File Tree
 
 ```
 parking-system-web/
-├── DESIGN.md                          ← Stitch design system spec
-├── messages/vi.json & en.json         ← i18n translations (VI default)
-├── tailwind.config.ts                 ← Design tokens (Emerald/Deep Slate)
+├── DESIGN.md                          ← Stitch design system specification
+├── tailwind.config.ts                 ← Design tokens (Emerald/Slate, Custom Fonts)
+├── tsconfig.json                      ← Strict Type Safety configuration
+├── public/                            ← Static assets (Images, mockups, videos)
+│   ├── assets/
+│   │   ├── placeholders/              # Real-world parking & dashboard background images
+│   │   └── videos/                    # Dynamic media files
 └── src/
-    ├── app/[locale]/
-    │   ├── layout.tsx                 ← Root layout (Be Vietnam Pro, i18n)
-    │   ├── page.tsx                   ← Landing page (/)
-    │   ├── (public)/booking/          ← Web Booking for customers
-    │   ├── (public)/pricing/          ← Detailed pricing page
-    │   ├── (public)/parking-map/      ← Slot availability map
-    │   ├── (dashboard)/dashboard/     ← Operations overview
-    │   ├── (dashboard)/checkin/       ← Vehicle check-in
-    │   └── (dashboard)/checkout/      ← Vehicle check-out + fee
+    ├── app/                           ← Next.js App Router (Routing and Metadata only)
+    │   ├── (auth)/                    # Authentication routes (login, register)
+    │   ├── layout.tsx                 # Root layout (Plus Jakarta Sans / Inter, Providers)
+    │   └── page.tsx                   # Main Landing Page entry point
     ├── components/
-    │   ├── ui/                        ← Button, Card, Badge, PriceTag (reusable)
-    │   ├── layout/                    ← Navbar, ThemeToggle, LanguageSwitch
-    │   ├── sections/                  ← Hero, Features, HowItWorks, Pricing, UserTypes, CTA
-    │   └── domain/                    ← parking/, booking/, session/, payment/
-    ├── lib/
-    │   ├── api/client.ts              ← Base fetch wrapper
-    │   ├── hooks/                     ← useScrollReveal, useTheme
-    │   └── utils/format.ts            ← formatVND(), formatDateVI(), formatPlate()
-    └── constants/parking.constants.ts ← VNĐ pricing data, status enums
+    │   └── ui/                        # Reusable atomic UI components (Button, Input, Badge...)
+    ├── constants/                     # Project-wide global constant definitions
+    ├── features/                      # MODULE TÍNH NĂNG (Feature-Based Modules - Đóng gói khép kín logic)
+    │   ├── auth/                      # Module Auth: LoginForm, RegisterForm, AuthContext
+    │   ├── landing/                   # Module Landing: Hero, Features Bento Grid, CTA...
+    │   ├── booking/                   # Module Booking: Slot booking domain flow
+    │   ├── dashboard/                 # Module Dashboard: Admin, Staff, and Customer panels
+    │   └── parking-map/               # Module Live Parking Map: Interactive HUD & occupancy grid
+    ├── lib/                           # Global configurations, client wrappers, shared hooks
+    ├── types/                         # Shared TypeScript interface & type definitions
+    └── utils/                         # General helper utilities (VND formatting, Plate checkers)
 ```
+
 
 ## 9.3 NexPark Standard Pricing Tables
 

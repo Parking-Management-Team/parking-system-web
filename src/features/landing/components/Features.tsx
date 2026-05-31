@@ -2,15 +2,27 @@
 
 import { motion, type Variants } from 'framer-motion';
 import {
-  Building2,
+  MapPin,
   Calendar,
   CreditCard,
   DollarSign,
-  MapPin,
-  Clock,
   Shield,
+  Building2,
+  Clock,
   BarChart3,
+  Zap,
+  HardHat,
+  Users,
 } from 'lucide-react';
+
+const visionData = {
+  title: 'Our Vision',
+  subtitle: 'Transforming Urban Mobility Through Intelligence',
+  description: 'We envision cities where parking is seamless, sustainable, and stress-free. By integrating cutting-edge technology with urban infrastructure, we create intelligent parking solutions that reduce congestion, lower emissions, and enhance the quality of urban life for everyone.',
+  icon: Zap,
+  color: '#006d43',
+  bgColor: '#e7f5ef',
+};
 
 const features = [
   {
@@ -61,42 +73,55 @@ const features = [
     color: '#006d43',
     bgColor: '#e7f5ef',
   },
-  {
-    icon: Clock,
-    title: '24/7 Operation',
-    description:
-      'Continuous operation without session resets at midnight. Cross-window pricing calculation for multi-day parking sessions.',
-    color: '#006d43',
-    bgColor: '#e7f5ef',
-  },
-  {
-    icon: BarChart3,
-    title: 'Operation Dashboard',
-    description:
-      'Real-time occupancy rates, revenue tracking, and session monitoring. Comprehensive zone and slot status overview for managers.',
-    color: '#006d43',
-    bgColor: '#e7f5ef',
-  },
 ];
 
 const containerVariants: Variants = {
-  hidden: { opacity: 0 },
+  hidden: { opacity: 0, y: 20 },
   visible: {
     opacity: 1,
+    y: 0,
     transition: {
+      duration: 0.8,
+      ease: 'easeOut',
       staggerChildren: 0.1,
     },
   },
 };
 
 const itemVariants: Variants = {
-  hidden: { opacity: 0, y: 20 },
+  hidden: { opacity: 0, y: 20, scale: 0.95 },
   visible: {
     opacity: 1,
     y: 0,
+    scale: 1,
     transition: {
-      duration: 0.5,
+      duration: 0.6,
       ease: 'easeOut',
+    },
+  },
+};
+
+const visionVariants: Variants = {
+  hidden: { opacity: 0, x: -50 },
+  visible: {
+    opacity: 1,
+    x: 0,
+    transition: {
+      duration: 0.8,
+      ease: 'easeOut',
+    },
+  },
+};
+
+const featuresVariants: Variants = {
+  hidden: { opacity: 0, x: 50 },
+  visible: {
+    opacity: 1,
+    x: 0,
+    transition: {
+      duration: 0.8,
+      ease: 'easeOut',
+      delay: 0.2,
     },
   },
 };
@@ -105,130 +130,186 @@ export default function Features() {
   return (
     <section
       id="features"
-      className="relative pt-32 pb-24 overflow-hidden"
-      style={{ backgroundColor: '#f0f3ff' }}
+      className="relative pt-24 pb-20 overflow-hidden"
+      style={{ backgroundColor: '#f8fafc' }}
     >
       {/* Background decoration */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div
-          className="absolute -top-24 -right-24 w-96 h-96 rounded-full opacity-30 blur-3xl"
-          style={{ backgroundColor: '#d8e3fb' }}
+          className="absolute -top-16 -right-16 w-80 h-80 rounded-full opacity-20 blur-3xl"
+          style={{ backgroundColor: '#e0f2fe' }}
         />
         <div
-          className="absolute -bottom-24 -left-24 w-96 h-96 rounded-full opacity-30 blur-3xl"
-          style={{ backgroundColor: '#dee8ff' }}
+          className="absolute -bottom-16 -left-16 w-80 h-80 rounded-full opacity-20 blur-3xl"
+          style={{ backgroundColor: '#dcfce7' }}
         />
       </div>
 
       <div className="container relative z-10 mx-auto px-4 sm:px-6 lg:px-8 max-w-7xl">
-        {/* Section Header */}
+        {/* Vision Section */}
         <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.6 }}
-          className="text-center mt-12 mb-16"
-        >
-          <h2
-            className="text-4xl md:text-5xl font-bold mb-4"
-            style={{ color: '#111c2d', fontFamily: 'Inter, sans-serif' }}
-          >
-            Intelligent Core Systems
-          </h2>
-          <p
-            className="text-lg md:text-xl max-w-3xl mx-auto"
-            style={{ color: '#3d4a41', fontFamily: 'Inter, sans-serif' }}
-          >
-            Advanced technology modules integrated into a single, seamless
-            ecosystem for smarter cities.
-          </p>
-        </motion.div>
-
-        {/* Features Grid */}
-        <motion.div
-          variants={containerVariants}
+          variants={visionVariants}
           initial="hidden"
           whileInView="visible"
           viewport={{ once: true, margin: '-100px' }}
-          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6"
-        >
-          {features.map((feature, index) => {
-            const Icon = feature.icon;
-            return (
-              <motion.div
-                key={index}
-                variants={itemVariants}
-                whileHover={{
-                  y: -8,
-                  transition: { duration: 0.3, ease: 'easeOut' },
-                }}
-                className="group relative bg-white rounded-[1.5rem] p-6 transition-all duration-300"
-                style={{
-                  boxShadow: '0 4px 20px -2px rgba(27, 42, 65, 0.08)',
-                }}
-              >
-                {/* Icon Container */}
-                <div
-                  className="w-12 h-12 rounded-xl flex items-center justify-center mb-4 transition-all duration-300 group-hover:scale-110"
-                  style={{ backgroundColor: feature.bgColor }}
-                >
-                  <Icon
-                    className="w-6 h-6"
-                    style={{ color: feature.color }}
-                    strokeWidth={2}
-                  />
-                </div>
-
-                {/* Content */}
-                <h3
-                  className="text-lg font-semibold mb-2"
-                  style={{
-                    color: '#111c2d',
-                    fontFamily: 'Inter, sans-serif',
-                  }}
-                >
-                  {feature.title}
-                </h3>
-                <p
-                  className="text-sm leading-relaxed"
-                  style={{
-                    color: '#3d4a41',
-                    fontFamily: 'Inter, sans-serif',
-                  }}
-                >
-                  {feature.description}
-                </p>
-
-                {/* Hover Border Effect */}
-                <div
-                  className="absolute inset-0 rounded-[1.5rem] opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"
-                  style={{
-                    border: '2px solid #006d43',
-                  }}
-                />
-              </motion.div>
-            );
-          })}
-        </motion.div>
-
-        {/* Bottom CTA Section */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.6, delay: 0.3 }}
-          className="mt-16 text-center"
+          className="mb-16 text-center"
         >
           <div
-            className="inline-flex items-center gap-2 px-6 py-3 rounded-full text-sm font-medium"
+            className="inline-flex items-center gap-3 px-4 py-2 rounded-full text-sm font-medium mb-4"
             style={{
-              backgroundColor: '#e7f5ef',
-              color: '#006d43',
-              fontFamily: 'Inter, sans-serif',
+              backgroundColor: visionData.bgColor,
+              color: visionData.color,
             }}
           >
+            <visionData.icon className="w-4 h-4" />
+            <span>{visionData.title}</span>
+          </div>
+          <h2
+            className="text-3xl md:text-4xl font-bold mb-6"
+            style={{
+              color: '#1e293b',
+              fontFamily: 'Inter, sans-serif',
+              lineHeight: '1.2',
+            }}
+          >
+            {visionData.subtitle}
+          </h2>
+          <p
+            className="text-lg md:text-xl max-w-2xl mx-auto text-muted-foreground"
+            style={{
+              color: '#64748b',
+              fontFamily: 'Inter, sans-serif',
+              lineHeight: '1.6',
+            }}
+          >
+            {visionData.description}
+          </p>
+        </motion.div>
 
+        {/* Features Section */}
+        <motion.div
+          variants={featuresVariants}
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, margin: '-100px' }}
+          className="grid gap-8"
+        >
+          {/* Row 1 */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {features.slice(0, 3).map((feature, index) => {
+              const Icon = feature.icon;
+              return (
+                <motion.div
+                  key={index}
+                  variants={itemVariants}
+                  whileHover={{
+                    y: -4,
+                    scale: 1.02,
+                    transition: { duration: 0.3, ease: 'easeOut' },
+                  }}
+                  className="group relative bg-white rounded-xl p-6 border border-muted/20 transition-all duration-300 hover:shadow-lg"
+                >
+                  {/* Icon Container */}
+                  <div
+                    className="w-10 h-10 rounded-xl flex items-center justify-center mb-4 transition-all duration-300 group-hover:scale-110"
+                    style={{ backgroundColor: feature.bgColor }}
+                  >
+                    <Icon
+                      className="w-5 h-5"
+                      style={{ color: feature.color }}
+                      strokeWidth={1.5}
+                    />
+                  </div>
 
+                  {/* Content */}
+                  <h3
+                    className="text-lg font-semibold mb-2"
+                    style={{
+                      color: '#1e293b',
+                      fontFamily: 'Inter, sans-serif',
+                    }}
+                  >
+                    {feature.title}
+                  </h3>
+                  <p
+                    className="text-sm leading-relaxed text-muted-foreground"
+                    style={{
+                      color: '#64748b',
+                      fontFamily: 'Inter, sans-serif',
+                    }}
+                  >
+                    {feature.description}
+                  </p>
+
+                  {/* Hover Border Effect */}
+                  <div
+                    className="absolute inset-0 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"
+                    style={{
+                      border: '1px solid #006d43',
+                    }}
+                  />
+                </motion.div>
+              );
+            })}
+          </div>
+
+          {/* Row 2 */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {features.slice(3, 6).map((feature, index) => {
+              const Icon = feature.icon;
+              return (
+                <motion.div
+                  key={index + 3}
+                  variants={itemVariants}
+                  whileHover={{
+                    y: -4,
+                    scale: 1.02,
+                    transition: { duration: 0.3, ease: 'easeOut' },
+                  }}
+                  className="group relative bg-white rounded-xl p-6 border border-muted/20 transition-all duration-300 hover:shadow-lg"
+                >
+                  {/* Icon Container */}
+                  <div
+                    className="w-10 h-10 rounded-xl flex items-center justify-center mb-4 transition-all duration-300 group-hover:scale-110"
+                    style={{ backgroundColor: feature.bgColor }}
+                  >
+                    <Icon
+                      className="w-5 h-5"
+                      style={{ color: feature.color }}
+                      strokeWidth={1.5}
+                    />
+                  </div>
+
+                  {/* Content */}
+                  <h3
+                    className="text-lg font-semibold mb-2"
+                    style={{
+                      color: '#1e293b',
+                      fontFamily: 'Inter, sans-serif',
+                    }}
+                  >
+                    {feature.title}
+                  </h3>
+                  <p
+                    className="text-sm leading-relaxed text-muted-foreground"
+                    style={{
+                      color: '#64748b',
+                      fontFamily: 'Inter, sans-serif',
+                    }}
+                  >
+                    {feature.description}
+                  </p>
+
+                  {/* Hover Border Effect */}
+                  <div
+                    className="absolute inset-0 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"
+                    style={{
+                      border: '1px solid #006d43',
+                    }}
+                  />
+                </motion.div>
+              );
+            })}
           </div>
         </motion.div>
       </div>

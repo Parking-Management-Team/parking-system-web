@@ -43,7 +43,15 @@ parking-system-web/
 
 ## ⚡ Bắt Đầu Phát Triển Nhanh (Getting Started)
 
-Dự án sử dụng framework **Next.js** phiên bản mới nhất kết hợp với **TypeScript** và **Tailwind CSS**.
+Dự án sử dụng framework **Next.js** phiên bản mới nhất kết hợp đồng thời giữa **React** và **TypeScript** cùng **Tailwind CSS**.
+
+### 🔧 Nguyên tắc Công nghệ (React & TypeScript)
+
+Để tránh nhầm lẫn cho các thành viên mới tham gia phát triển:
+- **React (thông qua Next.js):** Là thư viện giao diện (UI Library) cốt lõi của ứng dụng. Tất cả các màn hình, component, layout và state trong dự án này đều chạy trên nền tảng React.
+- **TypeScript (TS):** Là ngôn ngữ lập trình chính. Tất cả mã nguồn React phải được viết chặt chẽ bằng TypeScript (các file `.ts` và `.tsx`) để hỗ trợ kiểm tra kiểu dữ liệu tĩnh (Static Typing), giúp phát hiện lỗi sớm khi viết code và nâng cao khả năng tự động gợi ý (Autocomplete).
+- **Lưu ý:** Chúng ta sử dụng cả hai công nghệ này bổ trợ cho nhau chứ không chọn một trong hai.
+
 
 ### 1. Cài đặt các gói phụ thuộc:
 ```bash

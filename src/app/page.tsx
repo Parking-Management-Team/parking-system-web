@@ -1,25 +1,57 @@
+/**
+ * Home Page (Trang chủ) - Landing Page NexPark
+ *
+ * Đây là trang chính của website, chứa toàn bộ nội dung landing page.
+ * URL: /
+ *
+ * Cấu trúc trang (theo thứ tự từ trên xuống):
+ * 1. Navigation  - Thanh menu cố định trên cùng
+ * 2. Hero        - Banner lớn với video nền + nút CTA
+ * 3. About       - Giới thiệu NexPark (Car, Bike, Manager)
+ * 4. Features    - Tính năng nổi bật (import từ features/landing)
+ * 5. How It Works - 3 bước đơn giản
+ * 6. Pricing     - Bảng giá (Day/Night, Motorcycle/Car, Monthly Pass)
+ * 7. Contact     - Form liên hệ
+ * 8. CTA         - Kêu gọi hành động cuối trang
+ * 9. Footer      - Chân trang
+ *
+ * Lưu ý: 'use client' vì dùng useState, useEffect (React hooks)
+ * Nếu không có 'use client', Next.js sẽ render component này ở server
+ */
+
 'use client'
 
 import Link from 'next/link'
-import { motion } from 'framer-motion'
+import { motion } from 'framer-motion'  // Thư viện animation
 import {
-  Car,
-  Bike,
-  Shield,
-  Clock,
-  MapPin,
-  Users,
-  Menu,
-  X,
-  LogIn,
-  LogOut
+  Car,        // Icon xe hơi
+  Bike,       // Icon xe máy
+  Shield,     // Icon khiên (bảo mật)
+  Clock,      // Icon đồng hồ
+  MapPin,     // Icon địa điểm
+  Users,      // Icon người dùng
+  Menu,       // Icon menu hamburger (mobile)
+  X,          // Icon đóng
+  LogIn,      // Icon đăng nhập
+  LogOut      // Icon đăng xuất
 } from 'lucide-react'
 import { useState, useEffect, useRef } from 'react'
-import TypewriterText from '@/components/ui/TypewriterText'
-import WavyNavLink from '@/components/ui/WavyNavLink'
-import Features from '@/features/landing/components/Features'
-import { useAuth, AuthDrawer } from '@/features/auth'
+import TypewriterText from '@/components/ui/TypewriterText'  // Hiệu ứng gõ chữ
+import WavyNavLink from '@/components/ui/WavyNavLink'        // Link có hiệu ứng sóng
+import Features from '@/features/landing/components/Features' // Component tính năng
+import { useAuth, AuthDrawer } from '@/features/auth'         // Auth context + drawer đăng nhập
 
+/**
+ * CountUp Component - Hiệu ứng đếm số tăng dần
+ *
+ * Khi người dùng cuộn đến phần tử này, số sẽ tự động đếm từ 0 đến giá trị end.
+ * Dùng cho thống kê: 500+, 10K+, 99.8%
+ *
+ * @param end - Giá trị cuối cùng (ví dụ: 500)
+ * @param duration - Thời gian đếm (ms, mặc định 2000)
+ * @param suffix - Ký tự thêm sau số (ví dụ: "+", "K+", "%")
+ * @param decimals - Số thập phân (ví dụ: 99.8 → decimals=1)
+ */
 interface CountUpProps {
   end: number;
   duration?: number;
@@ -75,7 +107,9 @@ const CountUp = ({
 
 
 
-// Mock data for pricing plans
+/* ===== MOCK DATA - Dữ liệu mẫu cho trang ===== */
+
+// Gói giá (không dùng trực tiếp trong JSX, có thể dùng sau)
 const pricingPlans = [
   {
     name: 'Hourly',
@@ -114,7 +148,7 @@ const pricingFeatures = [
   'Grace period'
 ]
 
-// Mock data for how it works
+// Các bước "How It Works" - hướng dẫn sử dụng
 const steps = [
   {
     number: '01',
@@ -133,35 +167,45 @@ const steps = [
   }
 ]
 
+/**
+ * Home Component - Trang chủ NexPark
+ *
+ * Đây là component chính của trang landing page.
+ * Chứa toàn bộ UI và logic cho trang chủ.
+ */
 export default function Home() {
-  const [isMenuOpen, setIsMenuOpen] = useState(false)
-  const [isScrolled, setIsScrolled] = useState(false)
-  const { user, logout } = useAuth()
-  const isLoggedIn = !!user
-  const [isAuthDrawerOpen, setIsAuthDrawerOpen] = useState(false)
-  const [authDrawerMode, setAuthDrawerMode] = useState<'login' | 'register'>('login')
-  const [rateType, setRateType] = useState<'day' | 'night'>('day')
+  /* ===== STATE - Trạng thái của component ===== */
+  const [isMenuOpen, setIsMenuOpen] = useState(false)           // Menu mobile đang mở/đóng
+  const [isScrolled, setIsScrolled] = useState(false)           // Đã cuộn trang chưa (đổi style navbar)
+  const { user, logout } = useAuth()                            // Lấy thông tin user từ AuthContext
+  const isLoggedIn = !!user                                     // !! chuyển giá trị thành boolean
+  const [isAuthDrawerOpen, setIsAuthDrawerOpen] = useState(false) // Drawer đăng nhập đang mở/đóng
+  const [authDrawerMode, setAuthDrawerMode] = useState<'login' | 'register'>('login') // Drawer ở chế độ login hay register
+  const [rateType, setRateType] = useState<'day' | 'night'>('day') // Bảng giá đang hiển thị ngày hay đêm
 
+  // Lắng nghe sự kiện cuộn trang để đổi style navbar
   useEffect(() => {
     const handleScroll = () => {
-      setIsScrolled(window.scrollY > 20)
+      setIsScrolled(window.scrollY > 20)  // Cuộn quá 20px → đổi style
     }
     window.addEventListener('scroll', handleScroll)
-    return () => window.removeEventListener('scroll', handleScroll)
+    return () => window.removeEventListener('scroll', handleScroll)  // Cleanup khi unmount
   }, [])
 
+  // Cuộn mượt đến section khi click nav link
   const scrollToSection = (id: string) => {
     const element = document.getElementById(id)
     if (element) {
-      element.scrollIntoView({ behavior: 'smooth' })
-      setIsMenuOpen(false)
+      element.scrollIntoView({ behavior: 'smooth' })  // Cuộn mượt
+      setIsMenuOpen(false)  // Đóng menu mobile sau khi click
     }
   }
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Navigation */}
-      <motion.nav 
+      {/* ===== NAVIGATION - Thanh menu cố định trên cùng ===== */}
+      {/* motion.nav = nav + animation (framer-motion) */}
+      <motion.nav
         initial={{ y: -100, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ duration: 0.6, ease: "easeOut" }}
@@ -252,7 +296,8 @@ export default function Home() {
         )}
       </motion.nav>
 
-      {/* Hero Section */}
+      {/* ===== HERO SECTION - Banner lớn đầu trang ===== */}
+      {/* Video nền + gradient overlay + tiêu đề + nút CTA + thống kê */}
       <section id="home" className="relative min-h-screen flex items-center justify-center overflow-hidden bg-black pt-20">
         {/* Background Video */}
         <video
@@ -347,7 +392,8 @@ export default function Home() {
         </div>
       </section>
 
-      {/* About Section */}
+      {/* ===== ABOUT SECTION - Giới thiệu NexPark ===== */}
+      {/* 3 thẻ card: Car Owners, Motorcycles, Managers */}
       <section id="about" className="section-padding bg-white">
         <div className="container mx-auto px-6 lg:px-12">
           <div className="text-center max-w-3xl mx-auto mb-16">
@@ -401,10 +447,12 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Bento Keynote Features HUD */}
+      {/* ===== FEATURES SECTION - Tính năng nổi bật ===== */}
+      {/* Component riêng, import từ features/landing/components/Features */}
       <Features />
 
-      {/* How It Works Section */}
+      {/* ===== HOW IT WORKS - 3 bước đơn giản ===== */}
+      {/* Choose Building → Book Your Spot → Pay & Park */}
       <section className="section-padding bg-primary-900 text-white">
         <div className="container mx-auto px-6 lg:px-12">
           <div className="text-center max-w-3xl mx-auto mb-16">
@@ -430,7 +478,8 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Pricing Section */}
+      {/* ===== PRICING SECTION - Bảng giá ===== */}
+      {/* Day/Night toggle + Motorcycle/Car cards + Monthly Pass */}
       <section id="pricing" className="section-padding bg-gray-50">
         <div className="container mx-auto px-6 lg:px-12 max-w-5xl">
           {/* Header */}
@@ -668,7 +717,8 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Contact Section */}
+      {/* ===== CONTACT SECTION - Form liên hệ ===== */}
+      {/* Thông tin liên hệ + Form gửi tin nhắn */}
       <section id="contact" className="section-padding bg-gray-50">
         <div className="container mx-auto px-6 lg:px-12">
           <div className="grid lg:grid-cols-2 gap-12">
@@ -758,7 +808,8 @@ export default function Home() {
         </div>
       </section>
 
-      {/* CTA Section */}
+      {/* ===== CTA SECTION - Kêu gọi hành động ===== */}
+      {/* Nút "Start Parking Now" và "Contact Sales" */}
       <section id="booking" className="section-padding bg-primary-600 text-white">
         <div className="container mx-auto px-6 lg:px-12 text-center">
           <h2 className="text-4xl md:text-5xl font-bold font-heading mb-6">Ready to Experience Smart Parking?</h2>
@@ -805,7 +856,8 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Footer */}
+      {/* ===== FOOTER - Chân trang ===== */}
+      {/* Logo + Quick Links + Services + Legal + Copyright */}
       <footer className="bg-gray-900 text-white py-16">
         <div className="container mx-auto px-6 lg:px-12">
           <div className="grid md:grid-cols-4 gap-12">
@@ -868,10 +920,12 @@ export default function Home() {
         </div>
       </footer>
 
+      {/* ===== AUTH DRAWER - Drawer đăng nhập/đăng ký ===== */}
+      {/* Hiện ra khi click "Login", "Get Started" */}
       <AuthDrawer
         isOpen={isAuthDrawerOpen}
-        onClose={() => setIsAuthDrawerOpen(false)}
-        initialMode={authDrawerMode}
+        onClose={() => setIsAuthDrawerOpen(false)}  // Đóng drawer
+        initialMode={authDrawerMode}                  // 'login' hoặc 'register'
       />
     </div>
   )

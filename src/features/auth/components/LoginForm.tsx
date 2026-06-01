@@ -1,3 +1,23 @@
+/**
+ * LoginForm Component - Form đăng nhập
+ *
+ * Component form đăng nhập với 2 chế độ hiển thị:
+ * 1. Modal mode (isModal=true): Hiển thị trong AuthDrawer (split layout)
+ * 2. Standalone mode (isModal=false): Hiển thị trên trang /login riêng
+ *
+ * Tính năng:
+ * - Đăng nhập bằng username hoặc email
+ * - Đăng nhập bằng Google (mock)
+ * - Show/hide password
+ * - Validation (kiểm tra dữ liệu trước khi submit)
+ * - Responsive: ẩn brand panel trên mobile
+ *
+ * @param isModal - Có phải đang hiển thị trong drawer/modal không
+ * @param onSuccess - Callback khi đăng nhập thành công (modal mode)
+ * @param onClose - Callback đóng form
+ * @param onSwitchMode - Callback chuyển sang register
+ */
+
 'use client';
 
 import * as React from 'react';

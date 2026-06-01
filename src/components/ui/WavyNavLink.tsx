@@ -1,3 +1,16 @@
+/**
+ * WavyNavLink Component - Link có hiệu ứng gạch chân khi hover
+ *
+ * Khi hover, gạch chân sẽ trượt từ trái sang phải.
+ * Dùng cho navigation links trên navbar.
+ *
+ * @param children - Text hiển thị
+ * @param onClick - Hàm xử lý khi click
+ *
+ * @example
+ * <WavyNavLink onClick={() => scrollToSection('home')}>Home</WavyNavLink>
+ */
+
 'use client'
 
 import { useState } from 'react'

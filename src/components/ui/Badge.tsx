@@ -1,3 +1,17 @@
+/**
+ * Badge Component - Nhãn trạng thái
+ *
+ * Hiển thị trạng thái của chỗ đỗ xe: available (trống), occupied (đã chiếm),
+ * reserved (đã đặt), inactive (không hoạt động).
+ *
+ * @param variant - Trạng thái: available, occupied, reserved, inactive, default
+ * @param dot - Hiển thị chấm tròn màu bên cạnh text
+ *
+ * @example
+ * <Badge variant="available" dot>Trống</Badge>
+ * <Badge variant="occupied">Đã chiếm</Badge>
+ */
+
 'use client';
 
 import * as React from 'react';

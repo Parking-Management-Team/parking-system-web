@@ -1,7 +1,10 @@
-// ─── Parking Map Feature Public API ──────────────────────────────────
-// Export your parking-map components, hooks, and services here.
-// Example:
-// export { SlotGrid } from './components/SlotGrid';
-// export { ZoneSelector } from './components/ZoneSelector';
+/**
+ * Parking Map Feature - Public API (Chưa triển khai)
+ *
+ * Feature bản đồ bãi đỗ xe (hiển thị slot trống/occupied).
+ * Sẽ bao gồm: SlotGrid, ZoneSelector, ParkingMap...
+ *
+ * Trạng thái: Placeholder (chưa có component)
+ */
 
 export {};

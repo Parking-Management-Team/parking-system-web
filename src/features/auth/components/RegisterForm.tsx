@@ -1,3 +1,23 @@
+/**
+ * RegisterForm Component - Form đăng ký tài khoản
+ *
+ * Component form đăng ký với 2 chế độ hiển thị:
+ * 1. Modal mode (isModal=true): Hiển thị trong AuthDrawer
+ * 2. Standalone mode (isModal=false): Hiển thị trên trang /register riêng
+ *
+ * Tính năng:
+ * - Đăng ký bằng: Full Name, Email, Phone, Password
+ * - Đăng ký bằng Google (mock)
+ * - Show/hide password + confirm password
+ * - Validation (kiểm tra email, password match, required fields)
+ * - Responsive: ẩn brand panel trên mobile
+ *
+ * @param isModal - Có phải đang hiển thị trong drawer/modal không
+ * @param onSuccess - Callback khi đăng ký thành công (modal mode)
+ * @param onClose - Callback đóng form
+ * @param onSwitchMode - Callback chuyển sang login
+ */
+
 'use client';
 
 import * as React from 'react';

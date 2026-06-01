@@ -1,3 +1,22 @@
+/**
+ * Navbar Component - Thanh điều hướng cố định trên cùng
+ *
+ * Thanh menu cố định (fixed) trên cùng trang, có 2 chế độ:
+ * - Chưa cuộn: trong suốt, chữ trắng
+ * - Đã cuộn: nền đen mờ (backdrop-blur), bo góc, shadow
+ *
+ * Bao gồm:
+ * - Logo "NexPark"
+ * - Navigation links: Home, About, Features, Pricing, Contact
+ * - Nút "Get Started" (cuộn đến section booking)
+ * - Nút Login/Logout
+ * - Menu mobile (hamburger)
+ *
+ * @param isLoggedIn - User đã đăng nhập chưa
+ * @param onLoginToggle - Hàm xử lý click Login/Logout
+ * @param scrollToSection - Hàm cuộn đến section
+ */
+
 'use client'
 
 import { useState, useEffect } from 'react'

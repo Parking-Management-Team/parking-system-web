@@ -1,7 +1,10 @@
-// ─── Monthly Card Feature Public API ─────────────────────────────────
-// Export your monthly-card components, hooks, and services here.
-// Example:
-// export { PassRegistrationForm } from './components/PassRegistrationForm';
-// export { PassCard } from './components/PassCard';
+/**
+ * Monthly Card Feature - Public API (Chưa triển khai)
+ *
+ * Feature thẻ tháng (monthly pass) cho xe gửi cố định.
+ * Sẽ bao gồm: PassRegistrationForm, PassCard, PassRenewal...
+ *
+ * Trạng thái: Placeholder (chưa có component)
+ */
 
 export {};

@@ -1,3 +1,20 @@
+/**
+ * API Client - HTTP client wrapper cho API calls
+ *
+ * Wrapper fetch API với các tính năng:
+ * - Tự động thêm base URL (APP_CONFIG.apiBaseUrl)
+ * - Timeout (APP_CONFIG.requestTimeout = 10s)
+ * - Xử lý lỗi tự động (throw ApiError)
+ * - Helper methods: api.get, api.post, api.put, api.delete
+ *
+ * @example
+ * // GET request
+ * const users = await api.get<User[]>('/users')
+ *
+ * // POST request
+ * const result = await api.post<User>('/users', { name: 'John' })
+ */
+
 import { APP_CONFIG } from '@/constants/config';
 
 // ─── Error class ───────────────────────────────────────────────────
@@ -44,7 +61,12 @@ export async function apiClient<T>(
   }
 }
 
-// ─── HTTP helpers ──────────────────────────────────────────────────
+/**
+ * HTTP Helper Methods
+ *
+ * Shortcut cho các method HTTP thường dùng.
+ * Tự động stringify body và set Content-Type: application/json.
+ */
 export const api = {
   get:    <T>(url: string, opts?: RequestInit) =>
     apiClient<T>(url, { method: 'GET', ...opts }),

@@ -1,3 +1,20 @@
+/**
+ * Input Component - Ô nhập liệu tái sử dụng
+ *
+ * Component input chuẩn với label, error message, helper text, và icon.
+ * Sử dụng React.forwardRef để có thể ref từ bên ngoài.
+ *
+ * @param label - Nhãn hiển thị phía trên input
+ * @param error - Thông báo lỗi (hiển thị màu đỏ)
+ * @param helperText - Text hướng dẫn (hiển thị khi không có lỗi)
+ * @param leftIcon - Icon bên trái input
+ * @param rightIcon - Icon bên phải input (ví dụ: nút show/hide password)
+ *
+ * @example
+ * <Input label="Email" placeholder="you@example.com" error={errors.email} />
+ * <Input label="Password" type="password" leftIcon={<LockIcon />} />
+ */
+
 'use client';
 
 import * as React from 'react';

@@ -5,15 +5,21 @@
  *
  * Chức năng chính:
  * 1. Lưu thông tin user (fullName, email, phone, role)
- * 2. Login bằng username/email + password (mock)
- * 3. Đăng ký tài khoản mới (mock)
- * 4. Đăng nhập bằng Google (mock)
- * 5. Logout
- * 6. Toast notification (thông báo nổi)
- * 7. Lưu session vào localStorage (duy trì đăng nhập khi reload)
+ * 2. Lưu JWT token vào localStorage (key: nexpark_token)
+ * 3. Login bằng username/email + password (hiện tại mock, khi có backend sẽ gọi API)
+ * 4. Đăng ký tài khoản mới (hiện tại mock)
+ * 5. Đăng nhập bằng Google (hiện tại mock)
+ * 6. Logout (xóa cả token + user khỏi localStorage)
+ * 7. Toast notification (thông báo nổi)
+ * 8. Khôi phục session từ localStorage khi reload (hydrate token + user)
  *
- * Lưu ý: Hiện tại dùng MOCK DATA (giả lập), chưa kết nối API thật.
- * Khi có backend, thay các hàm mock bằng API call thật.
+ * Cách dùng:
+ * const { user, isAuthenticated, login, logout } = useAuth()
+ *
+ * Khi có backend API thật:
+ * - Thay mock login bằng: const res = await api.post('/auth/login', { identifier, password })
+ * - API trả về: { accessToken: string, user: User }
+ * - Lưu token: localStorage.setItem('nexpark_token', res.accessToken)
  */
 
 'use client';
@@ -31,6 +37,7 @@ export interface User {
 /** Kiểu dữ liệu cho AuthContext */
 interface AuthContextType {
   user: User | null;
+  token: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
   login: (identifier: string, password: string) => Promise<User>;
@@ -44,18 +51,25 @@ const AuthContext = React.createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = React.useState<User | null>(null);
+  const [token, setToken] = React.useState<string | null>(null);
   const [isLoading, setIsLoading] = React.useState(true);
   const [toasts, setToasts] = React.useState<Array<{ id: string; message: string; type: 'success' | 'error' | 'info' }>>([]);
 
-  // Restore session from localStorage on mount
+  // Khôi phục session từ localStorage khi app mount
+  // Nếu có token + user trong localStorage → tự động đăng nhập lại
   React.useEffect(() => {
     try {
+      const storedToken = localStorage.getItem('nexpark_token');
       const storedUser = localStorage.getItem('nexpark_user');
-      if (storedUser) {
+      if (storedToken && storedUser) {
+        setToken(storedToken);
         setUser(JSON.parse(storedUser));
       }
     } catch (error) {
-      console.error('Failed to parse stored user:', error);
+      console.error('Failed to restore session:', error);
+      // Xóa dữ liệu lỗi để lần sau không bị nữa
+      localStorage.removeItem('nexpark_token');
+      localStorage.removeItem('nexpark_user');
     } finally {
       setIsLoading(false);
     }
@@ -64,8 +78,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const login = React.useCallback(async (identifier: string, password: string): Promise<User> => {
     setIsLoading(true);
     try {
+      // ─── MOCK: Khi có backend, thay đoạn này bằng API call ───
+      // const res = await api.post<{ accessToken: string; user: User }>('/auth/login', { identifier, password });
+      // localStorage.setItem('nexpark_token', res.accessToken);
+      // localStorage.setItem('nexpark_user', JSON.stringify(res.user));
+      // setToken(res.accessToken);
+      // setUser(res.user);
+      // return res.user;
+      // ─── END MOCK ───
+
       // Simulate network latency
       await new Promise((resolve) => setTimeout(resolve, 1500));
+
+      // Mock: tạo token giả lập
+      const mockToken = `mock_jwt_${Date.now()}_${Math.random().toString(36).substring(2)}`;
 
       // Mock user generation
       const mockUser: User = {
@@ -74,8 +100,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         role: 'user',
       };
 
-      setUser(mockUser);
+      // Lưu cả token + user vào localStorage
+      localStorage.setItem('nexpark_token', mockToken);
       localStorage.setItem('nexpark_user', JSON.stringify(mockUser));
+      setToken(mockToken);
+      setUser(mockUser);
       return mockUser;
     } finally {
       setIsLoading(false);
@@ -103,14 +132,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Simulate account validation and loading state progression
       await new Promise((resolve) => setTimeout(resolve, 1800));
 
+      const mockToken = `mock_google_jwt_${Date.now()}`;
       const mockGoogleUser: User = {
         fullName: 'NexPark Driver',
         email: 'driver@nexpark.com',
         role: 'user',
       };
 
-      setUser(mockGoogleUser);
+      localStorage.setItem('nexpark_token', mockToken);
       localStorage.setItem('nexpark_user', JSON.stringify(mockGoogleUser));
+      setToken(mockToken);
+      setUser(mockGoogleUser);
       return mockGoogleUser;
     } finally {
       setIsLoading(false);
@@ -119,6 +151,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = React.useCallback(() => {
     setUser(null);
+    setToken(null);
+    localStorage.removeItem('nexpark_token');
     localStorage.removeItem('nexpark_user');
   }, []);
 
@@ -132,14 +166,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const value = React.useMemo(() => ({
     user,
-    isAuthenticated: !!user,
+    token,
+    isAuthenticated: !!token && !!user,
     isLoading,
     login,
     register,
     loginWithGoogle,
     logout,
     showToast,
-  }), [user, isLoading, login, register, loginWithGoogle, logout, showToast]);
+  }), [user, token, isLoading, login, register, loginWithGoogle, logout, showToast]);
 
   return (
     <AuthContext.Provider value={value}>

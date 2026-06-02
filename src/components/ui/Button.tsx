@@ -1,3 +1,18 @@
+/**
+ * Button Component - Nút bấm tái sử dụng
+ *
+ * Component nút bấm chuẩn cho toàn bộ ứng dụng NexPark.
+ * Hỗ trợ nhiều variant (kiểu dáng) và size (kích thước).
+ *
+ * @param variant - Kiểu nút: primary (xanh), secondary (đen), outline (viền), ghost (trong suốt), link (liên kết), danger (đỏ)
+ * @param size - Kích thước: sm, md, lg
+ *
+ * @example
+ * <Button variant="primary" size="md">Click me</Button>
+ * <Button variant="outline" size="sm">Cancel</Button>
+ * <Button variant="danger">Delete</Button>
+ */
+
 'use client';
 
 import * as React from 'react';

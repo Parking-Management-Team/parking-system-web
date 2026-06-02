@@ -1,7 +1,26 @@
+/**
+ * AuthContext - Context quản lý xác thực (authentication)
+ *
+ * Cung cấp thông tin đăng nhập cho toàn bộ ứng dụng thông qua React Context.
+ *
+ * Chức năng chính:
+ * 1. Lưu thông tin user (fullName, email, phone, role)
+ * 2. Login bằng username/email + password (mock)
+ * 3. Đăng ký tài khoản mới (mock)
+ * 4. Đăng nhập bằng Google (mock)
+ * 5. Logout
+ * 6. Toast notification (thông báo nổi)
+ * 7. Lưu session vào localStorage (duy trì đăng nhập khi reload)
+ *
+ * Lưu ý: Hiện tại dùng MOCK DATA (giả lập), chưa kết nối API thật.
+ * Khi có backend, thay các hàm mock bằng API call thật.
+ */
+
 'use client';
 
 import * as React from 'react';
 
+/** Kiểu dữ liệu User */
 export interface User {
   fullName: string;
   email: string;
@@ -9,6 +28,7 @@ export interface User {
   role?: string;
 }
 
+/** Kiểu dữ liệu cho AuthContext */
 interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;

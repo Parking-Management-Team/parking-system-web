@@ -1,3 +1,26 @@
+/**
+ * Select Component - Dropdown chọn lựa tái sử dụng
+ *
+ * Component select với label, error message, placeholder, và custom arrow.
+ * Sử dụng React.forwardRef để có thể ref từ bên ngoài.
+ *
+ * @param label - Nhãn hiển thị phía trên select
+ * @param error - Thông báo lỗi
+ * @param helperText - Text hướng dẫn
+ * @param options - Danh sách lựa chọn [{ value, label, disabled }]
+ * @param placeholder - Text mặc định khi chưa chọn
+ *
+ * @example
+ * <Select
+ *   label="Loại xe"
+ *   options={[
+ *     { value: 'MOTORBIKE', label: 'Xe máy' },
+ *     { value: 'CAR', label: 'Xe hơi' },
+ *   ]}
+ *   placeholder="Chọn loại xe"
+ * />
+ */
+
 'use client';
 
 import * as React from 'react';

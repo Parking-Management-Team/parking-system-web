@@ -1,3 +1,22 @@
+/**
+ * Card Component - Thẻ container tái sử dụng
+ *
+ * Component card với shadow, border, và hiệu ứng hover.
+ * Bao gồm các sub-component: CardHeader, CardTitle, CardDescription.
+ *
+ * @param hover - Bật hiệu ứng nổi lên khi hover
+ * @param noPad - Bỏ padding mặc định
+ *
+ * @example
+ * <Card hover>
+ *   <CardHeader>
+ *     <CardTitle>Tiêu đề</CardTitle>
+ *     <CardDescription>Mô tả</CardDescription>
+ *   </CardHeader>
+ *   <p>Nội dung</p>
+ * </Card>
+ */
+
 import * as React from 'react';
 import { cn } from '@/lib/utils/cn';
 

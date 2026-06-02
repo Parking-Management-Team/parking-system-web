@@ -1,3 +1,17 @@
+/**
+ * Textarea Component - Ô nhập liệu nhiều dòng
+ *
+ * Component textarea với label, error message, helper text.
+ * Có thể kéo giãn (resize-y) theo chiều dọc.
+ *
+ * @param label - Nhãn hiển thị phía trên
+ * @param error - Thông báo lỗi
+ * @param helperText - Text hướng dẫn
+ *
+ * @example
+ * <Textarea label="Tin nhắn" placeholder="Nhập tin nhắn..." rows={4} />
+ */
+
 'use client';
 
 import * as React from 'react';

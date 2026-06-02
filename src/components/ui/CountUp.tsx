@@ -1,3 +1,19 @@
+/**
+ * CountUp Component - Hiệu ứng đếm số tăng dần
+ *
+ * Khi người dùng cuộn đến phần tử này, số sẽ tự động đếm từ 0 đến giá trị end.
+ * Dùng cho thống kê trên landing page: "500+", "10K+", "99.8%"
+ *
+ * @param end - Giá trị cuối cùng (ví dụ: 500)
+ * @param duration - Thời gian đếm (ms, mặc định 2000)
+ * @param suffix - Ký tự thêm sau số (ví dụ: "+", "K+", "%")
+ * @param decimals - Số thập phân (ví dụ: 99.8 → decimals=1)
+ *
+ * @example
+ * <CountUp end={500} suffix="+" />         → "500+"
+ * <CountUp end={99.8} suffix="%" decimals={1} />  → "99.8%"
+ */
+
 'use client'
 
 import { useState, useEffect, useRef } from 'react'

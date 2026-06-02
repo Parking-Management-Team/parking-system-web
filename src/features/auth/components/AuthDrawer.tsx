@@ -1,3 +1,21 @@
+/**
+ * AuthDrawer Component - Drawer toàn màn hình cho Login/Register
+ *
+ * Component drawer (tấm kéo) toàn màn hình, hiển thị LoginForm hoặc RegisterForm.
+ * Được sử dụng khi user click "Login" hoặc "Get Started" trên landing page.
+ *
+ * Tính năng:
+ * - Toàn màn hình (fullscreen drawer)
+ * - Chuyển đổi giữa Login và Register (animation trượt)
+ * - Đóng bằng nút X hoặc phím Escape
+ * - Backdrop overlay (nền tối mờ phía sau)
+ * - Animation: trượt từ phải vào (spring animation)
+ *
+ * @param isOpen - Drawer đang mở/đóng
+ * @param onClose - Callback đóng drawer
+ * @param initialMode - Chế độ ban đầu: 'login' hoặc 'register'
+ */
+
 'use client';
 
 import * as React from 'react';

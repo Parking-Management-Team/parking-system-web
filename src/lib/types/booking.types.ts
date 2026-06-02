@@ -1,5 +1,15 @@
+/**
+ * Booking Types - Kiểu dữ liệu đặt chỗ
+ *
+ * Booking: Đơn đặt chỗ đỗ xe trước
+ * BookingInput: Dữ liệu đầu vào khi tạo booking mới
+ *
+ * Luồng: PENDING → CONFIRMED → CHECKED_IN → (hoàn thành) / EXPIRED / CANCELLED
+ */
+
 import { BookingStatus, VehicleType } from '@/constants/parking.constants';
 
+/** Đơn đặt chỗ */
 export interface Booking {
   id: string;
   code: string;

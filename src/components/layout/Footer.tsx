@@ -1,3 +1,15 @@
+/**
+ * Footer Component - Chân trang
+ *
+ * Chân trang với 4 cột:
+ * 1. Logo + mô tả + social links (f, t, in)
+ * 2. Quick Links: Home, About, Features, Pricing, Contact
+ * 3. Services: Smart Spot Allocation, Predictive Booking...
+ * 4. Legal: Privacy Policy, Terms of Service...
+ *
+ * @param scrollToSection - Hàm cuộn đến section khi click link
+ */
+
 'use client'
 
 interface FooterProps {

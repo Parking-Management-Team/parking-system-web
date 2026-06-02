@@ -1,62 +1,94 @@
+/**
+ * Globals.css - CSS toàn cục cho NexPark
+ *
+ * File này chứa:
+ * 1. Import Tailwind CSS (base, components, utilities)
+ * 2. CSS Variables - màu sắc dùng chung qua biến CSS
+ * 3. Custom classes - các class tự tạo dùng lại nhiều lần
+ *
+ * Lưu ý: Tailwind dùng @layer để phân loại CSS theo ưu tiên:
+ *   - base: reset CSS cơ bản
+ *   - components: class cho component
+ *   - utilities: class tiện ích (ưu tiên cao nhất)
+ */
+
+/* ===== IMPORT TAILWIND ===== */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+/* ===== CSS VARIABLES - Màu sắc dùng chung ===== */
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
-    --primary: 142.1 76.2% 36.3%;
-    --primary-foreground: 355.7 100% 97.3%;
-    --accent: 142.1 70.6% 45.3%;
-    --accent-foreground: 0 0% 100%;
+    --background: 0 0% 100%;           /* Nền trắng */
+    --foreground: 222.2 84% 4.9%;      /* Chữ đen */
+    --primary: 142.1 76.2% 36.3%;      /* Màu chính - xanh lá */
+    --primary-foreground: 355.7 100% 97.3%; /* Chữ trên nền primary */
+    --accent: 142.1 70.6% 45.3%;       /* Màu nhấn */
+    --accent-foreground: 0 0% 100%;    /* Chữ trên nền accent */
   }
 
+  /* Reset border mặc định */
   * {
     @apply border-gray-200;
   }
 
+  /* Style mặc định cho body */
   body {
     @apply bg-white text-gray-900;
   }
 }
 
+/* ===== CUSTOM CLASSES - Class tự tạo dùng lại nhiều lần ===== */
 @layer utilities {
+  /* Căn đều chữ, tránh chữ bị rơi xuống dòng lẻ */
   .text-balance {
     text-wrap: balance;
   }
-  
+
+  /* ===== ANIMATION - Hiệu ứng khi cuộn trang ===== */
+  /* Class này kết hợp với JavaScript (IntersectionObserver) để animate khi element xuất hiện */
   .animate-on-scroll {
-    opacity: 0;
-    transform: translateY(30px);
+    opacity: 0;                           /* Mặc định ẩn */
+    transform: translateY(30px);          /* Dịch xuống 30px */
     transition: opacity 0.6s ease-out, transform 0.6s ease-out;
   }
-  
+
   .animate-on-scroll.visible {
-    opacity: 1;
-    transform: translateY(0);
+    opacity: 1;                           /* Hiện ra */
+    transform: translateY(0);             /* Về vị trí ban đầu */
   }
 
+  /* ===== TEXT STYLES ===== */
+  /* Chữ gradient xanh lá - dùng cho tiêu đề nổi bật */
   .gradient-text {
     @apply bg-gradient-to-r from-primary-600 to-accent bg-clip-text text-transparent;
   }
 
+  /* ===== BUTTON STYLES ===== */
+  /* Nút chính - nền xanh, chữ trắng */
   .btn-primary {
     @apply bg-primary-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-primary-700 transition-all duration-300 hover:scale-105 hover:shadow-lg;
   }
 
+  /* Nút phụ - nền trắng, viền xanh */
   .btn-secondary {
     @apply bg-white text-primary-600 border-2 border-primary-600 px-6 py-3 rounded-lg font-semibold hover:bg-primary-50 transition-all duration-300 hover:scale-105;
   }
 
+  /* Nút trong suốt - không nền, chỉ hiện khi hover */
   .btn-ghost {
     @apply text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-100 transition-all duration-200;
   }
 
+  /* ===== CARD STYLE ===== */
+  /* Thẻ card với shadow, có hiệu ứng nổi lên khi hover */
   .card {
     @apply bg-white rounded-2xl shadow-lg p-8 hover:shadow-2xl transition-all duration-300 hover:-translate-y-1;
   }
 
+  /* ===== SECTION PADDING ===== */
+  /* Khoảng cách cho mỗi section (responsive) */
   .section-padding {
     @apply py-20 px-6 md:px-12 lg:px-24;
   }

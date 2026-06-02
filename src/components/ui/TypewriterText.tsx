@@ -1,3 +1,18 @@
+/**
+ * TypewriterText Component - Hiệu ứng gõ chữ
+ *
+ * Hiển thị hiệu ứng gõ chữ từng ký tự, rồi xóa và chuyển sang từ tiếp theo.
+ * Dùng trên Hero section: "Smart Parking", "Real-time Tracking"...
+ *
+ * @param words - Mảng các từ/cụm từ sẽ hiển thị lần lượt
+ * @param typingSpeed - Tốc độ gõ (ms/ký tự, mặc định 80)
+ * @param deletingSpeed - Tốc độ xóa (ms/ký tự, mặc định 40)
+ * @param delayBetweenWords - Thời gian dừng trước khi xóa (ms, mặc định 2000)
+ *
+ * @example
+ * <TypewriterText words={["Smart Parking", "Real-time Tracking", "Easy Booking"]} />
+ */
+
 'use client'
 
 import { useState, useEffect } from 'react'

@@ -40,4 +40,4 @@ yarn-error.log*
 *.sw?
 
 # Agent temp/run files
-.agents/
+.openclaude/

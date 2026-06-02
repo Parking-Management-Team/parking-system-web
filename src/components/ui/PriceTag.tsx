@@ -1,3 +1,20 @@
+/**
+ * PriceTag Component - Hiển thị giá tiền VNĐ
+ *
+ * Component hiển thị giá tiền với định dạng Việt Nam (VNĐ).
+ * Hỗ trợ compact mode cho số lớn (ví dụ: "1,5 triệu ₫").
+ *
+ * @param amount - Số tiền (đơn vị VNĐ)
+ * @param compact - Hiển thị ngắn gọn cho số lớn
+ * @param size - Kích thước: sm, md, lg
+ * @param accent - Dùng màu nhấn (xanh lá)
+ *
+ * @example
+ * <PriceTag amount={30000} />              → "30.000 ₫"
+ * <PriceTag amount={1500000} compact />    → "1,5 triệu ₫"
+ * <PriceTag amount={5000} size="lg" accent />
+ */
+
 import { cn } from '@/lib/utils/cn';
 import { formatVND } from '@/lib/utils/format';
 

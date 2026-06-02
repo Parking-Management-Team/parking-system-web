@@ -1,3 +1,18 @@
+/**
+ * Features Component - Section tính năng nổi bật
+ *
+ * Hiển thị "Our Vision" và 6 tính năng chính của NexPark:
+ * 1. Real-time Occupancy Tracking - Theo dõi chỗ đỗ real-time
+ * 2. Smart Booking System - Đặt chỗ trước
+ * 3. Monthly Card Management - Quản lý thẻ tháng
+ * 4. Dynamic Pricing Engine - Giá động theo giờ
+ * 5. Integrated Payment System - Thanh toán tích hợp
+ * 6. Multi-Vehicle Support - Hỗ trợ nhiều loại xe
+ *
+ * Component này được import vào page.tsx (landing page).
+ * Sử dụng framer-motion cho animation (fade in, hover effects).
+ */
+
 'use client';
 
 import { motion, type Variants } from 'framer-motion';
@@ -15,6 +30,7 @@ import {
   Users,
 } from 'lucide-react';
 
+// Dữ liệu cho section "Our Vision"
 const visionData = {
   title: 'Our Vision',
   subtitle: 'Transforming Urban Mobility Through Intelligence',

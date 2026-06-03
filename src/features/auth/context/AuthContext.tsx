@@ -16,7 +16,6 @@
 
 import * as React from 'react';
 import { api } from '@/lib/api/client';
-import { APP_CONFIG } from '@/constants/config';
 
 /** 
  * Kiểu dữ liệu thông tin User hiển thị trên giao diện Frontend

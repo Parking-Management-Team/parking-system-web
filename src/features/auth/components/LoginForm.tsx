@@ -22,9 +22,28 @@
 
 import * as React from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { Eye, EyeOff, ArrowRight, Mail, Lock, X } from 'lucide-react';
 import { useAuth } from '@/features/auth';
+
+interface GoogleCredentialResponse {
+  credential?: string;
+  select_by?: string;
+}
+
+interface GoogleAccounts {
+  id: {
+    initialize: (config: { client_id: string; callback: (res: GoogleCredentialResponse) => void }) => void;
+    renderButton: (element: HTMLElement, options: Record<string, unknown>) => void;
+  };
+}
+
+interface CustomWindow extends Window {
+  google?: {
+    accounts?: GoogleAccounts;
+  };
+}
 
 export interface LoginFormProps {
   isModal?: boolean;
@@ -81,7 +100,7 @@ export function LoginForm({ isModal = false, onSuccess, onClose, onSwitchMode }:
   };
 
   // Callback xử lý kết quả trả về từ popup Google Đăng nhập thành công
-  const handleGoogleCredentialResponse = React.useCallback(async (response: any) => {
+  const handleGoogleCredentialResponse = React.useCallback(async (response: GoogleCredentialResponse) => {
     setGoogleLoading(true);
     setErrors({});
     try {
@@ -92,8 +111,9 @@ export function LoginForm({ isModal = false, onSuccess, onClose, onSwitchMode }:
       } else {
         router.push('/');
       }
-    } catch (err: any) {
-      setErrors({ form: err.message || 'Failed to sign in with Google' });
+    } catch (err: unknown) {
+      const errMsg = err instanceof Error ? err.message : 'Failed to sign in with Google';
+      setErrors({ form: errMsg });
     } finally {
       setGoogleLoading(false);
     }
@@ -104,7 +124,8 @@ export function LoginForm({ isModal = false, onSuccess, onClose, onSwitchMode }:
     let intervalId: NodeJS.Timeout;
 
     const initGoogleBtn = () => {
-      const google = (window as any).google;
+      const customWindow = window as unknown as CustomWindow;
+      const google = customWindow.google;
       if (google && google.accounts && google.accounts.id) {
         google.accounts.id.initialize({
           client_id: '768808098768-vop4tnm5u22h8stb6464bqtogse2rqvm.apps.googleusercontent.com',
@@ -126,11 +147,13 @@ export function LoginForm({ isModal = false, onSuccess, onClose, onSwitchMode }:
     };
 
     // Kiểm tra định kỳ xem SDK Google đã load xong chưa
-    if ((window as any).google) {
+    const customWindow = window as unknown as CustomWindow;
+    if (customWindow.google) {
       initGoogleBtn();
     } else {
       intervalId = setInterval(() => {
-        if ((window as any).google) {
+        const checkWindow = window as unknown as CustomWindow;
+        if (checkWindow.google) {
           initGoogleBtn();
           clearInterval(intervalId);
         }
@@ -321,10 +344,13 @@ export function LoginForm({ isModal = false, onSuccess, onClose, onSwitchMode }:
           {/* Left panel – brand */}
           <div className="hidden lg:flex w-[45%] flex-shrink-0 relative bg-[#0f172a] overflow-hidden">
             {/* Background city image */}
-            <img
+            <Image
               src="/assets/placeholders/nexpark_hero_parking_1780061652243.png"
               alt="NexPark Smart City"
-              className="absolute inset-0 w-full h-full object-cover brightness-[0.4] scale-105"
+              fill
+              sizes="45vw"
+              priority
+              className="object-cover brightness-[0.4] scale-105"
             />
             {/* Emerald ambient */}
             <div className="absolute top-1/3 right-0 w-72 h-72 bg-emerald-500/15 rounded-full blur-[100px] pointer-events-none" />
@@ -383,10 +409,13 @@ export function LoginForm({ isModal = false, onSuccess, onClose, onSwitchMode }:
     <div className="w-full min-h-screen flex bg-white overflow-hidden">
       {/* Left – Brand Panel */}
       <div className="hidden lg:flex w-[45%] flex-shrink-0 relative bg-[#0f172a] h-screen overflow-hidden">
-        <img
+        <Image
           src="/assets/placeholders/nexpark_hero_parking_1780061652243.png"
           alt="NexPark Smart City"
-          className="absolute inset-0 w-full h-full object-cover brightness-[0.4] scale-105"
+          fill
+          sizes="45vw"
+          priority
+          className="object-cover brightness-[0.4] scale-105"
         />
         <div className="absolute top-1/3 right-0 w-80 h-80 bg-emerald-500/15 rounded-full blur-[100px] pointer-events-none" />
         <div className="absolute bottom-1/4 left-0 w-80 h-80 bg-emerald-700/10 rounded-full blur-[100px] pointer-events-none" />

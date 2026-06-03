@@ -109,45 +109,6 @@ const CountUp = ({
 
 /* ===== MOCK DATA - Dữ liệu mẫu cho trang ===== */
 
-// Gói giá (không dùng trực tiếp trong JSX, có thể dùng sau)
-const pricingPlans = [
-  {
-    name: 'Hourly',
-    price: '$2',
-    period: '/hour',
-    features: ['Instant access', 'Real-time availability', 'Mobile payment', 'No deposit required'],
-    popular: false
-  },
-  {
-    name: 'Daily',
-    price: '$15',
-    period: '/day',
-    features: ['All hourly benefits', 'Overnight parking', 'Zone reservation', 'Priority access'],
-    popular: true
-  },
-  {
-    name: 'Monthly',
-    price: '$250',
-    period: '/month',
-    features: ['All daily benefits', 'Dedicated parking spot', 'Unlimited entries', 'Monthly billing', 'Grace period'],
-    popular: false
-  }
-]
-
-const pricingFeatures = [
-  'Instant access',
-  'Real-time availability',
-  'Mobile payment',
-  'No deposit required',
-  'Overnight parking',
-  'Zone reservation',
-  'Priority access',
-  'Dedicated parking spot',
-  'Unlimited entries',
-  'Monthly billing',
-  'Grace period'
-]
-
 // Các bước "How It Works" - hướng dẫn sử dụng
 const steps = [
   {

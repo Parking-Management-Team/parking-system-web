@@ -15,6 +15,7 @@ import './globals.css'
 import type { Metadata } from 'next'
 import { Inter, Plus_Jakarta_Sans } from 'next/font/google'
 import { AuthProvider } from '@/features/auth'
+import Script from 'next/script'
 
 // Font chính cho body text (nội dung thường)
 const inter = Inter({
@@ -60,6 +61,8 @@ export default function RootLayout({
         <AuthProvider>
           {children}
         </AuthProvider>
+        {/* Load Google Identity Services SDK */}
+        <Script src="https://accounts.google.com/gsi/client" strategy="afterInteractive" />
       </body>
     </html>
   )

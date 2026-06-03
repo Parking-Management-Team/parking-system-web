@@ -10,6 +10,24 @@ export interface User {
   role?: string;
 }
 
+interface LoginResponseDto {
+  token: string;
+  expiration: string;
+  accountId: number;
+  username: string;
+  email: string;
+  fullName: string;
+  roleName: string;
+}
+
+interface BaseResponse<T> {
+  success: boolean;
+  data: T;
+  message?: string;
+  errorCode?: string;
+  errors?: Record<string, string[]>;
+}
+
 interface AuthContextType {
   user: User | null;                          // Thông tin người dùng hiện tại (null nếu chưa đăng nhập)
   token: string | null;                        // JWT Token hiện tại (null nếu chưa đăng nhập)

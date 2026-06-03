@@ -12,17 +12,20 @@
 
 // ─── App Config ───────────────────────────────────────────────────
 export const APP_CONFIG = {
-  name:        process.env.NEXT_PUBLIC_APP_NAME ?? 'NexPark',
-  apiBaseUrl:  process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:8080/api/v1',
-  appUrl:      process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000',
+  name: process.env.NEXT_PUBLIC_APP_NAME ?? 'NexPark',
+  apiBaseUrl: process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:8080/api/v1',
+  appUrl: process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000',
+
+  // Google Client ID dùng cho đăng nhập Google OAuth
+  googleClientId: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ?? '768808098768-vop4tnm5u22h8stb6464bqtogse2rqvm.apps.googleusercontent.com',
 
   // API settings
   requestTimeout: 10_000, // ms
-  retryAttempts:  2,
+  retryAttempts: 2,
 
   // Booking rules
-  bookingMinHours:    1,
-  bookingMaxHours:    8,
-  noShowGracePeriod:  45, // minutes
+  bookingMinHours: 1,
+  bookingMaxHours: 8,
+  noShowGracePeriod: 45, // minutes
   gracePeriodMinutes: 15, // rounding grace
 } as const;

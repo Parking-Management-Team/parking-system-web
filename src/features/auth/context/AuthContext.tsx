@@ -1,32 +1,26 @@
 /**
- * AuthContext - Context quản lý xác thực (authentication)
+ * AuthContext - Quản lý trạng thái Xác thực (Authentication State Management)
  *
- * Cung cấp thông tin đăng nhập cho toàn bộ ứng dụng thông qua React Context.
+ * File này dùng React Context để tạo ra một "kho dữ liệu chung" về trạng thái đăng nhập
+ * cho toàn bộ dự án Frontend NexPark. Tất cả các component con đều có thể dùng chung 
+ * thông tin đăng nhập, token, hàm login, logout... mà không cần truyền props lòng vòng.
  *
- * Chức năng chính:
- * 1. Lưu thông tin user (fullName, email, phone, role)
- * 2. Lưu JWT token vào localStorage (key: nexpark_token)
- * 3. Login bằng username/email + password (hiện tại mock, khi có backend sẽ gọi API)
- * 4. Đăng ký tài khoản mới (hiện tại mock)
- * 5. Đăng nhập bằng Google (hiện tại mock)
- * 6. Logout (xóa cả token + user khỏi localStorage)
- * 7. Toast notification (thông báo nổi)
- * 8. Khôi phục session từ localStorage khi reload (hydrate token + user)
- *
- * Cách dùng:
- * const { user, isAuthenticated, login, logout } = useAuth()
- *
- * Khi có backend API thật:
- * - Thay mock login bằng: const res = await api.post('/auth/login', { identifier, password })
- * - API trả về: { accessToken: string, user: User }
- * - Lưu token: localStorage.setItem('nexpark_token', res.accessToken)
+ * Luồng hoạt động chính:
+ * 1. Khởi động (Hydration): Đọc `localStorage` xem trước đó có token/user chưa. Nếu có -> Tự động đăng nhập lại.
+ * 2. Đăng nhập thường: Gọi API Backend `/api/auth/login`, nhận JWT token -> Lưu vào localStorage & State.
+ * 3. Đăng nhập Google: Nhận Google ID Token từ UI -> Gửi lên API Backend `/api/auth/google` -> Nhận JWT hệ thống -> Lưu lại.
+ * 4. Đăng xuất: Xóa toàn bộ token & user trong cả State và localStorage.
  */
 
 'use client';
 
 import * as React from 'react';
+import { api } from '@/lib/api/client';
+import { APP_CONFIG } from '@/constants/config';
 
-/** Kiểu dữ liệu User */
+/** 
+ * Kiểu dữ liệu thông tin User hiển thị trên giao diện Frontend
+ */
 export interface User {
   fullName: string;
   email: string;
@@ -34,40 +28,80 @@ export interface User {
   role?: string;
 }
 
-/** Kiểu dữ liệu cho AuthContext */
-interface AuthContextType {
-  user: User | null;
-  token: string | null;
-  isAuthenticated: boolean;
-  isLoading: boolean;
-  login: (identifier: string, password: string) => Promise<User>;
-  register: (fullName: string, email: string, phone: string, password: string) => Promise<void>;
-  loginWithGoogle: () => Promise<User>;
-  logout: () => void;
-  showToast: (message: string, type?: 'success' | 'error' | 'info') => void;
+/** 
+ * Cấu trúc dữ liệu nhận về từ API Đăng nhập thành công của Backend (.NET API)
+ * Trùng khớp với DTO LoginResponseDto.cs ở phía Backend
+ */
+interface LoginResponseDto {
+  token: string;        // JWT Token để gửi lên Header các API yêu cầu đăng nhập
+  expiration: string;   // Thời gian hết hạn của Token
+  accountId: number;    // ID tài khoản trong DB
+  username: string;     // Tên tài khoản
+  email: string;        // Email
+  fullName: string;     // Họ và tên thật
+  roleName: string;     // Quyền hạn (Admin, Driver, Staff...)
 }
 
+/** 
+ * Cấu trúc Response chuẩn hóa chung (Envelope Pattern) từ Backend
+ * Trùng khớp với BaseResponse.cs ở phía Backend
+ */
+interface BaseResponse<T> {
+  success: boolean;                           // API chạy thành công hay thất bại
+  data: T;                                    // Dữ liệu chính trả về (ở đây là LoginResponseDto)
+  message?: string;                           // Thông báo từ server
+  errorCode?: string;                         // Mã lỗi nếu success = false
+  errors?: Record<string, string[]>;         // Chi tiết lỗi validate các trường dữ liệu
+}
+
+/** 
+ * Định nghĩa tất cả các dữ liệu và hàm mà AuthContext sẽ cung cấp ra ngoài
+ */
+interface AuthContextType {
+  user: User | null;                          // Thông tin người dùng hiện tại (null nếu chưa đăng nhập)
+  token: string | null;                        // JWT Token hiện tại (null nếu chưa đăng nhập)
+  isAuthenticated: boolean;                   // Flag kiểm tra nhanh xem đã đăng nhập chưa
+  isLoading: boolean;                         // Trạng thái đang tải (đang gọi API, đang hồi phục session...)
+  login: (identifier: string, password: string) => Promise<User>; // Hàm đăng nhập thường
+  register: (fullName: string, email: string, phone: string, password: string) => Promise<void>; // Hàm đăng ký
+  loginWithGoogle: (idToken?: string) => Promise<User>; // Hàm đăng nhập Google
+  logout: () => void;                         // Hàm đăng xuất
+  showToast: (message: string, type?: 'success' | 'error' | 'info') => void; // Hàm hiển thị thông báo nhanh
+}
+
+// Khởi tạo React Context
 const AuthContext = React.createContext<AuthContextType | undefined>(undefined);
 
+/**
+ * Provider Component - Bọc quanh ứng dụng ở file layout gốc
+ * Chứa logic quản lý State và thực hiện các cuộc gọi API.
+ */
 export function AuthProvider({ children }: { children: React.ReactNode }) {
+  // State lưu thông tin User và JWT Token
   const [user, setUser] = React.useState<User | null>(null);
   const [token, setToken] = React.useState<string | null>(null);
   const [isLoading, setIsLoading] = React.useState(true);
+  
+  // State quản lý danh sách Toast thông báo nổi trên góc màn hình
   const [toasts, setToasts] = React.useState<Array<{ id: string; message: string; type: 'success' | 'error' | 'info' }>>([]);
 
-  // Khôi phục session từ localStorage khi app mount
-  // Nếu có token + user trong localStorage → tự động đăng nhập lại
+  /**
+   * EFFECT: Khôi phục Session tự động (Hydration)
+   * Chạy duy nhất 1 lần khi trang web vừa được tải xong trên trình duyệt.
+   * Giúp người dùng không bị mất trạng thái đăng nhập khi bấm F5 reload trang.
+   */
   React.useEffect(() => {
     try {
       const storedToken = localStorage.getItem('nexpark_token');
       const storedUser = localStorage.getItem('nexpark_user');
+      
       if (storedToken && storedUser) {
         setToken(storedToken);
         setUser(JSON.parse(storedUser));
       }
     } catch (error) {
-      console.error('Failed to restore session:', error);
-      // Xóa dữ liệu lỗi để lần sau không bị nữa
+      console.error('Không thể phục hồi phiên đăng nhập:', error);
+      // Xóa dữ liệu lỗi nếu có lỗi parse JSON để tránh bị lỗi lặp lại ở lần sau
       localStorage.removeItem('nexpark_token');
       localStorage.removeItem('nexpark_user');
     } finally {
@@ -75,49 +109,56 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  /**
+   * HÀM ĐĂNG NHẬP THƯỜNG (EMAIL + PASSWORD)
+   * Gọi POST request đến API `/auth/login` của Backend.
+   */
   const login = React.useCallback(async (identifier: string, password: string): Promise<User> => {
     setIsLoading(true);
     try {
-      // ─── MOCK: Khi có backend, thay đoạn này bằng API call ───
-      // const res = await api.post<{ accessToken: string; user: User }>('/auth/login', { identifier, password });
-      // localStorage.setItem('nexpark_token', res.accessToken);
-      // localStorage.setItem('nexpark_user', JSON.stringify(res.user));
-      // setToken(res.accessToken);
-      // setUser(res.user);
-      // return res.user;
-      // ─── END MOCK ───
+      // 1. Gọi API đến Backend. baseUrl tự động gắn ở api client (ví dụ http://localhost:5029/api)
+      const res = await api.post<BaseResponse<LoginResponseDto>>('/auth/login', {
+        email: identifier, // 'identifier' từ form đăng nhập đóng vai trò làm email gửi lên
+        password: password
+      });
 
-      // Simulate network latency
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+      // 2. Kiểm tra xem Backend trả về thành công không
+      if (!res.success || !res.data) {
+        throw new Error(res.message || 'Đăng nhập thất bại');
+      }
 
-      // Mock: tạo token giả lập
-      const mockToken = `mock_jwt_${Date.now()}_${Math.random().toString(36).substring(2)}`;
-
-      // Mock user generation
-      const mockUser: User = {
-        fullName: identifier.includes('@') ? identifier.split('@')[0] : identifier,
-        email: identifier.includes('@') ? identifier : `${identifier}@nexpark.com`,
-        role: 'user',
+      // 3. Chuẩn hóa dữ liệu user từ Backend về kiểu User hiển thị ở Frontend
+      const systemUser: User = {
+        fullName: res.data.fullName || res.data.username,
+        email: res.data.email || '',
+        role: res.data.roleName,
       };
 
-      // Lưu cả token + user vào localStorage
-      localStorage.setItem('nexpark_token', mockToken);
-      localStorage.setItem('nexpark_user', JSON.stringify(mockUser));
-      setToken(mockToken);
-      setUser(mockUser);
-      return mockUser;
+      // 4. Lưu JWT Token và thông tin User vào localStorage để lưu trữ lâu dài
+      localStorage.setItem('nexpark_token', res.data.token);
+      localStorage.setItem('nexpark_user', JSON.stringify(systemUser));
+      
+      // 5. Cập nhật State để các Component React vẽ lại giao diện đăng nhập thành công
+      setToken(res.data.token);
+      setUser(systemUser);
+      
+      return systemUser;
     } finally {
       setIsLoading(false);
     }
   }, []);
 
+  /**
+   * HÀM ĐĂNG KÝ TÀI KHOẢN (MOCK)
+   * Hiện tại Backend chưa có API đăng ký, Frontend đang lưu giả lập trong localStorage
+   */
   const register = React.useCallback(async (fullName: string, email: string, phone: string, password: string): Promise<void> => {
     setIsLoading(true);
     try {
-      // Simulate network latency
+      // Giả lập độ trễ mạng 1.5s
       await new Promise((resolve) => setTimeout(resolve, 1500));
 
-      // Store a mock registration record in localStorage for future validation
+      // Lưu tài khoản đăng ký tạm thời vào localStorage để phục vụ kiểm thử
       const registeredUsers = JSON.parse(localStorage.getItem('nexpark_registered_users') || '[]');
       registeredUsers.push({ fullName, email, phone, password });
       localStorage.setItem('nexpark_registered_users', JSON.stringify(registeredUsers));
@@ -126,29 +167,58 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  const loginWithGoogle = React.useCallback(async (): Promise<User> => {
+  /**
+   * HÀM ĐĂNG NHẬP GOOGLE
+   * Nhận ID Token từ SDK Google ở Frontend -> Gửi lên API Backend `/auth/google`.
+   */
+  const loginWithGoogle = React.useCallback(async (idToken?: string): Promise<User> => {
     setIsLoading(true);
     try {
-      // Simulate account validation and loading state progression
-      await new Promise((resolve) => setTimeout(resolve, 1800));
+      let tokenToSend = idToken;
 
-      const mockToken = `mock_google_jwt_${Date.now()}`;
-      const mockGoogleUser: User = {
-        fullName: 'NexPark Driver',
-        email: 'driver@nexpark.com',
-        role: 'user',
+      // Hỗ trợ kiểm thử UI: Nếu click nút mà chưa cấu hình SDK Google lấy token thật,
+      // hệ thống sẽ tự động dùng Token giả lập gửi lên Backend để bạn kiểm thử luồng API.
+      if (!tokenToSend) {
+        console.warn('Cảnh báo: Không nhận được Google ID Token thật. Hệ thống sẽ tự động dùng mã mock.');
+        await new Promise((resolve) => setTimeout(resolve, 1500));
+        tokenToSend = "mock_google_id_token_from_frontend";
+      }
+
+      // 1. Gửi ID Token nhận từ Google lên API của bạn
+      const res = await api.post<BaseResponse<LoginResponseDto>>('/auth/google', {
+        idToken: tokenToSend
+      });
+
+      // 2. Kiểm tra xem Backend đăng nhập Google thành công không
+      if (!res.success || !res.data) {
+        throw new Error(res.message || 'Đăng nhập bằng Google thất bại');
+      }
+
+      // 3. Chuẩn hóa dữ liệu trả về từ Backend
+      const systemUser: User = {
+        fullName: res.data.fullName || res.data.username,
+        email: res.data.email || '',
+        role: res.data.roleName,
       };
 
-      localStorage.setItem('nexpark_token', mockToken);
-      localStorage.setItem('nexpark_user', JSON.stringify(mockGoogleUser));
-      setToken(mockToken);
-      setUser(mockGoogleUser);
-      return mockGoogleUser;
+      // 4. Lưu trữ vào localStorage
+      localStorage.setItem('nexpark_token', res.data.token);
+      localStorage.setItem('nexpark_user', JSON.stringify(systemUser));
+      
+      // 5. Cập nhật State
+      setToken(res.data.token);
+      setUser(systemUser);
+      
+      return systemUser;
     } finally {
       setIsLoading(false);
     }
   }, []);
 
+  /**
+   * HÀM ĐĂNG XUẤT
+   * Xóa sạch các thông tin đăng nhập ở cả Local Storage và State của ứng dụng.
+   */
   const logout = React.useCallback(() => {
     setUser(null);
     setToken(null);
@@ -156,6 +226,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.removeItem('nexpark_user');
   }, []);
 
+  /**
+   * HÀM HIỂN THỊ TOAST THÔNG BÁO (SUCCESS / ERROR / INFO)
+   * Tạo ra các thông báo nổi ở góc màn hình và tự biến mất sau 4 giây.
+   */
   const showToast = React.useCallback((message: string, type: 'success' | 'error' | 'info' = 'info') => {
     const id = Math.random().toString(36).substring(2, 9);
     setToasts((prev) => [...prev, { id, message, type }]);
@@ -164,10 +238,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }, 4000);
   }, []);
 
+  // Đóng gói tất cả các State và hàm vào 1 object duy nhất để truyền xuống các Component con
   const value = React.useMemo(() => ({
     user,
     token,
-    isAuthenticated: !!token && !!user,
+    isAuthenticated: !!token && !!user, // Đã đăng nhập khi có cả token và thông tin user
     isLoading,
     login,
     register,
@@ -179,7 +254,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   return (
     <AuthContext.Provider value={value}>
       {children}
-      {/* Sleek Floating Toast Container */}
+      
+      {/* Sleek Floating Toast Container - Khu vực hiển thị danh sách các thông báo nổi */}
       <div className="fixed top-6 right-6 z-[9999] flex flex-col gap-3 pointer-events-none max-w-sm w-full">
         {toasts.map((toast) => (
           <div
@@ -192,7 +268,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 : 'bg-black/90 border-blue-500/30 text-white'
             }`}
           >
-            {/* Status Indicator Circle */}
+            {/* Vòng tròn trạng thái nhấp nháy */}
             <div className="relative flex-shrink-0 flex items-center justify-center">
               <span className={`w-2.5 h-2.5 rounded-full animate-ping absolute opacity-75 ${
                 toast.type === 'success' ? 'bg-emerald-400' : toast.type === 'error' ? 'bg-rose-400' : 'bg-blue-400'
@@ -202,6 +278,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               }`} />
             </div>
             
+            {/* Nội dung thông báo */}
             <div className="flex-grow space-y-0.5 select-none">
               <p className={`text-[10px] font-mono uppercase tracking-widest ${
                 toast.type === 'success' ? 'text-emerald-400' : toast.type === 'error' ? 'text-rose-400' : 'text-blue-400'
@@ -213,7 +290,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               </p>
             </div>
 
-            {/* Micro Timer Bar */}
+            {/* Thanh đếm ngược thời gian chạy dưới cùng của Toast */}
             <div className={`absolute bottom-0 left-0 h-1 animate-toast-progress w-full ${
               toast.type === 'success' ? 'bg-emerald-500' : toast.type === 'error' ? 'bg-rose-500' : 'bg-blue-500'
             }`} />
@@ -224,6 +301,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
+/**
+ * Custom Hook: useAuth
+ * Dùng để gọi nhanh thông tin đăng nhập trong các Component con.
+ * Tránh việc phải gọi React.useContext(AuthContext) thủ công ở mọi nơi.
+ * 
+ * @example
+ * const { user, logout } = useAuth();
+ */
 export function useAuth() {
   const context = React.useContext(AuthContext);
   if (context === undefined) {

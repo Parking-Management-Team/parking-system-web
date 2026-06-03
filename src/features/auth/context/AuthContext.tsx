@@ -1,25 +1,8 @@
-/**
- * AuthContext - Quản lý trạng thái Xác thực (Authentication State Management)
- *
- * File này dùng React Context để tạo ra một "kho dữ liệu chung" về trạng thái đăng nhập
- * cho toàn bộ dự án Frontend NexPark. Tất cả các component con đều có thể dùng chung 
- * thông tin đăng nhập, token, hàm login, logout... mà không cần truyền props lòng vòng.
- *
- * Luồng hoạt động chính:
- * 1. Khởi động (Hydration): Đọc `localStorage` xem trước đó có token/user chưa. Nếu có -> Tự động đăng nhập lại.
- * 2. Đăng nhập thường: Gọi API Backend `/api/auth/login`, nhận JWT token -> Lưu vào localStorage & State.
- * 3. Đăng nhập Google: Nhận Google ID Token từ UI -> Gửi lên API Backend `/api/auth/google` -> Nhận JWT hệ thống -> Lưu lại.
- * 4. Đăng xuất: Xóa toàn bộ token & user trong cả State và localStorage.
- */
-
 'use client';
 
 import * as React from 'react';
 import { api } from '@/lib/api/client';
 
-/** 
- * Kiểu dữ liệu thông tin User hiển thị trên giao diện Frontend
- */
 export interface User {
   fullName: string;
   email: string;
@@ -27,35 +10,6 @@ export interface User {
   role?: string;
 }
 
-/** 
- * Cấu trúc dữ liệu nhận về từ API Đăng nhập thành công của Backend (.NET API)
- * Trùng khớp với DTO LoginResponseDto.cs ở phía Backend
- */
-interface LoginResponseDto {
-  token: string;        // JWT Token để gửi lên Header các API yêu cầu đăng nhập
-  expiration: string;   // Thời gian hết hạn của Token
-  accountId: number;    // ID tài khoản trong DB
-  username: string;     // Tên tài khoản
-  email: string;        // Email
-  fullName: string;     // Họ và tên thật
-  roleName: string;     // Quyền hạn (Admin, Driver, Staff...)
-}
-
-/** 
- * Cấu trúc Response chuẩn hóa chung (Envelope Pattern) từ Backend
- * Trùng khớp với BaseResponse.cs ở phía Backend
- */
-interface BaseResponse<T> {
-  success: boolean;                           // API chạy thành công hay thất bại
-  data: T;                                    // Dữ liệu chính trả về (ở đây là LoginResponseDto)
-  message?: string;                           // Thông báo từ server
-  errorCode?: string;                         // Mã lỗi nếu success = false
-  errors?: Record<string, string[]>;         // Chi tiết lỗi validate các trường dữ liệu
-}
-
-/** 
- * Định nghĩa tất cả các dữ liệu và hàm mà AuthContext sẽ cung cấp ra ngoài
- */
 interface AuthContextType {
   user: User | null;                          // Thông tin người dùng hiện tại (null nếu chưa đăng nhập)
   token: string | null;                        // JWT Token hiện tại (null nếu chưa đăng nhập)
@@ -80,7 +34,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = React.useState<User | null>(null);
   const [token, setToken] = React.useState<string | null>(null);
   const [isLoading, setIsLoading] = React.useState(true);
-  
+
   // State quản lý danh sách Toast thông báo nổi trên góc màn hình
   const [toasts, setToasts] = React.useState<Array<{ id: string; message: string; type: 'success' | 'error' | 'info' }>>([]);
 
@@ -93,7 +47,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const storedToken = localStorage.getItem('nexpark_token');
       const storedUser = localStorage.getItem('nexpark_user');
-      
+
       if (storedToken && storedUser) {
         setToken(storedToken);
         setUser(JSON.parse(storedUser));
@@ -136,11 +90,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // 4. Lưu JWT Token và thông tin User vào localStorage để lưu trữ lâu dài
       localStorage.setItem('nexpark_token', res.data.token);
       localStorage.setItem('nexpark_user', JSON.stringify(systemUser));
-      
+
       // 5. Cập nhật State để các Component React vẽ lại giao diện đăng nhập thành công
       setToken(res.data.token);
       setUser(systemUser);
-      
+
       return systemUser;
     } finally {
       setIsLoading(false);
@@ -203,11 +157,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // 4. Lưu trữ vào localStorage
       localStorage.setItem('nexpark_token', res.data.token);
       localStorage.setItem('nexpark_user', JSON.stringify(systemUser));
-      
+
       // 5. Cập nhật State
       setToken(res.data.token);
       setUser(systemUser);
-      
+
       return systemUser;
     } finally {
       setIsLoading(false);
@@ -253,35 +207,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   return (
     <AuthContext.Provider value={value}>
       {children}
-      
+
       {/* Sleek Floating Toast Container - Khu vực hiển thị danh sách các thông báo nổi */}
       <div className="fixed top-6 right-6 z-[9999] flex flex-col gap-3 pointer-events-none max-w-sm w-full">
         {toasts.map((toast) => (
           <div
             key={toast.id}
-            className={`pointer-events-auto p-4 rounded-xl shadow-2xl border backdrop-blur-md transition-all duration-300 transform translate-y-0 animate-slide-in flex items-center gap-3 overflow-hidden relative ${
-              toast.type === 'success'
+            className={`pointer-events-auto p-4 rounded-xl shadow-2xl border backdrop-blur-md transition-all duration-300 transform translate-y-0 animate-slide-in flex items-center gap-3 overflow-hidden relative ${toast.type === 'success'
                 ? 'bg-black/90 border-emerald-500/30 text-white'
                 : toast.type === 'error'
-                ? 'bg-black/90 border-rose-500/30 text-white'
-                : 'bg-black/90 border-blue-500/30 text-white'
-            }`}
+                  ? 'bg-black/90 border-rose-500/30 text-white'
+                  : 'bg-black/90 border-blue-500/30 text-white'
+              }`}
           >
             {/* Vòng tròn trạng thái nhấp nháy */}
             <div className="relative flex-shrink-0 flex items-center justify-center">
-              <span className={`w-2.5 h-2.5 rounded-full animate-ping absolute opacity-75 ${
-                toast.type === 'success' ? 'bg-emerald-400' : toast.type === 'error' ? 'bg-rose-400' : 'bg-blue-400'
-              }`} />
-              <span className={`w-2 h-2 rounded-full ${
-                toast.type === 'success' ? 'bg-emerald-500' : toast.type === 'error' ? 'bg-rose-500' : 'bg-blue-500'
-              }`} />
+              <span className={`w-2.5 h-2.5 rounded-full animate-ping absolute opacity-75 ${toast.type === 'success' ? 'bg-emerald-400' : toast.type === 'error' ? 'bg-rose-400' : 'bg-blue-400'
+                }`} />
+              <span className={`w-2 h-2 rounded-full ${toast.type === 'success' ? 'bg-emerald-500' : toast.type === 'error' ? 'bg-rose-500' : 'bg-blue-500'
+                }`} />
             </div>
-            
+
             {/* Nội dung thông báo */}
             <div className="flex-grow space-y-0.5 select-none">
-              <p className={`text-[10px] font-mono uppercase tracking-widest ${
-                toast.type === 'success' ? 'text-emerald-400' : toast.type === 'error' ? 'text-rose-400' : 'text-blue-400'
-              }`}>
+              <p className={`text-[10px] font-mono uppercase tracking-widest ${toast.type === 'success' ? 'text-emerald-400' : toast.type === 'error' ? 'text-rose-400' : 'text-blue-400'
+                }`}>
                 {toast.type === 'success' ? 'System Success' : toast.type === 'error' ? 'System Alert' : 'System Notice'}
               </p>
               <p className="text-sm font-semibold text-gray-200 leading-relaxed font-heading">
@@ -290,9 +240,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             </div>
 
             {/* Thanh đếm ngược thời gian chạy dưới cùng của Toast */}
-            <div className={`absolute bottom-0 left-0 h-1 animate-toast-progress w-full ${
-              toast.type === 'success' ? 'bg-emerald-500' : toast.type === 'error' ? 'bg-rose-500' : 'bg-blue-500'
-            }`} />
+            <div className={`absolute bottom-0 left-0 h-1 animate-toast-progress w-full ${toast.type === 'success' ? 'bg-emerald-500' : toast.type === 'error' ? 'bg-rose-500' : 'bg-blue-500'
+              }`} />
           </div>
         ))}
       </div>

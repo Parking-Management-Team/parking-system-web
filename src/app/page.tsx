@@ -59,11 +59,11 @@ interface CountUpProps {
   decimals?: number;
 }
 
-const CountUp = ({ 
-  end, 
-  duration = 2000, 
-  suffix = '', 
-  decimals = 0 
+const CountUp = ({
+  end,
+  duration = 2000,
+  suffix = '',
+  decimals = 0
 }: CountUpProps) => {
   const [count, setCount] = useState(0);
   const elementRef = useRef<HTMLSpanElement>(null);
@@ -107,9 +107,7 @@ const CountUp = ({
 
 
 
-/* ===== MOCK DATA - Dữ liệu mẫu cho trang ===== */
-
-// Các bước "How It Works" - hướng dẫn sử dụng
+// Mock data for how it works
 const steps = [
   {
     number: '01',
@@ -285,17 +283,17 @@ export default function Home() {
               className="space-y-8 flex flex-col items-center justify-center w-full"
             >
               <h1 className="text-5xl lg:text-8xl font-extrabold font-heading text-white leading-tight tracking-tight text-center">
-                Park Smarter with <br/>
+                Park Smarter with <br />
                 <span className="gradient-text font-black">
-                  <TypewriterText 
-                    words={["NexPark.", "Efficiency.", "Automation."]} 
-                    typingSpeed={90} 
-                    deletingSpeed={45} 
+                  <TypewriterText
+                    words={["NexPark.", "Efficiency.", "Automation."]}
+                    typingSpeed={90}
+                    deletingSpeed={45}
                     delayBetweenWords={2500}
                   />
                 </span>
               </h1>
-              
+
               <p className="text-xl text-gray-300 max-w-2xl font-light leading-relaxed mx-auto text-center">
                 Experience the ultimate luxury of space optimization. NexPark delivers artificial intelligence driven spot allocation, predictive booking, and zero-wait payments.
               </p>
@@ -463,8 +461,8 @@ export default function Home() {
               <button
                 onClick={() => setRateType('day')}
                 className={`px-6 py-2.5 rounded-full font-medium transition-all flex items-center space-x-2 ${rateType === 'day'
-                    ? 'bg-emerald-500 text-white shadow-md'
-                    : 'text-gray-600 hover:text-gray-900'
+                  ? 'bg-emerald-500 text-white shadow-md'
+                  : 'text-gray-600 hover:text-gray-900'
                   }`}
               >
                 <span>☀️</span>
@@ -473,8 +471,8 @@ export default function Home() {
               <button
                 onClick={() => setRateType('night')}
                 className={`px-6 py-2.5 rounded-full font-medium transition-all flex items-center space-x-2 ${rateType === 'night'
-                    ? 'bg-gray-800 text-white shadow-md'
-                    : 'text-gray-600 hover:text-gray-900'
+                  ? 'bg-gray-800 text-white shadow-md'
+                  : 'text-gray-600 hover:text-gray-900'
                   }`}
               >
                 <span>🌙</span>
@@ -778,7 +776,7 @@ export default function Home() {
             Join thousands of satisfied users who have transformed their parking experience with NexPark.
           </p>
           <div className="flex flex-col sm:flex-row justify-center gap-4">
-            <motion.button 
+            <motion.button
               whileHover={{ scale: 1.05, y: -4 }}
               whileTap={{ scale: 0.97 }}
               transition={{ duration: 0.2, ease: "easeOut" }}
@@ -796,7 +794,7 @@ export default function Home() {
             >
               Start Parking Now
             </motion.button>
-            <motion.button 
+            <motion.button
               whileHover={{ scale: 1.05, y: -4 }}
               whileTap={{ scale: 0.97 }}
               transition={{ duration: 0.2, ease: "easeOut" }}

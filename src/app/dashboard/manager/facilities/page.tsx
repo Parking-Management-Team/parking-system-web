@@ -293,7 +293,7 @@ export default function FacilityManagementPage() {
           </div>
           <div className="flex shrink-0 gap-3">
             <Link
-              href="/dashboard/manager/edit-facility"
+              href="/dashboard/manager/facilities/edit"
               className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-emerald-500 text-white hover:bg-emerald-600 text-sm font-semibold rounded-[12px] transition-all shadow-md shadow-emerald-500/10"
             >
               <span className="material-symbols-outlined text-lg">edit</span>

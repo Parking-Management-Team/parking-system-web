@@ -22,8 +22,8 @@ export default function DashboardRedirect() {
       // Chưa đăng nhập -> quay về trang chủ
       router.replace('/');
     } else if (user.role === 'MANAGER') {
-      // Vai trò Manager -> điều hướng đến trang quản lý cơ sở
-      router.replace('/dashboard/manager/facilities');
+      // Vai trò Manager -> điều hướng đến trang dashboard tổng
+      router.replace('/dashboard/manager');
     } else {
       // Các vai trò khác (Staff, Admin) -> tạm thời quay về trang chủ hoặc trang tương ứng
       router.replace('/');

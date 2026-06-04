@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { useAuth } from '@/features/auth';
 
 // Interface cho Nhật ký hoạt động của Xe
@@ -24,7 +23,6 @@ interface ActivityLog {
  * 5. Camera giám sát giả lập hình ảnh xe đỗ thực tế kèm tọa độ và nhãn LIVE FEED nhấp nháy.
  */
 export default function VehicleDetailsPage() {
-  const router = useRouter();
   const { user } = useAuth();
 
   // Khai báo state trạng thái đỗ xe

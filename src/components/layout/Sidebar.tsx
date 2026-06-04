@@ -36,17 +36,13 @@ export default function Sidebar() {
   return (
     <nav className="fixed left-0 top-0 h-full w-[260px] z-50 bg-[#1B2A41] border-r border-white/5 flex flex-col py-6 transition-all duration-200 ease-in-out">
       {/* Brand Logo & Header */}
-      <div className="px-6 pb-8 flex items-center gap-4">
-        {/* Logo NexPark nhỏ gọn, hiện đại */}
-        <div className="w-10 h-10 rounded-lg bg-emerald-500 flex items-center justify-center shrink-0 shadow-md shadow-emerald-500/20">
-          <span className="text-white font-bold text-lg tracking-wider">NP</span>
-        </div>
-        <div className="flex flex-col">
-          <h1 className="text-white font-semibold text-lg leading-tight tracking-tight">NexPark</h1>
-          <p className="text-emerald-400 font-medium text-xs">
-            {userRole === 'MANAGER' ? 'Manager Portal' : 'Enterprise Portal'}
-          </p>
-        </div>
+      <div className="px-6 pb-8 flex flex-col">
+        <h1 className="text-white font-bold text-2xl tracking-wider hover:text-emerald-400 transition-colors">
+          NexPark
+        </h1>
+        <p className="text-emerald-400 font-medium text-xs mt-1">
+          {userRole === 'MANAGER' ? 'Manager Portal' : 'Enterprise Portal'}
+        </p>
       </div>
 
       {/* Danh sách Menu chính (Main items) */}

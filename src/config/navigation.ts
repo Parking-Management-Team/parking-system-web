@@ -19,7 +19,7 @@ export const ROLE_NAVIGATION: Record<string, NavigationItem[]> = {
     // Menu chính của Manager
     {
       label: 'Dashboard',
-      href: '/dashboard/manager/facilities', // Manager dùng trang Quản lý Cơ sở làm dashboard chính
+      href: '/dashboard/manager',
       icon: 'dashboard',
     },
     {
@@ -29,7 +29,7 @@ export const ROLE_NAVIGATION: Record<string, NavigationItem[]> = {
     },
     {
       label: 'Slot Management',
-      href: '/dashboard/manager/allocate',
+      href: '/dashboard/manager/allocate-slot',
       icon: 'local_parking',
     },
     {

@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/features/auth';
+import { api } from '@/lib/api/client'; // Import API client sẵn có để gọi backend
 
 // Interface cho Nhật ký hoạt động của Xe
 interface ActivityLog {
@@ -10,6 +11,18 @@ interface ActivityLog {
   activity: 'Entry' | 'Exit' | 'Violation';
   location: string;
   duration: string;
+}
+
+// Interface cho thông tin chi tiết xe
+interface VehicleInfo {
+  licensePlate: string;
+  model: string;
+  color: string;
+  colorHex: string;
+  entryTime: string;
+  type: string;
+  ticketNo: string;
+  rateTier: string;
 }
 
 /**
@@ -21,6 +34,8 @@ interface ActivityLog {
  * 3. Nút "Release Slot" để giải phóng chỗ đỗ và cập nhật trạng thái đỗ xe sang "Đã rời bãi".
  * 4. Nút "Print Ticket" hiển thị biên lai hóa đơn đỗ xe điện tử (E-Ticket) dạng Modal thiết kế đẹp.
  * 5. Camera giám sát giả lập hình ảnh xe đỗ thực tế kèm tọa độ và nhãn LIVE FEED nhấp nháy.
+ * 
+ * Đã cấu trúc sẵn các state và chừa chỗ (placeholder) để tích hợp gọi API từ backend sau này.
  */
 export default function VehicleDetailsPage() {
   const { user } = useAuth();
@@ -47,7 +62,19 @@ export default function VehicleDetailsPage() {
   const [currentTime, setCurrentTime] = useState('00:00:00');
   const [currentDate, setCurrentDate] = useState('Thursday, June 4, 2026');
 
-  // Nhật ký hoạt động mẫu
+  // ─── CHỪA CHỖ GỌI API BACKEND CHO CHI TIẾT XE (VEHICLE DETAILS) ──────────────
+  const [vehicle, setVehicle] = useState<VehicleInfo>({
+    licensePlate: '29A-123.45',
+    model: 'Toyota Camry',
+    color: 'Metallic Silver',
+    colorHex: '#C0C0C0',
+    entryTime: 'Jun 04, 18:49',
+    type: 'Mid-size Sedan',
+    ticketNo: 'TKT-884-2026',
+    rateTier: 'Standard VIP'
+  });
+
+  // ─── CHỪA CHỖ GỌI API BACKEND CHO NHẬT KÝ HOẠT ĐỘNG XE (ACTIVITY LOGS) ───────
   const [logs, setLogs] = useState<ActivityLog[]>([
     { timestamp: 'Jun 04, 2026 - 18:49', activity: 'Entry', location: 'Gate 1 - North Entrance', duration: '-' },
     { timestamp: 'May 19, 2026 - 09:15', activity: 'Exit', location: 'Gate 3 - South Exit', duration: '08:30:00' },
@@ -75,6 +102,47 @@ export default function VehicleDetailsPage() {
     };
   }, [isParked]);
 
+  // Effect fetch dữ liệu từ Backend API cho phương tiện này
+  useEffect(() => {
+    const fetchVehicleData = async () => {
+      try {
+        /**
+         * 📝 BƯỚC ĐIỀN API BACKEND CỦA BẠN:
+         * 
+         * 1. Gọi API lấy thông tin phương tiện (ví dụ theo biển số hoặc ID):
+         *    const plate = '29A-123.45'; // hoặc lấy từ URL params/query
+         *    const res = await api.get<any>(`/manager/vehicles/${plate}`);
+         *    if (res.success) {
+         *      setVehicle({
+         *        licensePlate: res.data.licensePlate,
+         *        model: res.data.model,
+         *        color: res.data.color,
+         *        colorHex: res.data.colorHex,
+         *        entryTime: res.data.entryTime,
+         *        type: res.data.type,
+         *        ticketNo: res.data.ticketNo,
+         *        rateTier: res.data.rateTier
+         *      });
+         *      setIsParked(res.data.isParked);
+         *      setParkedSlot(res.data.currentSlot || 'None');
+         *      setSecondsElapsed(res.data.secondsElapsed || 0);
+         *    }
+         * 
+         * 2. Gọi API lấy logs hoạt động của xe này:
+         *    const logsRes = await api.get<any[]>(`/manager/vehicles/${plate}/logs`);
+         *    if (logsRes.success) {
+         *      setLogs(logsRes.data);
+         *    }
+         */
+        console.log('Ready to fetch vehicle profile from backend!');
+      } catch (error) {
+        console.error('Failed to fetch vehicle details:', error);
+      }
+    };
+
+    fetchVehicleData();
+  }, []);
+
   // Hàm chuyển đổi giây thành chuỗi HHh MMm SSs
   const formatDuration = (totalSeconds: number) => {
     const hours = Math.floor(totalSeconds / 3600);
@@ -89,49 +157,71 @@ export default function VehicleDetailsPage() {
     setTimeout(() => setToastMessage(null), 3000);
   };
 
-  // Thực hiện Giải phóng Slot đỗ
-  const handleReleaseSlot = () => {
+  // Thực hiện Giải phóng Slot đỗ (Có thể nối API POST/PUT ở đây)
+  const handleReleaseSlot = async () => {
     if (!isParked) return;
     
     const confirmRelease = window.confirm('Bạn có chắc chắn muốn giải phóng chỗ đỗ A1-013 cho xe này không?');
     if (confirmRelease) {
-      setIsParked(false);
-      setParkedSlot('None (Departed)');
-      
-      // Thêm dòng log rời bãi vào bảng
-      const exitTime = new Date().toLocaleTimeString('en-US', { hour12: false });
-      const exitDateStr = `Jun 04, 2026 - ${exitTime.substring(0, 5)}`;
-      
-      const newLog: ActivityLog = {
-        timestamp: exitDateStr,
-        activity: 'Exit',
-        location: 'Gate 2 - Main Exit (Manual Release)',
-        duration: formatDuration(secondsElapsed),
-      };
+      try {
+        /**
+         * 📝 BƯỚC ĐIỀN API BACKEND CỦA BẠN:
+         * 
+         * await api.post(`/manager/slots/release`, { slotCode: parkedSlot, licensePlate: vehicle.licensePlate });
+         */
+        setIsParked(false);
+        setParkedSlot('None (Departed)');
+        
+        // Thêm dòng log rời bãi vào bảng
+        const exitTime = new Date().toLocaleTimeString('en-US', { hour12: false });
+        const exitDateStr = `Jun 04, 2026 - ${exitTime.substring(0, 5)}`;
+        
+        const newLog: ActivityLog = {
+          timestamp: exitDateStr,
+          activity: 'Exit',
+          location: 'Gate 2 - Main Exit (Manual Release)',
+          duration: formatDuration(secondsElapsed),
+        };
 
-      setLogs([newLog, ...logs]);
-      triggerToast('Đã giải phóng chỗ đỗ và ghi nhận thời gian rời bãi thành công!');
+        setLogs([newLog, ...logs]);
+        triggerToast('Đã giải phóng chỗ đỗ và ghi nhận thời gian rời bãi thành công!');
+      } catch (err) {
+        console.error('Lỗi giải phóng chỗ đỗ:', err);
+      }
     }
   };
 
-  // Nộp báo cáo vi phạm
-  const submitViolation = (e: React.FormEvent) => {
+  // Nộp báo cáo vi phạm (Có thể nối API POST/PUT ở đây)
+  const submitViolation = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Thêm log vi phạm vào bảng
-    const nowTime = new Date().toLocaleTimeString('en-US', { hour12: false });
-    const logDateStr = `Jun 04, 2026 - ${nowTime.substring(0, 5)}`;
-    
-    const newLog: ActivityLog = {
-      timestamp: logDateStr,
-      activity: 'Violation',
-      location: `Zone A1 - ${violationReason}`,
-      duration: '-',
-    };
+    try {
+      /**
+       * 📝 BƯỚC ĐIỀN API BACKEND CỦA BẠN:
+       * 
+       * await api.post(`/manager/violations`, {
+       *   licensePlate: vehicle.licensePlate,
+       *   reason: violationReason,
+       *   notes: violationNotes,
+       *   slotCode: parkedSlot
+       * });
+       */
+      const nowTime = new Date().toLocaleTimeString('en-US', { hour12: false });
+      const logDateStr = `Jun 04, 2026 - ${nowTime.substring(0, 5)}`;
+      
+      const newLog: ActivityLog = {
+        timestamp: logDateStr,
+        activity: 'Violation',
+        location: `Zone A1 - ${violationReason}`,
+        duration: '-',
+      };
 
-    setLogs([newLog, ...logs]);
-    setShowViolationModal(false);
-    triggerToast(`Đã ghi nhận vi phạm: ${violationReason}!`);
+      setLogs([newLog, ...logs]);
+      setShowViolationModal(false);
+      triggerToast(`Đã ghi nhận vi phạm: ${violationReason}!`);
+    } catch (err) {
+      console.error('Lỗi báo cáo vi phạm:', err);
+    }
   };
 
   return (
@@ -218,24 +308,24 @@ export default function VehicleDetailsPage() {
             <div className="py-4 space-y-2.5 text-xs">
               <div className="flex justify-between">
                 <span className="text-slate-400">TICKET NO:</span>
-                <span className="font-bold text-slate-700">TKT-884-2026</span>
+                <span className="font-bold text-slate-700">{vehicle.ticketNo}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-400">LICENSE PLATE:</span>
-                <span className="font-bold text-slate-700">29A-123.45</span>
+                <span className="font-bold text-slate-700">{vehicle.licensePlate}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-400">VEHICLE:</span>
-                <span className="font-semibold text-slate-700">Toyota Camry (Silver)</span>
+                <span className="font-semibold text-slate-700">{vehicle.model}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-400">ALLOCATED SLOT:</span>
-                <span className="font-bold text-emerald-600">Level B1 - A1-013</span>
+                <span className="font-bold text-emerald-600">{parkedSlot}</span>
               </div>
               <hr className="border-dashed border-slate-200 my-2" />
               <div className="flex justify-between">
                 <span className="text-slate-400">CHECK-IN:</span>
-                <span className="font-semibold text-slate-700">Jun 04, 2026 18:49</span>
+                <span className="font-semibold text-slate-700">{vehicle.entryTime}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-400">DURATION STAMP:</span>
@@ -243,7 +333,7 @@ export default function VehicleDetailsPage() {
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-400">RATE TIER:</span>
-                <span className="font-bold text-slate-700">Standard VIP</span>
+                <span className="font-bold text-slate-700">{vehicle.rateTier}</span>
               </div>
             </div>
 
@@ -251,7 +341,7 @@ export default function VehicleDetailsPage() {
               <div className="bg-slate-50 p-2.5 rounded-lg flex flex-col items-center">
                 <span className="text-[9px] text-slate-400 uppercase">Simulated Barcode</span>
                 <div className="w-full h-8 bg-slate-800 mt-1 flex items-center justify-center text-white/90 text-xs font-sans tracking-[0.4em] font-bold">
-                  *29A12345*
+                  *{vehicle.licensePlate.replace(/[^A-Z0-9]/gi, '')}*
                 </div>
               </div>
 
@@ -337,7 +427,7 @@ export default function VehicleDetailsPage() {
             Slot Management
           </Link>
           <span className="material-symbols-outlined text-[16px] text-slate-400">chevron_right</span>
-          <span className="hover:text-emerald-500 transition-colors">Slot A1-013</span>
+          <span className="hover:text-emerald-500 transition-colors">{parkedSlot}</span>
           <span className="material-symbols-outlined text-[16px] text-slate-400">chevron_right</span>
           <span className="text-slate-800 font-semibold">Vehicle Details</span>
         </nav>
@@ -345,7 +435,7 @@ export default function VehicleDetailsPage() {
         {/* Tiêu đề xe & Các nút hành động chính */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-slate-800 tracking-tight">Vehicle 29A-123.45</h1>
+            <h1 className="text-2xl font-bold text-slate-800 tracking-tight">Vehicle {vehicle.licensePlate}</h1>
             <p className="text-xs text-slate-500 mt-1 flex items-center gap-2 font-medium">
               <span className={`w-2.5 h-2.5 rounded-full ${isParked ? 'bg-emerald-500 animate-pulse' : 'bg-red-400'}`}></span>
               {isParked ? `Currently parked in ${parkedSlot}` : 'Has departed the facility'}
@@ -427,7 +517,7 @@ export default function VehicleDetailsPage() {
               <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
                 <p className="text-[10px] text-slate-400 uppercase tracking-widest mb-2 font-bold">License Plate</p>
                 <div className="flex items-center justify-between">
-                  <span className="text-2xl font-black text-slate-800 tracking-tight font-mono">29A-123.45</span>
+                  <span className="text-2xl font-black text-slate-800 tracking-tight font-mono">{vehicle.licensePlate}</span>
                   <span className="material-symbols-outlined text-emerald-500">verified</span>
                 </div>
               </div>
@@ -436,14 +526,17 @@ export default function VehicleDetailsPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <p className="text-[10px] text-slate-400 uppercase tracking-widest mb-1 font-bold">Vehicle Model</p>
-                  <p className="text-xs font-bold text-slate-700">Toyota Camry</p>
-                  <p className="text-[10px] text-slate-400 font-medium">Mid-size Sedan</p>
+                  <p className="text-xs font-bold text-slate-700">{vehicle.model}</p>
+                  <p className="text-[10px] text-slate-400 font-medium">{vehicle.type}</p>
                 </div>
                 <div>
                   <p className="text-[10px] text-slate-400 uppercase tracking-widest mb-1 font-bold">Colorway</p>
                   <div className="flex items-center gap-2">
-                    <span className="w-3.5 h-3.5 rounded-full bg-[#C0C0C0] border border-slate-300 shadow-inner"></span>
-                    <p className="text-xs font-bold text-slate-700">Metallic Silver</p>
+                    <span 
+                      className="w-3.5 h-3.5 rounded-full border border-slate-300 shadow-inner"
+                      style={{ backgroundColor: vehicle.colorHex }}
+                    ></span>
+                    <p className="text-xs font-bold text-slate-700">{vehicle.color}</p>
                   </div>
                 </div>
               </div>
@@ -458,7 +551,7 @@ export default function VehicleDetailsPage() {
                     <span className="material-symbols-outlined text-[18px]">login</span>
                     <span>Entry Timestamp</span>
                   </div>
-                  <span className="font-bold text-slate-700">Jun 04, 18:49</span>
+                  <span className="font-bold text-slate-700">{vehicle.entryTime}</span>
                 </div>
 
                 <div className="flex justify-between items-center text-xs">
@@ -489,7 +582,7 @@ export default function VehicleDetailsPage() {
             </div>
             
             <button
-              onClick={() => alert('Đang xuất tệp lịch sử xe 29A-123.45 dưới dạng CSV...')}
+              onClick={() => alert(`Đang xuất tệp lịch sử xe ${vehicle.licensePlate} dưới dạng CSV...`)}
               className="px-4 py-2 rounded-xl text-xs text-emerald-600 font-bold bg-emerald-50 hover:bg-emerald-100 transition-colors border border-emerald-100 flex items-center gap-1.5"
             >
               Export CSV

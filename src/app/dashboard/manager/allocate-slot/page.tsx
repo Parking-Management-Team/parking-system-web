@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/features/auth';
+import { api } from '@/lib/api/client'; // Import API client sẵn có để gọi backend
 
 // Kiểu cấu trúc cho thông tin xe được chọn
 interface VehicleDetails {
@@ -18,10 +19,12 @@ interface VehicleDetails {
  * 
  * Các chức năng:
  * 1. Hiển thị thông số chi tiết của Slot đang chọn (A1-012, vip, tầng B1, EV).
- * 2. Tìm kiếm xe hoặc thành viên bằng Biển kiểm soát / Member ID (hỗ trợ nhập liệu thật).
+ * 2. Tìm kiếm xe hoặc thành viên bằng Biển kiểm soát / Member ID.
  * 3. Lựa chọn loại hình đỗ xe (Vãng lai ngắn hạn, Đăng ký tháng, Cấp VIP cố định).
  * 4. Nhập thời gian bắt đầu và kết thúc cùng ghi chú nghiệp vụ.
  * 5. Xác nhận cấp phát với hiệu ứng tải (Loading) và thông báo thành công (Toast).
+ * 
+ * Đã chừa sẵn vị trí tích hợp API để kết nối với server backend của bạn.
  */
 export default function AllocateSlotPage() {
   const router = useRouter();
@@ -66,41 +69,61 @@ export default function AllocateSlotPage() {
     return () => clearInterval(interval);
   }, []);
 
-  // Xử lý tìm kiếm giả lập khi người dùng nhấn nút Tìm kiếm hoặc Enter
-  const handleSearch = (e: React.FormEvent) => {
+  // Xử lý tìm kiếm xe / khách hàng
+  const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!searchQuery.trim()) return;
 
-    // Giả lập tìm thấy xe dựa vào biển số nhập vào
-    const query = searchQuery.toUpperCase();
-    if (query.includes('29A') || query.includes('HN')) {
-      setSelectedVehicle({
-        plate: '29A-123.45',
-        model: 'Toyota Camry • Premium Black',
-        owner: 'Nguyen Van A',
-        memberId: 'MEM-2026-001'
-      });
-    } else if (query.includes('51G') || query.includes('SG')) {
-      setSelectedVehicle({
-        plate: '51G-567.89',
-        model: 'Tesla Model Y • Midnight Silver',
-        owner: 'Le Hoang C',
-        memberId: 'MEM-2026-099'
-      });
-    } else {
-      // Mặc định xe ngẫu nhiên nếu không khớp từ khóa
-      setSelectedVehicle({
-        plate: query,
-        model: 'Mazda CX-5 • Soul Red Crystal',
-        owner: 'Nguyen Hoang Nam',
-        memberId: `MEM-2026-${Math.floor(100 + Math.random() * 900)}`
-      });
+    try {
+      /**
+       * 📝 BƯỚC ĐIỀN API BACKEND CỦA BẠN:
+       * 
+       * const res = await api.get<any>(`/manager/vehicle/search?query=${searchQuery}`);
+       * if (res.success) {
+       *   setSelectedVehicle({
+       *     plate: res.data.plate,
+       *     model: res.data.model,
+       *     owner: res.data.owner,
+       *     memberId: res.data.memberId
+       *   });
+       *   setSearchQuery('');
+       *   return;
+       * }
+       */
+
+      // Giả lập tìm kiếm dữ liệu (Fallback khi chưa kết nối API backend)
+      const query = searchQuery.toUpperCase();
+      if (query.includes('29A') || query.includes('HN')) {
+        setSelectedVehicle({
+          plate: '29A-123.45',
+          model: 'Toyota Camry • Premium Black',
+          owner: 'Nguyen Van A',
+          memberId: 'MEM-2026-001'
+        });
+      } else if (query.includes('51G') || query.includes('SG')) {
+        setSelectedVehicle({
+          plate: '51G-567.89',
+          model: 'Tesla Model Y • Midnight Silver',
+          owner: 'Le Hoang C',
+          memberId: 'MEM-2026-099'
+        });
+      } else {
+        // Mặc định xe ngẫu nhiên nếu không khớp từ khóa
+        setSelectedVehicle({
+          plate: query,
+          model: 'Mazda CX-5 • Soul Red Crystal',
+          owner: 'Nguyen Hoang Nam',
+          memberId: `MEM-2026-${Math.floor(100 + Math.random() * 900)}`
+        });
+      }
+      setSearchQuery('');
+    } catch (error) {
+      console.error('Failed to search vehicle:', error);
     }
-    setSearchQuery('');
   };
 
   // Xác nhận cấp phát slot
-  const handleConfirm = () => {
+  const handleConfirm = async () => {
     if (!selectedVehicle) {
       alert('Vui lòng chọn hoặc tìm kiếm xe trước khi cấp phát!');
       return;
@@ -108,16 +131,42 @@ export default function AllocateSlotPage() {
 
     setIsAllocating(true);
 
-    // Giả lập gửi lên Server đỗ xe
-    setTimeout(() => {
-      setIsAllocating(false);
-      setShowToast(true);
+    try {
+      /**
+       * 📝 BƯỚC ĐIỀN API BACKEND CỦA BẠN:
+       * 
+       * const res = await api.post('/manager/allocations', {
+       *   slotId: 'A1-012', // ID slot của bãi đỗ
+       *   plate: selectedVehicle.plate,
+       *   type: allocationType,
+       *   startDate: startDate,
+       *   endDate: endDate,
+       *   notes: notes
+       * });
+       * if (res.success) {
+       *   setIsAllocating(false);
+       *   setShowToast(true);
+       *   setTimeout(() => {
+       *     router.push('/dashboard/manager/facilities');
+       *   }, 1500);
+       *   return;
+       * }
+       */
 
-      // Điều hướng về màn hình quản lý sau 1.5 giây
+      // Giả lập gửi lên Server đỗ xe (Fallback)
       setTimeout(() => {
-        router.push('/dashboard/manager/facilities');
-      }, 1500);
-    }, 1200);
+        setIsAllocating(false);
+        setShowToast(true);
+
+        // Điều hướng về màn hình quản lý sau 1.5 giây
+        setTimeout(() => {
+          router.push('/dashboard/manager/facilities');
+        }, 1500);
+      }, 1200);
+    } catch (error) {
+      console.error('Failed to allocate slot:', error);
+      setIsAllocating(false);
+    }
   };
 
   return (
@@ -127,7 +176,7 @@ export default function AllocateSlotPage() {
       {showToast && (
         <div className="fixed top-6 right-6 z-50 flex items-center gap-3 bg-emerald-500 text-white px-5 py-3 rounded-xl shadow-lg shadow-emerald-500/20 animate-bounce">
           <span className="material-symbols-outlined">verified</span>
-          <span className="text-sm font-semibold">Cấp phát chỗ đỗ A1-012 thành công!</span>
+          <span className="text-sm font-semibold">Cập nhật cấp phát chỗ đỗ A1-012 thành công!</span>
         </div>
       )}
 

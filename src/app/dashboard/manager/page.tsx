@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { api } from '@/lib/api/client'; // Import API client sẵn có để gọi backend
 
 // Định nghĩa kiểu dữ liệu cho một hoạt động gần đây
 interface ActivityLog {
@@ -12,27 +13,34 @@ interface ActivityLog {
   details: string;
 }
 
+// Định nghĩa kiểu số liệu thống kê tổng quan
+interface DashboardStats {
+  todayRevenue: string;
+  checkInOuts: string;
+  occupancyRate: number;
+  activeViolations: number;
+}
+
 /**
  * Manager Dashboard Page - Trang tổng quan dành cho Quản lý
  * 
  * Hiển thị số liệu thống kê nhanh về doanh thu, lưu lượng xe, hiệu suất đỗ
  * và nhật ký hoạt động gần đây trong hệ thống bãi đỗ NexPark.
- * Toàn bộ nhãn UI đã được dịch sang tiếng Anh theo yêu cầu.
+ * Đã cấu trúc sẵn các state và chừa chỗ (placeholder) để tích hợp gọi API từ backend sau này.
  */
 export default function ManagerDashboard() {
   const [currentTime, setCurrentTime] = useState<string>('');
   
-  // Cập nhật đồng hồ thời gian thực tế dạng 24h bằng tiếng Anh
-  useEffect(() => {
-    setCurrentTime(new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }));
-    const timer = setInterval(() => {
-      setCurrentTime(new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }));
-    }, 1000);
-    return () => clearInterval(timer);
-  }, []);
+  // ─── CHỪA CHỖ GỌI API BACKEND CHO SỐ LIỆU THỐNG KÊ ──────────────────────────
+  const [stats, setStats] = useState<DashboardStats>({
+    todayRevenue: '15,420,000 VND',
+    checkInOuts: '342 / 298',
+    occupancyRate: 78.4,
+    activeViolations: 2
+  });
 
-  // Danh sách các hoạt động giả lập gần đây bằng tiếng Anh
-  const recentActivities: ActivityLog[] = [
+  // ─── CHỪA CHỖ GỌI API BACKEND CHO NHẬT KÝ HOẠT ĐỘNG GẦN ĐÂY ──────────────────
+  const [recentActivities, setRecentActivities] = useState<ActivityLog[]>([
     {
       id: 'ACT-001',
       time: '10:45 AM',
@@ -61,7 +69,49 @@ export default function ManagerDashboard() {
       message: 'Facility details updated',
       details: 'Manager successfully updated configuration details for Facility PBMS Landmark.'
     },
-  ];
+  ]);
+
+  // Cập nhật đồng hồ thời gian thực tế dạng 24h bằng tiếng Anh
+  useEffect(() => {
+    setCurrentTime(new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }));
+    const timer = setInterval(() => {
+      setCurrentTime(new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  // Effect fetch dữ liệu từ Backend API
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      try {
+        /**
+         * 📝 BƯỚC ĐIỀN API BACKEND CỦA BẠN:
+         * 
+         * 1. Gọi API lấy số liệu thống kê:
+         *    const statsRes = await api.get<any>('/manager/stats'); // Thay đổi route tương ứng
+         *    if (statsRes.success) {
+         *      setStats({
+         *        todayRevenue: statsRes.data.todayRevenue,
+         *        checkInOuts: `${statsRes.data.checkIns} / ${statsRes.data.checkOuts}`,
+         *        occupancyRate: statsRes.data.occupancyRate,
+         *        activeViolations: statsRes.data.activeViolations
+         *      });
+         *    }
+         * 
+         * 2. Gọi API lấy nhật ký hoạt động:
+         *    const logsRes = await api.get<any[]>('/manager/recent-logs');
+         *    if (logsRes.success) {
+         *      setRecentActivities(logsRes.data);
+         *    }
+         */
+        console.log('API client connected. Ready to fetch dashboard data from backend!');
+      } catch (error) {
+        console.error('Failed to fetch dashboard data from backend:', error);
+      }
+    };
+
+    fetchDashboardData();
+  }, []);
 
   return (
     <div className="p-6 md:p-8 space-y-8 bg-[#f8f9ff] min-h-screen">
@@ -101,7 +151,7 @@ export default function ManagerDashboard() {
           </div>
           <div className="mt-4">
             <h3 className="text-slate-400 text-xs font-semibold uppercase tracking-wider">Today&apos;s Revenue</h3>
-            <p className="text-2xl font-bold text-slate-800 mt-1">15,420,000 VND</p>
+            <p className="text-2xl font-bold text-slate-800 mt-1">{stats.todayRevenue}</p>
           </div>
         </div>
 
@@ -117,7 +167,7 @@ export default function ManagerDashboard() {
           </div>
           <div className="mt-4">
             <h3 className="text-slate-400 text-xs font-semibold uppercase tracking-wider">Check-ins / Outs</h3>
-            <p className="text-2xl font-bold text-slate-800 mt-1">342 / 298</p>
+            <p className="text-2xl font-bold text-slate-800 mt-1">{stats.checkInOuts}</p>
           </div>
         </div>
 
@@ -128,13 +178,13 @@ export default function ManagerDashboard() {
               <span className="material-symbols-outlined">donut_large</span>
             </div>
             <span className="bg-amber-50 text-amber-700 text-xs font-semibold px-2.5 py-1 rounded-full">
-              78.4% Slots
+              {stats.occupancyRate}% Slots
             </span>
           </div>
           <div className="mt-4">
             <h3 className="text-slate-400 text-xs font-semibold uppercase tracking-wider">Occupancy Rate</h3>
             <div className="w-full bg-slate-100 h-2 rounded-full mt-3 overflow-hidden">
-              <div className="bg-amber-500 h-full rounded-full" style={{ width: '78.4%' }}></div>
+              <div className="bg-amber-500 h-full rounded-full" style={{ width: `${stats.occupancyRate}%` }}></div>
             </div>
           </div>
         </div>
@@ -146,12 +196,12 @@ export default function ManagerDashboard() {
               <span className="material-symbols-outlined">gpp_maybe</span>
             </div>
             <span className="bg-red-50 text-red-700 text-xs font-semibold px-2.5 py-1 rounded-full animate-pulse">
-              2 Active
+              {stats.activeViolations} Active
             </span>
           </div>
           <div className="mt-4">
             <h3 className="text-slate-400 text-xs font-semibold uppercase tracking-wider">Incidents & Violations</h3>
-            <p className="text-2xl font-bold text-slate-800 mt-1">2 Cases</p>
+            <p className="text-2xl font-bold text-slate-800 mt-1">{stats.activeViolations} Cases</p>
           </div>
         </div>
 

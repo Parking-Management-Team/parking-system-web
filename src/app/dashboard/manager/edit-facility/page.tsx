@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/features/auth';
+import { api } from '@/lib/api/client'; // Import API client sẵn có để gọi backend
 
 /**
  * EditFacilityPage - Trang chỉnh sửa thông tin Cơ sở đỗ xe dành cho Manager
@@ -12,6 +13,8 @@ import { useAuth } from '@/features/auth';
  * 1. Cho phép chỉnh sửa các thông số: Tên tòa nhà, Sức chứa (Slots), Địa chỉ, Số tầng, Trạng thái hoạt động.
  * 2. Lưu trạng thái tạm thời (Form State).
  * 3. Hỗ trợ thông báo lưu thành công và tự động điều hướng quay lại trang quản lý.
+ * 
+ * Đã cấu trúc sẵn các state và chừa chỗ (placeholder) để tích hợp gọi API từ backend sau này.
  */
 export default function EditFacilityPage() {
   const router = useRouter();
@@ -39,21 +42,70 @@ export default function EditFacilityPage() {
     return () => clearInterval(interval);
   }, []);
 
-  // Xử lý gửi Form (Submit)
-  const handleSubmit = (e: React.FormEvent) => {
+  // ─── CHỪA CHỖ GỌI API BACKEND ĐỂ LOAD DỮ LIỆU BAN ĐẦU CỦA CƠ SỞ ĐỂ EDIT ────────
+  useEffect(() => {
+    const fetchFacilityDetails = async () => {
+      try {
+        /**
+         * 📝 BƯỚC ĐIỀN API BACKEND CỦA BẠN:
+         * 
+         * const res = await api.get<any>('/manager/facility/FAC-8821'); // Thay ID hoặc route tương ứng
+         * if (res.success) {
+         *   setBuildingName(res.data.name);
+         *   setTotalCapacity(res.data.capacity);
+         *   setAddress(res.data.address);
+         *   setNumFloors(res.data.numFloors);
+         *   setStatus(res.data.status);
+         * }
+         */
+        console.log('Ready to fetch facility details for editing!');
+      } catch (error) {
+        console.error('Failed to load facility details:', error);
+      }
+    };
+    fetchFacilityDetails();
+  }, []);
+
+  // Xử lý gửi Form (Submit) - Ghi nhận lưu thông tin
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSaving(true);
 
-    // Giả lập cuộc gọi API lưu dữ liệu (delay 1 giây)
-    setTimeout(() => {
-      setIsSaving(false);
-      setShowToast(true);
+    try {
+      /**
+       * 📝 BƯỚC ĐIỀN API BACKEND CỦA BẠN:
+       * 
+       * const response = await api.put('/manager/facility/FAC-8821', {
+       *   name: buildingName,
+       *   capacity: totalCapacity,
+       *   address: address,
+       *   numFloors: numFloors,
+       *   status: status
+       * });
+       * 
+       * if (response.success) {
+       *   setShowToast(true);
+       *   setTimeout(() => {
+       *     router.push('/dashboard/manager/facilities');
+       *   }, 1500);
+       *   return;
+       * }
+       */
       
-      // Đợi hiển thị thông báo thành công 1.5 giây rồi quay lại trang trước
+      // Giả lập cuộc gọi API lưu dữ liệu (delay 1 giây) khi chưa gắn API thật
       setTimeout(() => {
-        router.push('/dashboard/manager/facilities');
-      }, 1500);
-    }, 1000);
+        setIsSaving(false);
+        setShowToast(true);
+        
+        // Đợi hiển thị thông báo thành công 1.5 giây rồi quay lại trang trước
+        setTimeout(() => {
+          router.push('/dashboard/manager/facilities');
+        }, 1500);
+      }, 1000);
+    } catch (err) {
+      console.error('Failed to save facility changes:', err);
+      setIsSaving(false);
+    }
   };
 
   return (

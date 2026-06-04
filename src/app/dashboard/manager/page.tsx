@@ -100,7 +100,7 @@ export default function ManagerDashboard() {
             </span>
           </div>
           <div className="mt-4">
-            <h3 className="text-slate-400 text-xs font-semibold uppercase tracking-wider">Today's Revenue</h3>
+            <h3 className="text-slate-400 text-xs font-semibold uppercase tracking-wider">Today&apos;s Revenue</h3>
             <p className="text-2xl font-bold text-slate-800 mt-1">15,420,000 VND</p>
           </div>
         </div>

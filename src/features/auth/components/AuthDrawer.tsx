@@ -20,7 +20,6 @@
 
 import * as React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X } from 'lucide-react';
 import { LoginForm } from './LoginForm';
 import { RegisterForm } from './RegisterForm';
 

@@ -22,6 +22,7 @@
 
 import * as React from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { User as UserIcon, Mail, Phone, Lock, Eye, EyeOff, ArrowRight, X } from 'lucide-react';
 import { Input } from '@/components/ui/Input';
@@ -95,7 +96,7 @@ export function RegisterForm({ isModal = false, onSuccess, onClose, onSwitchMode
       } else {
         router.push('/login');
       }
-    } catch (err) {
+    } catch {
       setErrors({ form: 'An error occurred during registration. Please try again.' });
     } finally {
       setIsSubmitting(false);
@@ -112,7 +113,7 @@ export function RegisterForm({ isModal = false, onSuccess, onClose, onSwitchMode
       } else {
         router.push('/');
       }
-    } catch (err) {
+    } catch {
       setErrors({ form: 'Failed to sign up with Google' });
     } finally {
       setGoogleLoading(false);
@@ -359,10 +360,13 @@ export function RegisterForm({ isModal = false, onSuccess, onClose, onSwitchMode
         <div className="flex flex-1 min-h-full">
           {/* Left panel – brand */}
           <div className="hidden lg:flex w-[45%] flex-shrink-0 relative bg-[#0f172a] overflow-hidden">
-            <img
+            <Image
               src="/assets/placeholders/nexpark_hero_parking_1780061652243.png"
               alt="NexPark Smart City"
-              className="absolute inset-0 w-full h-full object-cover brightness-[0.4] scale-105"
+              fill
+              sizes="45vw"
+              priority
+              className="object-cover brightness-[0.4] scale-105"
             />
             <div className="absolute top-1/3 right-0 w-72 h-72 bg-emerald-500/15 rounded-full blur-[100px] pointer-events-none" />
             <div className="absolute bottom-1/4 left-0 w-72 h-72 bg-emerald-700/10 rounded-full blur-[100px] pointer-events-none" />
@@ -423,10 +427,13 @@ export function RegisterForm({ isModal = false, onSuccess, onClose, onSwitchMode
     <div className="w-full min-h-screen flex bg-white font-sans overflow-hidden">
       {/* Left Panel - Brand Showcase (Hidden on Mobile) */}
       <div className="hidden lg:flex w-[45%] flex-shrink-0 relative bg-[#0f172a] h-screen overflow-hidden">
-        <img
+        <Image
           src="/assets/placeholders/nexpark_hero_parking_1780061652243.png"
           alt="NexPark Smart City"
-          className="absolute inset-0 w-full h-full object-cover brightness-[0.4] scale-105"
+          fill
+          sizes="45vw"
+          priority
+          className="object-cover brightness-[0.4] scale-105"
         />
         <div className="absolute top-1/3 right-0 w-80 h-80 bg-emerald-500/15 rounded-full blur-[100px] pointer-events-none" />
         <div className="absolute bottom-1/4 left-0 w-80 h-80 bg-emerald-700/10 rounded-full blur-[100px] pointer-events-none" />

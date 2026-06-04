@@ -29,6 +29,20 @@ export class ApiError extends Error {
   }
 }
 
+// ─── Lấy token từ localStorage ────────────────────────────────────
+function getAuthToken(): string | null {
+  if (typeof window === 'undefined') return null;
+  return localStorage.getItem('nexpark_token');
+}
+
+// ─── Xử lý lỗi 401 - tự động logout ──────────────────────────────
+function handleUnauthorized(): void {
+  if (typeof window === 'undefined') return;
+  localStorage.removeItem('nexpark_token');
+  localStorage.removeItem('nexpark_user');
+  window.location.href = '/login';
+}
+
 // ─── Base fetch wrapper ────────────────────────────────────────────
 export async function apiClient<T>(
   endpoint: string,
@@ -40,10 +54,14 @@ export async function apiClient<T>(
     APP_CONFIG.requestTimeout
   );
 
+  // Tự động gắn JWT token vào header nếu có
+  const token = getAuthToken();
+
   try {
     const res = await fetch(`${APP_CONFIG.apiBaseUrl}${endpoint}`, {
       headers: {
         'Content-Type': 'application/json',
+        ...(token && { Authorization: `Bearer ${token}` }),
         ...options?.headers,
       },
       signal: controller.signal,
@@ -52,6 +70,12 @@ export async function apiClient<T>(
 
     if (!res.ok) {
       const data = await res.json().catch(() => null);
+
+      // Xử lý 401 - token hết hạn hoặc không hợp lệ
+      if (res.status === 401) {
+        handleUnauthorized();
+      }
+
       throw new ApiError(res.status, data);
     }
 

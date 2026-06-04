@@ -1,3 +1,6 @@
+/* ===== IMPORT GOOGLE MATERIAL SYMBOLS & FONTS ===== */
+@import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200');
+
 /**
  * Globals.css - CSS toàn cục cho NexPark
  *
@@ -91,5 +94,17 @@
   /* Khoảng cách cho mỗi section (responsive) */
   .section-padding {
     @apply py-20 px-6 md:px-12 lg:px-24;
+  }
+
+  /* ===== MATERIAL SYMBOLS UTILITIES ===== */
+  /* Thiết lập font-variation-settings cho icon Google Material Symbols */
+  .material-symbols-outlined {
+    font-family: 'Material Symbols Outlined' !important;
+    font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+    display: inline-block;
+    vertical-align: middle;
+  }
+  .material-symbols-outlined.fill {
+    font-variation-settings: 'FILL' 1;
   }
 }

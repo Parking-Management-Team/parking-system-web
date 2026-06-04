@@ -4,7 +4,7 @@ import React from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/features/auth';
-import { ROLE_NAVIGATION, NavigationItem } from '@/config/navigation';
+import { ROLE_NAVIGATION } from '@/config/navigation';
 
 /**
  * Sidebar Component - Thanh điều hướng bên trái toàn cục cho Dashboard

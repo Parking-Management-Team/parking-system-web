@@ -26,6 +26,7 @@ import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { Eye, EyeOff, ArrowRight, Mail, Lock, X } from 'lucide-react';
 import { useAuth } from '@/features/auth';
+import { AuthLoadingScreen } from './AuthLoadingScreen';
 
 interface GoogleCredentialResponse {
   credential?: string;
@@ -164,6 +165,10 @@ export function LoginForm({ isModal = false, onSuccess, onClose, onSwitchMode }:
       if (intervalId) clearInterval(intervalId);
     };
   }, [handleGoogleCredentialResponse]);
+
+  if (isSubmitting || googleLoading) {
+    return <AuthLoadingScreen message={googleLoading ? 'Connecting to Google...' : 'Authenticating your account...'} />;
+  }
 
   const formPanel = (
     <div className="w-full max-w-md flex flex-col">

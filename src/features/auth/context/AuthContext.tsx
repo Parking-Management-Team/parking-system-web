@@ -71,7 +71,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(JSON.parse(storedUser));
       }
     } catch (error) {
-      console.error('Không thể phục hồi phiên đăng nhập:', error);
+      console.error('Failed to restore login session:', error);
       // Xóa dữ liệu lỗi nếu có lỗi parse JSON để tránh bị lỗi lặp lại ở lần sau
       localStorage.removeItem('nexpark_token');
       localStorage.removeItem('nexpark_user');
@@ -95,7 +95,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       // 2. Kiểm tra xem Backend trả về thành công không
       if (!res.success || !res.data) {
-        throw new Error(res.message || 'Đăng nhập thất bại');
+        throw new Error(res.message || 'Login failed');
       }
 
       // 3. Chuẩn hóa dữ liệu user từ Backend về kiểu User hiển thị ở Frontend
@@ -150,7 +150,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Hỗ trợ kiểm thử UI: Nếu click nút mà chưa cấu hình SDK Google lấy token thật,
       // hệ thống sẽ tự động dùng Token giả lập gửi lên Backend để bạn kiểm thử luồng API.
       if (!tokenToSend) {
-        console.warn('Cảnh báo: Không nhận được Google ID Token thật. Hệ thống sẽ tự động dùng mã mock.');
+        console.warn('Warning: Google ID Token not received. Automatically using mock token.');
         await new Promise((resolve) => setTimeout(resolve, 1500));
         tokenToSend = "mock_google_id_token_from_frontend";
       }
@@ -162,7 +162,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       // 2. Kiểm tra xem Backend đăng nhập Google thành công không
       if (!res.success || !res.data) {
-        throw new Error(res.message || 'Đăng nhập bằng Google thất bại');
+        throw new Error(res.message || 'Google login failed');
       }
 
       // 3. Chuẩn hóa dữ liệu trả về từ Backend

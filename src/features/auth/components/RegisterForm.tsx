@@ -27,7 +27,6 @@ import { useRouter } from 'next/navigation';
 import { User as UserIcon, Mail, Phone, Lock, Eye, EyeOff, ArrowRight, X } from 'lucide-react';
 import { Input } from '@/components/ui/Input';
 import { useAuth } from '@/features/auth';
-import { AuthLoadingScreen } from './AuthLoadingScreen';
 
 export interface RegisterFormProps {
   isModal?: boolean;
@@ -120,10 +119,6 @@ export function RegisterForm({ isModal = false, onSuccess, onClose, onSwitchMode
       setGoogleLoading(false);
     }
   };
-
-  if (isSubmitting || googleLoading) {
-    return <AuthLoadingScreen message={googleLoading ? 'Connecting to Google...' : 'Creating your account...'} />;
-  }
 
   const formBody = (
     <div className="w-full flex flex-col justify-center py-2" style={{ fontFamily: "'Inter', sans-serif" }}>

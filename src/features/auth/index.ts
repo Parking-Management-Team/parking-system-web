@@ -20,7 +20,6 @@
 export { LoginForm } from './components/LoginForm';
 export { RegisterForm } from './components/RegisterForm';
 export { AuthDrawer } from './components/AuthDrawer';
-export { AuthLoadingScreen } from './components/AuthLoadingScreen';
 
 // Context & Hooks
 export { AuthProvider, useAuth } from './context/AuthContext';

@@ -87,6 +87,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const login = React.useCallback(async (identifier: string, password: string): Promise<User> => {
     setIsLoading(true);
     try {
+      // HỖ TRỢ ĐĂNG NHẬP GIẢ LẬP (MOCK) CHO MANAGER KHI CHƯA CÓ DATABASE
+      if (identifier === 'manager@pbms') {
+        const systemUser: User = {
+          fullName: 'Alex Thompson',
+          email: 'manager@pbms',
+          role: 'MANAGER', // Quyền quản lý (MANAGER)
+        };
+
+        // Lưu thông tin đăng nhập giả lập vào localStorage
+        localStorage.setItem('nexpark_token', 'mock_manager_token_123456');
+        localStorage.setItem('nexpark_user', JSON.stringify(systemUser));
+
+        // Cập nhật State
+        setToken('mock_manager_token_123456');
+        setUser(systemUser);
+
+        return systemUser;
+      }
+
       // 1. Gọi API đến Backend. baseUrl tự động gắn ở api client (ví dụ http://localhost:5029/api)
       const res = await api.post<BaseResponse<LoginResponseDto>>('/auth/login', {
         email: identifier, // 'identifier' từ form đăng nhập đóng vai trò làm email gửi lên

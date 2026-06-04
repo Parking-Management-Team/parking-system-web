@@ -102,7 +102,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const systemUser: User = {
         fullName: res.data.fullName || res.data.username,
         email: res.data.email || '',
-        role: res.data.roleName,
+        role: res.data.roleName ? res.data.roleName.toUpperCase() : '',
       };
 
       // 4. Lưu JWT Token và thông tin User vào localStorage để lưu trữ lâu dài
@@ -169,7 +169,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const systemUser: User = {
         fullName: res.data.fullName || res.data.username,
         email: res.data.email || '',
-        role: res.data.roleName,
+        role: res.data.roleName ? res.data.roleName.toUpperCase() : '',
       };
 
       // 4. Lưu trữ vào localStorage

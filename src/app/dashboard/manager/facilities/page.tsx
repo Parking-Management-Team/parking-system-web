@@ -1,0 +1,458 @@
+'use client';
+
+import React, { useEffect, useState } from 'react';
+import Link from 'next/link';
+import { useAuth } from '@/features/auth';
+
+/**
+ * FacilityManagementPage - Trang quản lý cơ sở vật chất dành cho Manager
+ * 
+ * Các chức năng:
+ * 1. Hiển thị thông tin tổng quan của bãi xe (Sức chứa, số tầng, số phân khu).
+ * 2. Theo dõi trạng thái lấp đầy từng phân khu (Zone Status).
+ * 3. Đồng hồ thời gian thực và hiển thị thông tin Manager đăng nhập.
+ * 4. Liên kết chỉnh sửa thông tin bãi xe (Edit Facility).
+ */
+export default function FacilityManagementPage() {
+  const { user } = useAuth();
+  const [currentTime, setCurrentTime] = useState('00:00:00');
+  const [currentDate, setCurrentDate] = useState('Loading date...');
+
+  // Cập nhật đồng hồ thời gian thực mỗi giây
+  useEffect(() => {
+    const updateClock = () => {
+      const now = new Date();
+      // Định dạng giờ: hh:mm:ss
+      setCurrentTime(now.toLocaleTimeString('en-US', { hour12: false }));
+      // Định dạng ngày: Thứ, Ngày Tháng Năm
+      setCurrentDate(now.toLocaleDateString('en-US', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      }));
+    };
+    updateClock();
+    const intervalId = setInterval(updateClock, 1000);
+    return () => clearInterval(intervalId);
+  }, []);
+
+  return (
+    <div className="flex-1 flex flex-col min-h-screen">
+      {/* ===== HEADER BAR ===== */}
+      <header className="sticky top-0 z-40 h-[70px] w-full bg-white/80 backdrop-blur-md border-b border-gray-200 shadow-sm flex justify-between items-center px-8 shrink-0 transition-colors">
+        {/* Thanh tìm kiếm */}
+        <div className="flex items-center flex-1 max-w-3xl mr-8">
+          <div className="relative w-full group">
+            <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-500 transition-colors">
+              search
+            </span>
+            <input
+              type="text"
+              placeholder="Search facilities, zones, or slots..."
+              className="w-full bg-slate-50 border-none rounded-xl pl-12 pr-4 py-2.5 text-sm focus:ring-2 focus:ring-emerald-500/20 transition-all outline-none text-slate-800"
+            />
+          </div>
+        </div>
+
+        {/* Đồng hồ và User Profile */}
+        <div className="flex items-center gap-6">
+          {/* Đồng hồ số */}
+          <div className="flex flex-col items-end border-r border-gray-200 pr-6">
+            <span className="font-mono text-xl font-bold text-slate-800 tabular-nums leading-none">
+              {currentTime}
+            </span>
+            <span className="text-[10px] text-slate-500 font-semibold leading-none mt-1">
+              {currentDate}
+            </span>
+          </div>
+
+          {/* Nút thông báo */}
+          <div className="flex items-center gap-4 text-slate-500">
+            <button className="relative w-10 h-10 rounded-full hover:bg-slate-100 flex items-center justify-center transition-colors">
+              <span className="material-symbols-outlined">notifications</span>
+              <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
+            </button>
+            <button className="w-10 h-10 rounded-full hover:bg-slate-100 flex items-center justify-center transition-colors">
+              <span className="material-symbols-outlined">help</span>
+            </button>
+          </div>
+
+          {/* Profile cá nhân của Manager */}
+          <div className="flex items-center gap-3 pl-2 cursor-pointer hover:bg-slate-50 p-1 rounded-full transition-all">
+            <div className="text-right">
+              <p className="text-sm font-semibold text-slate-800 leading-tight">
+                {user?.fullName || 'Alex Thompson'}
+              </p>
+              <p className="text-[10px] text-emerald-500 font-bold uppercase tracking-wider">
+                Manager
+              </p>
+            </div>
+            {/* Ảnh đại diện mặc định cao cấp */}
+            <div className="w-10 h-10 rounded-full border-2 border-emerald-500 flex items-center justify-center bg-slate-200 text-slate-700 font-bold overflow-hidden">
+              <img
+                src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=256&auto=format&fit=crop"
+                alt="Profile Avatar"
+                className="w-full h-full object-cover"
+              />
+            </div>
+          </div>
+        </div>
+      </header>
+
+      {/* ===== KHÔNG GIAN LÀM VIỆC CHÍNH ===== */}
+      <main className="flex-grow p-6 lg:p-8 w-full max-w-[1400px] mx-auto">
+        {/* Breadcrumb điều hướng */}
+        <nav aria-label="Breadcrumb" className="flex text-xs text-slate-500 mb-6">
+          <ol className="inline-flex items-center gap-2">
+            <li className="inline-flex items-center">
+              <span className="hover:text-emerald-600 transition-colors">PBMS Manager</span>
+            </li>
+            <li>
+              <span className="material-symbols-outlined text-sm">chevron_right</span>
+            </li>
+            <li aria-current="page" className="text-slate-800 font-medium">
+              Facility Management
+            </li>
+          </ol>
+        </nav>
+
+        {/* Tiêu đề trang & Nút chỉnh sửa */}
+        <div className="flex flex-col md:flex-row md:items-start justify-between gap-4 mb-8">
+          <div>
+            <h2 className="text-3xl font-bold text-slate-800 tracking-tight mb-2">
+              Facility Management
+            </h2>
+            <p className="text-slate-500 text-sm max-w-2xl">
+              Manage building infrastructure, capacity, and spatial configurations.
+            </p>
+          </div>
+          <div className="flex shrink-0 gap-3">
+            <Link
+              href="/dashboard/manager/edit-facility"
+              className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-emerald-500 text-white hover:bg-emerald-600 text-sm font-semibold rounded-[12px] transition-all shadow-md shadow-emerald-500/10"
+            >
+              <span className="material-symbols-outlined text-lg">edit</span>
+              Edit Facility
+            </Link>
+          </div>
+        </div>
+
+        {/* Lưới bố cục (Grid Layout) */}
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+          {/* Cột Trái: Thông tin tòa nhà & Trạng thái Phân khu (Chiếm 2/3 cột trên xl) */}
+          <section className="xl:col-span-2 flex flex-col gap-6">
+            
+            {/* Thẻ Hero giới thiệu Tòa nhà */}
+            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col sm:flex-row relative">
+              {/* Pattern chấm lưới trang trí phía nền */}
+              <div
+                className="absolute inset-0 opacity-5 pointer-events-none"
+                style={{
+                  backgroundImage: 'radial-gradient(#006d43 1px, transparent 1px)',
+                  backgroundSize: '20px 20px',
+                }}
+              ></div>
+              
+              {/* Ảnh đại diện tòa nhà */}
+              <div className="w-full sm:w-2/5 h-48 sm:h-auto relative z-10 min-h-[220px]">
+                <img
+                  alt="Urban Flow Tower"
+                  className="w-full h-full object-cover border-r border-slate-100"
+                  src="https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?q=80&w=600&auto=format&fit=crop"
+                />
+              </div>
+
+              {/* Chi tiết thông tin */}
+              <div className="p-6 lg:p-8 flex-1 flex flex-col justify-center relative z-10 bg-white/95 backdrop-blur-sm">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="material-symbols-outlined text-emerald-500 text-xl">business</span>
+                  <h3 className="text-xl font-bold text-slate-800">Urban Flow Tower</h3>
+                </div>
+                <p className="text-xs text-slate-500 mb-6 flex items-start gap-1.5">
+                  <span className="material-symbols-outlined text-[16px] mt-0.5 text-slate-400">location_on</span>
+                  123 Innovation Blvd, District 1, Ho Chi Minh City
+                </p>
+
+                {/* Thống kê nhanh số lượng */}
+                <div className="grid grid-cols-3 gap-4 mt-auto">
+                  <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                    <p className="text-[10px] text-slate-400 uppercase tracking-wider font-bold mb-1">
+                      Total Capacity
+                    </p>
+                    <p className="text-xl font-bold text-slate-800">
+                      500 <span className="text-xs font-normal text-slate-400">slots</span>
+                    </p>
+                  </div>
+                  <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                    <p className="text-[10px] text-slate-400 uppercase tracking-wider font-bold mb-1">
+                      Total Floors
+                    </p>
+                    <p className="text-xl font-bold text-slate-800">
+                      3 <span className="text-xs font-normal text-slate-400">levels</span>
+                    </p>
+                  </div>
+                  <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                    <p className="text-[10px] text-slate-400 uppercase tracking-wider font-bold mb-1">
+                      Total Zones
+                    </p>
+                    <p className="text-xl font-bold text-slate-800">
+                      6 <span className="text-xs font-normal text-slate-400">areas</span>
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Quản lý trạng thái phân khu (Zone Status) */}
+            <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-bold text-slate-800">Zone Status</h3>
+                <button className="text-slate-400 hover:text-slate-600 transition-colors">
+                  <span className="material-symbols-outlined text-[20px]">filter_list</span>
+                </button>
+              </div>
+
+              {/* Danh sách các Zone */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Premium Zone */}
+                <div className="flex items-center justify-between p-4 border border-slate-100 rounded-xl hover:border-emerald-500/20 transition-all cursor-pointer group hover:bg-slate-50/50">
+                  <div>
+                    <h4 className="text-sm font-semibold text-slate-800 group-hover:text-emerald-500 transition-colors">
+                      Premium Zone
+                    </h4>
+                    <p className="text-xs text-slate-400 mt-1">Level B1 • 50 Slots</p>
+                  </div>
+                  <div className="flex flex-col items-end gap-1">
+                    <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide bg-red-50 text-red-600">
+                      High
+                    </span>
+                    <span className="text-sm font-bold text-slate-800">95%</span>
+                  </div>
+                </div>
+
+                {/* Standard A */}
+                <div className="flex items-center justify-between p-4 border border-slate-100 rounded-xl hover:border-emerald-500/20 transition-all cursor-pointer group hover:bg-slate-50/50">
+                  <div>
+                    <h4 className="text-sm font-semibold text-slate-800 group-hover:text-emerald-500 transition-colors">
+                      Standard A
+                    </h4>
+                    <p className="text-xs text-slate-400 mt-1">Level B2 • 100 Slots</p>
+                  </div>
+                  <div className="flex flex-col items-end gap-1">
+                    <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide bg-amber-50 text-amber-600">
+                      Average
+                    </span>
+                    <span className="text-sm font-bold text-slate-800">60%</span>
+                  </div>
+                </div>
+
+                {/* EV Hub */}
+                <div className="flex items-center justify-between p-4 border border-slate-100 rounded-xl hover:border-emerald-500/20 transition-all cursor-pointer group hover:bg-slate-50/50">
+                  <div>
+                    <h4 className="text-sm font-semibold text-slate-800 group-hover:text-emerald-500 transition-colors">
+                      EV Hub
+                    </h4>
+                    <p className="text-xs text-slate-400 mt-1">Level B1 • 150 Slots</p>
+                  </div>
+                  <div className="flex flex-col items-end gap-1">
+                    <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide bg-emerald-50 text-emerald-600">
+                      Open
+                    </span>
+                    <span className="text-sm font-bold text-slate-800">30%</span>
+                  </div>
+                </div>
+
+                {/* VIP Reserved */}
+                <div className="flex items-center justify-between p-4 border border-slate-100 rounded-xl hover:border-emerald-500/20 transition-all cursor-pointer group hover:bg-slate-50/50">
+                  <div>
+                    <h4 className="text-sm font-semibold text-slate-800 group-hover:text-emerald-500 transition-colors">
+                      VIP Reserved
+                    </h4>
+                    <p className="text-xs text-slate-400 mt-1">Rooftop • 100 Slots</p>
+                  </div>
+                  <div className="flex flex-col items-end gap-1">
+                    <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide bg-red-50 text-red-600">
+                      High
+                    </span>
+                    <span className="text-sm font-bold text-slate-800">90%</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Nút xem thêm */}
+              <button className="w-full mt-6 py-2 text-xs font-semibold text-slate-500 hover:text-emerald-500 transition-colors flex items-center justify-center gap-1">
+                View All Zones <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
+              </button>
+            </div>
+          </section>
+
+          {/* Cột Phải: Biểu đồ Allocation & Quản lý Tầng */}
+          <section className="flex flex-col gap-6">
+            
+            {/* Thẻ Phân bổ Sức chứa (Allocation Overview) */}
+            <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
+              <h3 className="text-lg font-bold text-slate-800 mb-6">Allocation Overview</h3>
+              
+              {/* Vòng tròn Biểu đồ */}
+              <div className="flex items-center justify-center mb-6 relative">
+                <div className="w-32 h-32 rounded-full border-[12px] border-slate-100 flex items-center justify-center relative overflow-hidden">
+                  <div
+                    className="absolute inset-0 border-[12px] border-emerald-500 rounded-full"
+                    style={{
+                      clipPath: 'polygon(50% 0, 100% 0, 100% 100%, 0 100%, 0 50%, 50% 50%)',
+                      transform: 'rotate(45deg)',
+                    }}
+                  ></div>
+                  <div
+                    className="absolute inset-0 border-[12px] border-sky-400 rounded-full"
+                    style={{
+                      clipPath: 'polygon(0 0, 50% 0, 50% 50%, 0 50%)',
+                      transform: 'rotate(45deg)',
+                    }}
+                  ></div>
+                  <div className="text-center bg-white w-24 h-24 rounded-full flex flex-col items-center justify-center z-10 shadow-inner">
+                    <span className="text-2xl font-bold text-slate-800 leading-none">500</span>
+                    <span className="text-[9px] text-slate-400 uppercase font-bold tracking-wider mt-1">Total</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Chú thích biểu đồ */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 hover:bg-slate-100/50 transition-colors">
+                  <div className="flex items-center gap-3">
+                    <div className="w-3 h-3 rounded-sm bg-emerald-500"></div>
+                    <span className="material-symbols-outlined text-slate-500 text-[18px]">directions_car</span>
+                    <span className="text-xs font-semibold text-slate-600">Standard Cars</span>
+                  </div>
+                  <span className="text-sm font-bold text-slate-800">350</span>
+                </div>
+                
+                <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 hover:bg-slate-100/50 transition-colors">
+                  <div className="flex items-center gap-3">
+                    <div className="w-3 h-3 rounded-sm bg-sky-400"></div>
+                    <span className="material-symbols-outlined text-slate-500 text-[18px]">ev_station</span>
+                    <span className="text-xs font-semibold text-slate-600">EV Charging</span>
+                  </div>
+                  <span className="text-sm font-bold text-slate-800">150</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Quản lý Tầng (Floor Management) */}
+            <div className="flex flex-col gap-4">
+              <div className="flex items-center justify-between px-1">
+                <h3 className="text-lg font-bold text-slate-800">Floor Management</h3>
+                <button className="text-xs font-bold text-emerald-500 hover:text-emerald-600 transition-colors">
+                  View All Floors
+                </button>
+              </div>
+
+              {/* Danh sách tầng */}
+              <div className="flex flex-col gap-4">
+                
+                {/* Tầng B1 */}
+                <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm hover:-translate-y-0.5 transition-all duration-200 cursor-pointer group">
+                  <div className="flex justify-between items-start mb-4">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-lg bg-slate-100 text-slate-700 flex items-center justify-center font-bold text-sm">
+                        B1
+                      </div>
+                      <h4 className="font-semibold text-slate-800 text-sm">Level B1</h4>
+                    </div>
+                    <button className="text-slate-400 hover:text-slate-600 transition-colors opacity-0 group-hover:opacity-100">
+                      <span className="material-symbols-outlined text-[20px]">more_vert</span>
+                    </button>
+                  </div>
+                  
+                  <div className="mb-4">
+                    <div className="flex justify-between text-xs mb-1.5">
+                      <span className="text-slate-500 font-medium">Occupancy</span>
+                      <span className="text-slate-800 font-bold">150 / 200</span>
+                    </div>
+                    <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
+                      <div className="bg-emerald-500 h-full rounded-full" style={{ width: '75%' }}></div>
+                    </div>
+                    <p className="text-[10px] text-slate-400 mt-2 text-right">75% Full</p>
+                  </div>
+                  
+                  <div className="pt-4 border-t border-slate-50">
+                    <button className="w-full py-2 text-xs font-bold text-emerald-500 bg-slate-50 hover:bg-slate-100 rounded-xl transition-colors">
+                      Manage Floor
+                    </button>
+                  </div>
+                </div>
+
+                {/* Tầng B2 */}
+                <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm hover:-translate-y-0.5 transition-all duration-200 cursor-pointer group">
+                  <div className="flex justify-between items-start mb-4">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-lg bg-slate-100 text-slate-700 flex items-center justify-center font-bold text-sm">
+                        B2
+                      </div>
+                      <h4 className="font-semibold text-slate-800 text-sm">Level B2</h4>
+                    </div>
+                    <button className="text-slate-400 hover:text-slate-600 transition-colors opacity-0 group-hover:opacity-100">
+                      <span className="material-symbols-outlined text-[20px]">more_vert</span>
+                    </button>
+                  </div>
+
+                  <div className="mb-4">
+                    <div className="flex justify-between text-xs mb-1.5">
+                      <span className="text-slate-500 font-medium">Occupancy</span>
+                      <span className="text-slate-800 font-bold">85 / 200</span>
+                    </div>
+                    <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
+                      <div className="bg-emerald-500 h-full rounded-full opacity-60" style={{ width: '42.5%' }}></div>
+                    </div>
+                    <p className="text-[10px] text-slate-400 mt-2 text-right">42.5% Full</p>
+                  </div>
+
+                  <div className="pt-4 border-t border-slate-50">
+                    <button className="w-full py-2 text-xs font-bold text-emerald-500 bg-slate-50 hover:bg-slate-100 rounded-xl transition-colors">
+                      Manage Floor
+                    </button>
+                  </div>
+                </div>
+
+                {/* Tầng Thượng (Rooftop VIP) */}
+                <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm hover:-translate-y-0.5 transition-all duration-200 cursor-pointer group">
+                  <div className="flex justify-between items-start mb-4">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-lg bg-[#1B2A41] text-white flex items-center justify-center font-bold text-[10px]">
+                        VIP
+                      </div>
+                      <h4 className="font-semibold text-slate-800 text-sm">Rooftop</h4>
+                    </div>
+                    <button className="text-slate-400 hover:text-slate-600 transition-colors opacity-0 group-hover:opacity-100">
+                      <span className="material-symbols-outlined text-[20px]">more_vert</span>
+                    </button>
+                  </div>
+
+                  <div className="mb-4">
+                    <div className="flex justify-between text-xs mb-1.5">
+                      <span className="text-slate-500 font-medium">Occupancy</span>
+                      <span className="text-slate-800 font-bold">90 / 100</span>
+                    </div>
+                    <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
+                      <div className="bg-red-500 h-full rounded-full opacity-90" style={{ width: '90%' }}></div>
+                    </div>
+                    <p className="text-[10px] text-red-500 mt-2 text-right font-medium">90% Full - High Traffic</p>
+                  </div>
+
+                  <div className="pt-4 border-t border-slate-50">
+                    <button className="w-full py-2 text-xs font-bold text-emerald-500 bg-slate-50 hover:bg-slate-100 rounded-xl transition-colors">
+                      Manage Floor
+                    </button>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+          </section>
+        </div>
+      </main>
+    </div>
+  );
+}

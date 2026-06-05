@@ -86,11 +86,19 @@ export function LoginForm({ isModal = false, onSuccess, onClose, onSwitchMode }:
     setIsSubmitting(true);
 
     try {
-      await login(identifier, password);
-      if (isModal && onSuccess) {
-        onSuccess();
+      const loggedInUser = await login(identifier, password);
+      // Chuyển hướng người dùng dựa trên vai trò (role)
+      if (loggedInUser.role === 'MANAGER') {
+        router.push('/dashboard/manager/facilities');
+        if (isModal && onSuccess) {
+          onSuccess();
+        }
       } else {
-        router.push('/');
+        if (isModal && onSuccess) {
+          onSuccess();
+        } else {
+          router.push('/');
+        }
       }
     } catch {
       setErrors({ form: 'Invalid username or password' });
@@ -105,11 +113,19 @@ export function LoginForm({ isModal = false, onSuccess, onClose, onSwitchMode }:
     setErrors({});
     try {
       // Gửi token nhận được từ Google lên Context để login qua Backend
-      await loginWithGoogle(response.credential);
-      if (isModal && onSuccess) {
-        onSuccess();
+      const loggedInUser = await loginWithGoogle(response.credential);
+      // Chuyển hướng người dùng dựa trên vai trò (role) sau khi đăng nhập Google
+      if (loggedInUser.role === 'MANAGER') {
+        router.push('/dashboard/manager/facilities');
+        if (isModal && onSuccess) {
+          onSuccess();
+        }
       } else {
-        router.push('/');
+        if (isModal && onSuccess) {
+          onSuccess();
+        } else {
+          router.push('/');
+        }
       }
     } catch (err: unknown) {
       const errMsg = err instanceof Error ? err.message : 'Failed to sign in with Google';

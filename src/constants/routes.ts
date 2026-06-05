@@ -20,6 +20,10 @@ export const ROUTES = {
 
   // Dashboard (staff/manager)
   DASHBOARD: '/dashboard',
+  MANAGER_FACILITIES: '/dashboard/manager/facilities',       // Trang quản lý cơ sở (Facility Management)
+  MANAGER_EDIT_FACILITY: '/dashboard/manager/facilities/edit',  // Trang chỉnh sửa thông tin cơ sở
+  MANAGER_ALLOCATE: '/dashboard/manager/allocate',            // Trang cấp phát slot đỗ xe
+  MANAGER_VEHICLES: '/dashboard/manager/vehicles',            // Trang chi tiết phương tiện
   CHECKIN: '/checkin',
   CHECKOUT: '/checkout',
   SESSIONS: '/sessions',

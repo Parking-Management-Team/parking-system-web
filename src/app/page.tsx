@@ -182,15 +182,25 @@ export default function Home() {
             <WavyNavLink onClick={() => scrollToSection('features')} className="text-white/80 hover:text-white font-medium transition-colors">Features</WavyNavLink>
             <WavyNavLink onClick={() => scrollToSection('pricing')} className="text-white/80 hover:text-white font-medium transition-colors">Pricing</WavyNavLink>
             <WavyNavLink onClick={() => scrollToSection('contact')} className="text-white/80 hover:text-white font-medium transition-colors">Contact</WavyNavLink>
-            <button
-              onClick={() => {
-                setAuthDrawerMode('register')
-                setIsAuthDrawerOpen(true)
-              }}
-              className="px-6 py-2.5 bg-emerald-500 text-white rounded-lg font-semibold hover:bg-emerald-600 hover:shadow-lg transition-all"
-            >
-              Get Started
-            </button>
+            {/* Hiển thị nút Dashboard nếu đã đăng nhập, ngược lại hiển thị nút Get Started */}
+            {isLoggedIn ? (
+              <Link
+                href={user?.role === 'MANAGER' ? '/dashboard/manager/facilities' : '/dashboard'}
+                className="px-6 py-2.5 bg-emerald-500 text-white rounded-lg font-semibold hover:bg-emerald-600 hover:shadow-lg transition-all text-center flex items-center justify-center"
+              >
+                Dashboard
+              </Link>
+            ) : (
+              <button
+                onClick={() => {
+                  setAuthDrawerMode('register')
+                  setIsAuthDrawerOpen(true)
+                }}
+                className="px-6 py-2.5 bg-emerald-500 text-white rounded-lg font-semibold hover:bg-emerald-600 hover:shadow-lg transition-all"
+              >
+                Get Started
+              </button>
+            )}
             <button
               onClick={() => {
                 if (isLoggedIn) {
@@ -225,16 +235,27 @@ export default function Home() {
               <button onClick={() => { scrollToSection('features'); setIsMenuOpen(false); }} className="text-left text-white/80 hover:text-white py-2">Features</button>
               <button onClick={() => { scrollToSection('pricing'); setIsMenuOpen(false); }} className="text-left text-white/80 hover:text-white py-2">Pricing</button>
               <button onClick={() => { scrollToSection('contact'); setIsMenuOpen(false); }} className="text-left text-white/80 hover:text-white py-2">Contact</button>
-              <button
-                onClick={() => {
-                  setIsMenuOpen(false)
-                  setAuthDrawerMode('register')
-                  setIsAuthDrawerOpen(true)
-                }}
-                className="text-center py-3 w-full bg-emerald-500 text-white rounded-lg font-semibold hover:bg-emerald-600 hover:shadow-lg transition-all"
-              >
-                Get Started
-              </button>
+              {/* Menu mobile: Hiển thị nút Dashboard nếu đã đăng nhập, ngược lại hiển thị Get Started */}
+              {isLoggedIn ? (
+                <Link
+                  href={user?.role === 'MANAGER' ? '/dashboard/manager/facilities' : '/dashboard'}
+                  onClick={() => setIsMenuOpen(false)}
+                  className="text-center py-3 w-full bg-emerald-500 text-white rounded-lg font-semibold hover:bg-emerald-600 hover:shadow-lg transition-all flex items-center justify-center"
+                >
+                  Dashboard
+                </Link>
+              ) : (
+                <button
+                  onClick={() => {
+                    setIsMenuOpen(false)
+                    setAuthDrawerMode('register')
+                    setIsAuthDrawerOpen(true)
+                  }}
+                  className="text-center py-3 w-full bg-emerald-500 text-white rounded-lg font-semibold hover:bg-emerald-600 hover:shadow-lg transition-all"
+                >
+                  Get Started
+                </button>
+              )}
               <button
                 onClick={() => {
                   setIsMenuOpen(false)

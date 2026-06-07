@@ -96,16 +96,41 @@ export const ROLE_NAVIGATION: Record<string, NavigationItem[]> = {
     },
   ],
   ADMIN: [
-    // Menu chính của Admin (Ví dụ mẫu cho tương lai)
     {
-      label: 'System Overview',
-      href: '/dashboard/admin/overview',
-      icon: 'admin_panel_settings',
+      label: 'Admin Dashboard',
+      href: '/dashboard/admin',
+      icon: 'dashboard',
     },
     {
       label: 'User Management',
       href: '/dashboard/admin/users',
       icon: 'group',
+    },
+    {
+      label: 'Role & Permission',
+      href: '/dashboard/admin/roles',
+      icon: 'security',
+    },
+    {
+      label: 'Parking Analytics',
+      href: '/dashboard/admin/analytics',
+      icon: 'analytics',
+    },
+    {
+      label: 'Device Monitoring',
+      href: '/dashboard/admin/devices',
+      icon: 'router',
+    },
+    {
+      label: 'System Settings',
+      href: '/dashboard/admin/settings',
+      icon: 'settings',
+    },
+    {
+      label: 'Support',
+      href: '#',
+      icon: 'help',
+      isFooter: true,
     },
     {
       label: 'Settings',

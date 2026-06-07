@@ -33,6 +33,14 @@ export const ROUTES = {
   STAFF_INCIDENT: '/dashboard/staff/incident',
   STAFF_REPORTS: '/dashboard/staff/reports',
 
+  // Admin Routes
+  ADMIN_DASHBOARD: '/dashboard/admin',
+  ADMIN_USERS: '/dashboard/admin/users',
+  ADMIN_ROLES: '/dashboard/admin/roles',
+  ADMIN_ANALYTICS: '/dashboard/admin/analytics',
+  ADMIN_DEVICES: '/dashboard/admin/devices',
+  ADMIN_SETTINGS: '/dashboard/admin/settings',
+
   CHECKIN: '/checkin',
   CHECKOUT: '/checkout',
   SESSIONS: '/sessions',

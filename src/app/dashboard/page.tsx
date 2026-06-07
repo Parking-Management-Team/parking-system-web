@@ -24,8 +24,14 @@ export default function DashboardRedirect() {
     } else if (user.role === 'MANAGER') {
       // Vai trò Manager -> điều hướng đến trang dashboard tổng
       router.replace('/dashboard/manager');
+    } else if (user.role === 'STAFF') {
+      // Vai trò Staff -> điều hướng đến staff portal
+      router.replace('/dashboard/staff');
+    } else if (user.role === 'ADMIN') {
+      // Vai trò Admin -> điều hướng đến admin portal
+      router.replace('/dashboard/admin');
     } else {
-      // Các vai trò khác (Staff, Admin) -> tạm thời quay về trang chủ hoặc trang tương ứng
+      // Các vai trò khác -> tạm thời quay về trang chủ hoặc trang tương ứng
       router.replace('/');
     }
   }, [user, isLoading, router]);

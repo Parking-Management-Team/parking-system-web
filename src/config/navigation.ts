@@ -52,16 +52,35 @@ export const ROLE_NAVIGATION: Record<string, NavigationItem[]> = {
     },
   ],
   STAFF: [
-    // Menu chính của Nhân viên (Ví dụ mẫu cho tương lai)
     {
-      label: 'HUD Control',
-      href: '/dashboard/staff/hud',
+      label: 'Dashboard Overview',
+      href: '/dashboard/staff',
       icon: 'dashboard',
     },
     {
-      label: 'Check In/Out',
-      href: '/dashboard/staff/sessions',
-      icon: 'sync_alt',
+      label: 'Vehicle Check-in',
+      href: '/dashboard/staff/check-in',
+      icon: 'login',
+    },
+    {
+      label: 'Vehicle Check-out',
+      href: '/dashboard/staff/check-out',
+      icon: 'logout',
+    },
+    {
+      label: 'Slot Monitoring',
+      href: '/dashboard/staff/monitoring',
+      icon: 'sensors',
+    },
+    {
+      label: 'Incident Handling',
+      href: '/dashboard/staff/incident',
+      icon: 'report_problem',
+    },
+    {
+      label: 'Shift Reports',
+      href: '/dashboard/staff/reports',
+      icon: 'assignment',
     },
     {
       label: 'Support',
@@ -69,18 +88,49 @@ export const ROLE_NAVIGATION: Record<string, NavigationItem[]> = {
       icon: 'help',
       isFooter: true,
     },
+    {
+      label: 'Settings',
+      href: '#',
+      icon: 'settings',
+      isFooter: true,
+    },
   ],
   ADMIN: [
-    // Menu chính của Admin (Ví dụ mẫu cho tương lai)
     {
-      label: 'System Overview',
-      href: '/dashboard/admin/overview',
-      icon: 'admin_panel_settings',
+      label: 'Admin Dashboard',
+      href: '/dashboard/admin',
+      icon: 'dashboard',
     },
     {
       label: 'User Management',
       href: '/dashboard/admin/users',
       icon: 'group',
+    },
+    {
+      label: 'Role & Permission',
+      href: '/dashboard/admin/roles',
+      icon: 'security',
+    },
+    {
+      label: 'Parking Analytics',
+      href: '/dashboard/admin/analytics',
+      icon: 'analytics',
+    },
+    {
+      label: 'Device Monitoring',
+      href: '/dashboard/admin/devices',
+      icon: 'router',
+    },
+    {
+      label: 'System Settings',
+      href: '/dashboard/admin/settings',
+      icon: 'settings',
+    },
+    {
+      label: 'Support',
+      href: '#',
+      icon: 'help',
+      isFooter: true,
     },
     {
       label: 'Settings',

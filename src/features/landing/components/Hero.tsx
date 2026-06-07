@@ -36,17 +36,17 @@ export default function Hero({ scrollToSection }: HeroProps) {
             className="space-y-8 flex flex-col items-center justify-center w-full"
           >
             <h1 className="text-5xl lg:text-8xl font-extrabold font-heading text-white leading-tight tracking-tight text-center">
-              Park Smarter with <br/>
+              Park Smarter with <br />
               <span className="gradient-text font-black">
-                <TypewriterText 
-                  words={["NexPark.", "Efficiency.", "Automation."]} 
-                  typingSpeed={90} 
-                  deletingSpeed={45} 
+                <TypewriterText
+                  words={["NexPark.", "Efficiency.", "Automation."]}
+                  typingSpeed={90}
+                  deletingSpeed={45}
                   delayBetweenWords={2500}
                 />
               </span>
             </h1>
-            
+
             <p className="text-xl text-gray-300 max-w-2xl font-light leading-relaxed mx-auto text-center">
               Experience the ultimate luxury of space optimization. NexPark delivers artificial intelligence driven spot allocation, predictive booking, and zero-wait payments.
             </p>

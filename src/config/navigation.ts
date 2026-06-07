@@ -52,21 +52,46 @@ export const ROLE_NAVIGATION: Record<string, NavigationItem[]> = {
     },
   ],
   STAFF: [
-    // Menu chính của Nhân viên (Ví dụ mẫu cho tương lai)
     {
-      label: 'HUD Control',
-      href: '/dashboard/staff/hud',
+      label: 'Dashboard Overview',
+      href: '/dashboard/staff',
       icon: 'dashboard',
     },
     {
-      label: 'Check In/Out',
-      href: '/dashboard/staff/sessions',
-      icon: 'sync_alt',
+      label: 'Vehicle Check-in',
+      href: '/dashboard/staff/check-in',
+      icon: 'login',
+    },
+    {
+      label: 'Vehicle Check-out',
+      href: '/dashboard/staff/check-out',
+      icon: 'logout',
+    },
+    {
+      label: 'Slot Monitoring',
+      href: '/dashboard/staff/monitoring',
+      icon: 'sensors',
+    },
+    {
+      label: 'Incident Handling',
+      href: '/dashboard/staff/incident',
+      icon: 'report_problem',
+    },
+    {
+      label: 'Shift Reports',
+      href: '/dashboard/staff/reports',
+      icon: 'assignment',
     },
     {
       label: 'Support',
       href: '#',
       icon: 'help',
+      isFooter: true,
+    },
+    {
+      label: 'Settings',
+      href: '#',
+      icon: 'settings',
       isFooter: true,
     },
   ],

@@ -24,6 +24,15 @@ export const ROUTES = {
   MANAGER_EDIT_FACILITY: '/dashboard/manager/facilities/edit',  // Trang chỉnh sửa thông tin cơ sở
   MANAGER_ALLOCATE: '/dashboard/manager/allocate',            // Trang cấp phát slot đỗ xe
   MANAGER_VEHICLES: '/dashboard/manager/vehicles',            // Trang chi tiết phương tiện
+  
+  // Staff Routes
+  STAFF_DASHBOARD: '/dashboard/staff',
+  STAFF_CHECKIN: '/dashboard/staff/check-in',
+  STAFF_CHECKOUT: '/dashboard/staff/check-out',
+  STAFF_MONITORING: '/dashboard/staff/monitoring',
+  STAFF_INCIDENT: '/dashboard/staff/incident',
+  STAFF_REPORTS: '/dashboard/staff/reports',
+
   CHECKIN: '/checkin',
   CHECKOUT: '/checkout',
   SESSIONS: '/sessions',

@@ -5,24 +5,24 @@ import { ROUTES } from '@/constants/routes';
 
 const LINKS = [
   {
-    href: ROUTES.MANAGER_FACILITIES,
+    href: ROUTES.FACILITIES.ROOT,
     icon: 'location_city',
     label: 'Parking Facilities',
     description: 'View slots and occupancy',
   },
   {
-    href: ROUTES.MANAGER_ALLOCATE,
+    href: ROUTES.FACILITIES.ALLOCATE,
     icon: 'local_parking',
     label: 'Allocate Slot',
     description: 'Register and assign slots',
   },
   {
-    href: ROUTES.MANAGER_VEHICLES,
+    href: ROUTES.VEHICLES.ROOT,
     icon: 'directions_car',
     label: 'Monitor Vehicles',
     description: 'View live feeds & tickets',
   },
-] as const;
+];
 
 /**
  * QuickLinks - 3 thẻ truy cập nhanh các chức năng quản trị chính

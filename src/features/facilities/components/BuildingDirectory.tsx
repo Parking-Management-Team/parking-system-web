@@ -1,10 +1,10 @@
 'use client';
 
-import React, { useState } from 'react';
+import React from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useFacilities } from '../hooks/useFacilities';
-import { Building, BuildingStatus } from '@/lib/types/building.types';
+import { BuildingStatus } from '@/lib/types/building.types';
 
 /**
  * BuildingDirectory Component

@@ -400,24 +400,44 @@ export default function FacilityManagementPage() {
   };
 
 
-  // Hàm xóa tòa nhà khỏi danh sách (Mock Delete)
-  const executeDelete = () => {
-    if (!deletingBuilding) return;
+  // Hàm xóa tòa nhà khỏi hệ thống (Kết nối API DELETE của backend)
+  const executeDelete = async () => {
+    if (!deletingBuilding) return; // Bảo vệ nếu không có tòa nhà được chọn để xóa
+    setIsSaving(true); // Hiển thị trạng thái đang lưu/xóa (quay spinner)
 
-    setTimeout(() => {
+    try {
+      // Gọi API DELETE tới backend theo ID tòa nhà
+      const res = await api.delete<BaseResponse<any>>(`/Buildings/${deletingBuilding.id}`);
+
+      // Nếu backend phản hồi xóa thành công
+      if (res.success) {
+        setIsDeleteModalOpen(false); // Đóng modal xác nhận xóa
+        setDeletingBuilding(null);   // Giải phóng bộ nhớ state tòa nhà đang xóa
+        triggerToast('Xóa tòa nhà thành công!');
+        fetchBuildings(pageIndex);   // Tải lại danh sách tòa nhà trang hiện tại để đồng bộ
+      } else {
+        triggerToast(res.message || 'Lỗi từ máy chủ khi xóa tòa nhà!', 'error');
+      }
+    } catch (error) {
+      console.warn('Lỗi mạng hoặc server, thực hiện Mock Fallback xóa:', error);
+
+      // Phương án dự phòng (Mock Fallback) nếu backend gặp lỗi hoặc không khả dụng
       const updatedList = buildings.filter(b => b.id !== deletingBuilding.id);
-      setBuildings(updatedList);
+      setBuildings(updatedList); // Cập nhật trực tiếp vào React state
 
       // Nếu tòa nhà vừa xóa trùng với tòa nhà đang chọn hiển thị, chuyển active sang tòa nhà đầu tiên còn lại
       if (activeBuilding && activeBuilding.id === deletingBuilding.id) {
         setActiveBuilding(updatedList.length > 0 ? updatedList[0] : null);
       }
 
-      setIsDeleteModalOpen(false);
-      setDeletingBuilding(null);
-      triggerToast('Xóa tòa nhà thành công!');
-    }, 500);
+      setIsDeleteModalOpen(false); // Đóng modal
+      setDeletingBuilding(null);   // Dọn dẹp state
+      triggerToast('Đã xóa cục bộ (Chế độ Offline/Mock)!');
+    } finally {
+      setIsSaving(false); // Tắt trạng thái Loading
+    }
   };
+
 
   return (
     <div className="flex-grow flex flex-col min-h-screen bg-[#f8f9ff]">

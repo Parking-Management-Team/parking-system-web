@@ -1,6 +1,6 @@
 'use client';
 
-import { FacilitiesWorkspace } from '@/features/facilities';
+import { BuildingDirectory } from '@/features/facilities';
 
 /**
  * Trang quản lý cơ sở vật chất (Facilities Management) dành cho Manager.
@@ -8,5 +8,5 @@ import { FacilitiesWorkspace } from '@/features/facilities';
  * bên trong `@/features/facilities`.
  */
 export default function FacilityManagementPage() {
-  return <FacilitiesWorkspace />;
+  return <BuildingDirectory />;
 }

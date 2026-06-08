@@ -10,6 +10,7 @@
 
 // Components
 export { default as FacilitiesWorkspace } from './components/FacilitiesWorkspace';
+export { default as BuildingDirectory } from './components/BuildingDirectory';
 
 // Hooks (nếu cần dùng ngoài module)
 export { useFacilities } from './hooks/useFacilities';

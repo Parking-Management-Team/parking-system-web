@@ -43,11 +43,15 @@ export default function BuildingDirectory() {
     isSaving
   } = useFacilities();
 
+  // Quyền chỉnh sửa: Chỉ Manager hoặc Admin mới được phép thao tác thay đổi dữ liệu cơ sở vật chất
+  const canEdit = user?.role === 'MANAGER' || user?.role === 'ADMIN';
+
   // Tính toán số liệu thống kê (Summary stats)
   const totalCapacity = floors.reduce((acc, f) => acc + f.totalSlots, 0);
   const activeMaintenanceCount = buildings.filter(
     b => b.status === BuildingStatus.OutOfService
   ).length;
+
 
   return (
     <div className="flex-grow flex flex-col min-h-screen bg-[#f9f9ff]">
@@ -131,13 +135,15 @@ export default function BuildingDirectory() {
               <h2 className="text-xl font-bold text-[#111c2d]">Managed Buildings</h2>
               <p className="text-sm text-slate-500 mt-1">Configure and monitor facility structures and zoning.</p>
             </div>
-            <Link 
-              href="/dashboard/manager/facilities/new"
-              className="bg-[#006d43] hover:bg-[#006d43]/90 text-white font-semibold text-sm py-2.5 px-5 rounded-lg transition-colors flex items-center gap-2 shadow-sm"
-            >
-              <span className="material-symbols-outlined text-[18px]">add_business</span>
-              Add New Building
-            </Link>
+            {canEdit && (
+              <Link 
+                href="/dashboard/manager/facilities/new"
+                className="bg-[#006d43] hover:bg-[#006d43]/90 text-white font-semibold text-sm py-2.5 px-5 rounded-lg transition-colors flex items-center gap-2 shadow-sm"
+              >
+                <span className="material-symbols-outlined text-[18px]">add_business</span>
+                Add New Building
+              </Link>
+            )}
           </div>
 
           {/* Summary Cards Row */}
@@ -253,24 +259,28 @@ export default function BuildingDirectory() {
                             >
                               <span className="material-symbols-outlined text-[18px]">visibility</span>
                             </Link>
-                            <Link 
-                              href={`/dashboard/manager/facilities/${bld.id}`}
-                              className="p-1.5 text-slate-400 hover:text-[#006d43] hover:bg-slate-100 rounded transition-all"
-                              title="Edit"
-                            >
-                              <span className="material-symbols-outlined text-[18px]">edit</span>
-                            </Link>
-                            <button 
-                              onClick={(e) => {
-                                e.preventDefault();
-                                setDeletingBld(bld);
-                                setIsDelBldOpen(true);
-                              }}
-                              className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition-all"
-                              title="Delete"
-                            >
-                              <span className="material-symbols-outlined text-[18px]">delete</span>
-                            </button>
+                            {canEdit && (
+                              <>
+                                <Link 
+                                  href={`/dashboard/manager/facilities/${bld.id}`}
+                                  className="p-1.5 text-slate-400 hover:text-[#006d43] hover:bg-slate-100 rounded transition-all"
+                                  title="Edit"
+                                >
+                                  <span className="material-symbols-outlined text-[18px]">edit</span>
+                                </Link>
+                                <button 
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    setDeletingBld(bld);
+                                    setIsDelBldOpen(true);
+                                  }}
+                                  className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition-all"
+                                  title="Delete"
+                                >
+                                  <span className="material-symbols-outlined text-[18px]">delete</span>
+                                </button>
+                              </>
+                            )}
                           </div>
                         </td>
                       </tr>

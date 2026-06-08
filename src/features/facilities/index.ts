@@ -13,9 +13,13 @@ export { default as FacilitiesWorkspace } from './components/FacilitiesWorkspace
 export { default as BuildingDirectory } from './components/BuildingDirectory';
 export { default as AddBuilding } from './components/AddBuilding';
 export { default as BuildingDetails } from './components/BuildingDetails';
+export { default as FloorManagement } from './components/FloorManagement';
 
 // Hooks (nếu cần dùng ngoài module)
 export { useFacilities } from './hooks/useFacilities';
+
+// Context
+export { FacilitiesProvider, useFacilitiesContext } from './context/FacilitiesContext';
 
 // Types
 export * from './types';

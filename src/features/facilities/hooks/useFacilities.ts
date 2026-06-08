@@ -124,6 +124,8 @@ export function useFacilities() {
   const [formFloorName, setFormFloorName] = useState('');
   const [formFloorTotalSlots, setFormFloorTotalSlots] = useState(10);
   const [formFloorStatus, setFormFloorStatus] = useState<'Active' | 'Inactive'>('Active');
+  const [formFloorType, setFormFloorType] = useState<string>('Standard');
+  const [formFloorInitDefaultZones, setFormFloorInitDefaultZones] = useState<boolean>(false);
   const [editingFloor, setEditingFloor] = useState<Floor | null>(null);
   const [deletingFloor, setDeletingFloor] = useState<Floor | null>(null);
 
@@ -466,6 +468,8 @@ export function useFacilities() {
     setFormFloorName(`Floor ${maxFloorNum + 1}`);
     setFormFloorTotalSlots(10);
     setFormFloorStatus('Active');
+    setFormFloorType('Standard');
+    setFormFloorInitDefaultZones(false);
     setIsAddFloorOpen(true);
   };
 
@@ -508,6 +512,20 @@ export function useFacilities() {
 
     // Cập nhật tầng vào state cục bộ
     setFloors(prev => [...prev, newFloor]);
+
+    // Khởi tạo phân khu mặc định nếu chọn
+    if (formFloorInitDefaultZones) {
+      const defaultZone: Zone = {
+        id: Date.now() + 1,
+        floorId: newFloor.id,
+        name: 'Ground Floor Zone',
+        vehicleType: 'Standard',
+        slotCapacity: 0,
+        status: 'Active'
+      };
+      setZones(prev => [...prev, defaultZone]);
+    }
+
     setIsAddFloorOpen(false);
     triggerToast('Floor added successfully!');
   };
@@ -743,6 +761,10 @@ export function useFacilities() {
     setFormFloorTotalSlots,
     formFloorStatus,
     setFormFloorStatus,
+    formFloorType,
+    setFormFloorType,
+    formFloorInitDefaultZones,
+    setFormFloorInitDefaultZones,
     editingFloor,
     setEditingFloor,
     deletingFloor,

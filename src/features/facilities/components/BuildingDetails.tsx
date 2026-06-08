@@ -2,8 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import Link from 'next/link';
-import { useFacilities } from '../hooks/useFacilities';
+import { useFacilitiesContext } from '../context/FacilitiesContext';
 import { Building, BuildingStatus } from '@/lib/types/building.types';
 
 /**
@@ -39,7 +38,7 @@ export default function BuildingDetails() {
     toastMessage,
     toastType,
     triggerToast
-  } = useFacilities();
+  } = useFacilitiesContext();
 
   // Trạng thái cục bộ lưu trữ tòa nhà gốc để so sánh thay đổi
   const [originalBld, setOriginalBld] = useState<Building | null>(null);
@@ -91,7 +90,7 @@ export default function BuildingDetails() {
   };
 
   return (
-    <div className="flex flex-col gap-6 max-w-[1440px] mx-auto pb-12 animate-in fade-in duration-300">
+    <div className="w-full animate-in fade-in duration-300">
       {/* Toast Notification */}
       {showToast && (
         <div className={`fixed top-4 right-4 z-50 flex items-center gap-2 px-4 py-3 rounded-xl shadow-lg border transition-all duration-300 ${
@@ -105,46 +104,6 @@ export default function BuildingDetails() {
           <span className="text-xs font-semibold">{toastMessage}</span>
         </div>
       )}
-
-      {/* Header & Breadcrumbs */}
-      <div className="flex flex-col gap-2">
-        <div className="flex items-center gap-2 text-xs font-semibold text-[#54637d]">
-          <Link href="/dashboard/manager" className="hover:text-[#006d43]">Dashboard</Link>
-          <span className="material-symbols-outlined text-[14px]">chevron_right</span>
-          <Link href="/dashboard/manager/facilities" className="hover:text-[#006d43]">Facilities</Link>
-          <span className="material-symbols-outlined text-[14px]">chevron_right</span>
-          <span className="text-[#111c2d]">{originalBld?.name || 'Building Details'}</span>
-        </div>
-        <div className="flex justify-between items-center mt-2">
-          <h1 className="font-bold text-2xl text-[#111c2d]">Building Configuration</h1>
-          <Link 
-            href="/dashboard/manager/facilities"
-            className="flex items-center gap-1 text-xs font-bold text-[#006d43] hover:underline"
-          >
-            <span className="material-symbols-outlined text-[16px]">arrow_back</span>
-            Back to Directory
-          </Link>
-        </div>
-      </div>
-
-      {/* Navigation Tabs */}
-      <div className="flex border-b border-slate-200 overflow-x-auto no-scrollbar gap-6">
-        <button className="px-1 py-3 font-semibold text-[#006d43] border-b-2 border-[#006d43] text-sm whitespace-nowrap">
-          General Info
-        </button>
-        <button 
-          onClick={() => triggerToast('Floor Management tab is coming soon!', 'success')}
-          className="px-1 py-3 font-semibold text-[#54637d] hover:text-[#006d43] transition-colors text-sm whitespace-nowrap"
-        >
-          Floor Management
-        </button>
-        <button 
-          onClick={() => triggerToast('Access Control tab is coming soon!', 'success')}
-          className="px-1 py-3 font-semibold text-[#54637d] hover:text-[#006d43] transition-colors text-sm whitespace-nowrap"
-        >
-          Access Control
-        </button>
-      </div>
 
       {/* Form Submission Wrapper */}
       <form onSubmit={handleEditBldPreSubmit} className="flex flex-col gap-6">

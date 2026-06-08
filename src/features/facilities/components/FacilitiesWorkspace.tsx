@@ -11,12 +11,11 @@ import FacilitiesModals from './FacilitiesModals';
  * Màn hình làm việc chính (Workspace Layout) của phân hệ Quản lý Cơ sở vật chất (Facilities)
  */
 export default function FacilitiesWorkspace() {
+  const facilities = useFacilities();
   const {
     currentTime,
     currentDate,
     user,
-    
-    // Buildings
     filteredBuildings,
     pageIndex,
     setPageIndex,
@@ -26,110 +25,23 @@ export default function FacilitiesWorkspace() {
     setSearchBldQuery,
     selectedBuilding,
     setSelectedBuilding,
-    isAddBldOpen,
-    setIsAddBldOpen,
-    isEditBldOpen,
-    setIsEditBldOpen,
-    isDelBldOpen,
-    setIsDelBldOpen,
-    isWarningBldOpen,
-    setIsWarningBldOpen,
-    
-    // Building Form
-    formBldCode,
-    setFormBldCode,
-    formBldName,
-    setFormBldName,
-    formBldAddress,
-    setFormBldAddress,
-    formBldTotalFloor,
-    setFormBldTotalFloor,
-    formBldStatus,
-    setFormBldStatus,
-    editingBld,
-    setEditingBld,
-    deletingBld,
-    setDeletingBld,
-    
-    // Building Handlers
     handleOpenAddBld,
     handleOpenEditBld,
     handleOpenDelBld,
-    handleAddBldSubmit,
-    handleEditBldPreSubmit,
-    executeEditBldSave,
-    executeDeleteBld,
-
-    // Floors
     activeFloors,
     selectedFloor,
     setSelectedFloor,
-    isAddFloorOpen,
-    setIsAddFloorOpen,
-    isEditFloorOpen,
-    setIsEditFloorOpen,
-    isDelFloorOpen,
-    setIsDelFloorOpen,
-    
-    // Floor Form
-    formFloorNumber,
-    setFormFloorNumber,
-    formFloorName,
-    setFormFloorName,
-    formFloorTotalSlots,
-    setFormFloorTotalSlots,
-    formFloorStatus,
-    setFormFloorStatus,
-    editingFloor,
-    setEditingFloor,
-    deletingFloor,
-    setDeletingFloor,
-    
-    // Floor Handlers
     handleOpenAddFloor,
     handleOpenEditFloor,
     handleOpenDelFloor,
-    handleAddFloorSubmit,
-    handleEditFloorSubmit,
-    executeDeleteFloor,
-
-    // Zones
     activeZones,
-    isAddZoneOpen,
-    setIsAddZoneOpen,
-    isEditZoneOpen,
-    setIsEditZoneOpen,
-    isDelZoneOpen,
-    setIsDelZoneOpen,
-    
-    // Zone Form
-    formZoneName,
-    setFormZoneName,
-    formZoneVehicleType,
-    setFormZoneVehicleType,
-    formZoneSlotCapacity,
-    setFormZoneSlotCapacity,
-    formZoneStatus,
-    setFormZoneStatus,
-    editingZone,
-    setEditingZone,
-    deletingZone,
-    setDeletingZone,
-    
-    // Zone Handlers
     handleOpenAddZone,
     handleOpenEditZone,
     handleOpenDelZone,
-    handleAddZoneSubmit,
-    handleEditZoneSubmit,
-    executeDeleteZone,
-
-    // Common
-    isSaving,
     showToast,
     toastMessage,
     toastType
-  } = useFacilities();
+  } = facilities;
 
   return (
     <div className="flex-grow flex flex-col min-h-screen bg-[#f9f9ff]">
@@ -264,77 +176,7 @@ export default function FacilitiesWorkspace() {
       </main>
 
       {/* ===== CÁC POP-UP MODALS THỰC HIỆN TÁC VỤ CRUD ===== */}
-      <FacilitiesModals
-        isSaving={isSaving}
-        isAddBldOpen={isAddBldOpen}
-        setIsAddBldOpen={setIsAddBldOpen}
-        handleAddBldSubmit={handleAddBldSubmit}
-        formBldCode={formBldCode}
-        setFormBldCode={setFormBldCode}
-        formBldName={formBldName}
-        setFormBldName={setFormBldName}
-        formBldAddress={formBldAddress}
-        setFormBldAddress={setFormBldAddress}
-        formBldTotalFloor={formBldTotalFloor}
-        setFormBldTotalFloor={setFormBldTotalFloor}
-        isEditBldOpen={isEditBldOpen}
-        setIsEditBldOpen={setIsEditBldOpen}
-        setEditingBld={setEditingBld}
-        handleEditBldPreSubmit={handleEditBldPreSubmit}
-        formBldStatus={formBldStatus}
-        setFormBldStatus={setFormBldStatus}
-        isWarningBldOpen={isWarningBldOpen}
-        setIsWarningBldOpen={setIsWarningBldOpen}
-        editingBld={editingBld}
-        executeEditBldSave={executeEditBldSave}
-        isDelBldOpen={isDelBldOpen}
-        setIsDelBldOpen={setIsDelBldOpen}
-        deletingBld={deletingBld}
-        setDeletingBld={setDeletingBld}
-        executeDeleteBld={executeDeleteBld}
-        isAddFloorOpen={isAddFloorOpen}
-        setIsAddFloorOpen={setIsAddFloorOpen}
-        handleAddFloorSubmit={handleAddFloorSubmit}
-        formFloorNumber={formFloorNumber}
-        setFormFloorNumber={setFormFloorNumber}
-        formFloorName={formFloorName}
-        setFormFloorName={setFormFloorName}
-        formFloorTotalSlots={formFloorTotalSlots}
-        setFormFloorTotalSlots={setFormFloorTotalSlots}
-        formFloorStatus={formFloorStatus}
-        setFormFloorStatus={setFormFloorStatus}
-        isEditFloorOpen={isEditFloorOpen}
-        setIsEditFloorOpen={setIsEditFloorOpen}
-        setEditingFloor={setEditingFloor}
-        handleEditFloorSubmit={handleEditFloorSubmit}
-        editingFloor={editingFloor}
-        isDelFloorOpen={isDelFloorOpen}
-        setIsDelFloorOpen={setIsDelFloorOpen}
-        deletingFloor={deletingFloor}
-        setDeletingFloor={setDeletingFloor}
-        executeDeleteFloor={executeDeleteFloor}
-        isAddZoneOpen={isAddZoneOpen}
-        setIsAddZoneOpen={setIsAddZoneOpen}
-        handleAddZoneSubmit={handleAddZoneSubmit}
-        formZoneName={formZoneName}
-        setFormZoneName={setFormZoneName}
-        formZoneVehicleType={formZoneVehicleType}
-        setFormZoneVehicleType={setFormZoneVehicleType}
-        formZoneSlotCapacity={formZoneSlotCapacity}
-        setFormZoneSlotCapacity={setFormZoneSlotCapacity}
-        formZoneStatus={formZoneStatus}
-        setFormZoneStatus={setFormZoneStatus}
-        isEditZoneOpen={isEditZoneOpen}
-        setIsEditZoneOpen={setIsEditZoneOpen}
-        setEditingZone={setEditingZone}
-        handleEditZoneSubmit={handleEditZoneSubmit}
-        editingZone={editingZone}
-        isDelZoneOpen={isDelZoneOpen}
-        setIsDelZoneOpen={setIsDelZoneOpen}
-        deletingZone={deletingZone}
-        setDeletingZone={setDeletingZone}
-        executeDeleteZone={executeDeleteZone}
-      />
+      <FacilitiesModals {...facilities} />
     </div>
   );
 }

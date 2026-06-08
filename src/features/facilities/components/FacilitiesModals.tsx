@@ -49,6 +49,10 @@ interface FacilitiesModalsProps {
   setFormFloorTotalSlots: (num: number) => void;
   formFloorStatus: 'Active' | 'Inactive';
   setFormFloorStatus: (status: 'Active' | 'Inactive') => void;
+  formFloorType: string;
+  setFormFloorType: (type: string) => void;
+  formFloorInitDefaultZones: boolean;
+  setFormFloorInitDefaultZones: (init: boolean) => void;
   
   isEditFloorOpen: boolean;
   setIsEditFloorOpen: (open: boolean) => void;
@@ -134,6 +138,10 @@ export default function FacilitiesModals({
   setFormFloorTotalSlots,
   formFloorStatus,
   setFormFloorStatus,
+  formFloorType,
+  setFormFloorType,
+  formFloorInitDefaultZones,
+  setFormFloorInitDefaultZones,
   
   isEditFloorOpen,
   setIsEditFloorOpen,
@@ -427,6 +435,20 @@ export default function FacilitiesModals({
                 />
               </div>
               <div>
+                <label className="block text-xs font-semibold text-[#3d4a41] mb-1">Floor Type *</label>
+                <select
+                  value={formFloorType}
+                  onChange={(e) => setFormFloorType(e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm text-[#111c2d] focus:outline-none focus:border-[#006d43]"
+                >
+                  <option value="Standard">Standard Floor</option>
+                  <option value="Ground">Ground Floor</option>
+                  <option value="Basement">Basement</option>
+                  <option value="Roof">Roof</option>
+                  <option value="EV Dedicated">EV Dedicated Floor</option>
+                </select>
+              </div>
+              <div>
                 <label className="block text-xs font-semibold text-[#3d4a41] mb-1">Max Capacity Allocation (slots) *</label>
                 <input 
                   type="number" 
@@ -447,6 +469,22 @@ export default function FacilitiesModals({
                   <option value="Active">Active</option>
                   <option value="Inactive">Inactive (Under Maintenance)</option>
                 </select>
+              </div>
+
+              <div className="flex items-start gap-2 pt-1">
+                <input
+                  type="checkbox"
+                  id="initDefaultZones"
+                  checked={formFloorInitDefaultZones}
+                  onChange={(e) => setFormFloorInitDefaultZones(e.target.checked)}
+                  className="mt-1 rounded text-[#006d43] focus:ring-[#006d43] h-4 w-4 border-slate-300"
+                />
+                <label htmlFor="initDefaultZones" className="text-xs text-[#3d4a41] font-semibold leading-tight cursor-pointer">
+                  Initialize with default zones
+                  <span className="block text-[10px] font-normal text-slate-500 mt-0.5">
+                    Automatically configure ground floor/default parking zone for this level
+                  </span>
+                </label>
               </div>
 
               <div className="flex justify-end gap-2 pt-2">

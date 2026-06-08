@@ -18,12 +18,7 @@ import { LogIn, LogOut, Menu, X } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import WavyNavLink from '@/components/ui/WavyNavLink'
 import { useAuth, AuthDrawer } from '@/features/auth'
-import Hero       from '@/features/landing/components/Hero'
-import About      from '@/features/landing/components/About'
-import Features   from '@/features/landing/components/Features'
-import HowItWorks from '@/features/landing/components/HowItWorks'
-import Pricing    from '@/features/landing/components/Pricing'
-import Contact    from '@/features/landing/components/Contact'
+import { Hero, About, Features, HowItWorks, Pricing, Contact } from '@/features/landing'
 
 export default function Home() {
   const [isMenuOpen, setIsMenuOpen]       = useState(false)

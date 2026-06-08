@@ -9,7 +9,8 @@ import { useAuth } from '@/features/auth';
 // Nhập API client đã được cấu hình sẵn để giao tiếp với backend
 import { api } from '@/lib/api/client';
 // Nhập các type định nghĩa của Building vừa tạo ở Task 1
-import { Building, BuildingStatus } from '@/lib/types/building.types';
+import { Building, BuildingStatus, BaseResponse, PagedResult } from '@/lib/types/building.types';
+
 
 // Định nghĩa kiểu dữ liệu cho FacilityInfo hiển thị trên thẻ Hero
 interface FacilityInfo {
@@ -207,7 +208,44 @@ export default function FacilityManagementPage() {
     }
   }, [activeBuilding]);
 
+  // ─── TÍCH HỢP GỌI API LẤY DANH SÁCH TÒA NHÀ PHÂN TRANG ────────────────────────
+  // Hàm fetch danh sách tòa nhà từ API phân trang backend
+  const fetchBuildings = async (index: number) => {
+    try {
+      // Gọi GET API phân trang đến endpoint /api/Buildings/paged
+      const res = await api.get<BaseResponse<PagedResult<Building>>>(
+        `/Buildings/paged?pageIndex=${index}&pageSize=${pageSize}`
+      );
+
+      // Nếu API phản hồi thành công và có chứa danh sách tòa nhà thực tế
+      if (res.success && res.data && res.data.items.length > 0) {
+        // Cập nhật danh sách tòa nhà từ backend vào state React
+        setBuildings(res.data.items);
+        // Cập nhật tổng số bản ghi tòa nhà trong DB
+        setTotalCount(res.data.totalCount);
+        // Cập nhật tổng số trang hiển thị
+        setTotalPages(res.data.totalPages);
+        // Cập nhật chỉ số trang hiện tại
+        setPageIndex(res.data.pageIndex);
+
+        // Nếu chưa có tòa nhà nào được hiển thị, chọn mặc định tòa nhà đầu tiên trong list
+        if (!activeBuilding) {
+          setActiveBuilding(res.data.items[0]);
+        }
+      }
+    } catch (error) {
+      // Log lỗi nếu gọi API thất bại (ví dụ backend chưa bật) để nhà phát triển theo dõi
+      console.warn('Không thể tải danh sách tòa nhà từ backend (có thể backend chưa chạy). Sử dụng Mock Data làm phương án dự phòng.', error);
+    }
+  };
+
+  // Hook useEffect tự động gọi tải lại danh sách khi trang hiện tại (pageIndex) thay đổi
+  useEffect(() => {
+    fetchBuildings(pageIndex);
+  }, [pageIndex]);
+
   // ─── CÁC HÀM XỬ LÝ SỰ KIỆN FORM & MOCK CRUD ──────────────────────────────────
+
   
   // Hàm mở Modal thêm tòa nhà mới
   const handleOpenAddModal = () => {

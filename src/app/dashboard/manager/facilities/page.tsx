@@ -2,8 +2,7 @@
 
 // Nhập các hook và thư viện cần thiết từ React
 import React, { useEffect, useState } from 'react';
-// Nhập component Link của Next.js để điều hướng nếu cần
-import Link from 'next/link';
+
 // Nhập hook quản lý thông tin đăng nhập
 import { useAuth } from '@/features/auth';
 // Nhập API client đã được cấu hình sẵn để giao tiếp với backend
@@ -242,6 +241,7 @@ export default function FacilityManagementPage() {
   // Hook useEffect tự động gọi tải lại danh sách khi trang hiện tại (pageIndex) thay đổi
   useEffect(() => {
     fetchBuildings(pageIndex);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pageIndex]);
 
   // ─── CÁC HÀM XỬ LÝ SỰ KIỆN FORM & MOCK CRUD ──────────────────────────────────
@@ -407,7 +407,7 @@ export default function FacilityManagementPage() {
 
     try {
       // Gọi API DELETE tới backend theo ID tòa nhà
-      const res = await api.delete<BaseResponse<any>>(`/Buildings/${deletingBuilding.id}`);
+      const res = await api.delete<BaseResponse<unknown>>(`/Buildings/${deletingBuilding.id}`);
 
       // Nếu backend phản hồi xóa thành công
       if (res.success) {

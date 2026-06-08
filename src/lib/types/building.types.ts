@@ -32,3 +32,24 @@ export interface BuildingUpdateRequest {
   totalFloor: number;     // Tổng số tầng mới cần cập nhật (bắt buộc)
   status: BuildingStatus; // Trạng thái hoạt động mới cần cập nhật (bắt buộc)
 }
+
+// Định nghĩa interface mô tả cấu trúc BaseResponse chuẩn hóa từ Backend API
+export interface BaseResponse<T> {
+  success: boolean;       // Biến boolean chỉ thị xem yêu cầu API thành công hay thất bại
+  message: string | null; // Chuỗi ký tự chứa thông điệp phản hồi từ server (nếu có)
+  errorCode: string | null; // Mã lỗi của hệ thống dùng để tra cứu hoặc dịch ngôn ngữ
+  data: T | null;         // Kiểu dữ liệu Generic chứa thông tin thực tế trả về từ backend
+  errors: Record<string, string[]> | null; // Tập hợp các lỗi Validation từ ModelState backend
+}
+
+// Định nghĩa interface mô tả kết quả phân trang PagedResult từ Backend API
+export interface PagedResult<T> {
+  items: T[];             // Danh sách các đối tượng dữ liệu của trang hiện tại
+  pageIndex: number;      // Số thứ tự trang hiện tại (bắt đầu từ 1)
+  pageSize: number;       // Số lượng phần tử tối đa trên mỗi trang
+  totalCount: number;     // Tổng số bản ghi thực tế tồn tại trong cơ sở dữ liệu
+  totalPages: number;     // Tổng số trang tính toán dựa trên tổng số bản ghi và pageSize
+  hasPreviousPage: boolean; // Cờ boolean báo hiệu có trang trước đó hay không
+  hasNextPage: boolean;     // Cờ boolean báo hiệu có trang tiếp theo hay không
+}
+

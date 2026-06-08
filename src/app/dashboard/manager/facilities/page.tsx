@@ -275,14 +275,34 @@ export default function FacilityManagementPage() {
     setIsDeleteModalOpen(true);
   };
 
-  // Hàm lưu khi thêm mới tòa nhà (Mock)
-  const handleAddSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsSaving(true);
+  // Hàm lưu khi thêm mới tòa nhà (Kết nối với API POST của backend)
+  const handleAddSubmit = async (e: React.FormEvent) => {
+    e.preventDefault(); // Chặn hành vi tải lại trang mặc định của form
+    setIsSaving(true);  // Hiển thị trạng thái đang lưu (quay spinner, khóa nút bấm)
 
-    setTimeout(() => {
+    try {
+      // Gửi request POST tạo mới Tòa nhà đến Backend API
+      const res = await api.post<BaseResponse<Building>>('/Buildings', {
+        code: formCode,
+        name: formName,
+        address: formAddress || undefined, // Nếu trống thì truyền undefined để backend bỏ qua hoặc null
+        totalFloor: formTotalFloor
+      });
+
+      // Nếu tạo thành công ở phía Backend
+      if (res.success && res.data) {
+        setIsAddModalOpen(false); // Đóng modal thêm mới
+        triggerToast('Thêm tòa nhà mới thành công!'); // Hiển thị Toast thông báo thành công
+        fetchBuildings(pageIndex); // Tải lại danh sách tòa nhà ở trang hiện tại để đồng bộ
+      } else {
+        triggerToast(res.message || 'Lỗi xảy ra từ server khi tạo tòa nhà!', 'error');
+      }
+    } catch (error) {
+      console.warn('Lỗi mạng hoặc server, kích hoạt Mock Fallback khi thêm:', error);
+      
+      // Phương án dự phòng (Mock Fallback) nếu backend không hoạt động
       const newBuilding: Building = {
-        id: Date.now(), // Tạo ID tạm thời dạng miliseconds
+        id: Date.now(),
         code: formCode,
         name: formName,
         address: formAddress || null,
@@ -290,18 +310,19 @@ export default function FacilityManagementPage() {
         status: BuildingStatus.Available
       };
 
-      setBuildings([...buildings, newBuilding]);
-      setIsSaving(false);
-      setIsAddModalOpen(false);
-      triggerToast('Thêm tòa nhà mới thành công!');
-    }, 800);
+      setBuildings([...buildings, newBuilding]); // Thêm trực tiếp vào danh sách trong state React
+      setIsAddModalOpen(false); // Đóng modal
+      triggerToast('Đã lưu cục bộ (Chế độ Offline/Mock)!');
+    } finally {
+      setIsSaving(false); // Tắt trạng thái Loading
+    }
   };
 
   // Hàm tiền xử lý lưu chỉnh sửa (Kiểm tra xem có bị giảm số tầng hay không)
   const handleEditPreSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+    e.preventDefault(); // Chặn reload trang
 
-    if (!editingBuilding) return;
+    if (!editingBuilding) return; // Kiểm tra bảo vệ nếu không chọn tòa nhà nào
 
     // Kiểm tra nếu Manager giảm số tầng xuống nhỏ hơn ban đầu
     if (formTotalFloor < editingBuilding.totalFloor) {
@@ -313,14 +334,35 @@ export default function FacilityManagementPage() {
     }
   };
 
-  // Hàm thực thi việc cập nhật tòa nhà vào state (Mock Update)
-  const executeEditSave = () => {
-    setIsSaving(true);
-    setIsWarningModalOpen(false);
+  // Hàm thực thi việc cập nhật tòa nhà lên backend (Kết nối API PUT)
+  const executeEditSave = async () => {
+    if (!editingBuilding) return; // Kiểm tra bảo vệ
+    setIsSaving(true); // Bật trạng thái Loading
+    setIsWarningModalOpen(false); // Đóng modal cảnh báo đi
 
-    setTimeout(() => {
-      if (!editingBuilding) return;
+    try {
+      // Gọi PUT API cập nhật thông tin tòa nhà theo ID lên backend
+      const res = await api.put<BaseResponse<Building>>(`/Buildings/${editingBuilding.id}`, {
+        code: formCode,
+        name: formName,
+        address: formAddress || undefined,
+        totalFloor: formTotalFloor,
+        status: formStatus
+      });
 
+      // Nếu Backend cập nhật thành công
+      if (res.success) {
+        setIsEditModalOpen(false); // Đóng modal chỉnh sửa
+        setEditingBuilding(null);  // Làm sạch state tòa nhà đang chọn sửa
+        triggerToast('Cập nhật cấu hình tòa nhà thành công!');
+        fetchBuildings(pageIndex); // Tải lại trang hiện tại để đồng bộ danh sách
+      } else {
+        triggerToast(res.message || 'Lỗi khi cập nhật cấu hình tòa nhà!', 'error');
+      }
+    } catch (error) {
+      console.warn('Lỗi mạng hoặc backend, kích hoạt Mock Fallback khi chỉnh sửa:', error);
+      
+      // Phương án dự phòng (Mock Fallback) nếu backend không hoạt động
       const updatedList = buildings.map(bld => {
         if (bld.id === editingBuilding.id) {
           return {
@@ -335,9 +377,9 @@ export default function FacilityManagementPage() {
         return bld;
       });
 
-      setBuildings(updatedList);
+      setBuildings(updatedList); // Cập nhật cục bộ vào React state
 
-      // Cập nhật lại tòa nhà chủ đạo đang được chọn hiển thị nếu đó là tòa nhà vừa sửa
+      // Đồng thời cập nhật lại thẻ Hero chủ đạo nếu tòa nhà đang chỉnh sửa chính là tòa nhà đang chọn hiển thị
       if (activeBuilding && activeBuilding.id === editingBuilding.id) {
         setActiveBuilding({
           id: editingBuilding.id,
@@ -349,12 +391,14 @@ export default function FacilityManagementPage() {
         });
       }
 
-      setIsSaving(false);
-      setIsEditModalOpen(false);
-      setEditingBuilding(null);
-      triggerToast('Cập nhật cấu hình tòa nhà thành công!');
-    }, 800);
+      setIsEditModalOpen(false); // Đóng modal
+      setEditingBuilding(null);  // Dọn dẹp state
+      triggerToast('Đã lưu cấu hình cục bộ (Chế độ Offline/Mock)!');
+    } finally {
+      setIsSaving(false); // Tắt trạng thái Loading
+    }
   };
+
 
   // Hàm xóa tòa nhà khỏi danh sách (Mock Delete)
   const executeDelete = () => {

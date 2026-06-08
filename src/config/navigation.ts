@@ -95,7 +95,7 @@ export const ROLE_NAVIGATION: Record<string, NavigationItem[]> = {
       isFooter: true,
     },
     {
-      label: "Card Manager",
+      label: "Card Management",
       href: "/dashboard/staff/cards",
       icon: "credit_card",
     }

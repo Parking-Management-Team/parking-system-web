@@ -31,7 +31,8 @@ const initialCards: ParkingCard[] = [
     createdAt: '2026-06-02 10:30',
   },
 ];
-// hàm màu theo trạng thái card
+
+// Hàm đổi màu theo trạng thái card
 const getStatusClassName = (status: CardStatus) => {
   switch (status) {
     case 'Active':
@@ -46,17 +47,26 @@ const getStatusClassName = (status: CardStatus) => {
 };
 
 export default function CardManager() {
+  // Danh sách card hiện tại
   const [cards, setCards] = useState<ParkingCard[]>(initialCards);
+
+  // Giá trị ô tìm kiếm
   const [searchCode, setSearchCode] = useState('');
+
+  // Giá trị ô nhập mã card mới
   const [newCardCode, setNewCardCode] = useState('');
+
+  // Trạng thái mở / đóng modal
   const [isModalOpen, setIsModalOpen] = useState(false);
 
+  // Lọc card theo mã card được nhập vào ô search
   const filteredCards = useMemo(() => {
     return cards.filter((card) =>
       card.code.toLowerCase().includes(searchCode.toLowerCase())
     );
   }, [cards, searchCode]);
 
+  // Xử lý tạo card mới
   const handleCreateCard = (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -86,11 +96,13 @@ export default function CardManager() {
     setIsModalOpen(false);
   };
 
+  // Tự động sinh mã card
   const handleGenerateCode = () => {
     const randomNumber = Math.floor(1000 + Math.random() * 9000);
     setNewCardCode(`CARD-${randomNumber}`);
   };
 
+  // Xử lý đổi trạng thái card
   const handleChangeStatus = (cardId: number, nextStatus: CardStatus) => {
     const selectedCard = cards.find((card) => card.id === cardId);
 
@@ -111,7 +123,7 @@ export default function CardManager() {
 
   return (
     <div className="p-8 space-y-8">
-        //header và nút tạo card mới
+      {/* Header và nút tạo card mới */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-800">Card Manager</h1>
@@ -129,8 +141,9 @@ export default function CardManager() {
         </button>
       </div>
 
+      {/* Phần danh sách card và thanh search */}
       <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-5">
-        //thanh search
+        {/* Thanh search */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <h3 className="text-lg font-bold text-slate-800">Parking Card List</h3>
@@ -152,7 +165,8 @@ export default function CardManager() {
             />
           </div>
         </div>
-        // bảng danh sách card
+
+        {/* Bảng danh sách card */}
         <div className="overflow-x-auto rounded-xl border border-slate-100">
           <table className="w-full text-sm">
             <thead className="bg-slate-50 text-slate-500 uppercase text-xs">
@@ -163,7 +177,8 @@ export default function CardManager() {
                 <th className="px-5 py-4 text-left">Change Status</th>
               </tr>
             </thead>
-        // phần body của bảng
+
+            {/* Phần body của bảng */}
             <tbody className="divide-y divide-slate-100">
               {filteredCards.map((card) => (
                 <tr key={card.id} className="hover:bg-slate-50">
@@ -198,7 +213,8 @@ export default function CardManager() {
                   </td>
                 </tr>
               ))}
-            // hiển thị khi không tìm thấy card nào
+
+              {/* Hiển thị khi không tìm thấy card nào */}
               {filteredCards.length === 0 && (
                 <tr>
                   <td colSpan={4} className="px-5 py-10 text-center text-slate-400">
@@ -210,10 +226,12 @@ export default function CardManager() {
           </table>
         </div>
       </div>
-    // Modal tạo card mới 
+
+      {/* Modal tạo card mới */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white w-full max-w-md rounded-2xl shadow-xl border border-slate-100 p-6 space-y-5">
+            {/* Header của modal */}
             <div className="flex items-start justify-between gap-4">
               <div>
                 <h3 className="text-lg font-bold text-slate-800">Create New Card</h3>
@@ -230,6 +248,7 @@ export default function CardManager() {
               </button>
             </div>
 
+            {/* Form tạo card mới */}
             <form onSubmit={handleCreateCard} className="space-y-4">
               <div className="space-y-2">
                 <label className="text-xs font-bold text-slate-500 uppercase">
@@ -244,6 +263,7 @@ export default function CardManager() {
                 />
               </div>
 
+              {/* Nút tự sinh mã card */}
               <button
                 type="button"
                 onClick={handleGenerateCode}
@@ -253,6 +273,7 @@ export default function CardManager() {
                 Auto Generate Code
               </button>
 
+              {/* Nút xác nhận tạo card */}
               <button
                 type="submit"
                 className="w-full py-3 bg-emerald-500 text-white rounded-xl font-bold hover:bg-emerald-600 transition-all"

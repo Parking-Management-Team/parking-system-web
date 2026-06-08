@@ -11,6 +11,8 @@ export default function VehicleCheckin() {
   const [vehicleType, setVehicleType] = useState('CAR');
   const [assignedSlot, setAssignedSlot] = useState('B1-05');
   const [isCheckedIn, setIsCheckedIn] = useState(false);
+  const [cardCode, setCardCode] = useState('CARD-001');
+const [sessions, setSessions] = useState<any[]>([]);
 
   const handleCheckin = (e: React.FormEvent) => {
     e.preventDefault();

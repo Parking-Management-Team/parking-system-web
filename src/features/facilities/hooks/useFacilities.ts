@@ -247,6 +247,25 @@ export function useFacilities() {
 
   const handleAddBldSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Validate building code rules: Max 20 characters and unique
+    const cleanCode = formBldCode.trim();
+    if (!cleanCode) {
+      triggerToast('Building code is required!', 'error');
+      return;
+    }
+    if (cleanCode.length > 20) {
+      triggerToast('Building code cannot exceed 20 characters!', 'error');
+      return;
+    }
+    const isCodeDuplicate = buildings.some(
+      b => b.code.toUpperCase() === cleanCode.toUpperCase()
+    );
+    if (isCodeDuplicate) {
+      triggerToast('Building code must be unique!', 'error');
+      return;
+    }
+
     setIsSaving(true);
     try {
       // Gửi request tạo tòa nhà mới lên API server
@@ -303,6 +322,24 @@ export function useFacilities() {
   const handleEditBldPreSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingBld) return;
+
+    // Validate building code rules: Max 20 characters and unique
+    const cleanCode = formBldCode.trim();
+    if (!cleanCode) {
+      triggerToast('Building code is required!', 'error');
+      return;
+    }
+    if (cleanCode.length > 20) {
+      triggerToast('Building code cannot exceed 20 characters!', 'error');
+      return;
+    }
+    const isCodeDuplicate = buildings.some(
+      b => b.id !== editingBld.id && b.code.toUpperCase() === cleanCode.toUpperCase()
+    );
+    if (isCodeDuplicate) {
+      triggerToast('Building code must be unique!', 'error');
+      return;
+    }
 
     if (formBldTotalFloor < editingBld.totalFloor) {
       setIsWarningBldOpen(true);

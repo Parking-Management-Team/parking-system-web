@@ -192,6 +192,7 @@ export default function FacilitiesModals({
                 <input 
                   type="text" 
                   required
+                  maxLength={20}
                   placeholder="e.g. BLD-MAIN" 
                   value={formBldCode}
                   onChange={(e) => setFormBldCode(e.target.value.toUpperCase())}
@@ -264,6 +265,7 @@ export default function FacilitiesModals({
                 <input 
                   type="text" 
                   required
+                  maxLength={20}
                   value={formBldCode}
                   onChange={(e) => setFormBldCode(e.target.value.toUpperCase())}
                   className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm text-[#111c2d] focus:outline-none focus:border-[#006d43]"

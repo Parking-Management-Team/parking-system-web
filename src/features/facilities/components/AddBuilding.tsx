@@ -21,7 +21,8 @@ export default function AddBuilding() {
     showToast,
     toastMessage,
     toastType,
-    triggerToast
+    triggerToast,
+    buildings
   } = useFacilities();
 
   // Form states locally so we have full control over validation and submission
@@ -59,10 +60,23 @@ export default function AddBuilding() {
       return;
     }
 
+    const cleanCode = code.trim() || `BLD-${Date.now()}`;
+    if (cleanCode.length > 20) {
+      triggerToast('Building code cannot exceed 20 characters!', 'error');
+      return;
+    }
+    const isCodeDuplicate = buildings.some(
+      b => b.code.toUpperCase() === cleanCode.toUpperCase()
+    );
+    if (isCodeDuplicate) {
+      triggerToast('Building code must be unique!', 'error');
+      return;
+    }
+
     setIsSubmitting(true);
 
     const submitData = {
-      code: code.trim() || `BLD-${Date.now()}`,
+      code: cleanCode,
       name: name.trim(),
       address: address.trim() || undefined,
       totalFloor: totalFloors
@@ -259,6 +273,7 @@ export default function AddBuilding() {
                   type="text" 
                   id="buildingCode"
                   required
+                  maxLength={20}
                   value={code}
                   onChange={(e) => setCode(e.target.value.toUpperCase().replace(/\s+/g, '-'))}
                   placeholder="e.g. BLD-NORTH-TOWER"

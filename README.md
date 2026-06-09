@@ -41,6 +41,37 @@ parking-system-web/
 
 ---
 
+## 🏗️ Kiến Trúc Xử Lý Logic (Core Logic & Architecture)
+
+Để tối ưu hóa việc phát triển song song, giảm thiểu xung đột mã nguồn (Git Conflict) và bảo vệ dữ liệu, dự án NexPark áp dụng các quy chuẩn lập trình sau:
+
+### 1. Thư mục Tiện Ích Hệ Thống (`src/lib/`)
+Thư mục `src/lib/` chứa mã nguồn phục vụ cơ sở hạ tầng hoặc các hàm bổ trợ phi nghiệp vụ mà bất cứ component/trang nào cũng có thể gọi:
+* **`lib/api/`**: Chứa cỗ máy HTTP Client (`client.ts`), tự động đính kèm Token và xử lý logout khi token hết hạn.
+* **`lib/utils/`**: Các hàm tính toán, định dạng dữ liệu (tiền tệ VNĐ, ngày tháng, định giá gửi xe...).
+* **`lib/hooks/`**: Custom hooks bổ trợ giao diện (ví dụ: hiệu ứng cuộn trang, theo dõi kích thước cửa sổ...).
+
+### 2. Cơ Chế Custom Hooks (Tách Biệt Logic Khỏi UI)
+Dự án áp dụng triệt để việc **tách biệt logic xử lý khỏi giao diện hiển thị** thông qua Custom Hooks:
+* **UI Component (File `.tsx`)**: Chỉ lo hiển thị thẻ HTML, CSS và tương tác trực quan.
+* **Custom Hook (File `.ts` bắt đầu bằng `use`)**: Quản lý State, gọi API, xác thực dữ liệu và thực hiện các logic tính toán phức tạp.
+* **Phân cấp Hooks**:
+  * *Hooks Giao diện* (`src/lib/hooks/`): Không chứa API nghiệp vụ, phục vụ hiệu ứng/giao diện chung.
+  * *Hooks Nghiệp vụ* (`src/features/[feature]/hooks/`): Trực tiếp quản lý dữ liệu đặc thù của tính năng đó (ví dụ: `useFacilities` để CRUD tòa nhà, `useAuth` để quản lý tài khoản).
+
+### 3. Cơ Chế Gọi API (API Infrastructure & Endpoint Services)
+Tuyệt đối không viết trực tiếp các hàm gọi `fetch` hay `axios` trong file giao diện `.tsx`:
+* **Cỗ máy API**: Sử dụng đối tượng `api` từ `src/lib/api/client.ts` để gọi request (`api.get`, `api.post`, `api.put`, `api.delete`).
+* **Endpoint Services**: Định nghĩa các API cụ thể bên trong từng module tính năng (`src/features/[feature-name]/services/` hoặc trong hooks). Cách này giúp quản lý tập trung và dễ thay đổi URL API của Backend mà không cần sửa giao diện.
+
+### 4. Cơ Chế Phân Quyền 3 Lớp (3-Layer Authorization)
+Hệ thống NexPark bảo vệ tài nguyên và phân quyền chặt chẽ theo 3 lớp độc lập:
+* **Lớp 1: Route-Level Guard (Bảo vệ đường dẫn)**: Sử dụng `<ProtectedRoute allowedRoles={['STAFF', 'MANAGER', 'ADMIN']}>` bọc ở file `layout.tsx` của từng dashboard để chặn đứng các truy cập trái phép cấp độ URL.
+* **Lớp 2: UI-Level Guard (Ẩn/Hiện nút bấm)**: Đọc thông tin vai trò từ `useAuth()` để hiển thị hoặc ẩn các nút thao tác tương ứng (ví dụ: Staff chỉ được xem, Manager mới được thấy nút Thêm/Sửa/Xóa Tòa nhà).
+* **Lớp 3: API-Level Guard (Bảo vệ backend)**: Mọi HTTP request đều đính kèm JWT Token ở header. Backend .NET sẽ kiểm tra và từ chối xử lý (trả về lỗi `403 Forbidden`) nếu vai trò của tài khoản không được phép gọi API đó.
+
+---
+
 ## ⚡ Bắt Đầu Phát Triển Nhanh (Getting Started)
 
 Dự án sử dụng framework **Next.js** phiên bản mới nhất kết hợp đồng thời giữa **React** và **TypeScript** cùng **Tailwind CSS**.

@@ -7,4 +7,6 @@
  * Trạng thái: Placeholder (chưa có component)
  */
 
-export {};
+// Components
+export { default as CardManager } from './components/CardManager';
+

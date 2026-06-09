@@ -14,6 +14,7 @@ export { default as BuildingDirectory } from './components/BuildingDirectory';
 export { default as AddBuilding } from './components/AddBuilding';
 export { default as BuildingDetails } from './components/BuildingDetails';
 export { default as FloorManagement } from './components/FloorManagement';
+export { default as SlotMonitoring } from './components/SlotMonitoring';
 
 // Hooks (nếu cần dùng ngoài module)
 export { useFacilities } from './hooks/useFacilities';

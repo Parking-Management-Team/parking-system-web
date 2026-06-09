@@ -1,4 +1,4 @@
-import CardManager from "@/features/staff/components/CardManager";
+import { CardManager } from "@/features/card";
 
 export default function StaffCardManagerPage() {
   return <CardManager />;

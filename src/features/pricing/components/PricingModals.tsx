@@ -1,6 +1,6 @@
 import React from 'react';
 import { UsePricingResult } from '../hooks/usePricing';
-import { FeeType } from '../types';
+import { FeePenaltyType } from '../types';
 
 interface PricingModalsProps {
   pricing: UsePricingResult;
@@ -371,7 +371,7 @@ export default function PricingModals({ pricing }: PricingModalsProps) {
                   <div className="relative">
                     <select 
                       value={formFeeType}
-                      onChange={(e) => setFormFeeType(e.target.value as FeeType)}
+                      onChange={(e) => setFormFeeType(e.target.value as FeePenaltyType)}
                       className="w-full bg-white border border-slate-200 rounded-xl pl-4 pr-10 py-2.5 text-sm font-medium text-slate-800 appearance-none focus:outline-none focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all"
                     >
                       <option value="deposit">Deposit</option>

@@ -1,88 +1,80 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/features/auth';
-import { StandardTariff, MonthlyMembership, ServiceFeeOrPenalty, FeePenaltyType, TriggerType } from '../types';
+import { StandardTariff, PricingWindow, TariffRow, MonthlyMembership, ServiceFeeOrPenalty, FeePenaltyType, TriggerType } from '../types';
 
-// Mock initial data
+// Mock initial data matching PBMS Database Schema
 const initialTariffs: StandardTariff[] = [
   {
-    id: '1',
-    vehicleType: 'Motorbike',
-    timeSlot: 'Day: 06:00-18:00',
-    baseRate: '5,000 VNĐ / 4 hrs',
-    incrementalRate: '+1,000 VNĐ / 1 hr',
-    dailyCap: 'Max 10,000 VNĐ',
-    gracePeriod: '15 mins',
-    isActive: true,
-    details: {
-      basePrice: 5000,
-      initialDuration: '4',
-      blockPrice: 1000,
-      increment: '1',
-      startTime: '06:00',
-      endTime: '18:00',
-      maxCap: 10000,
-      graceVal: '15'
-    }
+    pricingPolicyId: 1,
+    vehicleTypeId: 1, // Motorbike
+    policyName: 'Motorbike Standard Tariff',
+    effectiveStart: '2026-01-01',
+    effectiveEnd: null,
+    pricingPolicyStatus: 'Active',
+    pricingWindows: [
+      {
+        pricingWindowId: 1,
+        pricingPolicyId: 1,
+        windowName: 'Day Slot',
+        startTime: '06:00:00',
+        endTime: '18:00:00',
+        baseDurationMinutes: 240, // 4 hours
+        basePrice: 5000,
+        incrementBlockMinutes: 60, // 1 hour
+        incrementPrice: 1000,
+        windowCap: 10000,
+        gracePeriodMinutes: 15
+      },
+      {
+        pricingWindowId: 2,
+        pricingPolicyId: 1,
+        windowName: 'Night Slot',
+        startTime: '18:00:00',
+        endTime: '06:00:00',
+        baseDurationMinutes: 720, // 12 hours
+        basePrice: 10000,
+        incrementBlockMinutes: 60, // 1 hour
+        incrementPrice: 2000,
+        windowCap: 20000,
+        gracePeriodMinutes: 15
+      }
+    ]
   },
   {
-    id: '2',
-    vehicleType: 'Car',
-    timeSlot: 'Day: 06:00-18:00',
-    baseRate: '20,000 VNĐ / 2 hrs',
-    incrementalRate: '+5,000 VNĐ / 1 hr',
-    dailyCap: 'Max 50,000 VNĐ',
-    gracePeriod: '15 mins',
-    isActive: true,
-    details: {
-      basePrice: 20000,
-      initialDuration: '2',
-      blockPrice: 5000,
-      increment: '1',
-      startTime: '06:00',
-      endTime: '18:00',
-      maxCap: 50000,
-      graceVal: '15'
-    }
-  },
-  {
-    id: '3',
-    vehicleType: 'Motorbike (Night)',
-    timeSlot: 'Night: 18:00-06:00',
-    baseRate: '10,000 VNĐ / Night',
-    incrementalRate: '+2,000 VNĐ / 1 hr',
-    dailyCap: 'Max 20,000 VNĐ',
-    gracePeriod: '15 mins',
-    isActive: true,
-    details: {
-      basePrice: 10000,
-      initialDuration: '12',
-      blockPrice: 2000,
-      increment: '1',
-      startTime: '18:00',
-      endTime: '06:00',
-      maxCap: 20000,
-      graceVal: '15'
-    }
-  },
-  {
-    id: '4',
-    vehicleType: 'Car (Night)',
-    timeSlot: 'Night: 18:00-06:00',
-    baseRate: '50,000 VNĐ / Night',
-    incrementalRate: '+10,000 VNĐ / 1 hr',
-    dailyCap: 'Max 150,000 VNĐ',
-    gracePeriod: '15 mins',
-    isActive: true,
-    details: {
-      basePrice: 50000,
-      initialDuration: '12',
-      blockPrice: 10000,
-      increment: '1',
-      startTime: '18:00',
-      endTime: '06:00',
-      maxCap: 150000,
-      graceVal: '15'
-    }
+    pricingPolicyId: 2,
+    vehicleTypeId: 2, // Car
+    policyName: 'Car Standard Tariff',
+    effectiveStart: '2026-01-01',
+    effectiveEnd: null,
+    pricingPolicyStatus: 'Active',
+    pricingWindows: [
+      {
+        pricingWindowId: 3,
+        pricingPolicyId: 2,
+        windowName: 'Day Slot',
+        startTime: '06:00:00',
+        endTime: '18:00:00',
+        baseDurationMinutes: 120, // 2 hours
+        basePrice: 20000,
+        incrementBlockMinutes: 60, // 1 hour
+        incrementPrice: 5000,
+        windowCap: 50000,
+        gracePeriodMinutes: 15
+      },
+      {
+        pricingWindowId: 4,
+        pricingPolicyId: 2,
+        windowName: 'Night Slot',
+        startTime: '18:00:00',
+        endTime: '06:00:00',
+        baseDurationMinutes: 720, // 12 hours
+        basePrice: 50000,
+        incrementBlockMinutes: 60, // 1 hour
+        incrementPrice: 10000,
+        windowCap: 150000,
+        gracePeriodMinutes: 15
+      }
+    ]
   }
 ];
 
@@ -163,6 +155,49 @@ export function usePricing() {
   const [memberships, setMemberships] = useState<MonthlyMembership[]>(initialMemberships);
   const [fees, setFees] = useState<ServiceFeeOrPenalty[]>(initialFees);
 
+  // Adapter Layer: Flatten nested StandardTariff schema to flat structure for the UI Table
+  const tariffRows = useMemo(() => {
+    const rows: TariffRow[] = [];
+    tariffs.forEach((policy) => {
+      policy.pricingWindows.forEach((window: PricingWindow) => {
+        const vehicleTypeName = policy.vehicleTypeId === 1 ? 'Motorbike' : 'Car';
+        const isNight = window.startTime === '18:00:00';
+        const displayVehicle = isNight ? `${vehicleTypeName} (Night)` : vehicleTypeName;
+        
+        const hoursBase = window.baseDurationMinutes / 60;
+        const formatBase = `${window.basePrice.toLocaleString('vi-VN')} VNĐ / ${hoursBase === 12 ? 'Night' : `${hoursBase} hrs`}`;
+        
+        const hoursInc = window.incrementBlockMinutes / 60;
+        const formatInc = `+${window.incrementPrice.toLocaleString('vi-VN')} VNĐ / ${hoursInc} hr`;
+        
+        const formatCap = window.windowCap ? `Max ${window.windowCap.toLocaleString('vi-VN')} VNĐ` : 'No Cap';
+        const formatGrace = `${window.gracePeriodMinutes} mins`;
+        
+        rows.push({
+          id: `${policy.pricingPolicyId}-${window.pricingWindowId}`, // format: "policyId-windowId"
+          vehicleType: displayVehicle,
+          timeSlot: `${window.windowName}: ${window.startTime.substring(0, 5)}-${window.endTime.substring(0, 5)}`,
+          baseRate: formatBase,
+          incrementalRate: formatInc,
+          dailyCap: formatCap,
+          gracePeriod: formatGrace,
+          isActive: policy.pricingPolicyStatus === 'Active',
+          details: {
+            basePrice: window.basePrice,
+            initialDuration: hoursBase.toString(),
+            blockPrice: window.incrementPrice,
+            increment: hoursInc.toString(),
+            startTime: window.startTime.substring(0, 5),
+            endTime: window.endTime.substring(0, 5),
+            maxCap: window.windowCap || 0,
+            graceVal: window.gracePeriodMinutes.toString()
+          }
+        });
+      });
+    });
+    return rows;
+  }, [tariffs]);
+
   // UI state variables
   const [activeTab, setActiveTab] = useState<'standard' | 'memberships' | 'fees'>('standard');
   const [showToast, setShowToast] = useState(false);
@@ -181,8 +216,8 @@ export function usePricing() {
   const [isEditMembershipOpen, setIsEditMembershipOpen] = useState(false);
   const [isFeeModalOpen, setIsFeeModalOpen] = useState(false); // Handles both Add and Edit
 
-  // Currently editing objects
-  const [editingTariff, setEditingTariff] = useState<StandardTariff | null>(null);
+  // Currently editing objects - stored as a tariff row format to bind with Modal forms
+  const [editingTariff, setEditingTariff] = useState<TariffRow | null>(null);
   const [editingMembership, setEditingMembership] = useState<MonthlyMembership | null>(null);
   const [editingFee, setEditingFee] = useState<ServiceFeeOrPenalty | null>(null);
 
@@ -212,18 +247,18 @@ export function usePricing() {
   const [formFeeIsActive, setFormFeeIsActive] = useState(true);
 
   // === TARIFF HANDLERS ===
-  const handleOpenEditTariff = (tariff: StandardTariff) => {
-    setEditingTariff(tariff);
-    setFormTariffName(tariff.vehicleType + ' ' + (tariff.timeSlot.includes('Night') ? 'Night' : 'Day') + ' Tariff');
-    setFormTariffVehicleType(tariff.vehicleType.includes('Motorbike') ? 'Motorbike' : 'Car');
-    setFormTariffStartTime(tariff.details.startTime);
-    setFormTariffEndTime(tariff.details.endTime);
-    setFormTariffBasePrice(tariff.details.basePrice);
-    setFormTariffInitialDuration(tariff.details.initialDuration);
-    setFormTariffBlockPrice(tariff.details.blockPrice);
-    setFormTariffIncrement(tariff.details.increment);
-    setFormTariffMaxCap(tariff.details.maxCap);
-    setFormTariffGraceVal(tariff.details.graceVal);
+  const handleOpenEditTariff = (tariffRow: TariffRow) => {
+    setEditingTariff(tariffRow);
+    setFormTariffName(tariffRow.vehicleType + ' ' + (tariffRow.timeSlot.includes('Night') ? 'Night' : 'Day') + ' Tariff');
+    setFormTariffVehicleType(tariffRow.vehicleType.includes('Motorbike') ? 'Motorbike' : 'Car');
+    setFormTariffStartTime(tariffRow.details.startTime);
+    setFormTariffEndTime(tariffRow.details.endTime);
+    setFormTariffBasePrice(tariffRow.details.basePrice);
+    setFormTariffInitialDuration(tariffRow.details.initialDuration);
+    setFormTariffBlockPrice(tariffRow.details.blockPrice);
+    setFormTariffIncrement(tariffRow.details.increment);
+    setFormTariffMaxCap(tariffRow.details.maxCap);
+    setFormTariffGraceVal(tariffRow.details.graceVal);
     setIsEditTariffOpen(true);
   };
 
@@ -241,34 +276,34 @@ export function usePricing() {
       return;
     }
 
-    const updated = tariffs.map((t) => {
-      if (t.id === editingTariff.id) {
-        // Calculate nice formatted description
-        const displayVehicle = formTariffVehicleType + (t.timeSlot.includes('Night') ? ' (Night)' : '');
-        const formatBase = `${formTariffBasePrice.toLocaleString('vi-VN')} VNĐ / ${formTariffInitialDuration} hrs`;
-        const formatInc = `+${formTariffBlockPrice.toLocaleString('vi-VN')} VNĐ / ${formTariffIncrement} hr`;
-        const formatCap = `Max ${formTariffMaxCap.toLocaleString('vi-VN')} VNĐ`;
+    const [policyIdStr, windowIdStr] = editingTariff.id.split('-');
+    const policyId = parseInt(policyIdStr);
+    const windowId = parseInt(windowIdStr);
 
-        return {
-          ...t,
-          vehicleType: displayVehicle,
-          baseRate: formatBase,
-          incrementalRate: formatInc,
-          dailyCap: formatCap,
-          gracePeriod: `${formTariffGraceVal} mins`,
-          details: {
-            basePrice: formTariffBasePrice,
-            initialDuration: formTariffInitialDuration,
-            blockPrice: formTariffBlockPrice,
-            increment: formTariffIncrement,
-            startTime: formTariffStartTime,
-            endTime: formTariffEndTime,
-            maxCap: formTariffMaxCap,
-            graceVal: formTariffGraceVal
+    const updated = tariffs.map((policy) => {
+      if (policy.pricingPolicyId === policyId) {
+        const updatedWindows = policy.pricingWindows.map((window) => {
+          if (window.pricingWindowId === windowId) {
+            return {
+              ...window,
+              startTime: formTariffStartTime + ':00',
+              endTime: formTariffEndTime + ':00',
+              baseDurationMinutes: parseFloat(formTariffInitialDuration) * 60,
+              basePrice: formTariffBasePrice,
+              incrementBlockMinutes: parseFloat(formTariffIncrement) * 60,
+              incrementPrice: formTariffBlockPrice,
+              windowCap: formTariffMaxCap || null,
+              gracePeriodMinutes: parseInt(formTariffGraceVal)
+            };
           }
+          return window;
+        });
+        return {
+          ...policy,
+          pricingWindows: updatedWindows
         };
       }
-      return t;
+      return policy;
     });
 
     setTariffs(updated);
@@ -277,16 +312,44 @@ export function usePricing() {
   };
 
   const handleToggleTariffStatus = (id: string) => {
+    const [policyIdStr] = id.split('-');
+    const policyId = parseInt(policyIdStr);
+
     setTariffs(
-      tariffs.map((t) => (t.id === id ? { ...t, isActive: !t.isActive } : t))
+      tariffs.map((policy) => {
+        if (policy.pricingPolicyId === policyId) {
+          const nextStatus = policy.pricingPolicyStatus === 'Active' ? 'Inactive' : 'Active';
+          return {
+            ...policy,
+            pricingPolicyStatus: nextStatus
+          };
+        }
+        return policy;
+      })
     );
-    const item = tariffs.find((t) => t.id === id);
-    triggerToast(`${item?.vehicleType} status updated!`);
+
+    const affectedPolicy = tariffs.find((p) => p.pricingPolicyId === policyId);
+    const vehicleName = affectedPolicy?.vehicleTypeId === 1 ? 'Motorbike' : 'Car';
+    triggerToast(`${vehicleName} Policy status updated!`);
   };
 
   const handleDeleteTariff = (id: string) => {
-    setTariffs(tariffs.filter((t) => t.id !== id));
-    triggerToast('Policy deleted successfully!');
+    const [policyIdStr, windowIdStr] = id.split('-');
+    const policyId = parseInt(policyIdStr);
+    const windowId = parseInt(windowIdStr);
+
+    setTariffs(
+      tariffs.map((policy) => {
+        if (policy.pricingPolicyId === policyId) {
+          return {
+            ...policy,
+            pricingWindows: policy.pricingWindows.filter((w) => w.pricingWindowId !== windowId)
+          };
+        }
+        return policy;
+      }).filter((policy) => policy.pricingWindows.length > 0)
+    );
+    triggerToast('Policy window deleted successfully!');
   };
 
   // === MEMBERSHIP HANDLERS ===
@@ -421,7 +484,7 @@ export function usePricing() {
     user,
     activeTab,
     setActiveTab,
-    tariffs,
+    tariffs: tariffRows,
     memberships,
     fees,
     showToast,

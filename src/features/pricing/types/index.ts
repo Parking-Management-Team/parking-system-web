@@ -1,8 +1,32 @@
 /**
- * Pricing Feature Type Definitions
+ * Pricing Feature Type Definitions - Synchronized with PBMS DB Schema
  */
 
-export interface PricingDetails {
+export interface PricingWindow {
+  pricingWindowId: number;
+  pricingPolicyId: number;
+  windowName: string;
+  startTime: string; // "HH:mm:ss"
+  endTime: string;   // "HH:mm:ss"
+  baseDurationMinutes: number;
+  basePrice: number;
+  incrementBlockMinutes: number;
+  incrementPrice: number;
+  windowCap: number | null;
+  gracePeriodMinutes: number;
+}
+
+export interface StandardTariff {
+  pricingPolicyId: number;
+  vehicleTypeId: number;
+  policyName: string;
+  effectiveStart: string; // "YYYY-MM-DD"
+  effectiveEnd: string | null;
+  pricingPolicyStatus: 'Active' | 'Inactive';
+  pricingWindows: PricingWindow[];
+}
+
+export interface TariffRowDetails {
   basePrice: number;
   initialDuration: string;
   blockPrice: number;
@@ -13,8 +37,8 @@ export interface PricingDetails {
   graceVal: string;
 }
 
-export interface StandardTariff {
-  id: string;
+export interface TariffRow {
+  id: string; // format: "policyId-windowId"
   vehicleType: string;
   timeSlot: string;
   baseRate: string;
@@ -22,7 +46,7 @@ export interface StandardTariff {
   dailyCap: string;
   gracePeriod: string;
   isActive: boolean;
-  details: PricingDetails;
+  details: TariffRowDetails;
 }
 
 export interface MonthlyMembership {

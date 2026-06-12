@@ -43,3 +43,4 @@ yarn-error.log*
 .openclaude/
 .agent/
 .agents/
+.mimocode/

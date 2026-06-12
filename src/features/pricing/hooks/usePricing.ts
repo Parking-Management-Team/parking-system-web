@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { useAuth } from '@/features/auth';
 import { StandardTariff, PricingWindow, TariffRow, MonthlyMembership, ServiceFeeOrPenalty, FeePenaltyType, TriggerType } from '../types';
 
@@ -130,25 +130,7 @@ const initialFees: ServiceFeeOrPenalty[] = [
 export function usePricing() {
   const { user } = useAuth();
 
-  // Header Real-time Clock
-  const [currentTime, setCurrentTime] = useState('00:00:00');
-  const [currentDate, setCurrentDate] = useState('Loading date...');
 
-  useEffect(() => {
-    const updateClock = () => {
-      const now = new Date();
-      setCurrentTime(now.toLocaleTimeString('en-US', { hour12: false }));
-      setCurrentDate(now.toLocaleDateString('en-US', {
-        weekday: 'long',
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric'
-      }));
-    };
-    updateClock();
-    const intervalId = setInterval(updateClock, 1000);
-    return () => clearInterval(intervalId);
-  }, []);
 
   // Main feature state lists
   const [tariffs, setTariffs] = useState<StandardTariff[]>(initialTariffs);
@@ -479,8 +461,6 @@ export function usePricing() {
   };
 
   return {
-    currentTime,
-    currentDate,
     user,
     activeTab,
     setActiveTab,

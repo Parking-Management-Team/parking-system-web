@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import Image from 'next/image';
+
 import { useFacilities } from '../hooks/useFacilities';
 import { Building, BuildingStatus, BaseResponse } from '@/lib/types/building.types';
 import { Floor } from '../types';
@@ -15,9 +15,6 @@ import { api } from '@/lib/api/client';
 export default function AddBuilding() {
   const router = useRouter();
   const {
-    currentTime,
-    currentDate,
-    user,
     showToast,
     toastMessage,
     toastType,
@@ -151,60 +148,6 @@ export default function AddBuilding() {
           <span className="text-sm font-semibold">{toastMessage}</span>
         </div>
       )}
-
-      {/* ===== TOP NAVIGATION BAR ===== */}
-      <header className="flex justify-between items-center h-16 px-8 bg-white sticky top-0 z-40 border-b border-[#d8e3fb] backdrop-blur-md bg-white/90">
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 text-slate-500 font-medium text-sm">
-            <span>Facility Management</span>
-            <span className="material-symbols-outlined text-[16px] text-slate-400">chevron_right</span>
-            <span>Building Configuration</span>
-            <span className="material-symbols-outlined text-[16px] text-slate-400">chevron_right</span>
-            <h1 className="font-bold text-slate-800">Add New Building</h1>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-6">
-          <div className="hidden md:flex flex-col items-end border-r border-slate-200 pr-6">
-            <span className="font-mono text-sm font-bold text-[#111c2d] tabular-nums leading-none">
-              {currentTime}
-            </span>
-            <span className="text-[10px] text-slate-400 font-medium tracking-wide mt-1">
-              {currentDate}
-            </span>
-          </div>
-
-          <div className="flex items-center gap-2 text-slate-500">
-            <button className="p-2 hover:bg-slate-100 rounded-full transition-colors">
-              <span className="material-symbols-outlined text-[20px]">notifications</span>
-            </button>
-            <button className="p-2 hover:bg-slate-100 rounded-full transition-colors">
-              <span className="material-symbols-outlined text-[20px]">help_outline</span>
-            </button>
-          </div>
-
-          <div className="flex items-center gap-3 pl-2">
-            <div className="text-right hidden sm:block">
-              <p className="text-sm font-semibold text-slate-800 leading-tight">
-                {user?.fullName || 'Alex Thompson'}
-              </p>
-              <p className="text-[10px] text-emerald-600 font-bold uppercase tracking-wider">
-                Manager
-              </p>
-            </div>
-            <div className="w-9 h-9 rounded-full border border-[#006d43]/20 flex items-center justify-center bg-slate-200 overflow-hidden relative">
-              <Image 
-                alt="User Profile" 
-                className="object-cover" 
-                fill
-                sizes="36px"
-                priority
-                src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=256&auto=format&fit=crop"
-              />
-            </div>
-          </div>
-        </div>
-      </header>
 
       {/* ===== MAIN CONTENT CANVAS ===== */}
       <main className="flex-1 p-6 md:p-8">

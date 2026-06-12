@@ -61,8 +61,8 @@ const INITIAL_ACTIVITIES: ActivityLog[] = [
  */
 export default function ManagerDashboard() {
   const [currentTime, setCurrentTime] = useState<string>('');
-  const [stats, setStats] = useState<DashboardStats>(INITIAL_STATS);
-  const [activities, setActivities] = useState<ActivityLog[]>(INITIAL_ACTIVITIES);
+  const [stats] = useState<DashboardStats>(INITIAL_STATS);
+  const [activities] = useState<ActivityLog[]>(INITIAL_ACTIVITIES);
 
   // Đồng hồ realtime cập nhật mỗi giây
   useEffect(() => {

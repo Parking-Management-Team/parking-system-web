@@ -15,7 +15,7 @@ const MOCK_INCIDENTS = [
 export default function IncidentHandling() {
   const [incidents, setIncidents] = useState(MOCK_INCIDENTS);
   const [selectedIncident, setSelectedIncident] = useState<typeof MOCK_INCIDENTS[0] | null>(null);
-  const [fineAmount, setFineAmount] = useState('200,000 VND');
+  const fineAmount = '200,000 VND';
   const [notes, setNotes] = useState('');
 
   const handleResolve = (id: string) => {

@@ -26,12 +26,10 @@ export function useVehicles() {
   // Quản lý thời gian trôi qua (giả lập xe đã đỗ 2 giờ 15 phút 44 giây ban đầu)
   const [secondsElapsed, setSecondsElapsed] = useState(2 * 3600 + 15 * 60 + 44);
 
-  // Đồng hồ chạy thực tế ở Header
-  const [currentTime, setCurrentTime] = useState('00:00:00');
-  const [currentDate, setCurrentDate] = useState('Thursday, June 4, 2026');
+
 
   // Thông tin xe giả lập (Offline-first fallback)
-  const [vehicle, setVehicle] = useState<VehicleInfo>({
+  const vehicle: VehicleInfo = {
     licensePlate: '29A-123.45',
     model: 'Toyota Camry',
     color: 'Metallic Silver',
@@ -40,7 +38,7 @@ export function useVehicles() {
     type: 'Mid-size Sedan',
     ticketNo: 'TKT-884-2026',
     rateTier: 'Standard VIP'
-  });
+  };
 
   // Nhật ký hoạt động xe giả lập (Offline-first fallback)
   const [logs, setLogs] = useState<ActivityLog[]>([
@@ -51,12 +49,6 @@ export function useVehicles() {
 
   // Bộ đếm thời gian đỗ xe & Đồng hồ hệ thống
   useEffect(() => {
-    const timeInterval = setInterval(() => {
-      const now = new Date();
-      setCurrentTime(now.toLocaleTimeString('en-US', { hour12: false }));
-      setCurrentDate(now.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }));
-    }, 1000);
-
     let elapsedInterval: NodeJS.Timeout;
     if (isParked) {
       elapsedInterval = setInterval(() => {
@@ -65,7 +57,6 @@ export function useVehicles() {
     }
 
     return () => {
-      clearInterval(timeInterval);
       if (elapsedInterval) clearInterval(elapsedInterval);
     };
   }, [isParked]);
@@ -87,16 +78,16 @@ export function useVehicles() {
   // Thực hiện Giải phóng Slot đỗ
   const handleReleaseSlot = async () => {
     if (!isParked) return;
-    
+
     const confirmRelease = window.confirm('Bạn có chắc chắn muốn giải phóng chỗ đỗ A1-013 cho xe này không?');
     if (confirmRelease) {
       try {
         setIsParked(false);
         setParkedSlot('None (Departed)');
-        
+
         const exitTime = new Date().toLocaleTimeString('en-US', { hour12: false });
         const exitDateStr = `Jun 04, 2026 - ${exitTime.substring(0, 5)}`;
-        
+
         const newLog: ActivityLog = {
           timestamp: exitDateStr,
           activity: 'Exit',
@@ -115,11 +106,11 @@ export function useVehicles() {
   // Nộp báo cáo vi phạm
   const submitViolation = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     try {
       const nowTime = new Date().toLocaleTimeString('en-US', { hour12: false });
       const logDateStr = `Jun 04, 2026 - ${nowTime.substring(0, 5)}`;
-      
+
       const newLog: ActivityLog = {
         timestamp: logDateStr,
         activity: 'Violation',
@@ -151,8 +142,6 @@ export function useVehicles() {
     setViolationNotes,
     toastMessage,
     secondsElapsed,
-    currentTime,
-    currentDate,
     vehicle,
     logs,
     formatDuration,

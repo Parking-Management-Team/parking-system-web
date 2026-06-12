@@ -44,6 +44,12 @@ export const ROLE_NAVIGATION: Record<string, NavigationItem[]> = {
     },
     // Các menu chân trang (Footer items)
     {
+      label: 'My Profile',
+      href: '/dashboard/profile',
+      icon: 'person',
+      isFooter: true,
+    },
+    {
       label: 'Support',
       href: '#',
       icon: 'help',
@@ -86,6 +92,12 @@ export const ROLE_NAVIGATION: Record<string, NavigationItem[]> = {
       label: 'Shift Reports',
       href: '/dashboard/staff/reports',
       icon: 'assignment',
+    },
+    {
+      label: 'My Profile',
+      href: '/dashboard/profile',
+      icon: 'person',
+      isFooter: true,
     },
     {
       label: 'Support',
@@ -135,6 +147,12 @@ export const ROLE_NAVIGATION: Record<string, NavigationItem[]> = {
       label: 'System Settings',
       href: '/dashboard/admin/settings',
       icon: 'settings',
+    },
+    {
+      label: 'My Profile',
+      href: '/dashboard/profile',
+      icon: 'person',
+      isFooter: true,
     },
     {
       label: 'Support',

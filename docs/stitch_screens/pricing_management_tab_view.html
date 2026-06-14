@@ -1,0 +1,431 @@
+<!DOCTYPE html><html class="light" lang="en" style=""><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>NexPark - Pricing Management</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "surface-container": "#e7eeff",
+                      "on-primary-fixed": "#002111",
+                      "on-background": "#111c2d",
+                      "inverse-on-surface": "#ecf1ff",
+                      "tertiary": "#59605a",
+                      "surface-container-highest": "#d8e3fb",
+                      "on-surface": "#111c2d",
+                      "outline": "#6d7a70",
+                      "on-tertiary-fixed-variant": "#414843",
+                      "tertiary-fixed-dim": "#c1c8c1",
+                      "primary": "#006d43",
+                      "surface-variant": "#d8e3fb",
+                      "secondary-fixed": "#d5e3ff",
+                      "tertiary-container": "#8e958e",
+                      "inverse-surface": "#263143",
+                      "error-container": "#ffdad6",
+                      "surface-container-low": "#f0f3ff",
+                      "primary-fixed": "#78fbb6",
+                      "on-primary-container": "#00331d",
+                      "outline-variant": "#bccabe",
+                      "on-tertiary-fixed": "#161d19",
+                      "on-error": "#ffffff",
+                      "on-primary-fixed-variant": "#005232",
+                      "on-secondary-container": "#54637d",
+                      "on-tertiary-container": "#272d28",
+                      "on-tertiary": "#ffffff",
+                      "inverse-primary": "#59de9b",
+                      "on-surface-variant": "#3d4a41",
+                      "on-secondary-fixed-variant": "#394760",
+                      "error": "#ba1a1a",
+                      "on-secondary-fixed": "#0c1c32",
+                      "secondary-container": "#d1e0ff",
+                      "surface-dim": "#cfdaf2",
+                      "primary-fixed-dim": "#59de9b",
+                      "secondary-fixed-dim": "#b8c7e5",
+                      "primary-container": "#00a86b",
+                      "surface-container-lowest": "#ffffff",
+                      "background": "#f9f9ff",
+                      "surface-tint": "#006d43",
+                      "on-error-container": "#93000a",
+                      "secondary": "#505f79",
+                      "surface-container-high": "#dee8ff",
+                      "on-secondary": "#ffffff",
+                      "on-primary": "#ffffff",
+                      "tertiary-fixed": "#dde4dd",
+                      "surface-bright": "#f9f9ff",
+                      "surface": "#f9f9ff"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.25rem",
+                      "lg": "0.5rem",
+                      "xl": "0.75rem",
+                      "full": "9999px"
+              },
+              "spacing": {
+                      "unit": "4px",
+                      "sm": "8px",
+                      "margin-mobile": "16px",
+                      "lg": "24px",
+                      "md": "16px",
+                      "max-width": "1440px",
+                      "margin-desktop": "32px",
+                      "xs": "4px",
+                      "xl": "32px",
+                      "gutter": "24px"
+              },
+              "fontFamily": {
+                      "label-sm": [
+                              "Inter"
+                      ],
+                      "display-lg": [
+                              "Inter"
+                      ],
+                      "code-md": [
+                              "Inter"
+                      ],
+                      "headline-md": [
+                              "Inter"
+                      ],
+                      "body-md": [
+                              "Inter"
+                      ],
+                      "title-lg": [
+                              "Inter"
+                      ],
+                      "display-lg-mobile": [
+                              "Inter"
+                      ],
+                      "body-lg": [
+                              "Inter"
+                      ],
+                      "label-lg": [
+                              "Inter"
+                      ]
+              },
+              "fontSize": {
+                      "label-sm": [
+                              "12px",
+                              {
+                                      "lineHeight": "16px",
+                                      "letterSpacing": "0.02em",
+                                      "fontWeight": "500"
+                              }
+                      ],
+                      "display-lg": [
+                              "32px",
+                              {
+                                      "lineHeight": "40px",
+                                      "letterSpacing": "-0.02em",
+                                      "fontWeight": "700"
+                              }
+                      ],
+                      "code-md": [
+                              "13px",
+                              {
+                                      "lineHeight": "18px",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "headline-md": [
+                              "24px",
+                              {
+                                      "lineHeight": "32px",
+                                      "letterSpacing": "-0.01em",
+                                      "fontWeight": "600"
+                              }
+                      ],
+                      "body-md": [
+                              "14px",
+                              {
+                                      "lineHeight": "20px",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "title-lg": [
+                              "18px",
+                              {
+                                      "lineHeight": "28px",
+                                      "fontWeight": "600"
+                              }
+                      ],
+                      "display-lg-mobile": [
+                              "24px",
+                              {
+                                      "lineHeight": "32px",
+                                      "letterSpacing": "-0.01em",
+                                      "fontWeight": "700"
+                              }
+                      ],
+                      "body-lg": [
+                              "16px",
+                              {
+                                      "lineHeight": "24px",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "label-lg": [
+                              "14px",
+                              {
+                                      "lineHeight": "20px",
+                                      "letterSpacing": "0.01em",
+                                      "fontWeight": "600"
+                              }
+                      ]
+              }
+      },
+          },
+        }
+      </script>
+<style>
+        .card-bg { background-color: #F4FBF3; }
+        .card-border { border: 1px solid rgba(0, 109, 67, 0.1); }
+      </style>
+</head>
+<body class="bg-background text-on-background font-body-md h-screen flex overflow-hidden">
+<!-- SideNavBar -->
+<aside class="bg-inverse-surface dark:bg-inverse-surface fixed left-0 top-0 h-full w-[280px] hidden md:flex flex-col z-20">
+<nav class="flex-1 mt-md flex flex-col gap-xs overflow-y-auto">
+<a class="flex items-center gap-md px-lg py-md text-secondary-fixed-dim/70 hover:bg-white/5 hover:text-white transition-colors" href="#">
+<span class="material-symbols-outlined text-[24px]">dashboard</span>
+<span class="font-label-lg text-label-lg">Dashboard</span>
+</a>
+<a class="flex items-center gap-md px-lg py-md text-secondary-fixed-dim/70 hover:bg-white/5 hover:text-white transition-colors" href="#">
+<span class="material-symbols-outlined text-[24px]">domain</span>
+<span class="font-label-lg text-label-lg">Buildings</span>
+</a>
+<a class="flex items-center gap-md px-lg py-md text-secondary-fixed-dim/70 hover:bg-white/5 hover:text-white transition-colors" href="#">
+<span class="material-symbols-outlined text-[24px]">local_parking</span>
+<span class="font-label-lg text-label-lg">Parking Zones</span>
+</a>
+<a class="flex items-center gap-md px-lg py-md text-secondary-fixed-dim/70 hover:bg-white/5 hover:text-white transition-colors" href="#">
+<span class="material-symbols-outlined text-[24px]">sensors</span>
+<span class="font-label-lg text-label-lg">Sensors</span>
+</a>
+<a class="flex items-center gap-md px-lg py-md text-secondary-fixed-dim/70 hover:bg-white/5 hover:text-white transition-colors" href="#">
+<span class="material-symbols-outlined text-[24px]">monitoring</span>
+<span class="font-label-lg text-label-lg">Analytics</span>
+</a>
+<a class="flex items-center gap-md px-lg py-md text-primary bg-primary/10 border-l-4 border-primary transition-colors" href="#">
+<span class="material-symbols-outlined text-[24px]">payments</span>
+<span class="font-label-lg text-label-lg">Pricing Management</span>
+</a><a class="flex items-center gap-md px-lg py-md text-secondary-fixed-dim/70 hover:bg-white/5 hover:text-white transition-colors" href="#">
+<span class="material-symbols-outlined text-[24px]">settings</span>
+<span class="font-label-lg text-label-lg">Settings</span>
+</a>
+</nav>
+<div class="mt-auto p-md border-t border-white/10 flex flex-col gap-xs">
+<a class="flex items-center gap-md px-md py-sm text-secondary-fixed-dim/70 hover:bg-white/5 hover:text-white transition-colors rounded-DEFAULT" href="#">
+<span class="material-symbols-outlined text-[20px]">help</span>
+<span class="font-label-sm text-label-sm">Support</span>
+</a>
+<a class="flex items-center gap-md px-md py-sm text-secondary-fixed-dim/70 hover:bg-white/5 hover:text-white transition-colors rounded-DEFAULT" href="#">
+<span class="material-symbols-outlined text-[20px]">logout</span>
+<span class="font-label-sm text-label-sm">Logout</span>
+</a>
+</div>
+</aside>
+<!-- Main Content Area -->
+<div class="flex-1 flex flex-col md:ml-[300px] h-full overflow-hidden">
+<!-- TopNavBar -->
+<header class="bg-surface dark:bg-surface docked full-width top-0 sticky z-10 flex justify-between items-center h-16 px-gutter shadow-sm border-b border-surface-container-low">
+<div class="flex items-center gap-md">
+<h2 class="font-headline-md text-headline-md font-bold text-on-surface">Pricing Management</h2>
+</div>
+<div class="flex items-center gap-md">
+<button class="w-10 h-10 rounded-full flex items-center justify-center text-on-surface-variant hover:bg-surface-container-low transition-colors">
+<span class="material-symbols-outlined text-[24px]">search</span>
+</button>
+<button class="w-10 h-10 rounded-full flex items-center justify-center text-on-surface-variant hover:bg-surface-container-low transition-colors relative">
+<span class="material-symbols-outlined text-[24px]">notifications</span>
+<span class="absolute top-2 right-2 w-2 h-2 bg-error rounded-full"></span>
+</button>
+<button class="w-10 h-10 rounded-full flex items-center justify-center text-on-surface-variant hover:bg-surface-container-low transition-colors">
+<span class="material-symbols-outlined text-[24px]">help_outline</span>
+</button>
+<div class="w-8 h-8 rounded-full bg-primary-container flex items-center justify-center ml-sm overflow-hidden">
+<img alt="User Profile" class="w-full h-full object-cover" data-alt="A professional headshot of a corporate manager smiling warmly. High resolution, well-lit, suitable for an enterprise dashboard avatar. The lighting is studio quality, emphasizing competence and approachability within a modern tech environment." src="https://lh3.googleusercontent.com/aida/AP1WRLuYr4Bc0Xop0AOSevlSBiYRcMqmvdOMoT-_A-fEDEtKhE_uAVfvvfSP4vdeYCrU_UfQtuovIQon-jFu7IwMjZzp--sHJi5L5dn21KPUw_xWKzv-XMUpSviXl1xg409FhQt0-rCk6IgfDpz_JbPXNE1_ia2GrWDIcgYS2BRqU7KlnCXtSRkjAPLfYpnXbNGpsfF3f7JpXnFWTQ5_e4sbp8SmMnc5k3QBA0hO42ORgZ7EuooaHa1vCsT6YtA">
+</div>
+</div>
+</header>
+<!-- Canvas -->
+<main class="flex-1 overflow-y-auto p-gutter bg-surface-container-low">
+<div class="max-w-[1440px] mx-auto flex flex-col gap-xl">
+<!-- Header Section -->
+<section class="flex flex-col md:flex-row md:items-start justify-between gap-md">
+<div>
+<h3 class="font-headline-md text-headline-md font-semibold text-on-surface mb-xs">Pricing Policy</h3>
+<p class="font-body-md text-body-md text-on-surface-variant max-w-2xl">Configure flexible parking tariffs based on vehicle types, time slots, and monthly fee.</p>
+</div>
+
+</section>
+<!-- Tabs -->
+<div class="border-b border-surface-container-highest">
+<nav aria-label="Tabs" class="flex gap-lg">
+<button class="border-transparent text-on-surface-variant hover:text-on-surface hover:border-surface-container-highest whitespace-nowrap border-b-2 py-4 px-1 font-label-lg text-label-lg transition-colors" onclick="switchTab('standard', 'Create New Policy')">
+            Standard Tariffs
+        </button>
+<button class="border-primary text-primary whitespace-nowrap border-b-2 py-4 px-1 font-label-lg text-label-lg transition-colors" onclick="switchTab('memberships', 'Add New Membership')" aria-current="page">
+            Monthly Memberships
+        </button>
+<button class="border-transparent text-on-surface-variant hover:text-on-surface hover:border-surface-container-highest whitespace-nowrap border-b-2 py-4 px-1 font-label-lg text-label-lg transition-colors" onclick="switchTab('fees', 'Add New Fee/Penalty')">
+            Service Fees &amp; Penalties
+        </button>
+</nav>
+</div>
+<!-- Tab Contents -->
+<div id="tab-content-standard" class="hidden">
+<!-- Standard Tariffs -->
+<section>
+<div class="flex items-center justify-between mb-md">
+<h4 class="font-title-lg text-title-lg text-on-surface"><span class="font-title-lg text-title-lg text-on-surface" style="margin: 0px; color: rgb(17, 28, 45); outline: currentcolor !important; box-shadow: none !important;">Standard Tariffs</span></h4>
+<div class="flex items-center gap-sm">
+<span class="w-2 h-2 rounded-full bg-primary"></span>
+<span class="font-label-sm text-label-sm text-on-surface-variant">Active Configuration</span>
+</div>
+</div>
+<div class="card-bg card-border rounded-lg overflow-hidden overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="border-b border-surface-container-highest bg-white/50"><th class="font-label-sm text-label-sm text-on-surface-variant opacity-70 font-medium px-lg py-md">Vehicle Type</th><th class="font-label-sm text-label-sm text-on-surface-variant opacity-70 font-medium px-lg py-md">Time Slot</th><th class="font-label-sm text-label-sm text-on-surface-variant opacity-70 font-medium px-lg py-md">Base Rate</th><th class="font-label-sm text-label-sm text-on-surface-variant opacity-70 font-medium px-lg py-md">Incremental</th><th class="font-label-sm text-label-sm text-on-surface-variant opacity-70 font-medium px-lg py-md">Daily Cap</th><th class="font-label-sm text-label-sm text-on-surface-variant opacity-70 font-medium px-lg py-md">Grace Period</th><th class="font-label-sm text-label-sm text-on-surface-variant opacity-70 font-medium text-right px-lg py-md">Status</th><th class="font-label-sm text-label-sm text-on-surface-variant opacity-70 font-medium text-right px-lg py-md">Actions</th></tr>
+</thead>
+<tbody class="font-body-md text-body-md text-on-surface">
+<tr class="border-b border-surface-container-highest hover:bg-white/40 transition-colors">
+<td class="font-medium flex items-center gap-sm px-lg py-md">
+<span class="material-symbols-outlined text-[20px] text-tertiary">two_wheeler</span>
+                                        Motorbike
+                                    </td>
+<td class="text-on-surface-variant px-lg py-md">Day: 06:00-18:00</td>
+<td class="px-lg py-md">5,000 VNĐ <span class="text-tertiary text-sm">/ 4 hrs</span></td>
+<td class="px-lg py-md">+1,000 VNĐ <span class="text-tertiary text-sm">/ 1 hr</span></td>
+<td class="px-lg py-md">Max 10,000 VNĐ</td>
+<td class="text-on-surface-variant px-lg py-md">15 mins</td>
+<td class="text-right px-lg py-md">
+<span class="inline-flex items-center px-2 py-1 rounded-full bg-primary/10 text-primary font-label-sm text-label-sm">Active</span>
+</td>
+<td class="text-right px-lg py-md"><div class="flex justify-end gap-sm"><button class="text-primary hover:bg-primary/10 p-1 rounded-full transition-colors"><span class="material-symbols-outlined text-[20px]">edit</span></button><button class="text-on-surface-variant hover:text-error hover:bg-error-container/50 p-1 rounded-full transition-colors"><span class="material-symbols-outlined text-[20px]">delete</span></button></div></td></tr>
+<tr class="border-b border-surface-container-highest hover:bg-white/40 transition-colors">
+<td class="font-medium flex items-center gap-sm px-lg py-md">
+<span class="material-symbols-outlined text-[20px] text-tertiary">directions_car</span>
+                                        Car
+                                    </td>
+<td class="text-on-surface-variant px-lg py-md">Day: 06:00-18:00</td>
+<td class="px-lg py-md">20,000 VNĐ <span class="text-tertiary text-sm">/ 2 hrs</span></td>
+<td class="px-lg py-md">+5,000 VNĐ <span class="text-tertiary text-sm">/ 1 hr</span></td>
+<td class="px-lg py-md">Max 50,000 VNĐ</td>
+<td class="text-on-surface-variant px-lg py-md">15 mins</td>
+<td class="text-right px-lg py-md">
+<span class="inline-flex items-center px-2 py-1 rounded-full bg-primary/10 text-primary font-label-sm text-label-sm">Active</span>
+</td>
+<td class="text-right px-lg py-md"><div class="flex justify-end gap-sm"><button class="text-primary hover:bg-primary/10 p-1 rounded-full transition-colors"><span class="material-symbols-outlined text-[20px]">edit</span></button><button class="text-on-surface-variant hover:text-error hover:bg-error-container/50 p-1 rounded-full transition-colors"><span class="material-symbols-outlined text-[20px]">delete</span></button></div></td></tr>
+
+<tr class="border-b border-surface-container-highest hover:bg-white/40 transition-colors">
+<td class="font-medium flex items-center gap-sm px-lg py-md">
+<span class="material-symbols-outlined text-[20px] text-tertiary">two_wheeler</span>
+                                        Motorbike (Night)
+                                    </td>
+<td class="text-on-surface-variant px-lg py-md">Night: 18:00-06:00</td>
+<td class="px-lg py-md">10,000 VNĐ <span class="text-tertiary text-sm">/ Night</span></td>
+<td class="px-lg py-md">+2,000 VNĐ <span class="text-tertiary text-sm">/ 1 hr</span></td>
+<td class="px-lg py-md">Max 20,000 VNĐ</td>
+<td class="text-on-surface-variant px-lg py-md">15 mins</td>
+<td class="text-right px-lg py-md">
+<span class="inline-flex items-center px-2 py-1 rounded-full bg-primary/10 text-primary font-label-sm text-label-sm">Active</span>
+</td>
+<td class="text-right px-lg py-md"><div class="flex justify-end gap-sm"><button class="text-primary hover:bg-primary/10 p-1 rounded-full transition-colors"><span class="material-symbols-outlined text-[20px]">edit</span></button><button class="text-on-surface-variant hover:text-error hover:bg-error-container/50 p-1 rounded-full transition-colors"><span class="material-symbols-outlined text-[20px]">delete</span></button></div></td></tr>
+<tr class="border-b border-surface-container-highest hover:bg-white/40 transition-colors">
+<td class="font-medium flex items-center gap-sm px-lg py-md">
+<span class="material-symbols-outlined text-[20px] text-tertiary">directions_car</span>
+                                        Car (Night)
+                                    </td>
+<td class="text-on-surface-variant px-lg py-md">Night: 18:00-06:00</td>
+<td class="px-lg py-md">50,000 VNĐ <span class="text-tertiary text-sm">/ Night</span></td>
+<td class="px-lg py-md">+10,000 VNĐ <span class="text-tertiary text-sm">/ 1 hr</span></td>
+<td class="px-lg py-md">Max 150,000 VNĐ</td>
+<td class="text-on-surface-variant px-lg py-md">15 mins</td>
+<td class="text-right px-lg py-md">
+<span class="inline-flex items-center px-2 py-1 rounded-full bg-primary/10 text-primary font-label-sm text-label-sm">Active</span>
+</td>
+<td class="text-right px-lg py-md"><div class="flex justify-end gap-sm"><button class="text-primary hover:bg-primary/10 p-1 rounded-full transition-colors"><span class="material-symbols-outlined text-[20px]">edit</span></button><button class="text-on-surface-variant hover:text-error hover:bg-error-container/50 p-1 rounded-full transition-colors"><span class="material-symbols-outlined text-[20px]">delete</span></button></div></td></tr></tbody>
+</table>
+</div>
+</section>
+</div>
+<div class="" id="tab-content-memberships">
+<!-- Monthly Memberships -->
+<section class="flex flex-col gap-md">
+<h4 class="font-title-lg text-title-lg text-on-surface">Monthly Memberships</h4>
+<div class="grid grid-cols-1 sm:grid-cols-2 gap-md h-full">
+<!-- Motorbike Card -->
+<div class="card-bg card-border rounded-lg flex flex-col relative group hover:shadow-[0_4px_12px_rgba(17,28,45,0.04)] transition-shadow p-xl"><div class="flex items-center justify-between mb-lg"><div class="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center"><span class="material-symbols-outlined text-primary text-[28px]">two_wheeler</span></div><button class="text-tertiary hover:text-primary transition-colors"><span class="material-symbols-outlined text-[20px]">edit</span></button></div><h5 class="font-title-lg text-title-lg text-on-surface mb-xs">Motorbike</h5><div class="flex items-baseline gap-xs mb-xl"><span class="font-display-lg text-display-lg text-on-surface font-bold">200,000</span><span class="font-label-sm text-label-sm text-tertiary">VNĐ / month</span></div></div>
+<!-- Car Card -->
+<div class="card-bg card-border rounded-lg flex flex-col relative group hover:shadow-[0_4px_12px_rgba(17,28,45,0.04)] transition-shadow p-xl"><div class="flex items-center justify-between mb-lg"><div class="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center"><span class="material-symbols-outlined text-primary text-[28px]">directions_car</span></div><button class="text-tertiary hover:text-primary transition-colors"><span class="material-symbols-outlined text-[20px]">edit</span></button></div><h5 class="font-title-lg text-title-lg text-on-surface mb-xs">Car</h5><div class="flex items-baseline gap-xs mb-xl"><span class="font-display-lg text-display-lg text-on-surface font-bold">1,500,000</span><span class="font-label-sm text-label-sm text-tertiary">VNĐ / month</span></div></div>
+</div>
+<div class="bg-surface-variant/50 p-md rounded-lg flex items-start gap-md border border-surface-container-highest">
+<span class="material-symbols-outlined text-primary text-[20px] mt-1">info</span>
+<div>
+<h6 class="font-label-sm text-label-sm font-semibold text-on-surface mb-1">Downgrade Rule</h6>
+<p class="font-body-md text-body-md text-on-surface-variant text-sm">Automatic switch to standard rates upon expiry if auto-renewal is not active.</p>
+</div>
+</div>
+</section>
+</div>
+<div class="hidden" id="tab-content-fees">
+<!-- Service Fees & Penalties -->
+<section class="flex flex-col gap-md">
+<h4 class="font-title-lg text-title-lg text-on-surface">Service Fees &amp; Penalties</h4>
+<div class="grid grid-cols-1 gap-md h-full">
+<div class="card-bg card-border rounded-lg flex items-center justify-between group hover:shadow-[0_4px_12px_rgba(17,28,45,0.04)] transition-shadow bg-white p-lg"><div class="flex items-center gap-lg"><div class="w-12 h-12 rounded-lg bg-surface-container-high flex items-center justify-center text-primary"><span class="material-symbols-outlined text-[24px]">book_online</span></div><div><h5 class="font-label-lg text-label-lg text-on-surface">Booking Deposit</h5><p class="font-body-md text-body-md text-on-surface-variant">No-show penalty applies after 45m.</p></div></div><div class="flex items-center gap-lg"><div class="font-title-lg text-title-lg font-bold text-on-surface">5,000 VNĐ</div><button class="text-on-surface-variant hover:text-primary transition-colors"><span class="material-symbols-outlined text-[20px]">edit</span></button></div></div>
+<div class="card-bg card-border rounded-lg flex items-center justify-between group hover:shadow-[0_4px_12px_rgba(17,28,45,0.04)] transition-shadow bg-[#FFF8F6] border-error-container p-lg"><div class="flex items-center gap-lg"><div class="w-12 h-12 rounded-lg bg-error-container/50 flex items-center justify-center text-error"><span class="material-symbols-outlined text-[24px]">credit_card_off</span></div><div><h5 class="font-label-lg text-label-lg text-on-surface">Lost Card Penalty</h5><p class="font-body-md text-body-md text-on-surface-variant">Requires immediate reporting.</p></div></div><div class="flex items-center gap-lg"><div class="font-title-lg text-title-lg font-bold text-error">50,000 VNĐ</div><button class="text-on-surface-variant hover:text-primary transition-colors"><span class="material-symbols-outlined text-[20px]">edit</span></button></div></div>
+<div class="card-bg card-border rounded-lg flex items-center justify-between group hover:shadow-[0_4px_12px_rgba(17,28,45,0.04)] transition-shadow bg-[#FFF8F6] border-error-container p-lg"><div class="flex items-center gap-lg"><div class="w-12 h-12 rounded-lg bg-error-container/50 flex items-center justify-center text-error"><span class="material-symbols-outlined text-[24px]">warning</span></div><div><h5 class="font-label-lg text-label-lg text-on-surface">Wrong Zone Penalty</h5><p class="font-body-md text-body-md text-on-surface-variant">Applied per incident.</p></div></div><div class="flex items-center gap-lg"><div class="font-title-lg text-title-lg font-bold text-error">100,000 VNĐ</div><button class="text-on-surface-variant hover:text-primary transition-colors"><span class="material-symbols-outlined text-[20px]">edit</span></button></div></div>
+</div>
+</section>
+</div>
+</div>
+<div class="h-24"></div> <!-- Bottom padding -->
+</main>
+</div>
+<script>
+    function switchTab(tabId, buttonText) {
+        // Hide all tabs
+        document.getElementById('tab-content-standard').classList.add('hidden');
+        document.getElementById('tab-content-memberships').classList.add('hidden');
+        document.getElementById('tab-content-fees').classList.add('hidden');
+        
+        // Reset all tab styles
+        const tabs = document.querySelectorAll('nav button');
+        tabs.forEach(tab => {
+            tab.className = 'border-transparent text-on-surface-variant hover:text-on-surface hover:border-surface-container-highest whitespace-nowrap border-b-2 py-4 px-1 font-label-lg text-label-lg transition-colors';
+            tab.removeAttribute('aria-current');
+        });
+        
+        // Show selected tab content
+        document.getElementById(`tab-content-${tabId}`).classList.remove('hidden');
+        
+        // Update active tab style
+        const activeTab = Array.from(tabs).find(t => t.getAttribute('onclick').includes(`'${tabId}'`));
+        if (activeTab) {
+            activeTab.className = 'border-primary text-primary whitespace-nowrap border-b-2 py-4 px-1 font-label-lg text-label-lg transition-colors';
+            activeTab.setAttribute('aria-current', 'page');
+        }
+
+        // Update primary action button text
+        const btn = document.getElementById('primary-action-btn');
+        if(btn) {
+            btn.innerHTML = `<span class="material-symbols-outlined text-[20px]">add</span> ${buttonText}`;
+        }
+    }
+</script>
+
+
+
+
+
+
+
+
+</body></html>

@@ -1,0 +1,340 @@
+<!DOCTYPE html><html class="light" lang="en"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>NexPark - Edit Pricing Policy</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-tertiary-fixed-variant": "#414843",
+                        "background": "#f9f9ff",
+                        "surface-container-highest": "#d8e3fb",
+                        "surface": "#f9f9ff",
+                        "surface-dim": "#cfdaf2",
+                        "on-background": "#111c2d",
+                        "on-tertiary-fixed": "#161d19",
+                        "on-tertiary-container": "#272d28",
+                        "tertiary-container": "#8e958e",
+                        "tertiary": "#59605a",
+                        "surface-container-high": "#dee8ff",
+                        "surface-container": "#e7eeff",
+                        "error-container": "#ffdad6",
+                        "outline-variant": "#bccabe",
+                        "surface-container-low": "#f0f3ff",
+                        "secondary-fixed-dim": "#b8c7e5",
+                        "on-tertiary": "#ffffff",
+                        "on-secondary-fixed": "#0c1c32",
+                        "on-primary": "#ffffff",
+                        "on-surface-variant": "#3d4a41",
+                        "tertiary-fixed": "#dde4dd",
+                        "on-secondary": "#ffffff",
+                        "on-secondary-container": "#54637d",
+                        "tertiary-fixed-dim": "#c1c8c1",
+                        "on-error-container": "#93000a",
+                        "inverse-surface": "#263143",
+                        "inverse-on-surface": "#ecf1ff",
+                        "primary-container": "#00a86b",
+                        "error": "#ba1a1a",
+                        "primary-fixed-dim": "#59de9b",
+                        "on-surface": "#111c2d",
+                        "on-secondary-fixed-variant": "#394760",
+                        "surface-variant": "#d8e3fb",
+                        "outline": "#6d7a70",
+                        "on-primary-container": "#00331d",
+                        "on-error": "#ffffff",
+                        "secondary": "#505f79",
+                        "on-primary-fixed": "#002111",
+                        "secondary-container": "#d1e0ff",
+                        "primary-fixed": "#78fbb6",
+                        "on-primary-fixed-variant": "#005232",
+                        "secondary-fixed": "#d5e3ff",
+                        "surface-bright": "#f9f9ff",
+                        "inverse-primary": "#59de9b",
+                        "surface-tint": "#006d43",
+                        "surface-container-lowest": "#ffffff",
+                        "primary": "#006d43"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "xl": "32px",
+                        "xs": "4px",
+                        "margin-desktop": "32px",
+                        "unit": "4px",
+                        "lg": "24px",
+                        "md": "16px",
+                        "max-width": "1440px",
+                        "gutter": "24px",
+                        "margin-mobile": "16px",
+                        "sm": "8px"
+                    },
+                    "fontFamily": {
+                        "headline-md": ["Inter"],
+                        "label-lg": ["Inter"],
+                        "title-lg": ["Inter"],
+                        "body-lg": ["Inter"],
+                        "display-lg": ["Inter"],
+                        "code-md": ["Inter"],
+                        "label-sm": ["Inter"],
+                        "display-lg-mobile": ["Inter"],
+                        "body-md": ["Inter"]
+                    },
+                    "fontSize": {
+                        "headline-md": ["24px", { "lineHeight": "32px", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+                        "label-lg": ["14px", { "lineHeight": "20px", "letterSpacing": "0.01em", "fontWeight": "600" }],
+                        "title-lg": ["18px", { "lineHeight": "28px", "fontWeight": "600" }],
+                        "body-lg": ["16px", { "lineHeight": "24px", "fontWeight": "400" }],
+                        "display-lg": ["32px", { "lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+                        "code-md": ["13px", { "lineHeight": "18px", "fontWeight": "400" }],
+                        "label-sm": ["12px", { "lineHeight": "16px", "letterSpacing": "0.02em", "fontWeight": "500" }],
+                        "display-lg-mobile": ["24px", { "lineHeight": "32px", "letterSpacing": "-0.01em", "fontWeight": "700" }],
+                        "body-md": ["14px", { "lineHeight": "20px", "fontWeight": "400" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body { font-family: 'Inter', sans-serif; background-color: #f9f9ff; }
+        .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+        .material-symbols-outlined.filled { font-variation-settings: 'FILL' 1; }
+        
+        /* Custom Input Styles */
+        .form-input-nex {
+            @apply w-full rounded-lg border border-secondary/15 bg-white px-md py-sm font-body-md text-on-surface outline-none transition-all duration-200 focus:border-primary-container focus:ring-2 focus:ring-[#F4FBF3];
+        }
+        .form-label-nex {
+            @apply mb-xs block font-label-sm text-secondary;
+        }
+        .card-nex {
+            @apply rounded-lg border border-primary/10 bg-[#F4FBF3] p-lg;
+        }
+    </style>
+</head>
+<body class="bg-background text-on-background antialiased flex h-screen overflow-hidden">
+<!-- SideNavBar -->
+<nav class="fixed left-0 top-0 h-full w-[280px] flex flex-col overflow-y-auto bg-inverse-surface text-on-secondary-fixed">
+<div class="px-lg py-xl">
+<div class="flex items-center gap-md">
+<div class="h-10 w-10 overflow-hidden rounded-full bg-primary/20 flex items-center justify-center">
+<span class="material-symbols-outlined text-primary-fixed">domain</span>
+</div>
+<div>
+<h1 class="font-display-lg text-display-lg text-primary-fixed font-bold leading-none">NexPark</h1>
+<p class="font-label-sm text-label-sm text-secondary-fixed-dim mt-1">Enterprise Portal</p>
+</div>
+</div>
+</div>
+<div class="px-lg mb-xl">
+<button class="w-full flex items-center justify-center gap-sm rounded-lg bg-primary-container px-md py-sm font-label-lg text-label-lg text-on-primary-container hover:bg-primary-fixed transition-colors">
+<span class="material-symbols-outlined text-[20px]">add</span>
+                Add New Zone
+            </button>
+</div>
+<div class="flex-1 flex flex-col gap-xs py-md">
+<a class="flex items-center gap-md text-secondary-fixed-dim hover:text-white py-md px-lg hover:bg-white/5 transition-colors duration-200" href="#">
+<span class="material-symbols-outlined">dashboard</span>
+<span class="font-label-lg text-label-lg">Dashboard</span>
+</a>
+<a class="flex items-center gap-md text-secondary-fixed-dim hover:text-white py-md px-lg hover:bg-white/5 transition-colors duration-200" href="#">
+<span class="material-symbols-outlined">domain</span>
+<span class="font-label-lg text-label-lg">Buildings</span>
+</a>
+<a class="flex items-center gap-md text-secondary-fixed-dim hover:text-white py-md px-lg hover:bg-white/5 transition-colors duration-200" href="#">
+<span class="material-symbols-outlined">map</span>
+<span class="font-label-lg text-label-lg">Zones</span>
+</a>
+<a class="flex items-center gap-md bg-white/10 text-primary-fixed border-l-4 border-primary-container py-md px-lg" href="#">
+<span class="material-symbols-outlined filled">payments</span>
+<span class="font-label-lg text-label-lg">Pricing Management</span>
+</a>
+</div>
+<div class="mt-auto border-t border-white/10 py-md flex flex-col gap-xs">
+<a class="flex items-center gap-md text-secondary-fixed-dim hover:text-white py-md px-lg hover:bg-white/5 transition-colors duration-200" href="#">
+<span class="material-symbols-outlined">settings</span>
+<span class="font-label-lg text-label-lg">Settings</span>
+</a>
+<a class="flex items-center gap-md text-secondary-fixed-dim hover:text-white py-md px-lg hover:bg-white/5 transition-colors duration-200" href="#">
+<span class="material-symbols-outlined">help</span>
+<span class="font-label-lg text-label-lg">Support</span>
+</a>
+</div>
+</nav>
+<!-- Main Content Area -->
+<main class="ml-[280px] flex-1 flex flex-col h-full overflow-hidden relative">
+<!-- TopAppBar (Minimal for Editor Context) -->
+<header class="bg-surface px-margin-desktop py-md flex items-center justify-between z-10">
+<div class="flex items-center gap-md">
+<a class="flex h-10 w-10 items-center justify-center rounded-full text-secondary hover:bg-surface-variant transition-colors" href="#">
+<span class="material-symbols-outlined">arrow_back</span>
+</a>
+<div>
+<div class="flex items-center gap-sm text-secondary font-label-sm text-label-sm">
+<span class="">Pricing Management</span>
+<span class="material-symbols-outlined text-[14px]">chevron_right</span>
+<span class="">Motorbike Standard Daily</span>
+</div>
+<h2 class="font-headline-md text-headline-md font-bold text-on-surface mt-xs">Edit Pricing Policy</h2>
+</div>
+</div>
+<div class="flex items-center gap-md">
+<div class="flex h-10 w-10 items-center justify-center rounded-full border border-secondary/20 overflow-hidden">
+<img alt="Administrator Profile" class="h-full w-full object-cover" data-alt="A professional headshot of a female administrator looking confidently at the camera. The lighting is soft and natural, emphasizing a clean, modern corporate environment. The background is slightly blurred with subtle hints of office greenery, aligning with the brand's 'smart green' aesthetic. The image conveys trust and efficiency." src="https://lh3.googleusercontent.com/aida/AP1WRLuHAy1SViKhk0Y2XuDmVpz3_mtohHV-KeagI6fHVaQy8F-WHWmULUHRaQLeqNGpbFwPjBfLdAsXKXBucSeVjwR7sPQV5H54iNfwx_1QL3sPla5xuzC7Wdhsj9qbBNDG3zESQvKcnDMWxE0KWvD90uh9lCaESynRkUrsSvlXobcoCFvTzlvTXv8VQPd_sPaI2E6EAoeszeMbYLk81Neh3G6jo5kIj_c9XPrbB5kcTOoUm_qFJ6ul1RYPOOk">
+</div>
+</div>
+</header>
+<!-- Scrollable Canvas -->
+<div class="flex-1 overflow-y-auto px-margin-desktop py-lg pb-32"></div>
+<!-- Sticky Footer Actions -->
+<div class="fixed inset-0 z-[100] flex items-center justify-center bg-inverse-surface/60 backdrop-blur-sm p-lg" id="modal-overlay">
+<div class="bg-surface w-full max-w-4xl max-h-[90vh] rounded-lg shadow-xl flex flex-col overflow-hidden">
+<!-- Modal Header -->
+<div class="px-lg py-md border-b border-surface-variant flex items-center justify-between bg-surface">
+<h2 class="font-headline-md text-headline-md font-bold text-on-surface">Edit Pricing Policy</h2>
+<button class="h-10 w-10 flex items-center justify-center rounded-full hover:bg-surface-variant transition-colors text-secondary">
+<span class="material-symbols-outlined">close</span>
+</button>
+</div>
+<!-- Modal Body (Scrollable) -->
+<div class="flex-1 overflow-y-auto p-lg space-y-lg bg-background" id="modal-body"><section class="rounded-lg border border-primary/10 bg-[#F4FBF3] p-lg space-y-md">
+<div class="mb-md flex items-center gap-sm border-b border-primary/5 pb-sm">
+<span class="material-symbols-outlined text-primary-container">info</span>
+<h3 class="font-title-lg text-title-lg text-on-surface">Core Details</h3>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-x-xl gap-y-md">
+<div>
+<label class="form-label-nex">Policy Name</label>
+<input class="form-input-nex rounded-lg border-secondary/15 px-md py-sm" type="text" value="Motorbike Standard Daily">
+</div>
+<div>
+<label class="form-label-nex">Vehicle Type</label>
+<div class="relative">
+<select class="form-input-nex appearance-none pr-10 rounded-lg border-secondary/15 px-md py-sm">
+<option>Car</option>
+<option selected="">Motorbike</option>
+<option>Bicycle</option>
+<option>Truck/Large Vehicle</option>
+</select>
+<span class="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-secondary pointer-events-none">expand_more</span>
+</div>
+</div>
+</div>
+</section>
+<section class="rounded-lg border border-primary/10 bg-[#F4FBF3] p-lg space-y-md">
+<div class="mb-md flex items-center gap-sm border-b border-primary/5 pb-sm">
+<span class="material-symbols-outlined text-primary-container">schedule</span>
+<h3 class="font-title-lg text-title-lg text-on-surface">Time Configuration</h3>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-x-xl gap-y-md">
+<div>
+<label class="form-label-nex">Active Time Slot Start</label>
+<div class="relative">
+<input class="form-input-nex rounded-lg border-secondary/15 px-md py-sm" type="time" value="06:00">
+</div>
+</div>
+<div>
+<label class="form-label-nex">Active Time Slot End</label>
+<div class="relative">
+<input class="form-input-nex rounded-lg border-secondary/15 px-md py-sm" type="time" value="18:00">
+</div>
+</div>
+</div>
+</section>
+<section class="rounded-lg border border-primary/10 bg-[#F4FBF3] p-lg space-y-md">
+<div class="mb-md flex items-center gap-sm border-b border-primary/5 pb-sm">
+<span class="material-symbols-outlined text-primary-container">attach_money</span>
+<h3 class="font-title-lg text-title-lg text-on-surface">Pricing Structure</h3>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-x-xl gap-y-md">
+<div>
+<label class="form-label-nex">Base Price (VND)</label>
+<div class="relative">
+<input class="form-input-nex rounded-lg border-secondary/15 px-md py-sm" type="number" value="5000">
+<span class="absolute right-3 top-1/2 -translate-y-1/2 font-label-sm text-secondary">VND</span>
+</div>
+</div>
+<div>
+<label class="form-label-nex">Initial Duration</label>
+<div class="relative">
+<select class="form-input-nex appearance-none pr-10 rounded-lg border-secondary/15 px-md py-sm">
+<option>First 1 Hour</option>
+<option>First 2 Hours</option>
+<option selected="">First 4 Hours</option>
+<option>Flat Rate</option>
+</select>
+<span class="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-secondary pointer-events-none">expand_more</span>
+</div>
+</div>
+<div>
+<label class="form-label-nex">Block Price (Subsequent)</label>
+<div class="relative">
+<input class="form-input-nex rounded-lg border-secondary/15 px-md py-sm" type="number" value="1000">
+<span class="absolute right-3 top-1/2 -translate-y-1/2 font-label-sm text-secondary">VND</span>
+</div>
+</div>
+<div>
+<label class="form-label-nex">Per Increment</label>
+<div class="relative">
+<select class="form-input-nex appearance-none pr-10 rounded-lg border-secondary/15 px-md py-sm">
+<option>30 Mins</option>
+<option selected="">1 Hour</option>
+<option>2 Hours</option>
+</select>
+<span class="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-secondary pointer-events-none">expand_more</span>
+</div>
+</div>
+</div>
+</section>
+<section class="rounded-lg border border-primary/10 bg-[#F4FBF3] p-lg space-y-md">
+<div class="mb-md flex items-center gap-sm border-b border-primary/5 pb-sm">
+<span class="material-symbols-outlined text-primary-container">rule</span>
+<h3 class="font-title-lg text-title-lg text-on-surface">Constraints &amp; Limits</h3>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-x-xl gap-y-md">
+<div>
+<label class="form-label-nex">Window Cap / Max Daily Charge</label>
+<div class="relative">
+<input class="form-input-nex rounded-lg border-secondary/15 px-md py-sm" type="number" value="10000">
+<span class="absolute right-3 top-1/2 -translate-y-1/2 font-label-sm text-secondary">VND</span>
+</div>
+<p class="mt-1 text-[11px] text-secondary">Leave 0 for no cap.</p>
+</div>
+<div>
+<label class="form-label-nex">Grace Period (Free Exit Time)</label>
+<div class="relative">
+<select class="form-input-nex appearance-none pr-10 rounded-lg border-secondary/15 px-md py-sm">
+<option>None</option>
+<option>10 Mins</option>
+<option selected="">15 Mins</option>
+<option>30 Mins</option>
+</select>
+<span class="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-secondary pointer-events-none">expand_more</span>
+</div>
+</div>
+</div>
+</section></div>
+<!-- Modal Footer -->
+<div class="px-lg py-md border-t border-surface-variant flex items-center justify-end gap-md bg-surface">
+<button class="rounded-lg border border-primary-container bg-transparent px-lg py-sm font-label-lg text-label-lg text-primary-container hover:bg-primary-container/5 transition-colors">
+                Discard Changes
+            </button>
+<button class="flex items-center gap-sm rounded-lg bg-primary-container px-lg py-sm font-label-lg text-label-lg text-on-primary-container hover:bg-primary transition-colors shadow-[0_4px_12px_rgba(0,168,107,0.2)]">
+<span class="material-symbols-outlined text-[18px]">save</span>
+                Update Policy
+            </button>
+</div>
+</div>
+</div></main>
+
+
+</body></html>

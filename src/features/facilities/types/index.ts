@@ -1,4 +1,3 @@
-import { Building, BuildingStatus } from '@/lib/types/building.types';
 
 /**
  * Định nghĩa cấu trúc dữ liệu cho Tầng (Floor) quản lý nội bộ

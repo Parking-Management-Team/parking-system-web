@@ -132,7 +132,14 @@ export default function Home() {
               )}
 
               <button
-                onClick={() => { setIsMenuOpen(false); isLoggedIn ? logout() : openLogin(); }}
+                onClick={() => {
+                  setIsMenuOpen(false);
+                  if (isLoggedIn) {
+                    logout();
+                  } else {
+                    openLogin();
+                  }
+                }}
                 className={`flex items-center justify-center space-x-2 py-2.5 border rounded-lg font-medium transition-all cursor-pointer ${
                   isLoggedIn ? 'border-red-500/30 text-red-400 bg-red-500/10' : 'border-white/20 text-white hover:bg-white/10'
                 }`}

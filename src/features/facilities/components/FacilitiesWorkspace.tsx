@@ -1,6 +1,6 @@
 import React from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
+
 import { useFacilities } from '../hooks/useFacilities';
 import BuildingColumn from './BuildingColumn';
 import FloorColumn from './FloorColumn';
@@ -13,9 +13,7 @@ import FacilitiesModals from './FacilitiesModals';
 export default function FacilitiesWorkspace() {
   const facilities = useFacilities();
   const {
-    currentTime,
-    currentDate,
-    user,
+
     filteredBuildings,
     pageIndex,
     setPageIndex,
@@ -59,57 +57,6 @@ export default function FacilitiesWorkspace() {
           <span className="text-sm font-semibold">{toastMessage}</span>
         </div>
       )}
-
-      {/* ===== HEADER TRANG CHUNG ===== */}
-      <header className="sticky top-0 z-40 h-[70px] bg-white/80 backdrop-blur-md border-b border-gray-200 shadow-sm flex justify-between items-center px-8 shrink-0">
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2 text-[#3d4a41] font-medium text-sm">
-            <span>Facilities Configuration</span>
-            <span className="material-symbols-outlined text-[16px] text-slate-400">chevron_right</span>
-            <span className="text-[#111c2d] font-bold">Building Hierarchy</span>
-          </div>
-        </div>
-
-        {/* Đồng hồ số và Hồ sơ người dùng */}
-        <div className="flex items-center gap-6">
-          <div className="hidden md:flex flex-col items-end border-r border-slate-200 pr-6">
-            <span className="font-mono text-sm font-bold text-[#111c2d] tabular-nums leading-none">
-              {currentTime}
-            </span>
-            <span className="text-[10px] text-slate-400 font-medium tracking-wide mt-1">
-              {currentDate}
-            </span>
-          </div>
-
-          <div className="flex items-center gap-2 text-[#3d4a41]">
-            <button className="p-2 hover:bg-slate-100 rounded-full transition-colors relative">
-              <span className="material-symbols-outlined text-[20px]">notifications</span>
-              <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-red-600 rounded-full"></span>
-            </button>
-          </div>
-
-          <div className="flex items-center gap-3 pl-2">
-            <div className="text-right hidden sm:block">
-              <p className="text-sm font-semibold text-slate-800 leading-tight">
-                {user?.fullName || 'Alex Thompson'}
-              </p>
-              <p className="text-[10px] text-emerald-500 font-bold uppercase tracking-wider">
-                Manager
-              </p>
-            </div>
-            <div className="w-10 h-10 rounded-full border-2 border-emerald-500 flex items-center justify-center bg-slate-200 overflow-hidden relative">
-              <Image 
-                alt="User Profile" 
-                className="object-cover" 
-                fill
-                sizes="40px"
-                priority
-                src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=256&auto=format&fit=crop"
-              />
-            </div>
-          </div>
-        </div>
-      </header>
 
       {/* ===== KHÔNG GIAN LÀM VIỆC CHÍNH (3 CỘT SONG SONG) ===== */}
       <main className="flex-grow p-6 overflow-y-auto">

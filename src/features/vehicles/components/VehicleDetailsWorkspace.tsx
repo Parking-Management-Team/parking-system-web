@@ -1,6 +1,6 @@
 import React from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
+
 import { useVehicles } from '../hooks/useVehicles';
 import VehicleLiveFeed from './VehicleLiveFeed';
 import VehicleActivityLogs from './VehicleActivityLogs';
@@ -11,7 +11,6 @@ import VehicleModals from './VehicleModals';
  */
 export default function VehicleDetailsWorkspace() {
   const {
-    user,
     isParked,
     parkedSlot,
     showViolationModal,
@@ -24,8 +23,6 @@ export default function VehicleDetailsWorkspace() {
     setViolationNotes,
     toastMessage,
     secondsElapsed,
-    currentTime,
-    currentDate,
     vehicle,
     logs,
     formatDuration,
@@ -43,58 +40,6 @@ export default function VehicleDetailsWorkspace() {
           <span className="text-sm font-semibold">{toastMessage}</span>
         </div>
       )}
-
-      {/* ===== HEADER BAR ===== */}
-      <header className="sticky top-0 z-40 h-[70px] bg-white/80 backdrop-blur-md border-b border-gray-200 shadow-sm flex justify-between items-center px-8 shrink-0">
-        <div className="flex items-center flex-1 max-w-md">
-          <div className="relative w-full">
-            <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">search</span>
-            <input
-              type="text"
-              placeholder="Search slots, vehicles, or IDs..."
-              className="w-full bg-slate-50 border-none rounded-xl pl-12 pr-4 py-2.5 text-sm focus:ring-2 focus:ring-emerald-500/20 transition-all outline-none text-slate-800"
-              disabled
-            />
-          </div>
-        </div>
-
-        <div className="flex items-center gap-6">
-          <div className="hidden lg:flex flex-col items-end border-r border-slate-200 pr-4">
-            <span className="text-lg font-bold text-slate-800 tabular-nums leading-none">{currentTime}</span>
-            <span className="text-xs text-slate-400 leading-none mt-1">{currentDate}</span>
-          </div>
-
-          <div className="flex items-center gap-4 text-slate-500">
-            <button className="relative w-10 h-10 rounded-full hover:bg-slate-100 flex items-center justify-center transition-colors">
-              <span className="material-symbols-outlined">notifications</span>
-              <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
-            </button>
-            <button className="w-10 h-10 rounded-full hover:bg-slate-100 flex items-center justify-center transition-colors">
-              <span className="material-symbols-outlined">help</span>
-            </button>
-          </div>
-
-          <div className="flex items-center gap-3 pl-2">
-            <div className="text-right">
-              <p className="text-sm font-semibold text-slate-800 leading-tight">
-                {user?.fullName || 'Alex Thompson'}
-              </p>
-              <p className="text-[10px] text-emerald-500 font-bold uppercase tracking-wider">
-                Manager
-              </p>
-            </div>
-            <div className="w-10 h-10 rounded-full border-2 border-emerald-500 flex items-center justify-center bg-slate-200 overflow-hidden relative">
-              <Image
-                src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=256&auto=format&fit=crop"
-                alt="Profile Avatar"
-                fill
-                sizes="40px"
-                className="object-cover"
-              />
-            </div>
-          </div>
-        </div>
-      </header>
 
       {/* ===== KHÔNG GIAN MAIN CANVAS ===== */}
       <main className="flex-grow p-6 lg:p-8 w-full max-w-[1280px] mx-auto bg-slate-50/50">

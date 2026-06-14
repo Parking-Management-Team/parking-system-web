@@ -43,6 +43,11 @@ export const ROUTES = {
     ROOT: '/dashboard/manager/vehicles',
   },
 
+  // Feature: Pricing (Quản lý biểu phí, dịch vụ và tiền phạt)
+  PRICING: {
+    ROOT: '/dashboard/manager/pricing',
+  },
+
   // Feature: Staff Operations (Chức năng dành cho nhân viên bãi xe)
   STAFF: {
     DASHBOARD: '/dashboard/staff',

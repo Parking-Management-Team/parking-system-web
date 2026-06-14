@@ -1,10 +1,11 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/features/auth';
-import { api } from '@/lib/api/client'; // Import API client sẵn có để gọi backend
+import Image from 'next/image';
+
 
 // Kiểu cấu trúc cho thông tin xe được chọn
 interface VehicleDetails {
@@ -28,7 +29,7 @@ interface VehicleDetails {
  */
 export default function AllocateSlotPage() {
   const router = useRouter();
-  const { user } = useAuth();
+  useAuth();
 
   // State thông tin xe được chọn (Mặc định chọn sẵn xe VinFast VF8)
   const [selectedVehicle, setSelectedVehicle] = useState<VehicleDetails | null>({
@@ -40,7 +41,7 @@ export default function AllocateSlotPage() {
 
   // State ô nhập tìm kiếm
   const [searchQuery, setSearchQuery] = useState('');
-  
+
   // State loại hình đỗ xe (duration)
   const [allocationType, setAllocationType] = useState('monthly'); // short, monthly, vip
 
@@ -50,24 +51,9 @@ export default function AllocateSlotPage() {
 
   // Ghi chú
   const [notes, setNotes] = useState('');
-
   // Trạng thái xử lý gửi yêu cầu
   const [isAllocating, setIsAllocating] = useState(false);
   const [showToast, setShowToast] = useState(false);
-  const [currentTime, setCurrentTime] = useState('00:00:00');
-  const [currentDate, setCurrentDate] = useState('Thursday, June 4, 2026');
-
-  // Chạy đồng hồ thời gian thực ở Header
-  useEffect(() => {
-    const updateTime = () => {
-      const now = new Date();
-      setCurrentTime(now.toLocaleTimeString('en-US', { hour12: false }));
-      setCurrentDate(now.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }));
-    };
-    updateTime();
-    const interval = setInterval(updateTime, 1000);
-    return () => clearInterval(interval);
-  }, []);
 
   // Xử lý tìm kiếm xe / khách hàng
   const handleSearch = async (e: React.FormEvent) => {
@@ -171,7 +157,7 @@ export default function AllocateSlotPage() {
 
   return (
     <div className="flex-grow flex flex-col min-h-screen relative">
-      
+
       {/* ===== TOAST THÔNG BÁO THÀNH CÔNG ===== */}
       {showToast && (
         <div className="fixed top-6 right-6 z-50 flex items-center gap-3 bg-emerald-500 text-white px-5 py-3 rounded-xl shadow-lg shadow-emerald-500/20 animate-bounce">
@@ -180,59 +166,9 @@ export default function AllocateSlotPage() {
         </div>
       )}
 
-      {/* ===== HEADER BAR ===== */}
-      <header className="sticky top-0 z-40 h-[70px] bg-white/80 backdrop-blur-md border-b border-gray-200 shadow-sm flex justify-between items-center px-8 shrink-0">
-        <div className="flex items-center flex-1 max-w-xl">
-          <div className="relative w-full">
-            <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">search</span>
-            <input
-              type="text"
-              placeholder="Search for reports, data, or metrics..."
-              className="w-full bg-slate-50 border-none rounded-xl pl-12 pr-4 py-2.5 text-sm focus:ring-2 focus:ring-emerald-500/20 transition-all outline-none text-slate-800"
-              disabled
-            />
-          </div>
-        </div>
-
-        <div className="flex items-center gap-6">
-          <div className="flex flex-col items-end border-r border-slate-200 pr-6">
-            <span className="text-lg font-bold text-slate-800 tabular-nums leading-none">{currentTime}</span>
-            <span className="text-xs text-slate-400 leading-none mt-1">{currentDate}</span>
-          </div>
-
-          <div className="flex items-center gap-4 text-slate-500">
-            <button className="relative w-10 h-10 rounded-full hover:bg-slate-100 flex items-center justify-center transition-colors">
-              <span className="material-symbols-outlined">notifications</span>
-              <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
-            </button>
-            <button className="w-10 h-10 rounded-full hover:bg-slate-100 flex items-center justify-center transition-colors">
-              <span className="material-symbols-outlined">help</span>
-            </button>
-          </div>
-
-          <div className="flex items-center gap-3 pl-2">
-            <div className="text-right">
-              <p className="text-sm font-semibold text-slate-800 leading-tight">
-                {user?.fullName || 'Alex Thompson'}
-              </p>
-              <p className="text-[10px] text-emerald-500 font-bold uppercase tracking-wider">
-                Manager
-              </p>
-            </div>
-            <div className="w-10 h-10 rounded-full border-2 border-emerald-500 flex items-center justify-center bg-slate-200 overflow-hidden">
-              <img
-                src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=256&auto=format&fit=crop"
-                alt="Profile Avatar"
-                className="w-full h-full object-cover"
-              />
-            </div>
-          </div>
-        </div>
-      </header>
-
       {/* ===== KHÔNG GIAN LÀM VIỆC CHÍNH ===== */}
       <main className="flex-grow p-6 lg:p-8 w-full max-w-[1280px] mx-auto bg-slate-50/50">
-        
+
         {/* Nút quay lại & Tiêu đề */}
         <div className="mb-8 flex items-center gap-4">
           <Link
@@ -249,19 +185,20 @@ export default function AllocateSlotPage() {
 
         {/* Bố cục lưới Grid */}
         <div className="grid grid-cols-1 xl:grid-cols-12 gap-8 items-start">
-          
+
           {/* CỘT TRÁI: CHI TIẾT SLOT ĐƯỢC CHỌN (4 Cols) */}
           <div className="xl:col-span-4 flex flex-col gap-6">
             <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-              
+
               {/* Ảnh bản vẽ / Sơ đồ vị trí đỗ xe */}
               <div className="h-44 bg-slate-100 relative w-full overflow-hidden border-b border-slate-100">
-                <img
+                <Image
                   src="https://images.unsplash.com/photo-1506521788701-1e13a4e33c10?q=80&w=600&auto=format&fit=crop"
                   alt="Parking Garage Map Layout"
-                  className="w-full h-full object-cover opacity-90"
+                  fill
+                  className="object-cover opacity-90"
                 />
-                
+
                 {/* Huy hiệu hiển thị Slot ID */}
                 <div className="absolute bottom-4 left-4 bg-white/95 backdrop-blur-md border border-slate-200 rounded-xl px-4 py-2 flex items-center gap-2 shadow-sm">
                   <div className="w-3 h-3 rounded-full bg-emerald-500 animate-pulse"></div>
@@ -360,10 +297,10 @@ export default function AllocateSlotPage() {
                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-3">
                   Selected Vehicle
                 </label>
-                
+
                 {selectedVehicle ? (
                   <div className="bg-emerald-50/30 rounded-2xl border-2 border-emerald-500/20 p-5 flex items-start gap-4 relative overflow-hidden group hover:border-emerald-500/40 transition-all">
-                    
+
                     {/* Badge trạng thái đã chọn */}
                     <div className="absolute top-0 right-0 bg-emerald-500 text-white text-[9px] uppercase font-bold px-3 py-1 rounded-bl-xl tracking-wider">
                       Selected
@@ -378,7 +315,7 @@ export default function AllocateSlotPage() {
                     <div className="flex-grow">
                       <h4 className="text-base font-bold text-slate-800">{selectedVehicle.plate}</h4>
                       <p className="text-xs text-slate-500 mt-0.5">{selectedVehicle.model}</p>
-                      
+
                       <div className="flex items-center gap-4 mt-3 pt-3 border-t border-slate-100">
                         <div className="flex items-center gap-1.5">
                           <span className="material-symbols-outlined text-[16px] text-slate-400">person</span>
@@ -414,7 +351,7 @@ export default function AllocateSlotPage() {
                   Allocation Type
                 </label>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  
+
                   {/* Loại vãng lai */}
                   <label className="cursor-pointer">
                     <input

@@ -147,7 +147,6 @@ export default function FacilitiesModals({
   setIsEditFloorOpen,
   setEditingFloor,
   handleEditFloorSubmit,
-  editingFloor,
   
   isDelFloorOpen,
   setIsDelFloorOpen,
@@ -171,7 +170,6 @@ export default function FacilitiesModals({
   setIsEditZoneOpen,
   setEditingZone,
   handleEditZoneSubmit,
-  editingZone,
   
   isDelZoneOpen,
   setIsDelZoneOpen,

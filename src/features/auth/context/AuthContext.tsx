@@ -4,6 +4,7 @@ import * as React from 'react';
 import { api } from '@/lib/api/client';
 
 export interface User {
+  id?: number;
   fullName: string;
   email: string;
   phone?: string;
@@ -100,6 +101,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       // 3. Chuẩn hóa dữ liệu user từ Backend về kiểu User hiển thị ở Frontend
       const systemUser: User = {
+        id: res.data.accountId, // Gán ID từ Api phản hồi
         fullName: res.data.fullName || res.data.username,
         email: res.data.email || '',
         role: res.data.roleName ? res.data.roleName.toUpperCase() : '',
@@ -167,6 +169,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       // 3. Chuẩn hóa dữ liệu trả về từ Backend
       const systemUser: User = {
+        id: res.data.accountId, // Gán ID từ Api phản hồi
         fullName: res.data.fullName || res.data.username,
         email: res.data.email || '',
         role: res.data.roleName ? res.data.roleName.toUpperCase() : '',
@@ -231,34 +234,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         {toasts.map((toast) => (
           <div
             key={toast.id}
-            className={`pointer-events-auto p-4 rounded-xl shadow-2xl border backdrop-blur-md transition-all duration-300 transform translate-y-0 animate-slide-in flex items-center gap-3 overflow-hidden relative ${toast.type === 'success'
-                ? 'bg-black/90 border-emerald-500/30 text-white'
-                : toast.type === 'error'
-                  ? 'bg-black/90 border-rose-500/30 text-white'
-                  : 'bg-black/90 border-blue-500/30 text-white'
-              }`}
+            className="pointer-events-auto p-4 rounded-xl shadow-xl border border-[#006d43]/30 bg-white/95 backdrop-blur-md transition-all duration-300 transform translate-y-0 animate-slide-in flex items-center gap-3 overflow-hidden relative"
           >
             {/* Vòng tròn trạng thái nhấp nháy */}
             <div className="relative flex-shrink-0 flex items-center justify-center">
-              <span className={`w-2.5 h-2.5 rounded-full animate-ping absolute opacity-75 ${toast.type === 'success' ? 'bg-emerald-400' : toast.type === 'error' ? 'bg-rose-400' : 'bg-blue-400'
+              <span className={`w-2.5 h-2.5 rounded-full animate-ping absolute opacity-75 ${toast.type === 'success' ? 'bg-[#006d43]' : toast.type === 'error' ? 'bg-rose-400' : 'bg-blue-400'
                 }`} />
-              <span className={`w-2 h-2 rounded-full ${toast.type === 'success' ? 'bg-emerald-500' : toast.type === 'error' ? 'bg-rose-500' : 'bg-blue-500'
+              <span className={`w-2 h-2 rounded-full ${toast.type === 'success' ? 'bg-[#006d43]' : toast.type === 'error' ? 'bg-rose-500' : 'bg-blue-500'
                 }`} />
             </div>
 
             {/* Nội dung thông báo */}
             <div className="flex-grow space-y-0.5 select-none">
-              <p className={`text-[10px] font-mono uppercase tracking-widest ${toast.type === 'success' ? 'text-emerald-400' : toast.type === 'error' ? 'text-rose-400' : 'text-blue-400'
+              <p className={`text-[10px] font-mono uppercase tracking-widest font-bold ${toast.type === 'success' ? 'text-[#006d43]' : toast.type === 'error' ? 'text-rose-600' : 'text-blue-600'
                 }`}>
                 {toast.type === 'success' ? 'System Success' : toast.type === 'error' ? 'System Alert' : 'System Notice'}
               </p>
-              <p className="text-sm font-semibold text-gray-200 leading-relaxed font-heading">
+              <p className="text-sm font-semibold text-slate-700 leading-relaxed font-heading">
                 {toast.message}
               </p>
             </div>
 
             {/* Thanh đếm ngược thời gian chạy dưới cùng của Toast */}
-            <div className={`absolute bottom-0 left-0 h-1 animate-toast-progress w-full ${toast.type === 'success' ? 'bg-emerald-500' : toast.type === 'error' ? 'bg-rose-500' : 'bg-blue-500'
+            <div className={`absolute bottom-0 left-0 h-1 animate-toast-progress w-full ${toast.type === 'success' ? 'bg-[#006d43]' : toast.type === 'error' ? 'bg-rose-500' : 'bg-blue-500'
               }`} />
           </div>
         ))}

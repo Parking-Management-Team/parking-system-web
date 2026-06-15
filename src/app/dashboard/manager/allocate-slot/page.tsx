@@ -160,8 +160,8 @@ export default function AllocateSlotPage() {
 
       {/* ===== TOAST THÔNG BÁO THÀNH CÔNG ===== */}
       {showToast && (
-        <div className="fixed top-6 right-6 z-50 flex items-center gap-3 bg-emerald-500 text-white px-5 py-3 rounded-xl shadow-lg shadow-emerald-500/20 animate-bounce">
-          <span className="material-symbols-outlined">verified</span>
+        <div className="fixed top-6 right-6 z-50 flex items-center gap-3 bg-[#006d43] text-white px-5 py-3 rounded-xl shadow-lg shadow-[#006d43]/20 transition-all duration-300 transform scale-100 animate-in fade-in slide-in-from-top-4">
+          <span className="material-symbols-outlined text-lg">check_circle</span>
           <span className="text-sm font-semibold">Cập nhật cấp phát chỗ đỗ A1-012 thành công!</span>
         </div>
       )}

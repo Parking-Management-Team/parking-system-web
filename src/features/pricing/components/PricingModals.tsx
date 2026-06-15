@@ -1,6 +1,9 @@
 import React from 'react';
 import { UsePricingResult } from '../hooks/usePricing';
 import { FeePenaltyType } from '../types';
+import CreatePolicyModal from './CreatePolicyModal';
+import ActivatePolicyDialog from './ActivatePolicyDialog';
+import AddWindowModal from './AddWindowModal';
 
 interface PricingModalsProps {
   pricing: UsePricingResult;
@@ -37,6 +40,10 @@ export default function PricingModals({ pricing }: PricingModalsProps) {
     setFormTariffMaxCap,
     formTariffGraceVal,
     setFormTariffGraceVal,
+    formTariffEnableCap,
+    setFormTariffEnableCap,
+    removeWindowCap,
+    setRemoveWindowCap,
 
     // Membership States
     formMembershipVehicleType,
@@ -69,6 +76,7 @@ export default function PricingModals({ pricing }: PricingModalsProps) {
     handleCloseFeeModal,
     handleSaveFee
   } = pricing;
+
 
   // Render Edit Tariff Modal
   if (isEditTariffOpen && editingTariff) {
@@ -224,18 +232,56 @@ export default function PricingModals({ pricing }: PricingModalsProps) {
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-bold text-slate-500 mb-1.5 uppercase tracking-wide">Window Cap / Max Daily Charge</label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">Daily Cap (VND)</label>
+                    <div className="flex items-center gap-2">
+                      <input 
+                        type="checkbox" 
+                        id="enableCapCheckbox"
+                        checked={formTariffEnableCap}
+                        onChange={(e) => {
+                          setFormTariffEnableCap(e.target.checked);
+                          if (!e.target.checked) setRemoveWindowCap(true);
+                        }}
+                        className="rounded text-emerald-600 focus:ring-emerald-500 h-3.5 w-3.5"
+                      />
+                      <label htmlFor="enableCapCheckbox" className="text-[10px] font-bold text-slate-500 cursor-pointer">
+                        Enable Cap
+                      </label>
+                    </div>
+                  </div>
+                  
                   <div className="relative">
                     <input 
                       type="number" 
-                      value={formTariffMaxCap}
+                      disabled={!formTariffEnableCap || removeWindowCap}
+                      value={formTariffEnableCap && !removeWindowCap ? formTariffMaxCap : ''}
                       onChange={(e) => setFormTariffMaxCap(Number(e.target.value))}
-                      className="w-full bg-white border border-slate-200 rounded-xl pl-4 pr-12 py-2 text-sm font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all"
+                      placeholder="No daily limit"
+                      className="w-full bg-white disabled:bg-slate-100 disabled:text-slate-400 border border-slate-200 rounded-xl pl-4 pr-12 py-2 text-sm font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all"
                     />
                     <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">VND</span>
                   </div>
-                  <p className="mt-1 text-[10px] text-slate-400 font-medium">Specify upper limit limit per day.</p>
+
+                  {editingTariff.details.maxCap > 0 && (
+                    <div className="mt-2.5 flex items-center gap-2 bg-red-50 border border-red-100 px-3 py-1.5 rounded-lg">
+                      <input 
+                        type="checkbox" 
+                        id="removeCapCheckbox"
+                        checked={removeWindowCap}
+                        onChange={(e) => {
+                          setRemoveWindowCap(e.target.checked);
+                          if (e.target.checked) setFormTariffEnableCap(false);
+                        }}
+                        className="rounded text-red-600 focus:ring-red-500 h-3.5 w-3.5"
+                      />
+                      <label htmlFor="removeCapCheckbox" className="text-[10px] font-bold text-red-600 cursor-pointer">
+                        Remove existing daily cap
+                      </label>
+                    </div>
+                  )}
                 </div>
+
                 <div>
                   <label className="block text-xs font-bold text-slate-500 mb-1.5 uppercase tracking-wide">Grace Period (Free Exit Time)</label>
                   <div className="relative">
@@ -254,6 +300,7 @@ export default function PricingModals({ pricing }: PricingModalsProps) {
                 </div>
               </div>
             </div>
+
 
             {/* Modal Footer */}
             <div className="pt-4 border-t border-slate-100 flex items-center justify-end gap-3 bg-white">
@@ -534,5 +581,12 @@ export default function PricingModals({ pricing }: PricingModalsProps) {
     );
   }
 
-  return null;
+  return (
+    <>
+      <CreatePolicyModal pricing={pricing} />
+      <ActivatePolicyDialog pricing={pricing} />
+      <AddWindowModal pricing={pricing} />
+    </>
+  );
 }
+

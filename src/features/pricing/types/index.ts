@@ -70,3 +70,40 @@ export interface ServiceFeeOrPenalty {
   triggerVal?: number; // minutes for time-based trigger
   isActive: boolean;
 }
+
+// Request body để tạo 1 khung giờ trong chính sách mới
+export interface CreatePricingWindowRequest {
+  windowName: string;               // Tên khung giờ (vd: "Day Shift")
+  startTime: string;                // Định dạng "HH:mm" (vd: "06:00")
+  endTime: string;                  // Định dạng "HH:mm" (vd: "18:00")
+  baseDurationMinutes: number;      // Thời lượng block đầu (phút)
+  basePrice: number;                // Đơn giá block đầu (VNĐ)
+  incrementBlockMinutes: number;    // Thời lượng mỗi block tiếp theo (phút)
+  incrementPrice: number;           // Đơn giá block tiếp theo (VNĐ)
+  windowCap: number | null;         // Giá trần (null = không giới hạn)
+  gracePeriodMinutes: number;       // Thời gian ân hạn (phút)
+}
+
+// Request body để tạo chính sách giá mới (POST /api/pricing-policies)
+export interface CreatePricingPolicyRequest {
+  vehicleTypeId: number;            // 1 = Xe máy, 2 = Ô tô
+  policyName: string;               // Tên chính sách
+  effectiveStart: string;           // ISO DateTime: "2026-06-15T00:00:00Z"
+  effectiveEnd: string | null;      // null = vô thời hạn
+  pricingWindows: CreatePricingWindowRequest[]; // Phải có ít nhất 1
+}
+
+// Request body để cập nhật khung giờ (PUT /api/pricing-policies/windows/{id})
+export interface UpdatePricingWindowRequest {
+  windowName: string;
+  startTime: string;
+  endTime: string;
+  baseDurationMinutes: number;
+  basePrice: number;
+  incrementBlockMinutes: number;
+  incrementPrice: number;
+  windowCap: number | null;
+  removeWindowCap: boolean;         // true = xóa bỏ giá trần trên server
+  gracePeriodMinutes: number;
+}
+

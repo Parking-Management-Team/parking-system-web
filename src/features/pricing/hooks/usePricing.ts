@@ -1,5 +1,6 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useAuth } from '@/features/auth';
+import { api } from '@/lib/api/client';
 import { 
   StandardTariff, 
   PricingWindow, 
@@ -146,6 +147,24 @@ export function usePricing() {
 
   // Main feature state lists
   const [tariffs, setTariffs] = useState<StandardTariff[]>(initialTariffs);
+
+  // Fetch pricing policies on component mount
+  const fetchPolicies = async () => {
+    try {
+      const response = await api.get<{ data: StandardTariff[], success: boolean }>('/pricing-policies');
+      if (response && response.success && Array.isArray(response.data)) {
+        if (response.data.length > 0) {
+          setTariffs(response.data);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to fetch pricing policies from API, using mock fallback:', error);
+    }
+  };
+
+  useEffect(() => {
+    fetchPolicies();
+  }, []);
   const [memberships, setMemberships] = useState<MonthlyMembership[]>(initialMemberships);
   const [fees, setFees] = useState<ServiceFeeOrPenalty[]>(initialFees);
 
@@ -294,7 +313,7 @@ export function usePricing() {
     setEditingTariff(null);
   };
 
-  const handleSaveTariff = (e: React.FormEvent) => {
+  const handleSaveTariff = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingTariff) return;
 
@@ -313,77 +332,136 @@ export function usePricing() {
     const policyId = parseInt(policyIdStr);
     const windowId = parseInt(windowIdStr);
 
-    const updated = tariffs.map((policy) => {
-      if (policy.pricingPolicyId === policyId) {
-        const updatedWindows = policy.pricingWindows.map((window) => {
-          if (window.pricingWindowId === windowId) {
-            return {
-              ...window,
-              startTime: formTariffStartTime + (formTariffStartTime.length === 5 ? ':00' : ''),
-              endTime: formTariffEndTime + (formTariffEndTime.length === 5 ? ':00' : ''),
-              baseDurationMinutes: parseFloat(formTariffInitialDuration) * 60,
-              basePrice: formTariffBasePrice,
-              incrementBlockMinutes: parseFloat(formTariffIncrement) * 60,
-              incrementPrice: formTariffBlockPrice,
-              windowCap: hasCap ? formTariffMaxCap : null,
-              gracePeriodMinutes: parseInt(formTariffGraceVal)
-            };
-          }
-          return window;
-        });
-        return {
-          ...policy,
-          pricingWindows: updatedWindows
+    const targetWindow = tariffs.find(p => p.pricingPolicyId === policyId)?.pricingWindows.find(w => w.pricingWindowId === windowId);
+    if (!targetWindow) return;
 
-        };
-      }
-      return policy;
-    });
+    const requestBody = {
+      windowName: targetWindow.windowName,
+      startTime: formTariffStartTime + (formTariffStartTime.length === 5 ? ':00' : ''),
+      endTime: formTariffEndTime + (formTariffEndTime.length === 5 ? ':00' : ''),
+      baseDurationMinutes: parseFloat(formTariffInitialDuration) * 60,
+      basePrice: formTariffBasePrice,
+      incrementBlockMinutes: parseFloat(formTariffIncrement) * 60,
+      incrementPrice: formTariffBlockPrice,
+      windowCap: hasCap ? formTariffMaxCap : null,
+      removeWindowCap: !hasCap,
+      gracePeriodMinutes: parseInt(formTariffGraceVal)
+    };
 
-    setTariffs(updated);
-    handleCloseEditTariff();
-    triggerToast('Pricing Policy updated successfully!');
-  };
-
-  const handleToggleTariffStatus = (id: string) => {
-    const [policyIdStr] = id.split('-');
-    const policyId = parseInt(policyIdStr);
-
-    setTariffs(
-      tariffs.map((policy) => {
+    const updateLocalState = () => {
+      const updated = tariffs.map((policy) => {
         if (policy.pricingPolicyId === policyId) {
-          const nextStatus = policy.pricingPolicyStatus === 'Active' ? 'Inactive' : 'Active';
+          const updatedWindows = policy.pricingWindows.map((window) => {
+            if (window.pricingWindowId === windowId) {
+              return {
+                ...window,
+                startTime: formTariffStartTime + (formTariffStartTime.length === 5 ? ':00' : ''),
+                endTime: formTariffEndTime + (formTariffEndTime.length === 5 ? ':00' : ''),
+                baseDurationMinutes: parseFloat(formTariffInitialDuration) * 60,
+                basePrice: formTariffBasePrice,
+                incrementBlockMinutes: parseFloat(formTariffIncrement) * 60,
+                incrementPrice: formTariffBlockPrice,
+                windowCap: hasCap ? formTariffMaxCap : null,
+                gracePeriodMinutes: parseInt(formTariffGraceVal)
+              };
+            }
+            return window;
+          });
           return {
             ...policy,
-            pricingPolicyStatus: nextStatus
+            pricingWindows: updatedWindows
           };
         }
         return policy;
-      })
-    );
+      });
+      setTariffs(updated);
+    };
 
-    const affectedPolicy = tariffs.find((p) => p.pricingPolicyId === policyId);
-    const vehicleName = affectedPolicy?.vehicleTypeId === 1 ? 'Motorbike' : 'Car';
-    triggerToast(`${vehicleName} Policy status updated!`);
+    try {
+      const res = await api.put<{ success: boolean }>(`/pricing-policies/windows/${windowId}`, requestBody);
+      if (res && res.success) {
+        fetchPolicies();
+        triggerToast('Pricing Policy updated successfully!');
+      } else {
+        updateLocalState();
+        triggerToast('Pricing Policy updated locally!');
+      }
+    } catch (error) {
+      console.error('Failed to update pricing window via API, saving locally:', error);
+      updateLocalState();
+      triggerToast('Pricing Policy updated locally (Offline/Fallback)!');
+    }
+
+    handleCloseEditTariff();
   };
 
-  const handleDeleteTariff = (id: string) => {
+  const handleToggleTariffStatus = async (id: string) => {
+    const [policyIdStr] = id.split('-');
+    const policyId = parseInt(policyIdStr);
+    const policy = tariffs.find(p => p.pricingPolicyId === policyId);
+    if (!policy) return;
+
+    const nextStatus = policy.pricingPolicyStatus === 'Active' ? 'Inactive' : 'Active';
+    const vehicleName = policy.vehicleTypeId === 1 ? 'Motorbike' : 'Car';
+
+    const updateLocalState = () => {
+      setTariffs(prev => prev.map(p => {
+        if (p.pricingPolicyId === policyId) {
+          return { ...p, pricingPolicyStatus: nextStatus };
+        }
+        return p;
+      }));
+    };
+
+    if (nextStatus === 'Active') {
+      try {
+        const res = await api.post<{ success: boolean }>(`/pricing-policies/${policyId}/activate`, {});
+        if (res && res.success) {
+          fetchPolicies();
+          triggerToast(`${vehicleName} Policy status updated to Active!`);
+        } else {
+          updateLocalState();
+          triggerToast(`${vehicleName} Policy status updated locally!`);
+        }
+      } catch (error) {
+        console.error('Failed to activate policy:', error);
+        updateLocalState();
+        triggerToast(`${vehicleName} Policy status updated locally (Offline/Fallback)!`);
+      }
+    } else {
+      updateLocalState();
+      triggerToast(`${vehicleName} Policy status updated to Inactive!`);
+    }
+  };
+
+  const handleDeleteTariff = async (id: string) => {
     const [policyIdStr, windowIdStr] = id.split('-');
     const policyId = parseInt(policyIdStr);
     const windowId = parseInt(windowIdStr);
 
-    setTariffs(
-      tariffs.map((policy) => {
-        if (policy.pricingPolicyId === policyId) {
-          return {
-            ...policy,
-            pricingWindows: policy.pricingWindows.filter((w) => w.pricingWindowId !== windowId)
-          };
-        }
-        return policy;
-      }).filter((policy) => policy.pricingWindows.length > 0)
-    );
-    triggerToast('Policy window deleted successfully!');
+    const updateLocalState = () => {
+      setTariffs(
+        tariffs.map((policy) => {
+          if (policy.pricingPolicyId === policyId) {
+            return {
+              ...policy,
+              pricingWindows: policy.pricingWindows.filter((w) => w.pricingWindowId !== windowId)
+            };
+          }
+          return policy;
+        }).filter((policy) => policy.pricingWindows.length > 0)
+      );
+    };
+
+    try {
+      await api.delete(`/pricing-policies/windows/${windowId}`);
+      fetchPolicies();
+      triggerToast('Policy window deleted successfully!');
+    } catch (error) {
+      console.error('Failed to delete pricing window via API, deleting locally:', error);
+      updateLocalState();
+      triggerToast('Policy window deleted locally (Offline/Fallback)!');
+    }
   };
 
   // === MEMBERSHIP HANDLERS ===
@@ -568,7 +646,7 @@ export function usePricing() {
     );
   };
 
-  const handleSaveCreatePolicy = (e: React.FormEvent) => {
+  const handleSaveCreatePolicy = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newPolicyName.trim()) {
       triggerToast('Please enter the pricing policy name.', 'error');
@@ -610,7 +688,25 @@ export function usePricing() {
       }
     }
 
-    const newPolicy: StandardTariff = {
+    const requestBody = {
+      vehicleTypeId: newVehicleTypeId,
+      policyName: newPolicyName,
+      effectiveStart: `${newEffectiveStart}T00:00:00.000Z`,
+      effectiveEnd: newEffectiveEnd ? `${newEffectiveEnd}T00:00:00.000Z` : null,
+      pricingWindows: newWindows.map(w => ({
+        windowName: w.windowName,
+        startTime: w.startTime + (w.startTime.length === 5 ? ':00' : ''),
+        endTime: w.endTime + (w.endTime.length === 5 ? ':00' : ''),
+        baseDurationMinutes: w.baseDurationMinutes,
+        basePrice: w.basePrice,
+        incrementBlockMinutes: w.incrementBlockMinutes,
+        incrementPrice: w.incrementPrice,
+        windowCap: w.windowCap,
+        gracePeriodMinutes: w.gracePeriodMinutes
+      }))
+    };
+
+    const fallbackPolicy: StandardTariff = {
       pricingPolicyId: Date.now(),
       vehicleTypeId: newVehicleTypeId,
       policyName: newPolicyName,
@@ -621,8 +717,8 @@ export function usePricing() {
         pricingWindowId: Date.now() + idx,
         pricingPolicyId: Date.now(),
         windowName: w.windowName,
-        startTime: w.startTime + ':00',
-        endTime: w.endTime + ':00',
+        startTime: w.startTime + (w.startTime.length === 5 ? ':00' : ''),
+        endTime: w.endTime + (w.endTime.length === 5 ? ':00' : ''),
         baseDurationMinutes: w.baseDurationMinutes,
         basePrice: w.basePrice,
         incrementBlockMinutes: w.incrementBlockMinutes,
@@ -632,9 +728,22 @@ export function usePricing() {
       }))
     };
 
-    setTariffs(prev => [...prev, newPolicy]);
+    try {
+      const res = await api.post<{ success: boolean }>('/pricing-policies', requestBody);
+      if (res && res.success) {
+        fetchPolicies();
+        triggerToast('New pricing policy created successfully!', 'success');
+      } else {
+        setTariffs(prev => [...prev, fallbackPolicy]);
+        triggerToast('New pricing policy created locally!', 'success');
+      }
+    } catch (error) {
+      console.error('Failed to create pricing policy via API, saving locally:', error);
+      setTariffs(prev => [...prev, fallbackPolicy]);
+      triggerToast('New pricing policy created locally (Offline/Fallback)!', 'success');
+    }
+
     setIsCreatePolicyOpen(false);
-    triggerToast('New pricing policy created successfully!', 'success');
   };
 
   // --- Handlers cho Activate Policy (S2) ---
@@ -648,21 +757,40 @@ export function usePricing() {
     setActivatingPolicy(null);
   };
 
-  const handleConfirmActivate = () => {
+  const handleConfirmActivate = async () => {
     if (!activatingPolicy) return;
     
-    setTariffs(prev => prev.map(p => {
-      if (p.pricingPolicyId === activatingPolicy.pricingPolicyId) {
-        return { ...p, pricingPolicyStatus: 'Active' };
-      } else if (p.vehicleTypeId === activatingPolicy.vehicleTypeId) {
-        return { ...p, pricingPolicyStatus: 'Inactive' };
+    const targetPolicyId = activatingPolicy.pricingPolicyId;
+    const vehicleTypeId = activatingPolicy.vehicleTypeId;
+
+    const updateLocalState = () => {
+      setTariffs(prev => prev.map(p => {
+        if (p.pricingPolicyId === targetPolicyId) {
+          return { ...p, pricingPolicyStatus: 'Active' };
+        } else if (p.vehicleTypeId === vehicleTypeId) {
+          return { ...p, pricingPolicyStatus: 'Inactive' };
+        }
+        return p;
+      }));
+    };
+
+    try {
+      const res = await api.post<{ success: boolean }>(`/pricing-policies/${targetPolicyId}/activate`, {});
+      if (res && res.success) {
+        fetchPolicies();
+        triggerToast(`Pricing policy "${activatingPolicy.policyName}" activated successfully!`, 'success');
+      } else {
+        updateLocalState();
+        triggerToast(`Pricing policy activated locally!`, 'success');
       }
-      return p;
-    }));
+    } catch (error) {
+      console.error('Failed to activate pricing policy via API, activating locally:', error);
+      updateLocalState();
+      triggerToast(`Pricing policy activated locally (Offline/Fallback)!`, 'success');
+    }
 
     setIsActivateDialogOpen(false);
     setActivatingPolicy(null);
-    triggerToast(`Pricing policy "${activatingPolicy.policyName}" activated successfully!`, 'success');
   };
 
   // --- Handlers cho Add Window (S5) ---

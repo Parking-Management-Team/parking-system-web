@@ -93,15 +93,15 @@ export default function BuildingDetails() {
     <div className="w-full animate-in fade-in duration-300">
       {/* Toast Notification */}
       {showToast && (
-        <div className={`fixed top-4 right-4 z-50 flex items-center gap-2 px-4 py-3 rounded-xl shadow-lg border transition-all duration-300 ${
+        <div className={`fixed top-6 right-6 z-50 flex items-center gap-3 px-5 py-3 rounded-xl shadow-lg transition-all duration-300 transform scale-100 ${
           toastType === 'success' 
-            ? 'bg-emerald-50 border-emerald-200 text-emerald-800' 
-            : 'bg-red-50 border-red-200 text-red-800'
+            ? 'bg-[#006d43] text-white shadow-[#006d43]/20' 
+            : 'bg-red-600 text-white shadow-red-600/20'
         }`}>
-          <span className="material-symbols-outlined text-[20px]">
+          <span className="material-symbols-outlined text-lg">
             {toastType === 'success' ? 'check_circle' : 'error'}
           </span>
-          <span className="text-xs font-semibold">{toastMessage}</span>
+          <span className="text-sm font-semibold">{toastMessage}</span>
         </div>
       )}
 

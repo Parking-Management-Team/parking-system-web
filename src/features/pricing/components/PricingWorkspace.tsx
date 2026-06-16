@@ -2,6 +2,8 @@ import React from 'react';
 
 import { usePricing } from '../hooks/usePricing';
 import PricingModals from './PricingModals';
+import { validate24hCoverage, validateNoOverlap, computeTimelineSegments, isNightSlot } from '../utils/pricingValidation';
+
 
 export default function PricingWorkspace() {
   const pricing = usePricing();
@@ -16,20 +18,22 @@ export default function PricingWorkspace() {
     toastType,
     triggerToast,
     handleOpenEditTariff,
-    handleToggleTariffStatus,
-    handleDeleteTariff,
     handleOpenEditMembership,
     handleOpenAddFee,
     handleOpenEditFee,
-    handleDeleteFee
+    handleDeleteFee,
+    // New handlers from usePricing
+    handleOpenCreatePolicy,
+    handleOpenActivateDialog,
+    handleOpenAddWindow
   } = pricing;
 
   // Handler for primary button based on active tab
   const handlePrimaryAction = () => {
     if (activeTab === 'standard') {
-      triggerToast('Standard policy creation is locked in this version.', 'error');
+      handleOpenCreatePolicy();
     } else if (activeTab === 'memberships') {
-      triggerToast('Monthly membership templates are locked in this version.', 'error');
+      triggerToast('Monthly membership plans are automatically synchronized from the central system.', 'error');
     } else {
       handleOpenAddFee();
     }
@@ -38,13 +42,14 @@ export default function PricingWorkspace() {
   const getPrimaryButtonLabel = () => {
     switch (activeTab) {
       case 'standard':
-        return 'Create New Policy';
+        return 'Create New Pricing Policy';
       case 'memberships':
-        return 'Add Subscription';
+        return 'Add Monthly Membership';
       case 'fees':
         return 'Add Fee/Penalty';
     }
   };
+
 
   return (
     <div className="flex-grow flex flex-col min-h-screen bg-[#f9f9ff]">
@@ -123,82 +128,230 @@ export default function PricingWorkspace() {
           {/* Tab Content Canvas */}
           <div className="mt-2">
 
-            {/* TAB 1: STANDARD TARIFFS */}
+            {/* TAB 1: STANDARD TARIFFS (POLICY CARD VIEW) */}
             {activeTab === 'standard' && (
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <h4 className="text-base font-bold text-[#111c2d]">Active Tariff Policies</h4>
-                  <div className="flex items-center gap-1.5">
+              <div className="space-y-6 animate-in fade-in duration-200">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <h4 className="text-base font-bold text-[#111c2d]">Standard Pricing Policies</h4>
+                  <div className="flex items-center gap-2">
                     <span className="w-2.5 h-2.5 rounded-full bg-[#006d43] animate-pulse"></span>
                     <span className="text-xs font-bold text-emerald-600 uppercase tracking-wide">Live Configuration</span>
                   </div>
                 </div>
 
-                <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left border-collapse">
-                      <thead>
-                        <tr className="bg-slate-50 border-b border-slate-200 text-slate-400 text-[11px] font-bold uppercase tracking-wider">
-                          <th className="px-6 py-4">Vehicle Type</th>
-                          <th className="px-6 py-4">Time Slot</th>
-                          <th className="px-6 py-4">Base Rate</th>
-                          <th className="px-6 py-4">Incremental</th>
-                          <th className="px-6 py-4">Daily Cap</th>
-                          <th className="px-6 py-4">Grace Period</th>
-                          <th className="px-6 py-4 text-center">Status</th>
-                          <th className="px-6 py-4 text-right">Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100 text-sm font-semibold text-slate-700">
-                        {tariffs.map((tariff) => (
-                          <tr key={tariff.id} className="hover:bg-slate-50/50 transition-colors">
-                            <td className="px-6 py-4 font-bold text-slate-800 flex items-center gap-2">
-                              <span className="material-symbols-outlined text-slate-400 text-[20px]">
-                                {tariff.vehicleType.includes('Motorbike') ? 'two_wheeler' : 'directions_car'}
-                              </span>
-                              {tariff.vehicleType}
-                            </td>
-                            <td className="px-6 py-4 text-slate-500 text-xs font-medium">{tariff.timeSlot}</td>
-                            <td className="px-6 py-4">{tariff.baseRate}</td>
-                            <td className="px-6 py-4">{tariff.incrementalRate}</td>
-                            <td className="px-6 py-4 text-emerald-600 font-bold">{tariff.dailyCap}</td>
-                            <td className="px-6 py-4 text-slate-500 text-xs font-medium">{tariff.gracePeriod}</td>
-                            <td className="px-6 py-4 text-center">
-                              <span 
-                                onClick={() => handleToggleTariffStatus(tariff.id)}
-                                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider cursor-pointer select-none transition-all ${
-                                  tariff.isActive 
-                                    ? 'bg-emerald-50 text-emerald-600 border border-emerald-200' 
-                                    : 'bg-slate-100 text-slate-400 border border-slate-200'
-                                }`}
-                              >
-                                <span className={`w-1.5 h-1.5 rounded-full ${tariff.isActive ? 'bg-emerald-500' : 'bg-slate-400'}`}></span>
-                                {tariff.isActive ? 'Active' : 'Inactive'}
-                              </span>
-                            </td>
-                            <td className="px-6 py-4 text-right">
-                              <div className="flex justify-end items-center gap-1">
-                                <button 
-                                  onClick={() => handleOpenEditTariff(tariff)}
-                                  className="h-8 w-8 flex items-center justify-center rounded-full hover:bg-slate-100 transition-colors text-slate-500 hover:text-[#006d43]"
-                                  title="Edit Policy"
-                                >
-                                  <span className="material-symbols-outlined text-[18px]">edit</span>
-                                </button>
-                                <button 
-                                  onClick={() => handleDeleteTariff(tariff.id)}
-                                  className="h-8 w-8 flex items-center justify-center rounded-full hover:bg-red-50 transition-colors text-slate-400 hover:text-red-500"
-                                  title="Delete Policy"
-                                >
-                                  <span className="material-symbols-outlined text-[18px]">delete</span>
-                                </button>
+                <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                  {tariffs.map((policy) => {
+                    const isActive = policy.pricingPolicyStatus === 'Active';
+                    const isMotorbike = policy.vehicleTypeId === 1;
+
+                    // Validate coverage and overlap on the fly for each policy
+                    const simplifiedWindows = policy.pricingWindows.map(w => ({
+                      windowName: w.windowName,
+                      startTime: w.startTime.substring(0, 5),
+                      endTime: w.endTime.substring(0, 5),
+                      baseDurationMinutes: w.baseDurationMinutes,
+                      basePrice: w.basePrice,
+                      incrementBlockMinutes: w.incrementBlockMinutes,
+                      incrementPrice: w.incrementPrice,
+                      windowCap: w.windowCap,
+                      gracePeriodMinutes: w.gracePeriodMinutes
+                    }));
+                    const coverage = validate24hCoverage(simplifiedWindows);
+                    const overlap = validateNoOverlap(simplifiedWindows);
+                    const segments = computeTimelineSegments(simplifiedWindows);
+
+                    return (
+                      <div 
+                        key={policy.pricingPolicyId} 
+                        className={`bg-white border rounded-2xl p-6 shadow-sm transition-all hover:shadow-md flex flex-col justify-between ${
+                          isActive ? 'border-[#006d43] ring-2 ring-emerald-500/10' : 'border-slate-200'
+                        }`}
+                      >
+                        {/* Policy Card Header */}
+                        <div>
+                          <div className="flex justify-between items-start gap-4">
+                            <div className="space-y-1">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                                  isMotorbike 
+                                    ? 'bg-sky-50 text-sky-700 border border-sky-100' 
+                                    : 'bg-indigo-50 text-indigo-700 border border-indigo-100'
+                                }`}>
+                                  <span className="material-symbols-outlined text-[12px]">
+                                    {isMotorbike ? 'two_wheeler' : 'directions_car'}
+                                  </span>
+                                  {isMotorbike ? 'Motorbike' : 'Car'}
+                                </span>
+                                
+                                <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                                  isActive 
+                                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' 
+                                    : 'bg-slate-50 text-slate-400 border border-slate-200'
+                                }`}>
+                                  <span className={`w-1 h-1 rounded-full ${isActive ? 'bg-emerald-500' : 'bg-slate-400'}`}></span>
+                                  {isActive ? 'Active' : 'Draft'}
+                                </span>
                               </div>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+                              <h5 className="text-slate-800 text-base font-bold mt-1.5">{policy.policyName}</h5>
+                            </div>
+
+                            {/* Card Actions */}
+                            <div className="flex items-center gap-1.5">
+                              {!isActive && (
+                                <button 
+                                  onClick={() => handleOpenActivateDialog(policy)}
+                                  disabled={!coverage.isValid || !overlap.isValid}
+                                  className="px-3 py-1.5 bg-[#006d43]/10 hover:bg-[#006d43] text-[#006d43] hover:text-white font-bold text-xs rounded-xl disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                                  title={coverage.isValid && overlap.isValid ? "Activate policy" : "Requires 24h coverage and no overlaps to activate"}
+                                >
+                                  Activate
+                                </button>
+                              )}
+                              <button 
+                                onClick={() => handleOpenAddWindow(policy.pricingPolicyId)}
+                                className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold text-xs rounded-xl transition-all"
+                              >
+                                + Add Window
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* Effective Dates info */}
+                          <div className="mt-4 flex items-center gap-2.5 bg-slate-50 border border-slate-100 px-3.5 py-2 rounded-xl text-slate-500 font-semibold text-xs">
+                            <span className="material-symbols-outlined text-[14px]">calendar_today</span>
+                            <span>
+                              Effective start: {new Date(policy.effectiveStart).toLocaleDateString('en-US')}
+                              {policy.effectiveEnd ? ` - ${new Date(policy.effectiveEnd).toLocaleDateString('en-US')}` : ' (Indefinite)'}
+                            </span>
+                          </div>
+
+                          {/* Visual mini-timeline */}
+                          <div className="mt-5 space-y-1.5">
+                            <div className="flex justify-between items-center text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                              <span>24h Timeline</span>
+                              <span className={coverage.isValid && overlap.isValid ? 'text-emerald-600' : 'text-amber-600'}>
+                                {coverage.isValid && overlap.isValid ? 'Complete' : 'Incomplete / Overlaps'}
+                              </span>
+                            </div>
+                            <div className="h-6 w-full bg-slate-100 rounded-xl overflow-hidden relative border border-slate-200 flex items-center">
+                              {segments.map((seg, idx) => {
+                                const isNight = isNightSlot(seg.name, policy.pricingWindows[idx].startTime);
+                                return (
+                                  <div 
+                                    key={idx}
+                                    style={{
+                                      left: `${seg.startPercent}%`,
+                                      width: `${seg.widthPercent}%`
+                                    }}
+                                    className={`absolute h-full border-r flex items-center px-1.5 text-white overflow-hidden cursor-pointer transition-colors ${
+                                      isNight 
+                                        ? 'bg-indigo-900/95 border-indigo-950/20 hover:bg-indigo-900' 
+                                        : 'bg-amber-600/95 border-amber-700/20 hover:bg-amber-600'
+                                    }`}
+                                    title={`${seg.name}: ${policy.pricingWindows[idx].startTime.substring(0, 5)} - ${policy.pricingWindows[idx].endTime.substring(0, 5)}`}
+                                  >
+                                    <span className="text-[8px] font-black truncate flex items-center gap-0.5">
+                                      <span className="material-symbols-outlined text-[8px]">
+                                        {isNight ? 'dark_mode' : 'light_mode'}
+                                      </span>
+                                      {seg.name}
+                                    </span>
+                                  </div>
+                                );
+                              })}
+                              {policy.pricingWindows.length === 0 && (
+                                <div className="w-full text-center text-[10px] text-slate-400 font-bold">No windows configured</div>
+                              )}
+                            </div>
+                            {policy.pricingWindows.length > 0 && (
+                              <div className="flex gap-2 text-[8px] font-bold text-slate-400 uppercase tracking-wider justify-start pl-1">
+                                <div className="flex items-center gap-1">
+                                  <span className="h-2 w-2 rounded-sm bg-amber-600"></span>
+                                  <span>Day</span>
+                                </div>
+                                <div className="flex items-center gap-1">
+                                  <span className="h-2 w-2 rounded-sm bg-indigo-900"></span>
+                                  <span>Night</span>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Pricing windows list */}
+                          <div className="mt-5 space-y-2.5">
+                            <h6 className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Pricing Windows</h6>
+                            <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+                              {policy.pricingWindows.map((win) => {
+                                // Prepare data format to pass to editing modal
+                                const tariffRowRepresentation = {
+                                  id: `${policy.pricingPolicyId}-${win.pricingWindowId}`,
+                                  vehicleType: policy.vehicleTypeId === 1 ? 'Motorbike' : 'Car',
+                                  timeSlot: `${win.startTime.substring(0, 5)} - ${win.endTime.substring(0, 5)}`,
+                                  baseRate: `${win.basePrice.toLocaleString('en-US')} VND`,
+                                  incrementalRate: `${win.incrementPrice.toLocaleString('en-US')} VND`,
+                                  dailyCap: win.windowCap ? `${win.windowCap.toLocaleString('en-US')} VND` : 'No Cap',
+                                  gracePeriod: win.gracePeriodMinutes ? `${win.gracePeriodMinutes} mins` : 'None',
+                                  isActive: isActive,
+                                  details: {
+                                    startTime: win.startTime.substring(0, 5),
+                                    endTime: win.endTime.substring(0, 5),
+                                    basePrice: win.basePrice,
+                                    initialDuration: (win.baseDurationMinutes / 60).toString(),
+                                    blockPrice: win.incrementPrice,
+                                    increment: (win.incrementBlockMinutes / 60).toString(),
+                                    maxCap: win.windowCap || 0,
+                                    graceVal: win.gracePeriodMinutes.toString()
+                                  }
+                                };
+
+                                return (
+                                  <div 
+                                    key={win.pricingWindowId} 
+                                    className="bg-slate-50/50 hover:bg-slate-50 border border-slate-200/60 rounded-xl p-3 flex items-center justify-between gap-4 transition-colors"
+                                  >
+                                    <div className="space-y-1 min-w-0">
+                                      <div className="flex items-center gap-1.5">
+                                        <span className="text-xs font-black text-slate-800 truncate">{win.windowName}</span>
+                                        <span className="text-[10px] font-black text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">
+                                          {win.startTime.substring(0, 5)} - {win.endTime.substring(0, 5)}
+                                        </span>
+                                      </div>
+                                      
+                                      <div className="flex items-center gap-3 text-[10px] font-semibold text-slate-500 flex-wrap">
+                                        <span>
+                                          Base Rate ({win.baseDurationMinutes / 60}h): <strong>{win.basePrice.toLocaleString('en-US')} VND</strong>
+                                        </span>
+                                        <span>•</span>
+                                        <span>
+                                          Incremental ({win.incrementBlockMinutes >= 60 ? `${win.incrementBlockMinutes / 60}h` : `${win.incrementBlockMinutes}m`}): <strong>{win.incrementPrice.toLocaleString('en-US')} VND</strong>
+                                        </span>
+                                        {win.windowCap && (
+                                          <>
+                                            <span>•</span>
+                                            <span>
+                                              Cap: <strong className="text-emerald-600">{win.windowCap.toLocaleString('en-US')} VND</strong>
+                                            </span>
+                                          </>
+                                        )}
+                                      </div>
+                                    </div>
+
+                                    <button 
+                                      onClick={() => handleOpenEditTariff(tariffRowRepresentation)}
+                                      className="h-8 w-8 rounded-lg flex items-center justify-center bg-white border border-slate-200 hover:border-emerald-500 hover:text-emerald-600 text-slate-400 transition-colors shrink-0 shadow-sm"
+                                      title="Edit Window"
+                                    >
+                                      <span className="material-symbols-outlined text-[16px]">edit</span>
+                                    </button>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             )}
@@ -231,9 +384,9 @@ export default function PricingWorkspace() {
                         <h5 className="text-slate-800 text-base font-bold">{membership.vehicleType} Passes</h5>
                         <div className="flex items-baseline gap-1 mt-2">
                           <span className="text-3xl font-black text-slate-800 tracking-tight">
-                            {membership.priceNum.toLocaleString('vi-VN')}
+                            {membership.priceNum.toLocaleString('en-US')}
                           </span>
-                          <span className="text-xs text-slate-400 font-bold uppercase tracking-wider">VNĐ / month</span>
+                          <span className="text-xs text-slate-400 font-bold uppercase tracking-wider">VND / month</span>
                         </div>
                       </div>
                     </div>

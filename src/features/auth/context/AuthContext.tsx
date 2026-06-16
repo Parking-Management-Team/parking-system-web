@@ -234,30 +234,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         {toasts.map((toast) => (
           <div
             key={toast.id}
-            className="pointer-events-auto p-4 rounded-xl shadow-xl border border-[#006d43]/30 bg-white/95 backdrop-blur-md transition-all duration-300 transform translate-y-0 animate-slide-in flex items-center gap-3 overflow-hidden relative"
+            className={`pointer-events-auto flex items-center gap-3 px-5 py-3.5 rounded-xl shadow-lg transition-all duration-300 transform translate-y-0 animate-slide-in ${
+              toast.type === 'success' 
+                ? 'bg-[#006d43] text-white shadow-[#006d43]/20' 
+                : toast.type === 'error'
+                  ? 'bg-red-600 text-white shadow-red-600/20'
+                  : 'bg-[#111c2d] text-white shadow-[#111c2d]/20'
+            }`}
           >
-            {/* Vòng tròn trạng thái nhấp nháy */}
-            <div className="relative flex-shrink-0 flex items-center justify-center">
-              <span className={`w-2.5 h-2.5 rounded-full animate-ping absolute opacity-75 ${toast.type === 'success' ? 'bg-[#006d43]' : toast.type === 'error' ? 'bg-rose-400' : 'bg-blue-400'
-                }`} />
-              <span className={`w-2 h-2 rounded-full ${toast.type === 'success' ? 'bg-[#006d43]' : toast.type === 'error' ? 'bg-rose-500' : 'bg-blue-500'
-                }`} />
+            <span className="material-symbols-outlined text-lg shrink-0">
+              {toast.type === 'success' ? 'check_circle' : toast.type === 'error' ? 'error' : 'info'}
+            </span>
+            <div className="flex-grow">
+              <span className="text-sm font-semibold leading-relaxed">{toast.message}</span>
             </div>
-
-            {/* Nội dung thông báo */}
-            <div className="flex-grow space-y-0.5 select-none">
-              <p className={`text-[10px] font-mono uppercase tracking-widest font-bold ${toast.type === 'success' ? 'text-[#006d43]' : toast.type === 'error' ? 'text-rose-600' : 'text-blue-600'
-                }`}>
-                {toast.type === 'success' ? 'System Success' : toast.type === 'error' ? 'System Alert' : 'System Notice'}
-              </p>
-              <p className="text-sm font-semibold text-slate-700 leading-relaxed font-heading">
-                {toast.message}
-              </p>
-            </div>
-
-            {/* Thanh đếm ngược thời gian chạy dưới cùng của Toast */}
-            <div className={`absolute bottom-0 left-0 h-1 animate-toast-progress w-full ${toast.type === 'success' ? 'bg-[#006d43]' : toast.type === 'error' ? 'bg-rose-500' : 'bg-blue-500'
-              }`} />
           </div>
         ))}
       </div>

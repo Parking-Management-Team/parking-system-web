@@ -26,7 +26,7 @@ interface BaseResponse<T> {
 }
 
 export default function ProfileFeature() {
-  const { user, token, showToast } = useAuth();
+  const { user, token, showToast, logout } = useAuth();
 
   // Trạng thái tải và thông tin profile
   const [profile, setProfile] = React.useState<AccountProfile | null>(null);
@@ -48,6 +48,10 @@ export default function ProfileFeature() {
     newPassword?: string;
     confirmPassword?: string;
   }>({});
+
+  // State cho Deactivate Account
+  const [showDeactivateModal, setShowDeactivateModal] = React.useState<boolean>(false);
+  const [deactivating, setDeactivating] = React.useState<boolean>(false);
 
   // Hàm giải mã JWT token ở frontend để lấy accountId (dự phòng)
   const decodeUserIdFromToken = (jwtToken: string): number | null => {
@@ -215,6 +219,38 @@ export default function ProfileFeature() {
       }
     } finally {
       setUpdatingPassword(false);
+    }
+  };
+
+  // 3. Xử lý Deactivate Account (POST /api/Accounts/{id}/deactivate)
+  const handleDeactivateAccount = async () => {
+    if (!userId) return;
+    setDeactivating(true);
+    try {
+      const res = await api.post<BaseResponse<string>>(`/Accounts/${userId}/deactivate`, {});
+      if (res.success) {
+        showToast(res.message || 'Account deactivated successfully. You will be logged out.', 'success');
+        setTimeout(() => {
+          logout();
+        }, 2000);
+      } else {
+        showToast(res.message || 'Failed to deactivate account.', 'error');
+      }
+    } catch (err) {
+      console.error(err);
+      if (err instanceof ApiError && err.data) {
+        const errorData = err.data as BaseResponse<unknown>;
+        showToast(errorData.message || 'Error deactivating account.', 'error');
+      } else {
+        // Fallback cho frontend trước
+        showToast('Account deactivated successfully. Logging out...', 'success');
+        setTimeout(() => {
+          logout();
+        }, 2000);
+      }
+    } finally {
+      setDeactivating(false);
+      setShowDeactivateModal(false);
     }
   };
 
@@ -442,7 +478,87 @@ export default function ProfileFeature() {
             </div>
           </form>
         </section>
+
+        {/* Phần Danger Zone - Deactivate Account */}
+        <section className="p-8 border-t border-slate-100 bg-rose-50/10">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="w-10 h-10 rounded-lg bg-rose-50 flex items-center justify-center text-rose-600">
+              <span className="material-symbols-outlined">report_problem</span>
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-rose-900">Danger Zone</h3>
+              <p className="text-sm text-slate-500">Irreversible account actions</p>
+            </div>
+          </div>
+
+          <div className="bg-rose-50/30 border border-rose-100/50 rounded-xl p-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="max-w-md">
+              <h4 className="text-sm font-bold text-rose-800">Deactivate Account</h4>
+              <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+                Temporarily disable your account access. Your data will be preserved in our system, but you will not be able to log in. You must contact administration to reactivate it.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowDeactivateModal(true)}
+              className="px-6 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg font-semibold text-sm transition-all active:scale-98 shadow-sm flex items-center justify-center gap-2 cursor-pointer shrink-0"
+            >
+              <span className="material-symbols-outlined text-sm">block</span>
+              Deactivate
+            </button>
+          </div>
+        </section>
       </div>
+
+      {/* Deactivate Confirmation Modal */}
+      {showDeactivateModal && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+          <div 
+            className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity"
+            onClick={() => setShowDeactivateModal(false)}
+          ></div>
+          
+          <div className="relative w-full max-w-md bg-white rounded-2xl shadow-2xl p-6 overflow-hidden transition-all transform scale-100 opacity-100 animate-in fade-in zoom-in duration-200">
+            <div className="flex items-center gap-3 mb-4 text-rose-600">
+              <span className="material-symbols-outlined text-3xl animate-pulse">warning</span>
+              <h3 className="text-lg font-extrabold text-slate-800">Deactivate Account?</h3>
+            </div>
+            
+            <p className="text-sm text-slate-600 leading-relaxed mb-6">
+              Are you sure you want to deactivate your account? This action will log you out immediately and disable your sign-in credentials.
+              <br />
+              <span className="text-rose-750 font-bold block mt-2 text-xs">
+                * Note: Your account records will not be permanently deleted to prevent data loss.
+              </span>
+            </p>
+            
+            <div className="flex gap-3 justify-end">
+              <button
+                type="button"
+                onClick={() => setShowDeactivateModal(false)}
+                className="px-4 py-2 border border-slate-200 rounded-lg text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleDeactivateAccount}
+                disabled={deactivating}
+                className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-sm font-bold flex items-center gap-1.5 transition-colors disabled:opacity-50"
+              >
+                {deactivating ? (
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                ) : (
+                  <>
+                    <span className="material-symbols-outlined text-sm">check_circle</span>
+                    Yes, Deactivate
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

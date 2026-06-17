@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '@/features/auth';
 import { useAccounts, AccountDto } from '../hooks/useAccounts';
-import { Button, Badge, Input, Select } from '@/components/ui';
+import { Badge, Input, Select } from '@/components/ui';
 
 export default function UserManagement() {
   const { showToast } = useAuth();
@@ -116,23 +116,22 @@ export default function UserManagement() {
   };
 
   return (
-    <div className="p-8 space-y-8 max-w-7xl mx-auto">
+    <div className="p-8 space-y-8">
       {/* Title & Quick Actions */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-extrabold text-slate-800 tracking-tight">User Account Management</h1>
+          <h1 className="text-2xl font-bold text-slate-800">User Account Management</h1>
           <p className="text-slate-500 text-sm mt-1">
             Monitor accounts, update system roles, and manage access statuses.
           </p>
         </div>
-        <Button
-          variant="primary"
+        <button
           onClick={() => showToast('New users must register via standard Sign Up or Google authentication.', 'info')}
-          className="text-xs flex items-center gap-1.5 self-start sm:self-center"
+          className="px-4 py-2.5 bg-[#006d43] hover:bg-[#005c38] text-white text-xs font-bold rounded-xl transition-all shadow-sm hover:shadow active:scale-95 flex items-center gap-1.5 self-start sm:self-center"
         >
           <span className="material-symbols-outlined text-sm font-bold">person_add</span>
           Add New User
-        </Button>
+        </button>
       </div>
 
       {/* Stats Cards */}
@@ -191,7 +190,7 @@ export default function UserManagement() {
               placeholder="Search by name, username, email, phone, role..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-xs font-semibold text-slate-700 transition-all"
+              className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#006d43]/10 focus:border-[#006d43] text-xs font-semibold text-slate-700 transition-all"
             />
           </div>
 
@@ -201,7 +200,7 @@ export default function UserManagement() {
               <select
                 value={roleFilter}
                 onChange={(e) => setRoleFilter(e.target.value)}
-                className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none text-xs font-bold text-slate-700"
+                className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-[#006d43] focus:ring-1 focus:ring-[#006d43]/10 text-xs font-bold text-slate-700"
               >
                 <option value="ALL">All Roles</option>
                 <option value="Admin">Admin</option>
@@ -216,7 +215,7 @@ export default function UserManagement() {
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none text-xs font-bold text-slate-700"
+                className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-[#006d43] focus:ring-1 focus:ring-[#006d43]/10 text-xs font-bold text-slate-700"
               >
                 <option value="ALL">All Statuses</option>
                 <option value="Active">Active</option>
@@ -225,21 +224,20 @@ export default function UserManagement() {
               </select>
             </div>
 
-            <Button
-              variant="outline"
+            <button
               onClick={fetchAccounts}
-              className="p-2 text-slate-500 hover:text-slate-800 hover:bg-slate-50 rounded-xl transition-all border border-slate-200 flex items-center justify-center min-w-0"
+              className="p-2 text-slate-500 hover:text-slate-800 hover:bg-slate-100/50 rounded-xl transition-all border border-slate-200 flex items-center justify-center min-w-0"
               title="Refresh"
             >
               <span className="material-symbols-outlined text-lg">refresh</span>
-            </Button>
+            </button>
           </div>
         </div>
 
         {/* Loading / Error States */}
         {isLoading ? (
           <div className="p-20 flex flex-col items-center justify-center space-y-4">
-            <div className="w-10 h-10 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
+            <div className="w-10 h-10 border-4 border-[#006d43] border-t-transparent rounded-full animate-spin"></div>
             <p className="text-slate-500 text-sm font-semibold">Loading accounts from PBMS server...</p>
           </div>
         ) : error ? (
@@ -249,13 +247,12 @@ export default function UserManagement() {
               <h4 className="text-lg font-bold text-slate-800">Connection Failed</h4>
               <p className="text-slate-500 text-xs mt-1">{error}</p>
             </div>
-            <Button
+            <button
               onClick={fetchAccounts}
-              variant="primary"
-              className="text-xs"
+              className="px-4 py-2 bg-[#006d43] hover:bg-[#005c38] text-white text-xs font-bold rounded-xl transition-all shadow-sm active:scale-95"
             >
               Retry Connection
-            </Button>
+            </button>
           </div>
         ) : filteredAccounts.length === 0 ? (
           <div className="p-20 flex flex-col items-center justify-center text-center space-y-3">
@@ -305,10 +302,10 @@ export default function UserManagement() {
 
                     {/* System Role */}
                     <td className="py-4 px-6">
-                      {acc.roleName === 'Admin' && <Badge variant="default">Admin</Badge>}
-                      {acc.roleName === 'Manager' && <Badge variant="reserved">Manager</Badge>}
-                      {acc.roleName === 'Staff' && <Badge variant="available">Staff</Badge>}
-                      {acc.roleName === 'Driver' && <Badge variant="inactive">Driver</Badge>}
+                      {acc.roleName === 'Admin' && <span className="text-rose-600 font-bold text-xs">Admin</span>}
+                      {acc.roleName === 'Manager' && <span className="text-amber-600 font-bold text-xs">Manager</span>}
+                      {acc.roleName === 'Staff' && <span className="text-[#006d43] font-bold text-xs">Staff</span>}
+                      {acc.roleName === 'Driver' && <span className="text-slate-500 font-semibold text-xs">Driver</span>}
                     </td>
 
                     {/* Account Status */}
@@ -323,22 +320,22 @@ export default function UserManagement() {
 
                     {/* Actions */}
                     <td className="py-4 px-6 text-right space-x-1.5">
-                      <Button
-                        variant="ghost"
-                        size="sm"
+                      <button
                         onClick={() => handleEditClick(acc)}
-                        className="text-slate-500 hover:text-slate-800 text-xs px-3 py-1.5"
+                        className="px-3 py-1.5 border border-slate-200 hover:border-slate-350 hover:bg-slate-50 text-slate-600 hover:text-slate-800 font-bold rounded-lg transition-all text-xs bg-white shadow-sm"
                       >
                         Edit
-                      </Button>
-                      <Button
-                        variant={acc.accountStatus === 'Blocked' ? 'outline' : 'danger'}
-                        size="sm"
+                      </button>
+                      <button
                         onClick={() => handleBlockClick(acc)}
-                        className="text-xs px-3 py-1.5 border"
+                        className={`px-3 py-1.5 border font-bold rounded-lg transition-all text-xs bg-white shadow-sm ${
+                          acc.accountStatus === 'Blocked'
+                            ? 'border-emerald-200 text-emerald-600 hover:text-emerald-800 hover:bg-emerald-50/20 hover:border-emerald-350'
+                            : 'border-red-200 text-red-600 hover:text-red-800 hover:bg-red-50/20 hover:border-red-350'
+                        }`}
                       >
                         {acc.accountStatus === 'Blocked' ? 'Unblock' : 'Block'}
-                      </Button>
+                      </button>
                     </td>
                   </tr>
                 ))}
@@ -362,7 +359,7 @@ export default function UserManagement() {
             {/* Header */}
             <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
               <div>
-                <h3 className="text-base font-extrabold text-slate-800">Edit System Account</h3>
+                <h3 className="text-base font-bold text-slate-800">Edit System Account</h3>
                 <p className="text-xs text-slate-500 mt-0.5">Username: @{editingAccount.username}</p>
               </div>
               <button
@@ -416,21 +413,17 @@ export default function UserManagement() {
 
               {/* Action Buttons */}
               <div className="pt-4 border-t border-slate-100 flex gap-3 justify-end">
-                <Button
+                <button
                   type="button"
-                  variant="outline"
-                  size="sm"
                   onClick={() => setIsEditModalOpen(false)}
-                  className="border border-slate-200 text-slate-600 hover:bg-slate-50 bg-white hover:text-slate-800"
+                  className="px-4 py-2 border border-slate-250 text-slate-600 hover:text-slate-800 hover:bg-slate-55 bg-white font-bold rounded-xl text-xs transition-all"
                 >
                   Cancel
-                </Button>
-                <Button
+                </button>
+                <button
                   type="submit"
-                  variant="primary"
-                  size="sm"
                   disabled={isSaving}
-                  className="flex items-center gap-1.5"
+                  className="px-4 py-2 bg-[#006d43] hover:bg-[#005c38] disabled:opacity-50 text-white font-bold rounded-xl text-xs transition-all flex items-center gap-1.5 shadow-sm hover:shadow"
                 >
                   {isSaving ? (
                     <>
@@ -440,7 +433,7 @@ export default function UserManagement() {
                   ) : (
                     'Save Changes'
                   )}
-                </Button>
+                </button>
               </div>
             </form>
           </div>
@@ -471,7 +464,7 @@ export default function UserManagement() {
                 </span>
               </div>
               <div>
-                <h3 className="text-base font-extrabold text-slate-800">
+                <h3 className="text-base font-bold text-slate-800">
                   {targetAccount.accountStatus === 'Blocked' ? 'Unblock User Account?' : 'Block User Account?'}
                 </h3>
                 <p className="text-xs text-slate-400 font-mono">@{targetAccount.username}</p>
@@ -494,21 +487,21 @@ export default function UserManagement() {
 
             {/* Buttons */}
             <div className="pt-2 flex gap-3 justify-end">
-              <Button
+              <button
                 type="button"
-                variant="outline"
-                size="sm"
                 onClick={() => setIsBlockModalOpen(false)}
-                className="border border-slate-200 text-slate-600 hover:bg-slate-50 bg-white hover:text-slate-800"
+                className="px-4 py-2 border border-slate-250 text-slate-600 hover:text-slate-800 hover:bg-slate-55 bg-white font-bold rounded-xl text-xs transition-all"
               >
                 Cancel
-              </Button>
-              <Button
+              </button>
+              <button
                 onClick={handleBlockConfirm}
                 disabled={isBlocking}
-                variant={targetAccount.accountStatus === 'Blocked' ? 'primary' : 'danger'}
-                size="sm"
-                className="flex items-center gap-1.5"
+                className={`px-4 py-2 font-bold rounded-xl text-xs transition-all flex items-center gap-1.5 shadow-sm hover:shadow ${
+                  targetAccount.accountStatus === 'Blocked'
+                    ? 'bg-[#006d43] hover:bg-[#005c38] text-white'
+                    : 'bg-red-600 hover:bg-red-700 text-white'
+                }`}
               >
                 {isBlocking ? (
                   <>
@@ -520,7 +513,7 @@ export default function UserManagement() {
                 ) : (
                   'Confirm Block'
                 )}
-              </Button>
+              </button>
             </div>
           </div>
         </div>

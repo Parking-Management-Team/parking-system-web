@@ -57,7 +57,9 @@ export interface ZoneResponse {
   id: number;
   floorId: number;
   name: string;
+  code?: string;
   vehicleTypeId: number;
+  accessType?: number;  // Backend: 0 = GENERAL, 1 = MONTHLY
   capacity?: number;
   status: number | string;
 }
@@ -75,6 +77,7 @@ export interface Zone {
   floorId: number;
   name: string;
   vehicleType: 'Standard' | 'EV Charging' | 'Motorbike';
+  zoneAccessType: 'GENERAL' | 'MONTHLY';
   slotCapacity: number;
   status: 'Active' | 'Inactive';
 }

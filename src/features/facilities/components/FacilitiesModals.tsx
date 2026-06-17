@@ -70,10 +70,14 @@ interface FacilitiesModalsProps {
   isAddZoneOpen: boolean;
   setIsAddZoneOpen: (open: boolean) => void;
   handleAddZoneSubmit: (e: React.FormEvent) => void;
+  formZoneCode: string;
+  setFormZoneCode: (code: string) => void;
   formZoneName: string;
   setFormZoneName: (name: string) => void;
   formZoneVehicleType: 'Standard' | 'VIP' | 'EV Charging' | 'Motorbike';
   setFormZoneVehicleType: (type: 'Standard' | 'VIP' | 'EV Charging' | 'Motorbike') => void;
+  formZoneAccessType: 'GENERAL' | 'MONTHLY';
+  setFormZoneAccessType: (type: 'GENERAL' | 'MONTHLY') => void;
   formZoneSlotCapacity: number;
   setFormZoneSlotCapacity: (num: number) => void;
   formZoneStatus: 'Active' | 'Inactive';
@@ -157,10 +161,14 @@ export default function FacilitiesModals({
   isAddZoneOpen,
   setIsAddZoneOpen,
   handleAddZoneSubmit,
+  formZoneCode,
+  setFormZoneCode,
   formZoneName,
   setFormZoneName,
   formZoneVehicleType,
   setFormZoneVehicleType,
+  formZoneAccessType,
+  setFormZoneAccessType,
   formZoneSlotCapacity,
   setFormZoneSlotCapacity,
   formZoneStatus,
@@ -622,6 +630,20 @@ export default function FacilitiesModals({
             <h3 className="text-lg font-bold text-[#111c2d] mb-4">Add Parking Zone</h3>
             <form onSubmit={handleAddZoneSubmit} className="space-y-4">
               <div>
+                <label className="block text-xs font-semibold text-[#3d4a41] mb-1">Zone Code *</label>
+                <input 
+                  type="text" 
+                  required
+                  placeholder="e.g. ZM01"
+                  value={formZoneCode}
+                  onChange={(e) => setFormZoneCode(e.target.value.toUpperCase())}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm text-[#111c2d] focus:outline-none focus:border-[#006d43]"
+                />
+                <p className="text-[10px] text-slate-400 mt-1">
+                  Unique code for this zone (auto-generated, can be edited).
+                </p>
+              </div>
+              <div>
                 <label className="block text-xs font-semibold text-[#3d4a41] mb-1">Zone Name *</label>
                 <input 
                   type="text" 
@@ -644,6 +666,20 @@ export default function FacilitiesModals({
                   <option value="EV Charging">EV Charging Station</option>
                   <option value="Motorbike">Motorbike Spot</option>
                 </select>
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-[#3d4a41] mb-1">Zone Access Type *</label>
+                <select
+                  value={formZoneAccessType}
+                  onChange={(e) => setFormZoneAccessType(e.target.value as 'GENERAL' | 'MONTHLY')}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm text-[#111c2d] focus:outline-none focus:border-[#006d43]"
+                >
+                  <option value="GENERAL">General (Walk-in / Booking)</option>
+                  <option value="MONTHLY">Monthly Subscription Only</option>
+                </select>
+                <p className="text-[10px] text-slate-400 mt-1">
+                  GENERAL: For walk-in and booking vehicles. MONTHLY: Reserved for monthly subscribers only.
+                </p>
               </div>
               <div>
                 <label className="block text-xs font-semibold text-[#3d4a41] mb-1">Slot Capacity Allocation *</label>
@@ -695,6 +731,16 @@ export default function FacilitiesModals({
             <h3 className="text-lg font-bold text-[#111c2d] mb-4">Edit Zone Details</h3>
             <form onSubmit={handleEditZoneSubmit} className="space-y-4">
               <div>
+                <label className="block text-xs font-semibold text-[#3d4a41] mb-1">Zone Code *</label>
+                <input 
+                  type="text" 
+                  required
+                  value={formZoneCode}
+                  onChange={(e) => setFormZoneCode(e.target.value.toUpperCase())}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm text-[#111c2d] focus:outline-none focus:border-[#006d43]"
+                />
+              </div>
+              <div>
                 <label className="block text-xs font-semibold text-[#3d4a41] mb-1">Zone Name *</label>
                 <input 
                   type="text" 
@@ -716,6 +762,20 @@ export default function FacilitiesModals({
                   <option value="EV Charging">EV Charging Station</option>
                   <option value="Motorbike">Motorbike Spot</option>
                 </select>
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-[#3d4a41] mb-1">Zone Access Type *</label>
+                <select
+                  value={formZoneAccessType}
+                  onChange={(e) => setFormZoneAccessType(e.target.value as 'GENERAL' | 'MONTHLY')}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm text-[#111c2d] focus:outline-none focus:border-[#006d43]"
+                >
+                  <option value="GENERAL">General (Walk-in / Booking)</option>
+                  <option value="MONTHLY">Monthly Subscription Only</option>
+                </select>
+                <p className="text-[10px] text-slate-400 mt-1">
+                  GENERAL: For walk-in and booking vehicles. MONTHLY: Reserved for monthly subscribers only.
+                </p>
               </div>
               <div>
                 <label className="block text-xs font-semibold text-[#3d4a41] mb-1">Slot Capacity Allocation *</label>

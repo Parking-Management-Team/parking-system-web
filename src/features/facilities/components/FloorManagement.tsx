@@ -339,6 +339,10 @@ export default function FloorManagement() {
                           <div className="text-[11px] text-slate-400 font-medium flex items-center gap-1 mt-0.5">
                             <span>{zone.vehicleType} Vehicle Type</span>
                             <span>•</span>
+                            <span className={`font-semibold ${zone.zoneAccessType === 'MONTHLY' ? 'text-blue-600' : 'text-emerald-600'}`}>
+                              {zone.zoneAccessType === 'MONTHLY' ? 'Monthly' : 'General'}
+                            </span>
+                            <span>•</span>
                             <span className={zone.status === 'Active' ? 'text-emerald-600' : 'text-slate-400'}>{zone.status}</span>
                           </div>
                         </div>

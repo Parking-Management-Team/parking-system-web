@@ -78,11 +78,15 @@ export function SlotManagementDashboard() {
             default: return 'Standard';
           }
         };
+        const mapAccessTypeToZone = (accessType?: number): 'GENERAL' | 'MONTHLY' => {
+          return accessType === 1 ? 'MONTHLY' : 'GENERAL';
+        };
         loadedZones = resZones.data.map(item => ({
           id: item.id,
           floorId: item.floorId,
           name: item.name,
           vehicleType: mapVehicleTypeIdToType(item.vehicleTypeId),
+          zoneAccessType: mapAccessTypeToZone(item.accessType),
           slotCapacity: item.capacity || 0,
           status: item.status === 3 || item.status === 'OutOfService' || item.status === 'Inactive' ? 'Inactive' : 'Active'
         }));
@@ -122,12 +126,12 @@ export function SlotManagementDashboard() {
       setSelectedFloorId(10);
 
       const mockZones: Zone[] = [
-        { id: 101, floorId: 10, name: 'Section A - Standard', vehicleType: 'Standard', slotCapacity: 24, status: 'Active' },
-        { id: 103, floorId: 10, name: 'Section C - EV Charge', vehicleType: 'EV Charging', slotCapacity: 8, status: 'Active' },
-        { id: 104, floorId: 10, name: 'Motorbike Zone A', vehicleType: 'Motorbike', slotCapacity: 50, status: 'Active' },
-        { id: 105, floorId: 10, name: 'Motorbike Zone B', vehicleType: 'Motorbike', slotCapacity: 30, status: 'Active' },
+        { id: 101, floorId: 10, name: 'Section A - Standard', vehicleType: 'Standard', zoneAccessType: 'GENERAL', slotCapacity: 24, status: 'Active' },
+        { id: 103, floorId: 10, name: 'Section C - EV Charge', vehicleType: 'EV Charging', zoneAccessType: 'GENERAL', slotCapacity: 8, status: 'Active' },
+        { id: 104, floorId: 10, name: 'Motorbike Zone A', vehicleType: 'Motorbike', zoneAccessType: 'GENERAL', slotCapacity: 50, status: 'Active' },
+        { id: 105, floorId: 10, name: 'Motorbike Zone B', vehicleType: 'Motorbike', zoneAccessType: 'MONTHLY', slotCapacity: 30, status: 'Active' },
         
-        { id: 111, floorId: 11, name: 'Section D - Standard', vehicleType: 'Standard', slotCapacity: 24, status: 'Active' }
+        { id: 111, floorId: 11, name: 'Section D - Standard', vehicleType: 'Standard', zoneAccessType: 'GENERAL', slotCapacity: 24, status: 'Active' }
       ];
       setZones(mockZones);
     } finally {
@@ -484,9 +488,18 @@ export function SlotManagementDashboard() {
                           <span className="material-symbols-outlined text-[#006d43] text-[20px]">directions_car</span>
                           {zone.name}
                         </h3>
-                        <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider bg-slate-100 px-2 py-0.5 rounded-md mt-1 inline-block">
-                          Type: {zone.vehicleType}
-                        </span>
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider bg-slate-100 px-2 py-0.5 rounded-md">
+                            Type: {zone.vehicleType}
+                          </span>
+                          <span className={`text-[11px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md ${
+                            zone.zoneAccessType === 'MONTHLY' 
+                              ? 'bg-blue-100 text-blue-700' 
+                              : 'bg-emerald-100 text-emerald-700'
+                          }`}>
+                            {zone.zoneAccessType === 'MONTHLY' ? 'Monthly' : 'General'}
+                          </span>
+                        </div>
                       </div>
                       <span className="text-xs font-bold text-slate-600 bg-emerald-50 border border-emerald-100 px-3 py-1.5 rounded-xl">
                         {availableCount} / {zoneSlots.length} Available

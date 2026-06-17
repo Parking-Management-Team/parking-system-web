@@ -87,6 +87,12 @@ export default function ZoneColumn({
                       }`}>
                         {zone.vehicleType}
                       </span>
+                      <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-semibold ${
+                        zone.zoneAccessType === 'MONTHLY' ? 'bg-blue-100 text-blue-800' :
+                        'bg-emerald-100 text-emerald-800'
+                      }`}>
+                        {zone.zoneAccessType === 'MONTHLY' ? 'Monthly' : 'General'}
+                      </span>
                       <span className={`w-1.5 h-1.5 rounded-full ${zone.status === 'Active' ? 'bg-[#006d43]' : 'bg-red-500'}`} />
                     </h3>
                     <p className="text-[11px] text-slate-400 mt-1">Capacity allocation: {zone.slotCapacity} slots</p>

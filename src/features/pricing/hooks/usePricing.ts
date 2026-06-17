@@ -145,6 +145,19 @@ const initialFees: ServiceFeeOrPenalty[] = [
   }
 ];
 
+interface RawVehicleType {
+  id?: number;
+  Id?: number;
+  name?: string;
+  TypeName?: string;
+  typeName?: string;
+  Name?: string;
+  description?: string;
+  Description?: string;
+  vehicleTypeStatus?: string;
+  VehicleTypeStatus?: string;
+}
+
 export function usePricing() {
   const { user } = useAuth();
 
@@ -157,14 +170,16 @@ export function usePricing() {
   // Fetch vehicle types from API, fallback to mock data on error
   const fetchVehicleTypes = async () => {
     try {
-      const response = await api.get<{ data?: any[], success?: boolean }>('/vehicle-types');
+      const response = await api.get<{ data?: RawVehicleType[], success?: boolean }>('/vehicle-types');
       if (response && response.success && Array.isArray(response.data)) {
-        const mapped = response.data.map((item: any) => ({
-          id: item.id ?? item.Id,
-          name: item.name ?? item.TypeName ?? item.typeName ?? item.Name,
-          description: item.description ?? item.Description,
-          vehicleTypeStatus: item.vehicleTypeStatus ?? item.VehicleTypeStatus ?? 'ACTIVE'
-        }));
+        const mapped: VehicleType[] = response.data
+          .filter((item: RawVehicleType) => (item.id ?? item.Id) !== undefined && (item.name ?? item.TypeName ?? item.typeName ?? item.Name) !== undefined)
+          .map((item: RawVehicleType) => ({
+            id: (item.id ?? item.Id) as number,
+            name: (item.name ?? item.TypeName ?? item.typeName ?? item.Name) as string,
+            description: item.description ?? item.Description,
+            vehicleTypeStatus: item.vehicleTypeStatus ?? item.VehicleTypeStatus ?? 'ACTIVE'
+          }));
         setVehicleTypes(mapped);
       } else {
         setVehicleTypes(mockVehicleTypes);
@@ -238,7 +253,7 @@ export function usePricing() {
       });
     });
     return rows;
-  }, [tariffs]);
+  }, [tariffs, vehicleTypes]);
 
   // UI state variables
   const [activeTab, setActiveTab] = useState<'standard' | 'memberships' | 'fees'>('standard');

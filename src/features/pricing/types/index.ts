@@ -107,3 +107,10 @@ export interface UpdatePricingWindowRequest {
   gracePeriodMinutes: number;
 }
 
+export interface VehicleType {
+  id: number;
+  name: string;
+  description?: string;
+  vehicleTypeStatus?: string;
+}
+

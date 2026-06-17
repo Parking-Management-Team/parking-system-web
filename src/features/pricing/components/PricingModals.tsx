@@ -74,7 +74,8 @@ export default function PricingModals({ pricing }: PricingModalsProps) {
     handleSaveMembership,
 
     handleCloseFeeModal,
-    handleSaveFee
+    handleSaveFee,
+    vehicleTypes
   } = pricing;
 
 
@@ -86,7 +87,7 @@ export default function PricingModals({ pricing }: PricingModalsProps) {
           
           {/* Modal Header */}
           <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
-            <h2 className="text-xl font-bold text-slate-800">Edit Pricing Policy</h2>
+            <h2 className="text-xl font-bold text-slate-800">Edit Pricing Window</h2>
             <button 
               onClick={handleCloseEditTariff}
               className="h-9 w-9 flex items-center justify-center rounded-full hover:bg-slate-100 transition-colors text-slate-400 hover:text-slate-600"
@@ -122,8 +123,9 @@ export default function PricingModals({ pricing }: PricingModalsProps) {
                       onChange={(e) => setFormTariffVehicleType(e.target.value)}
                       className="w-full bg-white border border-slate-200 rounded-xl pl-4 pr-10 py-2 text-sm font-medium text-slate-800 appearance-none focus:outline-none focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all"
                     >
-                      <option value="Car">Car</option>
-                      <option value="Motorbike">Motorbike</option>
+                      {vehicleTypes.map((vt) => (
+                        <option key={vt.id} value={vt.name}>{vt.name}</option>
+                      ))}
                     </select>
                     <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">expand_more</span>
                   </div>

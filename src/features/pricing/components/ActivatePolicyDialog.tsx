@@ -12,11 +12,13 @@ export default function ActivatePolicyDialog({ pricing }: ActivatePolicyDialogPr
     handleCloseActivateDialog,
     activatingPolicy,
     handleConfirmActivate,
+    vehicleTypes,
   } = pricing;
 
   if (!isActivateDialogOpen || !activatingPolicy) return null;
 
-  const vehicleTypeName = activatingPolicy.vehicleTypeId === 1 ? 'Motorbike' : 'Car';
+  const matchingVehicle = vehicleTypes.find(v => v.id === activatingPolicy.vehicleTypeId);
+  const vehicleTypeName = matchingVehicle ? matchingVehicle.name : (activatingPolicy.vehicleTypeId === 1 ? 'Motorbike' : 'Car');
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
@@ -63,10 +65,10 @@ export default function ActivatePolicyDialog({ pricing }: ActivatePolicyDialogPr
             <div>
               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Pricing Windows to Activate:</span>
               <div className="max-h-32 overflow-y-auto space-y-1.5 pr-1.5">
-                {activatingPolicy.pricingWindows.map((win) => (
-                  <div key={win.pricingWindowId} className="flex justify-between items-center bg-white border border-slate-100 px-3 py-1.5 rounded-lg text-xs">
+                {(activatingPolicy.pricingWindows || []).map((win, idx) => (
+                  <div key={win.pricingWindowId || idx} className="flex justify-between items-center bg-white border border-slate-100 px-3 py-1.5 rounded-lg text-xs">
                     <span className="font-semibold text-slate-700">{win.windowName}</span>
-                    <span className="font-black text-slate-500">{win.startTime.substring(0, 5)} - {win.endTime.substring(0, 5)}</span>
+                    <span className="font-black text-slate-500">{(win.startTime || '').substring(0, 5)} - {(win.endTime || '').substring(0, 5)}</span>
                   </div>
                 ))}
               </div>

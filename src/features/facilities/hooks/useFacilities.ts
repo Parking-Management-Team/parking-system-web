@@ -338,6 +338,12 @@ export function useFacilities() {
       return;
     }
 
+    const existingFloorsCount = floors.filter(f => f.buildingId === editingBld.id).length;
+    if (formBldTotalFloor < existingFloorsCount) {
+      triggerToast(`Cannot decrease total floors below the currently registered floor count (${existingFloorsCount})!`, 'error');
+      return;
+    }
+
     if (formBldTotalFloor < editingBld.totalFloor) {
       setIsWarningBldOpen(true);
     } else {
@@ -407,6 +413,10 @@ export function useFacilities() {
   // ─── THAO TÁC CRUD CHO TẦNG (FLOORS) ─────────────────────────────────────────
   const handleOpenAddFloor = () => {
     if (!selectedBuilding) return;
+    if (activeFloors.length >= selectedBuilding.totalFloor) {
+      triggerToast(`Building "${selectedBuilding.name}" is configured to have a maximum of ${selectedBuilding.totalFloor} floors. Cannot add more!`, 'error');
+      return;
+    }
     const maxFloorNum = activeFloors.length > 0 
       ? Math.max(...activeFloors.map(f => f.floorNumber)) 
       : 0;
@@ -439,6 +449,12 @@ export function useFacilities() {
   const handleAddFloorSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedBuilding) return;
+
+    // Nghiệp vụ: Chặn thêm tầng nếu đã đạt giới hạn tầng của tòa nhà
+    if (activeFloors.length >= selectedBuilding.totalFloor) {
+      triggerToast(`Cannot add floor: this building only allows a maximum of ${selectedBuilding.totalFloor} floors!`, 'error');
+      return;
+    }
 
     // Nghiệp vụ: Đảm bảo số tầng (Floor Number) không được trùng lặp trong cùng một tòa nhà
     const floorExists = activeFloors.some(f => f.floorNumber === formFloorNumber);

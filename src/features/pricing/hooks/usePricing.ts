@@ -9,11 +9,16 @@ import {
   ServiceFeeOrPenalty, 
   FeePenaltyType, 
   TriggerType,
-  CreatePricingWindowRequest
+  CreatePricingWindowRequest,
+  VehicleType
 } from '../types';
 import { validate24hCoverage, validateNoOverlap } from '../utils/pricingValidation';
 
-
+// Mock fallback vehicle types
+const mockVehicleTypes: VehicleType[] = [
+  { id: 1, name: 'Motorbike', vehicleTypeStatus: 'ACTIVE' },
+  { id: 2, name: 'Car', vehicleTypeStatus: 'ACTIVE' }
+];
 
 // Mock initial data matching PBMS Database Schema
 const initialTariffs: StandardTariff[] = [
@@ -147,6 +152,28 @@ export function usePricing() {
 
   // Main feature state lists
   const [tariffs, setTariffs] = useState<StandardTariff[]>(initialTariffs);
+  const [vehicleTypes, setVehicleTypes] = useState<VehicleType[]>(mockVehicleTypes);
+
+  // Fetch vehicle types from API, fallback to mock data on error
+  const fetchVehicleTypes = async () => {
+    try {
+      const response = await api.get<{ data?: any[], success?: boolean }>('/vehicle-types');
+      if (response && response.success && Array.isArray(response.data)) {
+        const mapped = response.data.map((item: any) => ({
+          id: item.id ?? item.Id,
+          name: item.name ?? item.TypeName ?? item.typeName ?? item.Name,
+          description: item.description ?? item.Description,
+          vehicleTypeStatus: item.vehicleTypeStatus ?? item.VehicleTypeStatus ?? 'ACTIVE'
+        }));
+        setVehicleTypes(mapped);
+      } else {
+        setVehicleTypes(mockVehicleTypes);
+      }
+    } catch (error) {
+      console.error('Failed to fetch vehicle types from API, using mock fallback:', error);
+      setVehicleTypes(mockVehicleTypes);
+    }
+  };
 
   // Fetch pricing policies on component mount
   const fetchPolicies = async () => {
@@ -163,6 +190,7 @@ export function usePricing() {
   };
 
   useEffect(() => {
+    fetchVehicleTypes();
     fetchPolicies();
   }, []);
   const [memberships, setMemberships] = useState<MonthlyMembership[]>(initialMemberships);
@@ -173,7 +201,8 @@ export function usePricing() {
     const rows: TariffRow[] = [];
     tariffs.forEach((policy) => {
       policy.pricingWindows.forEach((window: PricingWindow) => {
-        const vehicleTypeName = policy.vehicleTypeId === 1 ? 'Motorbike' : 'Car';
+        const matchingVehicle = vehicleTypes.find(v => v.id === policy.vehicleTypeId);
+        const vehicleTypeName = matchingVehicle ? matchingVehicle.name : (policy.vehicleTypeId === 1 ? 'Motorbike' : 'Car');
         const isNight = window.startTime === '18:00:00';
         const displayVehicle = isNight ? `${vehicleTypeName} (Night)` : vehicleTypeName;
         
@@ -294,7 +323,8 @@ export function usePricing() {
   const handleOpenEditTariff = (tariffRow: TariffRow) => {
     setEditingTariff(tariffRow);
     setFormTariffName(tariffRow.vehicleType + ' ' + (tariffRow.timeSlot.includes('Night') ? 'Night' : 'Day') + ' Tariff');
-    setFormTariffVehicleType(tariffRow.vehicleType.includes('Motorbike') ? 'Motorbike' : 'Car');
+    const matchingVehicle = vehicleTypes.find(v => tariffRow.vehicleType.toLowerCase().includes(v.name.toLowerCase()));
+    setFormTariffVehicleType(matchingVehicle ? matchingVehicle.name : (tariffRow.vehicleType.includes('Motorbike') ? 'Motorbike' : 'Car'));
     setFormTariffStartTime(tariffRow.details.startTime);
     setFormTariffEndTime(tariffRow.details.endTime);
     setFormTariffBasePrice(tariffRow.details.basePrice);
@@ -402,7 +432,8 @@ export function usePricing() {
     if (!policy) return;
 
     const nextStatus = policy.pricingPolicyStatus === 'Active' ? 'Inactive' : 'Active';
-    const vehicleName = policy.vehicleTypeId === 1 ? 'Motorbike' : 'Car';
+    const matchingVehicle = vehicleTypes.find(v => v.id === policy.vehicleTypeId);
+    const vehicleName = matchingVehicle ? matchingVehicle.name : (policy.vehicleTypeId === 1 ? 'Motorbike' : 'Car');
 
     const updateLocalState = () => {
       setTariffs(prev => prev.map(p => {
@@ -901,6 +932,8 @@ export function usePricing() {
     tariffRows, // flat rows nếu các component khác cần dùng
     memberships,
     fees,
+    vehicleTypes,
+    fetchVehicleTypes,
     showToast,
     toastMessage,
     toastType,

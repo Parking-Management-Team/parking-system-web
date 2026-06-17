@@ -24,6 +24,7 @@ export default function CreatePolicyModal({ pricing }: CreatePolicyModalProps) {
     handleRemoveNewWindow,
     handleUpdateNewWindow,
     handleSaveCreatePolicy,
+    vehicleTypes,
   } = pricing;
 
   // Calculate timeline details
@@ -88,8 +89,9 @@ export default function CreatePolicyModal({ pricing }: CreatePolicyModalProps) {
                     onChange={(e) => setNewVehicleTypeId(Number(e.target.value))}
                     className="w-full bg-slate-50/50 border border-slate-200 rounded-xl pl-4 pr-10 py-2.5 text-sm font-medium text-slate-800 appearance-none focus:outline-none focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500 focus:bg-white transition-all"
                   >
-                    <option value={1}>Motorbike</option>
-                    <option value={2}>Car</option>
+                    {vehicleTypes.map((v) => (
+                      <option key={v.id} value={v.id}>{v.name}</option>
+                    ))}
                   </select>
                   <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">expand_more</span>
                 </div>
@@ -320,7 +322,7 @@ export default function CreatePolicyModal({ pricing }: CreatePolicyModalProps) {
             <div className="h-10 w-full bg-slate-100 rounded-2xl overflow-hidden relative border border-slate-200 flex items-center">
               {/* Render segments */}
               {segments.map((seg, idx) => {
-                const isNight = isNightSlot(seg.name, newWindows[idx].startTime);
+                const isNight = isNightSlot(seg.name, newWindows[idx]?.startTime || '');
                 return (
                   <div 
                     key={idx}
@@ -333,7 +335,7 @@ export default function CreatePolicyModal({ pricing }: CreatePolicyModalProps) {
                         ? 'bg-indigo-900/95 border-indigo-950/20 hover:bg-indigo-900' 
                         : 'bg-amber-600/95 border-amber-700/20 hover:bg-amber-600'
                     }`}
-                    title={`${seg.name}: ${newWindows[idx].startTime} - ${newWindows[idx].endTime}`}
+                    title={`${seg.name}: ${newWindows[idx]?.startTime || ''} - ${newWindows[idx]?.endTime || ''}`}
                   >
                     <span className="text-[9px] font-black truncate flex items-center gap-0.5">
                       <span className="material-symbols-outlined text-[10px]">
@@ -341,7 +343,7 @@ export default function CreatePolicyModal({ pricing }: CreatePolicyModalProps) {
                       </span>
                       {seg.name}
                     </span>
-                    <span className="text-[8px] font-bold opacity-80 block truncate pl-3.5">{newWindows[idx].startTime}-{newWindows[idx].endTime}</span>
+                    <span className="text-[8px] font-bold opacity-80 block truncate pl-3.5">{newWindows[idx]?.startTime || ''}-{newWindows[idx]?.endTime || ''}</span>
                   </div>
                 );
               })}

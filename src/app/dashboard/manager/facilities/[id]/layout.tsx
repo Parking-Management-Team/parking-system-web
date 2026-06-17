@@ -33,18 +33,11 @@ function BuildingConfigInnerLayout({
   const isAccessActive = pathname === `${basePath}/access`;
 
   return (
-    <div className="flex flex-col gap-6 max-w-[1440px] mx-auto pb-12 animate-in fade-in duration-300">
-      {/* Header & Breadcrumbs */}
+    <div className="flex flex-col gap-6 max-w-[1440px] mx-auto px-6 md:px-8 pt-6 pb-12 animate-in fade-in duration-300">
+      {/* Header */}
       <div className="flex flex-col gap-2">
-        <div className="flex items-center gap-2 text-xs font-semibold text-[#54637d]">
-          <Link href="/dashboard/manager" className="hover:text-[#006d43]">Dashboard</Link>
-          <span className="material-symbols-outlined text-[14px]">chevron_right</span>
-          <Link href="/dashboard/manager/facilities" className="hover:text-[#006d43]">Facilities</Link>
-          <span className="material-symbols-outlined text-[14px]">chevron_right</span>
-          <span className="text-[#111c2d]">{building?.name || 'Building Details'}</span>
-        </div>
-        <div className="flex justify-between items-center mt-2">
-          <h1 className="font-bold text-2xl text-[#111c2d]">Building Configuration</h1>
+        <div className="flex justify-between items-center">
+          <h1 className="font-bold text-2xl text-[#111c2d]">{building?.name || 'Building Configuration'}</h1>
           <Link 
             href="/dashboard/manager/facilities"
             className="flex items-center gap-1 text-xs font-bold text-[#006d43] hover:underline"

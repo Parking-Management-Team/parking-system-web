@@ -16,6 +16,7 @@ export default function BuildingDetails() {
   const bldId = parseInt(typeof idStr === 'string' ? idStr : '', 10);
 
   const {
+    user,
     buildings,
     formBldCode,
     setFormBldCode,
@@ -39,6 +40,8 @@ export default function BuildingDetails() {
     toastType,
     triggerToast
   } = useFacilitiesContext();
+
+  const basePath = user?.role === 'ADMIN' ? '/dashboard/admin/facilities' : '/dashboard/manager/facilities';
 
   // Trạng thái cục bộ lưu trữ tòa nhà gốc để so sánh thay đổi
   const [originalBld, setOriginalBld] = useState<Building | null>(null);
@@ -78,7 +81,7 @@ export default function BuildingDetails() {
       setFormBldStatus(originalBld.status);
       triggerToast('All changes discarded!', 'success');
     }
-    router.push('/dashboard/manager/facilities');
+    router.push(basePath);
   };
 
   // Ánh xạ toggle (Active / Inactive)
@@ -240,7 +243,7 @@ export default function BuildingDetails() {
                 type="button"
                 onClick={async () => {
                   await executeEditBldSave();
-                  router.push('/dashboard/manager/facilities');
+                  router.push(basePath);
                 }}
                 disabled={isSaving}
                 className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-lg disabled:opacity-55"

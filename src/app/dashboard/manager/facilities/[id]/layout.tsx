@@ -15,7 +15,7 @@ function BuildingConfigInnerLayout({
   const idStr = params?.id;
   const bldId = parseInt(typeof idStr === 'string' ? idStr : '', 10);
 
-  const { buildings, selectedBuilding, setSelectedBuilding } = useFacilitiesContext();
+  const { user, buildings, selectedBuilding, setSelectedBuilding } = useFacilitiesContext();
 
   // Find the building to show in the breadcrumbs and set as selected building
   const building = buildings.find(b => b.id === bldId);
@@ -27,7 +27,8 @@ function BuildingConfigInnerLayout({
   }, [building, selectedBuilding, setSelectedBuilding]);
 
   // Tab path definitions
-  const basePath = `/dashboard/manager/facilities/${bldId}`;
+  const rootPath = user?.role === 'ADMIN' ? '/dashboard/admin/facilities' : '/dashboard/manager/facilities';
+  const basePath = `${rootPath}/${bldId}`;
   const isGeneralActive = pathname === basePath;
   const isFloorsActive = pathname === `${basePath}/floors`;
   const isAccessActive = pathname === `${basePath}/access`;
@@ -39,7 +40,7 @@ function BuildingConfigInnerLayout({
         <div className="flex justify-between items-center">
           <h1 className="font-bold text-2xl text-[#111c2d]">{building?.name || 'Building Configuration'}</h1>
           <Link 
-            href="/dashboard/manager/facilities"
+            href={rootPath}
             className="flex items-center gap-1 text-xs font-bold text-[#006d43] hover:underline"
           >
             <span className="material-symbols-outlined text-[16px]">arrow_back</span>

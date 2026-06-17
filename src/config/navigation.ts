@@ -129,6 +129,11 @@ export const ROLE_NAVIGATION: Record<string, NavigationItem[]> = {
       icon: 'group',
     },
     {
+      label: 'Facility Management',
+      href: '/dashboard/admin/facilities',
+      icon: 'location_city',
+    },
+    {
       label: 'Role & Permission',
       href: '/dashboard/admin/roles',
       icon: 'security',

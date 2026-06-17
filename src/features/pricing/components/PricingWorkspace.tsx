@@ -22,10 +22,10 @@ export default function PricingWorkspace() {
     handleOpenAddFee,
     handleOpenEditFee,
     handleDeleteFee,
-    // New handlers from usePricing
     handleOpenCreatePolicy,
     handleOpenActivateDialog,
-    handleOpenAddWindow
+    handleOpenAddWindow,
+    vehicleTypes
   } = pricing;
 
   // Handler for primary button based on active tab
@@ -140,12 +140,14 @@ export default function PricingWorkspace() {
                 </div>
 
                 <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-                  {tariffs.map((policy) => {
+                  {tariffs.map((policy, index) => {
                     const isActive = policy.pricingPolicyStatus === 'Active';
-                    const isMotorbike = policy.vehicleTypeId === 1;
+                    const matchingVehicle = vehicleTypes.find(v => v.id === policy.vehicleTypeId);
+                    const isMotorbike = matchingVehicle ? matchingVehicle.name.toLowerCase().includes('motorbike') || matchingVehicle.name.toLowerCase().includes('motorcycle') : policy.vehicleTypeId === 1;
+                    const vehicleTypeName = matchingVehicle ? matchingVehicle.name : (policy.vehicleTypeId === 1 ? 'Motorbike' : 'Car');
 
                     // Validate coverage and overlap on the fly for each policy
-                    const simplifiedWindows = policy.pricingWindows.map(w => ({
+                    const simplifiedWindows = (policy.pricingWindows || []).map(w => ({
                       windowName: w.windowName,
                       startTime: w.startTime.substring(0, 5),
                       endTime: w.endTime.substring(0, 5),
@@ -162,7 +164,7 @@ export default function PricingWorkspace() {
 
                     return (
                       <div 
-                        key={policy.pricingPolicyId} 
+                        key={policy.pricingPolicyId || index} 
                         className={`bg-white border rounded-2xl p-6 shadow-sm transition-all hover:shadow-md flex flex-col justify-between ${
                           isActive ? 'border-[#006d43] ring-2 ring-emerald-500/10' : 'border-slate-200'
                         }`}
@@ -172,15 +174,12 @@ export default function PricingWorkspace() {
                           <div className="flex justify-between items-start gap-4">
                             <div className="space-y-1">
                               <div className="flex items-center gap-2 flex-wrap">
-                                <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider ${
                                   isMotorbike 
-                                    ? 'bg-sky-50 text-sky-700 border border-sky-100' 
-                                    : 'bg-indigo-50 text-indigo-700 border border-indigo-100'
+                                    ? 'bg-cyan-50 text-cyan-600 border border-cyan-200/60' 
+                                    : 'bg-emerald-50 text-emerald-600 border border-emerald-200/60'
                                 }`}>
-                                  <span className="material-symbols-outlined text-[12px]">
-                                    {isMotorbike ? 'two_wheeler' : 'directions_car'}
-                                  </span>
-                                  {isMotorbike ? 'Motorbike' : 'Car'}
+                                  {vehicleTypeName}
                                 </span>
                                 
                                 <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
@@ -235,7 +234,7 @@ export default function PricingWorkspace() {
                             </div>
                             <div className="h-6 w-full bg-slate-100 rounded-xl overflow-hidden relative border border-slate-200 flex items-center">
                               {segments.map((seg, idx) => {
-                                const isNight = isNightSlot(seg.name, policy.pricingWindows[idx].startTime);
+                                const isNight = isNightSlot(seg.name, policy.pricingWindows?.[idx]?.startTime || '');
                                 return (
                                   <div 
                                     key={idx}
@@ -248,7 +247,7 @@ export default function PricingWorkspace() {
                                         ? 'bg-indigo-900/95 border-indigo-950/20 hover:bg-indigo-900' 
                                         : 'bg-amber-600/95 border-amber-700/20 hover:bg-amber-600'
                                     }`}
-                                    title={`${seg.name}: ${policy.pricingWindows[idx].startTime.substring(0, 5)} - ${policy.pricingWindows[idx].endTime.substring(0, 5)}`}
+                                    title={`${seg.name}: ${(policy.pricingWindows?.[idx]?.startTime || '').substring(0, 5)} - ${(policy.pricingWindows?.[idx]?.endTime || '').substring(0, 5)}`}
                                   >
                                     <span className="text-[8px] font-black truncate flex items-center gap-0.5">
                                       <span className="material-symbols-outlined text-[8px]">
@@ -259,18 +258,18 @@ export default function PricingWorkspace() {
                                   </div>
                                 );
                               })}
-                              {policy.pricingWindows.length === 0 && (
+                              {(policy.pricingWindows || []).length === 0 && (
                                 <div className="w-full text-center text-[10px] text-slate-400 font-bold">No windows configured</div>
                               )}
                             </div>
-                            {policy.pricingWindows.length > 0 && (
+                            {(policy.pricingWindows || []).length > 0 && (
                               <div className="flex gap-2 text-[8px] font-bold text-slate-400 uppercase tracking-wider justify-start pl-1">
                                 <div className="flex items-center gap-1">
-                                  <span className="h-2 w-2 rounded-sm bg-amber-600"></span>
+                                  <span className="h-2.5 w-2.5 rounded bg-amber-600"></span>
                                   <span>Day</span>
                                 </div>
                                 <div className="flex items-center gap-1">
-                                  <span className="h-2 w-2 rounded-sm bg-indigo-900"></span>
+                                  <span className="h-2.5 w-2.5 rounded bg-indigo-900"></span>
                                   <span>Night</span>
                                 </div>
                               </div>
@@ -281,11 +280,11 @@ export default function PricingWorkspace() {
                           <div className="mt-5 space-y-2.5">
                             <h6 className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Pricing Windows</h6>
                             <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
-                              {policy.pricingWindows.map((win) => {
+                              {(policy.pricingWindows || []).map((win, idx) => {
                                 // Prepare data format to pass to editing modal
                                 const tariffRowRepresentation = {
                                   id: `${policy.pricingPolicyId}-${win.pricingWindowId}`,
-                                  vehicleType: policy.vehicleTypeId === 1 ? 'Motorbike' : 'Car',
+                                  vehicleType: vehicleTypes.find(v => v.id === policy.vehicleTypeId)?.name || (policy.vehicleTypeId === 1 ? 'Motorbike' : 'Car'),
                                   timeSlot: `${win.startTime.substring(0, 5)} - ${win.endTime.substring(0, 5)}`,
                                   baseRate: `${win.basePrice.toLocaleString('en-US')} VND`,
                                   incrementalRate: `${win.incrementPrice.toLocaleString('en-US')} VND`,
@@ -306,7 +305,7 @@ export default function PricingWorkspace() {
 
                                 return (
                                   <div 
-                                    key={win.pricingWindowId} 
+                                    key={win.pricingWindowId || idx} 
                                     className="bg-slate-50/50 hover:bg-slate-50 border border-slate-200/60 rounded-xl p-3 flex items-center justify-between gap-4 transition-colors"
                                   >
                                     <div className="space-y-1 min-w-0">

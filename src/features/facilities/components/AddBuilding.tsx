@@ -15,12 +15,15 @@ import { api } from '@/lib/api/client';
 export default function AddBuilding() {
   const router = useRouter();
   const {
+    user,
     showToast,
     toastMessage,
     toastType,
     triggerToast,
     buildings
   } = useFacilities();
+
+  const basePath = user?.role === 'ADMIN' ? '/dashboard/admin/facilities' : '/dashboard/manager/facilities';
 
   // Form states locally so we have full control over validation and submission
   const [name, setName] = useState('');
@@ -84,7 +87,7 @@ export default function AddBuilding() {
       if (res.success && res.data) {
         triggerToast('Building added successfully!', 'success');
         setTimeout(() => {
-          router.push('/dashboard/manager/facilities');
+          router.push(basePath);
         }, 800);
       } else {
         triggerToast(res.message || 'Error creating building', 'error');
@@ -126,7 +129,7 @@ export default function AddBuilding() {
 
       triggerToast('Saved building locally (Offline mode)!', 'success');
       setTimeout(() => {
-        router.push('/dashboard/manager/facilities');
+        router.push(basePath);
       }, 800);
     } finally {
       setIsSubmitting(false);
@@ -155,7 +158,7 @@ export default function AddBuilding() {
           {/* Back Button & Header */}
           <div className="flex flex-col gap-3">
             <button 
-              onClick={() => router.push('/dashboard/manager/facilities')}
+              onClick={() => router.push(basePath)}
               className="flex items-center gap-1.5 text-slate-500 hover:text-slate-800 font-semibold text-xs w-fit transition-colors group"
             >
               <span className="material-symbols-outlined text-[16px] group-hover:-translate-x-0.5 transition-transform">arrow_back</span>
@@ -273,7 +276,7 @@ export default function AddBuilding() {
             <div className="flex justify-end gap-3 pt-4">
               <button 
                 type="button"
-                onClick={() => router.push('/dashboard/manager/facilities')}
+                onClick={() => router.push(basePath)}
                 className="px-5 py-2 rounded-lg border border-slate-300 hover:bg-slate-50 text-slate-700 text-sm font-semibold transition-colors"
               >
                 Cancel

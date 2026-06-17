@@ -44,6 +44,9 @@ export default function BuildingDirectory() {
   // Quyền chỉnh sửa: Chỉ Manager hoặc Admin mới được phép thao tác thay đổi dữ liệu cơ sở vật chất
   const canEdit = user?.role === 'MANAGER' || user?.role === 'ADMIN';
 
+  // Base path based on role
+  const basePath = user?.role === 'ADMIN' ? '/dashboard/admin/facilities' : '/dashboard/manager/facilities';
+
   // Tính toán số liệu thống kê (Summary stats)
   const totalCapacity = floors.reduce((acc, f) => acc + f.totalSlots, 0);
   const activeMaintenanceCount = buildings.filter(
@@ -79,7 +82,7 @@ export default function BuildingDirectory() {
             </div>
             {canEdit && (
               <Link 
-                href="/dashboard/manager/facilities/new"
+                href={`${basePath}/new`}
                 className="bg-[#006d43] hover:bg-[#006d43]/90 text-white font-semibold text-sm py-2.5 px-5 rounded-lg transition-colors flex items-center gap-2 shadow-sm"
               >
                 <span className="material-symbols-outlined text-[18px]">add_business</span>
@@ -195,7 +198,7 @@ export default function BuildingDirectory() {
                         <td className="px-6 py-4 text-right">
                           <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                             <Link 
-                              href={`/dashboard/manager/facilities/${bld.id}`}
+                              href={`${basePath}/${bld.id}`}
                               className="p-1.5 text-slate-400 hover:text-[#006d43] hover:bg-slate-100 rounded transition-all"
                               title="View Details"
                             >
@@ -204,7 +207,7 @@ export default function BuildingDirectory() {
                             {canEdit && (
                               <>
                                 <Link 
-                                  href={`/dashboard/manager/facilities/${bld.id}`}
+                                  href={`${basePath}/${bld.id}`}
                                   className="p-1.5 text-slate-400 hover:text-[#006d43] hover:bg-slate-100 rounded transition-all"
                                   title="Edit"
                                 >

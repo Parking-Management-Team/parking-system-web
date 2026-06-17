@@ -12,6 +12,7 @@ import FacilitiesModals from './FacilitiesModals';
 export default function FloorManagement() {
   const facilities = useFacilitiesContext();
   const {
+    selectedBuilding,
     activeFloors,
     zones,
     setSelectedFloor,
@@ -100,19 +101,39 @@ export default function FloorManagement() {
     return { total, allocated, remaining, percent };
   }, [selectedFloor, getFloorAllocatedCapacity]);
 
+  // Kiểm tra giới hạn số tầng của Tòa nhà
+  const isLimitReached = selectedBuilding ? activeFloors.length >= selectedBuilding.totalFloor : false;
+
   return (
     <div className="space-y-6">
       {/* Thẻ Header */}
       <div className="flex justify-between items-center bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
         <div>
-          <h2 className="text-lg font-bold text-[#111c2d]">Floors Configurations</h2>
+          <div className="flex items-center gap-2.5">
+            <h2 className="text-lg font-bold text-[#111c2d]">Floors Configurations</h2>
+            {selectedBuilding && (
+              <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold border ${
+                isLimitReached 
+                  ? 'bg-amber-50 text-amber-700 border-amber-200' 
+                  : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+              }`}>
+                {activeFloors.length} / {selectedBuilding.totalFloor} Floors
+              </span>
+            )}
+          </div>
           <p className="text-xs text-slate-500 mt-1">
             Manage physical levels, structural slot capacities, and parking zones layout.
           </p>
         </div>
         <button
           onClick={handleOpenAddFloor}
-          className="flex items-center gap-1.5 px-4 py-2.5 bg-[#006d43] hover:bg-[#006d43]/90 text-white rounded-xl text-xs font-bold transition-all shadow-sm shadow-[#006d43]/10"
+          disabled={isLimitReached}
+          className={`flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-bold transition-all shadow-sm ${
+            isLimitReached 
+              ? 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed opacity-70' 
+              : 'bg-[#006d43] hover:bg-[#006d43]/90 text-white shadow-[#006d43]/10'
+          }`}
+          title={isLimitReached ? `Building floor limit of ${selectedBuilding?.totalFloor} reached` : 'Add new floor level'}
         >
           <span className="material-symbols-outlined text-[18px]">add</span>
           Add New Floor

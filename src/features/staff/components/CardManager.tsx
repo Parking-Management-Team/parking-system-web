@@ -1,13 +1,13 @@
 'use client';
 
 import { FormEvent, useMemo, useState } from 'react';
-import { useCardManagement } from '../hooks/useCardManagement';
+import { useCardManagement } from '@/features/card/hooks/useCardManagement';
 import type {
   CardOperationResult,
   CardStatus,
   CardType,
   ParkingCard,
-} from '../types/card';
+} from '@/features/card/types/card';
 
 type ModalMode = 'create' | 'assign-session' | 'assign-monthly' | null;
 

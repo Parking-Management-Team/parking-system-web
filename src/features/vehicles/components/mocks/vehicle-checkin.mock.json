@@ -1,0 +1,196 @@
+{
+  "cards": [
+    {
+      "id": 1,
+      "code": "Card 1",
+      "type": "NORMAL",
+      "status": "AVAILABLE",
+      "vehiclePlate": null,
+      "monthlySubscriptionId": null
+    },
+    {
+      "id": 2,
+      "code": "Card 2",
+      "type": "NORMAL",
+      "status": "ASSIGNED",
+      "vehiclePlate": "59A-888.88",
+      "monthlySubscriptionId": null
+    },
+    {
+      "id": 3,
+      "code": "Card 3",
+      "type": "MONTHLY",
+      "status": "ASSIGNED",
+      "vehiclePlate": "51A-999.99",
+      "monthlySubscriptionId": 701
+    }
+  ],
+  "zones": [
+    {
+      "id": 1,
+      "code": "B1-GENERAL-CAR",
+      "name": "B1 General Car Zone",
+      "buildingName": "Building A",
+      "floorName": "Basement 1",
+      "vehicleType": "CAR",
+      "accessType": "GENERAL",
+      "status": "ACTIVE",
+      "capacity": 20,
+      "occupied": 12
+    },
+    {
+      "id": 2,
+      "code": "B2-GENERAL-CAR",
+      "name": "B2 General Car Zone",
+      "buildingName": "Building A",
+      "floorName": "Basement 2",
+      "vehicleType": "CAR",
+      "accessType": "GENERAL",
+      "status": "ACTIVE",
+      "capacity": 15,
+      "occupied": 15
+    },
+    {
+      "id": 3,
+      "code": "B1-MONTHLY-CAR",
+      "name": "B1 Monthly Car Zone",
+      "buildingName": "Building A",
+      "floorName": "Basement 1",
+      "vehicleType": "CAR",
+      "accessType": "MONTHLY",
+      "status": "ACTIVE",
+      "capacity": 10,
+      "occupied": 4
+    },
+    {
+      "id": 4,
+      "code": "B1-GENERAL-MOTOR",
+      "name": "B1 Motorcycle Zone",
+      "buildingName": "Building A",
+      "floorName": "Basement 1",
+      "vehicleType": "MOTORCYCLE",
+      "accessType": "GENERAL",
+      "status": "ACTIVE",
+      "capacity": 80,
+      "occupied": 42
+    },
+    {
+      "id": 5,
+      "code": "B2-GENERAL-MOTOR",
+      "name": "B2 Motorcycle Zone",
+      "buildingName": "Building A",
+      "floorName": "Basement 2",
+      "vehicleType": "MOTORCYCLE",
+      "accessType": "GENERAL",
+      "status": "ACTIVE",
+      "capacity": 50,
+      "occupied": 50
+    }
+  ],
+  "slots": [
+    {
+      "id": 101,
+      "code": "C-001",
+      "zoneId": 1,
+      "vehicleType": "CAR",
+      "accessType": "GENERAL",
+      "status": "AVAILABLE",
+      "assignedVehiclePlate": null
+    },
+    {
+      "id": 102,
+      "code": "C-002",
+      "zoneId": 1,
+      "vehicleType": "CAR",
+      "accessType": "GENERAL",
+      "status": "AVAILABLE",
+      "assignedVehiclePlate": null
+    },
+    {
+      "id": 103,
+      "code": "C-003",
+      "zoneId": 1,
+      "vehicleType": "CAR",
+      "accessType": "GENERAL",
+      "status": "OCCUPIED",
+      "assignedVehiclePlate": "59A-888.88"
+    },
+    {
+      "id": 201,
+      "code": "M-001",
+      "zoneId": 3,
+      "vehicleType": "CAR",
+      "accessType": "MONTHLY",
+      "status": "AVAILABLE",
+      "assignedVehiclePlate": "51A-999.99"
+    }
+  ],
+  "bookings": [
+    {
+      "id": 501,
+      "code": "BK-001",
+      "vehiclePlate": "51A-123.45",
+      "vehicleType": "CAR",
+      "status": "CONFIRMED",
+      "depositPaid": true,
+      "isWithinGrace": true,
+      "buildingName": "Building A"
+    },
+    {
+      "id": 502,
+      "code": "BK-EXPIRED",
+      "vehiclePlate": "51B-222.22",
+      "vehicleType": "MOTORCYCLE",
+      "status": "EXPIRED",
+      "depositPaid": true,
+      "isWithinGrace": false,
+      "buildingName": "Building A"
+    }
+  ],
+  "monthlySubscriptions": [
+    {
+      "id": 701,
+      "cardCode": "Card 3",
+      "vehiclePlate": "51A-999.99",
+      "vehicleType": "CAR",
+      "status": "ACTIVE",
+      "buildingName": "Building A",
+      "assignedZoneId": 3,
+      "assignedSlotCode": "M-001",
+      "validTo": "2026-07-15"
+    }
+  ],
+  "pricingPolicyChecks": [
+    {
+      "vehicleType": "CAR",
+      "validPolicyCount": 1,
+      "windowsCover24Hours": true,
+      "windowsOverlap": false,
+      "message": "Valid pricing policy found for CAR."
+    },
+    {
+      "vehicleType": "MOTORCYCLE",
+      "validPolicyCount": 1,
+      "windowsCover24Hours": true,
+      "windowsOverlap": false,
+      "message": "Valid pricing policy found for MOTORCYCLE."
+    }
+  ],
+  "activeSessions": [
+    {
+      "id": 1001,
+      "sessionCode": "SS-1001",
+      "licensePlate": "59A-888.88",
+      "vehicleType": "CAR",
+      "customerType": "WALK_IN",
+      "cardId": 2,
+      "cardCode": "Card 2",
+      "zoneId": 1,
+      "zoneName": "B1 General Car Zone",
+      "actualSlotId": 103,
+      "actualSlotCode": "C-003",
+      "checkInTime": "2026-06-15 08:30",
+      "status": "ACTIVE"
+    }
+  ]
+}

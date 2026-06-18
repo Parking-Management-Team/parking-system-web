@@ -17,8 +17,10 @@ export interface Floor {
 export interface Zone {
   id: number;
   floorId: number;
+  code?: string;        // Mã code của zone (ví dụ: ZM01, ZC01)
   name: string;        // Tên phân khu (ví dụ: Zone A, Zone B)
   vehicleType: 'Standard' | 'VIP' | 'EV Charging' | 'Motorbike'; // Loại xe cho phép đỗ
+  zoneAccessType: 'GENERAL' | 'MONTHLY'; // GENERAL = Walk-in/Booking, MONTHLY = Thẻ tháng
   slotCapacity: number; // Sức chứa ô đỗ của phân khu này
   status: 'Active' | 'Inactive';
 }

@@ -16,7 +16,9 @@ interface ZoneResponse {
   id: number;
   floorId: number;
   name: string;
+  code?: string;
   vehicleTypeId: number;
+  accessType?: number;  // Backend: 0 = GENERAL, 1 = MONTHLY
   capacity?: number;
   status: number | string;
 }
@@ -39,6 +41,16 @@ const mapVehicleTypeToId = (type: 'Standard' | 'VIP' | 'EV Charging' | 'Motorbik
     case 'Motorbike': return 4;
     default: return 1;
   }
+};
+
+// Map accessType number to string (Backend: 0 = GENERAL, 1 = MONTHLY)
+const mapAccessTypeToBackend = (type: 'GENERAL' | 'MONTHLY'): number => {
+  return type === 'MONTHLY' ? 1 : 0;
+};
+
+// Map accessType number from backend to string
+const mapAccessTypeToFrontend = (accessType?: number): 'GENERAL' | 'MONTHLY' => {
+  return accessType === 1 ? 'MONTHLY' : 'GENERAL';
 };
 
 const mapStatusToFrontend = (status: number | string): 'Active' | 'Inactive' => {
@@ -115,8 +127,10 @@ export function useFacilities() {
   const [deletingFloor, setDeletingFloor] = useState<Floor | null>(null);
 
   // Dữ liệu nhập trên Form Phân khu
+  const [formZoneCode, setFormZoneCode] = useState('');
   const [formZoneName, setFormZoneName] = useState('');
   const [formZoneVehicleType, setFormZoneVehicleType] = useState<'Standard' | 'VIP' | 'EV Charging' | 'Motorbike'>('Standard');
+  const [formZoneAccessType, setFormZoneAccessType] = useState<'GENERAL' | 'MONTHLY'>('GENERAL');
   const [formZoneSlotCapacity, setFormZoneSlotCapacity] = useState(5);
   const [formZoneStatus, setFormZoneStatus] = useState<'Active' | 'Inactive'>('Active');
   const [editingZone, setEditingZone] = useState<Zone | null>(null);
@@ -183,6 +197,7 @@ export function useFacilities() {
           floorId: item.floorId,
           name: item.name,
           vehicleType: mapVehicleTypeIdToType(item.vehicleTypeId),
+          zoneAccessType: mapAccessTypeToFrontend(item.accessType),
           slotCapacity: item.capacity || 0,
           status: mapStatusToFrontend(item.status)
         }));
@@ -546,8 +561,15 @@ export function useFacilities() {
   // ─── THAO TÁC CRUD CHO PHÂN KHU (ZONES) ──────────────────────────────────────
   const handleOpenAddZone = () => {
     if (!selectedFloor) return;
+    // Auto-generate zone code: Z + floorNumber + sequential number
+    const existingZonesOnFloor = zones.filter(z => z.floorId === selectedFloor.id);
+    const nextNum = existingZonesOnFloor.length + 1;
+    const generatedCode = `Z${selectedFloor.floorNumber}${String(nextNum).padStart(2, '0')}`;
+    
+    setFormZoneCode(generatedCode);
     setFormZoneName('');
     setFormZoneVehicleType('Standard');
+    setFormZoneAccessType('GENERAL');
     setFormZoneSlotCapacity(5);
     setFormZoneStatus('Active');
     setIsAddZoneOpen(true);
@@ -556,8 +578,10 @@ export function useFacilities() {
   const handleOpenEditZone = (zone: Zone, e: React.MouseEvent) => {
     e.stopPropagation();
     setEditingZone(zone);
+    setFormZoneCode(zone.code || '');
     setFormZoneName(zone.name);
     setFormZoneVehicleType(zone.vehicleType);
+    setFormZoneAccessType(zone.zoneAccessType);
     setFormZoneSlotCapacity(zone.slotCapacity);
     setFormZoneStatus(zone.status);
     setIsEditZoneOpen(true);
@@ -584,8 +608,10 @@ export function useFacilities() {
     try {
       const res = await api.post<BaseResponse<unknown>>('/Zones', {
         floorId: selectedFloor.id,
+        code: formZoneCode,
         name: formZoneName,
         vehicleTypeId: mapVehicleTypeToId(formZoneVehicleType),
+        accessType: mapAccessTypeToBackend(formZoneAccessType),
         capacity: formZoneSlotCapacity
       });
       if (res.success) {
@@ -617,8 +643,10 @@ export function useFacilities() {
     setIsSaving(true);
     try {
       const res = await api.put<BaseResponse<unknown>>(`/Zones/${editingZone.id}`, {
+        code: formZoneCode,
         name: formZoneName,
         vehicleTypeId: mapVehicleTypeToId(formZoneVehicleType),
+        accessType: mapAccessTypeToBackend(formZoneAccessType),
         capacity: formZoneSlotCapacity
       });
       if (res.success) {
@@ -757,10 +785,14 @@ export function useFacilities() {
     setIsDelZoneOpen,
     
     // Zone Form States
+    formZoneCode,
+    setFormZoneCode,
     formZoneName,
     setFormZoneName,
     formZoneVehicleType,
     setFormZoneVehicleType,
+    formZoneAccessType,
+    setFormZoneAccessType,
     formZoneSlotCapacity,
     setFormZoneSlotCapacity,
     formZoneStatus,

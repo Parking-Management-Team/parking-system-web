@@ -7,6 +7,9 @@
  * Trạng thái: Placeholder (chưa có component)
  */
 
+// Components
+export { default as CardManager } from './components/CardManager';
+
 export { useCardManagement } from './hooks/useCardManagement';
 export type {
   AssignMonthlySubscriptionInput,

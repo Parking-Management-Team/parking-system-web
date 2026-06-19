@@ -73,16 +73,12 @@ export default function StaffOverview() {
           <div className="grid grid-cols-6 sm:grid-cols-10 gap-3 flex-1 min-h-[240px]">
             {Array.from({ length: 40 }).map((_, i) => {
               // Phân bổ ngẫu nhiên trạng thái ô đỗ
-              let status = 'empty';
               let bgClass = 'bg-slate-50 hover:bg-slate-100 border-slate-200 text-slate-500';
               if (i % 3 === 0) {
-                status = 'occupied';
                 bgClass = 'bg-emerald-50 hover:bg-emerald-100 border-emerald-200 text-emerald-600 font-semibold';
               } else if (i === 7 || i === 18) {
-                status = 'vip';
                 bgClass = 'bg-amber-50 hover:bg-amber-100 border-amber-200 text-amber-600 font-semibold';
               } else if (i === 12 || i === 29) {
-                status = 'issue';
                 bgClass = 'bg-red-50 hover:bg-red-100 border-red-200 text-red-600 font-semibold';
               }
 

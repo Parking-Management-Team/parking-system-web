@@ -37,7 +37,18 @@ export const ROLE_NAVIGATION: Record<string, NavigationItem[]> = {
       href: '/dashboard/manager/vehicles',
       icon: 'directions_car',
     },
+    {
+      label: 'Pricing Management',
+      href: '/dashboard/manager/pricing',
+      icon: 'payments',
+    },
     // Các menu chân trang (Footer items)
+    {
+      label: 'My Profile',
+      href: '/dashboard/profile',
+      icon: 'person',
+      isFooter: true,
+    },
     {
       label: 'Support',
       href: '#',
@@ -83,6 +94,12 @@ export const ROLE_NAVIGATION: Record<string, NavigationItem[]> = {
       icon: 'assignment',
     },
     {
+      label: 'My Profile',
+      href: '/dashboard/profile',
+      icon: 'person',
+      isFooter: true,
+    },
+    {
       label: 'Support',
       href: '#',
       icon: 'help',
@@ -112,6 +129,11 @@ export const ROLE_NAVIGATION: Record<string, NavigationItem[]> = {
       icon: 'group',
     },
     {
+      label: 'Facility Management',
+      href: '/dashboard/admin/facilities',
+      icon: 'location_city',
+    },
+    {
       label: 'Role & Permission',
       href: '/dashboard/admin/roles',
       icon: 'security',
@@ -130,6 +152,12 @@ export const ROLE_NAVIGATION: Record<string, NavigationItem[]> = {
       label: 'System Settings',
       href: '/dashboard/admin/settings',
       icon: 'settings',
+    },
+    {
+      label: 'My Profile',
+      href: '/dashboard/profile',
+      icon: 'person',
+      isFooter: true,
     },
     {
       label: 'Support',

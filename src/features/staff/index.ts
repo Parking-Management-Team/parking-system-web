@@ -10,9 +10,5 @@
 
 // Components
 export { default as StaffOverview }     from './components/StaffOverview';
-export { default as VehicleCheckin }    from './components/VehicleCheckin';
-export { default as VehicleCheckout }   from './components/VehicleCheckout';
-export { default as SlotMonitoring }    from './components/SlotMonitoring';
 export { default as IncidentHandling }  from './components/IncidentHandling';
 export { default as ShiftReports }      from './components/ShiftReports';
-export { default as CardManager } from './components/CardManager';

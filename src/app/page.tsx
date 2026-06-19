@@ -18,12 +18,7 @@ import { LogIn, LogOut, Menu, X } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import WavyNavLink from '@/components/ui/WavyNavLink'
 import { useAuth, AuthDrawer } from '@/features/auth'
-import Hero       from '@/features/landing/components/Hero'
-import About      from '@/features/landing/components/About'
-import Features   from '@/features/landing/components/Features'
-import HowItWorks from '@/features/landing/components/HowItWorks'
-import Pricing    from '@/features/landing/components/Pricing'
-import Contact    from '@/features/landing/components/Contact'
+import { Hero, About, Features, HowItWorks, Pricing, Contact } from '@/features/landing'
 
 export default function Home() {
   const [isMenuOpen, setIsMenuOpen]       = useState(false)
@@ -137,7 +132,14 @@ export default function Home() {
               )}
 
               <button
-                onClick={() => { setIsMenuOpen(false); isLoggedIn ? logout() : openLogin(); }}
+                onClick={() => {
+                  setIsMenuOpen(false);
+                  if (isLoggedIn) {
+                    logout();
+                  } else {
+                    openLogin();
+                  }
+                }}
                 className={`flex items-center justify-center space-x-2 py-2.5 border rounded-lg font-medium transition-all cursor-pointer ${
                   isLoggedIn ? 'border-red-500/30 text-red-400 bg-red-500/10' : 'border-white/20 text-white hover:bg-white/10'
                 }`}

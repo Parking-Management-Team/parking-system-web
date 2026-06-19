@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Add New Service Fee &amp; Penalty - NexPark</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "secondary": "#505f79",
+                        "on-tertiary-container": "#272d28",
+                        "on-error-container": "#93000a",
+                        "on-secondary-container": "#54637d",
+                        "inverse-on-surface": "#ecf1ff",
+                        "background": "#f9f9ff",
+                        "on-secondary-fixed": "#0c1c32",
+                        "inverse-surface": "#263143",
+                        "on-surface-variant": "#3d4a41",
+                        "on-background": "#111c2d",
+                        "primary-fixed-dim": "#59de9b",
+                        "on-error": "#ffffff",
+                        "error-container": "#ffdad6",
+                        "primary": "#006d43",
+                        "surface": "#f9f9ff",
+                        "surface-dim": "#cfdaf2",
+                        "on-primary-container": "#00331d",
+                        "surface-variant": "#d8e3fb",
+                        "on-tertiary-fixed-variant": "#414843",
+                        "secondary-fixed-dim": "#b8c7e5",
+                        "on-secondary": "#ffffff",
+                        "primary-container": "#00a86b",
+                        "on-secondary-fixed-variant": "#394760",
+                        "tertiary-fixed": "#dde4dd",
+                        "tertiary-container": "#8e958e",
+                        "tertiary-fixed-dim": "#c1c8c1",
+                        "primary-fixed": "#78fbb6",
+                        "on-tertiary": "#ffffff",
+                        "surface-bright": "#f9f9ff",
+                        "on-primary": "#ffffff",
+                        "outline-variant": "#bccabe",
+                        "secondary-fixed": "#d5e3ff",
+                        "surface-container": "#e7eeff",
+                        "surface-container-lowest": "#ffffff",
+                        "surface-container-low": "#f0f3ff",
+                        "on-surface": "#111c2d",
+                        "outline": "#6d7a70",
+                        "inverse-primary": "#59de9b",
+                        "tertiary": "#59605a",
+                        "on-primary-fixed": "#002111",
+                        "secondary-container": "#d1e0ff",
+                        "surface-tint": "#006d43",
+                        "surface-container-highest": "#d8e3fb",
+                        "surface-container-high": "#dee8ff",
+                        "on-primary-fixed-variant": "#005232",
+                        "on-tertiary-fixed": "#161d19",
+                        "error": "#ba1a1a"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "gutter": "24px",
+                        "max-width": "1440px",
+                        "md": "16px",
+                        "margin-mobile": "16px",
+                        "sm": "8px",
+                        "xs": "4px",
+                        "xl": "32px",
+                        "unit": "4px",
+                        "lg": "24px",
+                        "margin-desktop": "32px"
+                    },
+                    "fontFamily": {
+                        "label-sm": ["Inter"],
+                        "display-lg-mobile": ["Inter"],
+                        "body-md": ["Inter"],
+                        "title-lg": ["Inter"],
+                        "headline-md": ["Inter"],
+                        "code-md": ["Inter"],
+                        "body-lg": ["Inter"],
+                        "label-lg": ["Inter"],
+                        "display-lg": ["Inter"]
+                    },
+                    "fontSize": {
+                        "label-sm": ["12px", { "lineHeight": "16px", "letterSpacing": "0.02em", "fontWeight": "500" }],
+                        "display-lg-mobile": ["24px", { "lineHeight": "32px", "letterSpacing": "-0.01em", "fontWeight": "700" }],
+                        "body-md": ["14px", { "lineHeight": "20px", "fontWeight": "400" }],
+                        "title-lg": ["18px", { "lineHeight": "28px", "fontWeight": "600" }],
+                        "headline-md": ["24px", { "lineHeight": "32px", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+                        "code-md": ["13px", { "lineHeight": "18px", "fontWeight": "400" }],
+                        "body-lg": ["16px", { "lineHeight": "24px", "fontWeight": "400" }],
+                        "label-lg": ["14px", { "lineHeight": "20px", "letterSpacing": "0.01em", "fontWeight": "600" }],
+                        "display-lg": ["32px", { "lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "700" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .card-bg { background-color: #F4FBF3; }
+        .input-glow:focus {
+            border-color: theme('colors.primary');
+            box-shadow: 0 0 0 2px #F4FBF3;
+            outline: none;
+        }
+    </style>
+</head>
+<body class="bg-background text-on-background antialiased h-screen overflow-hidden flex"><div class="fixed inset-0 bg-on-background/50 z-[60] backdrop-blur-sm"></div>
+<!-- SideNavBar -->
+<nav class="fixed left-0 top-0 h-full w-[280px] bg-inverse-surface dark:bg-on-secondary-fixed flex flex-col z-50 overflow-y-auto hidden md:flex">
+<div class="p-lg">
+<div class="flex items-center gap-md">
+<span class="material-symbols-outlined text-primary-fixed" style="font-variation-settings: 'FILL' 1; font-size: 32px;">local_parking</span>
+<div>
+<h1 class="font-display-lg text-display-lg text-primary-fixed font-bold">NexPark</h1>
+<p class="font-label-sm text-label-sm text-surface-variant">Enterprise Portal</p>
+</div>
+</div>
+<button class="mt-xl w-full bg-primary text-on-primary font-label-lg text-label-lg py-sm px-md rounded-lg hover:bg-primary-container transition-colors flex items-center justify-center gap-sm">
+<span class="material-symbols-outlined">add</span>
+                Add New Zone
+            </button>
+</div>
+<div class="flex-1 px-sm py-md space-y-xs">
+<a class="flex items-center gap-md text-surface-variant hover:text-white py-md px-lg hover:bg-white/5 transition-colors duration-200 rounded-r-full" href="#">
+<span class="material-symbols-outlined">dashboard</span>
+<span class="font-label-lg text-label-lg">Dashboard</span>
+</a>
+<a class="flex items-center gap-md text-surface-variant hover:text-white py-md px-lg hover:bg-white/5 transition-colors duration-200 rounded-r-full" href="#">
+<span class="material-symbols-outlined">domain</span>
+<span class="font-label-lg text-label-lg">Buildings</span>
+</a>
+<a class="flex items-center gap-md text-surface-variant hover:text-white py-md px-lg hover:bg-white/5 transition-colors duration-200 rounded-r-full" href="#">
+<span class="material-symbols-outlined">map</span>
+<span class="font-label-lg text-label-lg">Zones</span>
+</a>
+<a class="flex items-center gap-md bg-white/10 text-primary-fixed border-l-4 border-primary-container py-md px-lg rounded-r-full opacity-100 scale-100 transition-all" href="#">
+<span class="material-symbols-outlined">payments</span>
+<span class="font-label-lg text-label-lg">Pricing Management</span>
+</a>
+</div>
+<div class="p-sm mt-auto border-t border-white/10">
+<a class="flex items-center gap-md text-surface-variant hover:text-white py-md px-lg hover:bg-white/5 transition-colors duration-200 rounded-r-full" href="#">
+<span class="material-symbols-outlined">settings</span>
+<span class="font-label-lg text-label-lg">Settings</span>
+</a>
+<a class="flex items-center gap-md text-surface-variant hover:text-white py-md px-lg hover:bg-white/5 transition-colors duration-200 rounded-r-full" href="#">
+<span class="material-symbols-outlined">help</span>
+<span class="font-label-lg text-label-lg">Support</span>
+</a>
+</div>
+</nav>
+<!-- Main Content Area -->
+<div class="flex-1 flex flex-col ml-[280px] h-screen overflow-hidden">
+<!-- TopNavBar -->
+<header class="bg-surface dark:bg-background flex justify-between items-center px-lg py-md w-full shrink-0 border-b border-surface-variant">
+<div class="flex items-center gap-md">
+<!-- Mobile Menu Trigger (hidden on desktop) -->
+<button class="md:hidden text-on-surface">
+<span class="material-symbols-outlined">menu</span>
+</button>
+<h2 class="font-headline-md text-headline-md font-bold text-primary dark:text-primary-fixed hidden md:block">NexPark Management</h2>
+</div>
+<div class="flex items-center gap-lg">
+<div class="flex gap-sm">
+<button class="text-secondary dark:text-secondary-fixed-dim hover:text-primary-container transition-colors p-sm rounded-full hover:bg-surface-variant">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+<button class="text-secondary dark:text-secondary-fixed-dim hover:text-primary-container transition-colors p-sm rounded-full hover:bg-surface-variant">
+<span class="material-symbols-outlined">help_outline</span>
+</button>
+</div>
+<div class="w-10 h-10 rounded-full bg-secondary-container overflow-hidden border-2 border-surface-variant">
+<img alt="Administrator Profile" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida/AP1WRLuu_xuxSuxm51c6kDTdT1t6Uf5IzLz79dWRklRcZfreNV0GHfGmiLmFH3bcf-QtBRvXGG3RzQ5Lxywbi_zpCNWoHlg8b6a6isOfhR1euMf6Wb1AbJ3r7Li6H4KDtHkODvPu1k6hdpDTplB-B5DvLYfe_AOeFYklj2RoTmgktb7Rvg4znFennss6KQvrUSxXfs4C1F_7gVMoZLZBBS6xhjYpdffhCvtMyTiSArE_nrr9FnD2g0cIv3RsJpM"/>
+</div>
+</div>
+</header>
+<!-- Canvas -->
+<main class="fixed inset-0 z-[70] flex items-center justify-center p-md overflow-y-auto">
+<div class="bg-white w-full max-w-4xl rounded-xl shadow-xl relative flex flex-col max-h-[90vh]">
+<!-- Close Button -->
+<button class="absolute right-md top-md text-secondary hover:text-on-surface transition-colors">
+<span class="material-symbols-outlined">close</span>
+</button>
+<div class="p-lg overflow-y-auto">
+<!-- Page Header -->
+<div class="mb-lg flex items-center justify-between">
+<div>
+<div class="flex items-center gap-sm text-secondary font-body-md text-body-md mb-xs">
+<span>Pricing Management</span>
+<span class="material-symbols-outlined text-sm">chevron_right</span>
+<span class="text-on-surface">Add New Service Fee/Penalty</span>
+</div>
+<h1 class="font-display-lg text-display-lg text-on-background">Add New Service Fee/Penalty</h1>
+</div>
+</div>
+<!-- Form Container -->
+<div class="card-bg rounded-xl border border-primary/10 p-lg">
+<div class="grid grid-cols-1 md:grid-cols-2 gap-gutter">
+<!-- Fee Type -->
+<div class="col-span-1">
+<label class="block font-label-lg text-label-lg text-on-surface mb-sm" for="feeType">Fee Type <span class="text-error">*</span></label>
+<div class="relative">
+<select class="w-full bg-white border border-secondary/15 rounded-lg py-sm pl-md pr-xl font-body-md text-body-md text-on-surface appearance-none input-glow transition-all" id="feeType">
+<option disabled="" selected="" value="">Select fee type...</option>
+<option value="deposit">Deposit</option>
+<option value="noshow">No-show</option>
+<option value="lostcard">Lost Card</option>
+<option value="wrongzone">Wrong Zone</option>
+</select>
+<span class="material-symbols-outlined absolute right-md top-1/2 -translate-y-1/2 text-secondary pointer-events-none">expand_more</span>
+</div>
+</div>
+<!-- Fee Amount -->
+<div class="col-span-1">
+<label class="block font-label-lg text-label-lg text-on-surface mb-sm" for="feeAmount">Fee Amount (VND) <span class="text-error">*</span></label>
+<div class="relative">
+<span class="material-symbols-outlined absolute left-md top-1/2 -translate-y-1/2 text-secondary pointer-events-none">payments</span>
+<input class="w-full bg-white border border-secondary/15 rounded-lg py-sm pl-xl pr-md font-body-md text-body-md text-on-surface input-glow transition-all text-right" id="feeAmount" placeholder="0" type="number"/>
+</div>
+</div>
+<!-- Trigger Conditions -->
+<div class="col-span-1 md:col-span-2">
+<label class="block font-label-lg text-label-lg text-on-surface mb-sm">Trigger Conditions</label>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-md">
+<label class="flex items-start gap-md p-md bg-white border border-secondary/15 rounded-lg cursor-pointer hover:border-primary transition-colors">
+<input checked="" class="mt-1 text-primary focus:ring-primary border-secondary/30" name="triggerType" type="radio"/>
+<div>
+<span class="block font-title-lg text-title-lg text-on-surface">Time-based Trigger</span>
+<span class="block font-body-md text-body-md text-secondary mt-xs">Automatically apply fee after a specific duration.</span>
+<div class="mt-sm flex items-center gap-sm">
+<span class="font-body-md text-body-md text-on-surface">Trigger after</span>
+<input class="w-20 bg-surface border border-secondary/15 rounded-md py-xs px-sm font-body-md text-body-md text-center input-glow" type="number" value="45"/>
+<span class="font-body-md text-body-md text-on-surface">mins</span>
+</div>
+</div>
+</label>
+<label class="flex items-start gap-md p-md bg-white border border-secondary/15 rounded-lg cursor-pointer hover:border-primary transition-colors">
+<input class="mt-1 text-primary focus:ring-primary border-secondary/30" name="triggerType" type="radio"/>
+<div>
+<span class="block font-title-lg text-title-lg text-on-surface">Manual Trigger</span>
+<span class="block font-body-md text-body-md text-secondary mt-xs">Applied manually by staff during checkout or audit.</span>
+</div>
+</label>
+</div>
+</div>
+<!-- Description -->
+<div class="col-span-1 md:col-span-2">
+<label class="block font-label-lg text-label-lg text-on-surface mb-sm" for="description">Internal Description</label>
+<textarea class="w-full bg-white border border-secondary/15 rounded-lg py-sm px-md font-body-md text-body-md text-on-surface input-glow transition-all resize-none" id="description" placeholder="Add notes or rules regarding this fee..." rows="4"></textarea>
+</div>
+<!-- Status Toggle -->
+<div class="col-span-1 md:col-span-2 flex items-center gap-md pt-sm border-t border-secondary/10">
+<div class="relative inline-block w-12 h-6 align-middle select-none transition duration-200 ease-in">
+<input checked="" class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer transition-transform duration-200 ease-in-out translate-x-6 border-primary bg-primary" id="activeStatus" name="toggle" type="checkbox"/>
+<label class="toggle-label block overflow-hidden h-6 rounded-full bg-primary/20 cursor-pointer" for="activeStatus"></label>
+</div>
+<label class="font-title-lg text-title-lg text-on-surface cursor-pointer" for="activeStatus">Set as Active Configuration</label>
+</div>
+</div>
+</div>
+<!-- Footer Actions -->
+<div class="mt-lg flex justify-end gap-sm">
+<button class="px-lg py-sm rounded-lg border border-primary text-primary font-label-lg text-label-lg hover:bg-primary/5 transition-colors">Cancel</button>
+<button class="px-lg py-sm rounded-lg bg-primary text-on-primary font-label-lg text-label-lg hover:bg-primary-container transition-colors shadow-sm">Save Configuration</button>
+</div>
+</div>
+</div>
+</main>
+</div>
+<script>
+        // Simple toggle logic for custom styling if needed, though mostly handled by Tailwind classes in a real implementation
+        const toggleInput = document.getElementById('activeStatus');
+        toggleInput.addEventListener('change', function() {
+            if(this.checked) {
+                this.classList.replace('translate-x-0', 'translate-x-6');
+                this.classList.replace('border-secondary', 'border-primary');
+            } else {
+                this.classList.replace('translate-x-6', 'translate-x-0');
+                this.classList.replace('border-primary', 'border-secondary');
+            }
+        });
+    </script>
+</body></html>

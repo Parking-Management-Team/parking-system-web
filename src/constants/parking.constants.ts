@@ -99,3 +99,11 @@ export const PAYMENT_METHOD = {
 } as const;
 
 export type PaymentMethod = typeof PAYMENT_METHOD[keyof typeof PAYMENT_METHOD];
+
+// ─── Zone Access Types ────────────────────────────────────────────
+export const ZONE_ACCESS_TYPE = {
+  GENERAL: 'GENERAL',   // Walk-in / Booking vehicles
+  MONTHLY: 'MONTHLY',   // Monthly subscription vehicles only
+} as const;
+
+export type ZoneAccessType = typeof ZONE_ACCESS_TYPE[keyof typeof ZONE_ACCESS_TYPE];

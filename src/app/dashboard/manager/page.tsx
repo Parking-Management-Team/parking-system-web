@@ -6,8 +6,8 @@ import {
   HourlyTrafficChart,
   QuickLinks,
   RecentActivity,
-} from '@/features/dashboard';
-import type { DashboardStats, ActivityLog } from '@/features/dashboard';
+} from '@/features/manager';
+import type { DashboardStats, ActivityLog } from '@/features/manager';
 
 // ─── Mock data (thay bằng API call khi backend sẵn sàng) ──────────────────────
 
@@ -54,15 +54,15 @@ const INITIAL_ACTIVITIES: ActivityLog[] = [
  *
  * Trang tổng quan dành cho Quản lý.
  * File này chỉ chứa: state, đồng hồ realtime, API fetch stub,
- * và ghép các component từ features/dashboard.
+ * và ghép các component từ features/manager.
  *
- * Để thêm chức năng mới → tạo component mới trong features/dashboard/components/
- * rồi export qua features/dashboard/index.ts, sau đó import vào đây.
+ * Để thêm chức năng mới → tạo component mới trong features/manager/components/
+ * rồi export qua features/manager/index.ts, sau đó import vào đây.
  */
 export default function ManagerDashboard() {
   const [currentTime, setCurrentTime] = useState<string>('');
-  const [stats, setStats] = useState<DashboardStats>(INITIAL_STATS);
-  const [activities, setActivities] = useState<ActivityLog[]>(INITIAL_ACTIVITIES);
+  const [stats] = useState<DashboardStats>(INITIAL_STATS);
+  const [activities] = useState<ActivityLog[]>(INITIAL_ACTIVITIES);
 
   // Đồng hồ realtime cập nhật mỗi giây
   useEffect(() => {

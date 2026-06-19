@@ -14,7 +14,7 @@ const MOCK_ACTIVITIES = [
  * Cho phép nhân viên xuất báo cáo doanh thu ca, kiểm kê vé, và đóng ca bàn giao.
  */
 export default function ShiftReports() {
-  const [activities, setActivities] = useState(MOCK_ACTIVITIES);
+  const [activities] = useState(MOCK_ACTIVITIES);
   const [isShiftEnded, setIsShiftEnded] = useState(false);
 
   const handleEndShift = () => {

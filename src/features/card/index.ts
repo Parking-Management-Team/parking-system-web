@@ -10,3 +10,14 @@
 // Components
 export { default as CardManager } from './components/CardManager';
 
+export { useCardManagement } from './hooks/useCardManagement';
+export type {
+  AssignMonthlySubscriptionInput,
+  AssignSessionInput,
+  CardOperationResult,
+  CardStatus,
+  CardType,
+  CreateCardInput,
+  ParkingCard,
+} from './types/card';
+

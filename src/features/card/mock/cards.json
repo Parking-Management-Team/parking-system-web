@@ -1,0 +1,67 @@
+[
+  {
+    "id": 1,
+    "cardCode": "CARD-000001",
+    "cardType": "NORMAL",
+    "cardStatus": "AVAILABLE",
+    "currentSessionId": null,
+    "monthlySubscriptionId": null,
+    "subscriptionCode": null,
+    "vehiclePlate": null,
+    "validFrom": null,
+    "validTo": null,
+    "createdAt": "2026-06-18T08:00:00"
+  },
+  {
+    "id": 2,
+    "cardCode": "CARD-000002",
+    "cardType": "NORMAL",
+    "cardStatus": "ASSIGNED",
+    "currentSessionId": 101,
+    "monthlySubscriptionId": null,
+    "subscriptionCode": null,
+    "vehiclePlate": "51A-12345",
+    "validFrom": null,
+    "validTo": null,
+    "createdAt": "2026-06-18T08:10:00"
+  },
+  {
+    "id": 3,
+    "cardCode": "MONTH-000001",
+    "cardType": "MONTHLY",
+    "cardStatus": "ASSIGNED",
+    "currentSessionId": null,
+    "monthlySubscriptionId": 20,
+    "subscriptionCode": "SUB-000020",
+    "vehiclePlate": "51H-67890",
+    "validFrom": "2026-06-01",
+    "validTo": "2026-07-01",
+    "createdAt": "2026-06-01T09:00:00"
+  },
+  {
+    "id": 4,
+    "cardCode": "CARD-000004",
+    "cardType": "NORMAL",
+    "cardStatus": "INACTIVE",
+    "currentSessionId": null,
+    "monthlySubscriptionId": null,
+    "subscriptionCode": null,
+    "vehiclePlate": null,
+    "validFrom": null,
+    "validTo": null,
+    "createdAt": "2026-06-18T08:30:00"
+  },
+  {
+    "id": 5,
+    "cardCode": "CARD-000005",
+    "cardType": "NORMAL",
+    "cardStatus": "LOST",
+    "currentSessionId": null,
+    "monthlySubscriptionId": null,
+    "subscriptionCode": null,
+    "vehiclePlate": null,
+    "validFrom": null,
+    "validTo": null,
+    "createdAt": "2026-06-18T08:45:00"
+  }
+]

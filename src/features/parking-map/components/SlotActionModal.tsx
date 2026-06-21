@@ -208,25 +208,17 @@ export function SlotActionModal({
     setIsSubmitting(true);
     try {
       // 1. Fetch active session for this slot and complete it
-      try {
-        const activeRes = await api.get<BaseResponse<ParkingSessionDto[]>>('/parking-sessions/active');
-        if (activeRes.success && activeRes.data) {
-          const session = activeRes.data.find(s => s.slotId === slot.id);
-          if (session) {
-            await apiClient(`/parking-sessions/${session.id}/complete`, { method: 'PATCH' });
-          }
+      const activeRes = await api.get<BaseResponse<ParkingSessionDto[]>>('/parking-sessions/active');
+      if (activeRes.success && activeRes.data) {
+        const session = activeRes.data.find(s => s.slotId === slot.id);
+        if (session) {
+          await apiClient(`/parking-sessions/${session.id}/complete`, { method: 'PATCH' });
+        } else {
+          throw new Error('No active session found for this slot');
         }
-      } catch (sessErr) {
-        console.warn('Could not complete parking session in backend', sessErr);
+      } else {
+        throw new Error(activeRes.message || 'Could not fetch active sessions');
       }
-
-      // 2. Update slot status to Available (0)
-      await api.put(`/ParkingSlots/${slot.id}`, {
-        code: slot.slotCode,
-        name: slot.slotName || `Slot ${slot.slotCode}`,
-        vehicleTypeId: slot.slotType === 'EV Charging' ? 3 : 1,
-        status: 0 // Available
-      });
 
       // Trigger Parent callback
       onSlotUpdated(slot.id, 'AVAILABLE', undefined);

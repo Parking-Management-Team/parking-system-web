@@ -1,6 +1,6 @@
 import React from 'react';
 import { Building, BuildingStatus } from '@/lib/types/building.types';
-import { Floor, Zone } from '../types';
+import { Floor, Zone, VehicleType } from '../types';
 
 interface FacilitiesModalsProps {
   // Common
@@ -36,7 +36,7 @@ interface FacilitiesModalsProps {
   deletingBld: Building | null;
   setDeletingBld: (bld: Building | null) => void;
   executeDeleteBld: () => void;
-
+  
   // Floor Modals
   isAddFloorOpen: boolean;
   setIsAddFloorOpen: (open: boolean) => void;
@@ -45,8 +45,6 @@ interface FacilitiesModalsProps {
   setFormFloorNumber: (num: number) => void;
   formFloorName: string;
   setFormFloorName: (name: string) => void;
-  formFloorTotalSlots: number;
-  setFormFloorTotalSlots: (num: number) => void;
   formFloorStatus: 'Active' | 'Inactive';
   setFormFloorStatus: (status: 'Active' | 'Inactive') => void;
   formFloorType: string;
@@ -74,8 +72,9 @@ interface FacilitiesModalsProps {
   setFormZoneCode: (code: string) => void;
   formZoneName: string;
   setFormZoneName: (name: string) => void;
-  formZoneVehicleType: 'Standard' | 'VIP' | 'EV Charging' | 'Motorbike';
-  setFormZoneVehicleType: (type: 'Standard' | 'VIP' | 'EV Charging' | 'Motorbike') => void;
+  vehicleTypes: VehicleType[];
+  formZoneVehicleTypeId: number | '';
+  setFormZoneVehicleTypeId: (id: number | '') => void;
   formZoneAccessType: 'GENERAL' | 'MONTHLY';
   setFormZoneAccessType: (type: 'GENERAL' | 'MONTHLY') => void;
   formZoneSlotCapacity: number;
@@ -138,8 +137,6 @@ export default function FacilitiesModals({
   setFormFloorNumber,
   formFloorName,
   setFormFloorName,
-  formFloorTotalSlots,
-  setFormFloorTotalSlots,
   formFloorStatus,
   setFormFloorStatus,
   formFloorType,
@@ -165,8 +162,9 @@ export default function FacilitiesModals({
   setFormZoneCode,
   formZoneName,
   setFormZoneName,
-  formZoneVehicleType,
-  setFormZoneVehicleType,
+  vehicleTypes,
+  formZoneVehicleTypeId,
+  setFormZoneVehicleTypeId,
   formZoneAccessType,
   setFormZoneAccessType,
   formZoneSlotCapacity,
@@ -456,17 +454,7 @@ export default function FacilitiesModals({
                   <option value="EV Dedicated">EV Dedicated Floor</option>
                 </select>
               </div>
-              <div>
-                <label className="block text-xs font-semibold text-[#3d4a41] mb-1">Max Capacity Allocation (slots) *</label>
-                <input 
-                  type="number" 
-                  required
-                  min={1}
-                  value={formFloorTotalSlots}
-                  onChange={(e) => setFormFloorTotalSlots(parseInt(e.target.value, 10) || 10)}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm text-[#111c2d] focus:outline-none focus:border-[#006d43]"
-                />
-              </div>
+
               <div>
                 <label className="block text-xs font-semibold text-[#3d4a41] mb-1">Status</label>
                 <select
@@ -541,17 +529,7 @@ export default function FacilitiesModals({
                   className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm text-[#111c2d] focus:outline-none focus:border-[#006d43]"
                 />
               </div>
-              <div>
-                <label className="block text-xs font-semibold text-[#3d4a41] mb-1">Max Capacity Allocation (slots) *</label>
-                <input 
-                  type="number" 
-                  required
-                  min={1}
-                  value={formFloorTotalSlots}
-                  onChange={(e) => setFormFloorTotalSlots(parseInt(e.target.value, 10) || 10)}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm text-[#111c2d] focus:outline-none focus:border-[#006d43]"
-                />
-              </div>
+
               <div>
                 <label className="block text-xs font-semibold text-[#3d4a41] mb-1">Status</label>
                 <select
@@ -657,14 +635,17 @@ export default function FacilitiesModals({
               <div>
                 <label className="block text-xs font-semibold text-[#3d4a41] mb-1">Allowed Vehicle Type *</label>
                 <select
-                  value={formZoneVehicleType}
-                  onChange={(e) => setFormZoneVehicleType(e.target.value as 'Standard' | 'VIP' | 'EV Charging' | 'Motorbike')}
+                  required
+                  value={formZoneVehicleTypeId}
+                  onChange={(e) => setFormZoneVehicleTypeId(e.target.value === '' ? '' : Number(e.target.value))}
                   className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm text-[#111c2d] focus:outline-none focus:border-[#006d43]"
                 >
-                  <option value="Standard">Standard Car</option>
-                  <option value="VIP">VIP Spot</option>
-                  <option value="EV Charging">EV Charging Station</option>
-                  <option value="Motorbike">Motorbike Spot</option>
+                  <option value="">Select Allowed Vehicle Type...</option>
+                  {vehicleTypes.map((vt) => (
+                    <option key={vt.id} value={vt.id}>
+                      {vt.name}
+                    </option>
+                  ))}
                 </select>
               </div>
               <div>
@@ -753,14 +734,17 @@ export default function FacilitiesModals({
               <div>
                 <label className="block text-xs font-semibold text-[#3d4a41] mb-1">Allowed Vehicle Type *</label>
                 <select
-                  value={formZoneVehicleType}
-                  onChange={(e) => setFormZoneVehicleType(e.target.value as 'Standard' | 'VIP' | 'EV Charging' | 'Motorbike')}
+                  required
+                  value={formZoneVehicleTypeId}
+                  onChange={(e) => setFormZoneVehicleTypeId(e.target.value === '' ? '' : Number(e.target.value))}
                   className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm text-[#111c2d] focus:outline-none focus:border-[#006d43]"
                 >
-                  <option value="Standard">Standard Car</option>
-                  <option value="VIP">VIP Spot</option>
-                  <option value="EV Charging">EV Charging Station</option>
-                  <option value="Motorbike">Motorbike Spot</option>
+                  <option value="">Select Allowed Vehicle Type...</option>
+                  {vehicleTypes.map((vt) => (
+                    <option key={vt.id} value={vt.id}>
+                      {vt.name}
+                    </option>
+                  ))}
                 </select>
               </div>
               <div>

@@ -277,14 +277,6 @@ export default function Header() {
                 <span>My Profile</span>
               </Link>
 
-              <Link
-                href="#"
-                onClick={() => setDropdownOpen(false)}
-                className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-slate-600 hover:bg-emerald-50/60 hover:text-emerald-600 transition-colors font-medium"
-              >
-                <span className="material-symbols-outlined text-[18px]">settings</span>
-                <span>Settings</span>
-              </Link>
 
               {/* Thanh phân tách dòng menu */}
               <div className="h-[1px] bg-slate-100 my-1.5"></div>

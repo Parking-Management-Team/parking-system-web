@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/features/auth';
-import { api } from '@/lib/api/client';
+import { api, apiClient } from '@/lib/api/client';
 import { Building, BaseResponse, PagedResult } from '@/lib/types/building.types';
 import { Floor, FloorResponse, Zone, ZoneResponse, Slot, ParkingSlotDto, ParkingSessionDto } from '../types';
 import { SlotActionModal } from './SlotActionModal';
@@ -18,6 +18,7 @@ export function SlotManagementDashboard() {
   const [floors, setFloors] = useState<Floor[]>([]);
   const [zones, setZones] = useState<Zone[]>([]);
   const [slots, setSlots] = useState<Slot[]>([]);
+  const [activeSessions, setActiveSessions] = useState<ParkingSessionDto[]>([]);
   
   const [selectedBuildingId, setSelectedBuildingId] = useState<number | null>(null);
   const [selectedFloorId, setSelectedFloorId] = useState<number | null>(null);
@@ -32,6 +33,10 @@ export function SlotManagementDashboard() {
   // Modal Dialog States
   const [selectedSlot, setSelectedSlot] = useState<Slot | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+
+  // Session details modal states
+  const [selectedSessionDetails, setSelectedSessionDetails] = useState<ParkingSessionDto | null>(null);
+  const [completingSessionId, setCompletingSessionId] = useState<number | null>(null);
 
   // Show Toast Helper
   const showToastMessage = useCallback((message: string, type: 'success' | 'error' = 'success') => {
@@ -106,34 +111,12 @@ export function SlotManagementDashboard() {
 
     } catch (err) {
       console.error('Failed to load parking infrastructure:', err);
-      showToastMessage('Could not load infrastructure from server. Using mock structures.', 'error');
-      
-      // Fallback local structures if server API is down
-      const mockBlds: Building[] = [
-        { id: 1, code: 'BLD01', name: 'Grand Plaza Tower', address: '123 Tran Hung Dao', totalFloor: 4, status: 0 },
-        { id: 2, code: 'BLD02', name: 'West Side Mall', address: '456 Le Loi', totalFloor: 2, status: 0 }
-      ];
-      setBuildings(mockBlds);
-      setSelectedBuildingId(1);
-
-      const mockFloors: Floor[] = [
-        { id: 10, buildingId: 1, floorNumber: -1, name: 'Basement 1', status: 'Active' },
-        { id: 11, buildingId: 1, floorNumber: -2, name: 'Basement 2', status: 'Active' },
-        { id: 12, buildingId: 1, floorNumber: 1, name: 'Ground Floor', status: 'Active' },
-        { id: 20, buildingId: 2, floorNumber: 1, name: 'Ground Floor', status: 'Active' }
-      ];
-      setFloors(mockFloors);
-      setSelectedFloorId(10);
-
-      const mockZones: Zone[] = [
-        { id: 101, floorId: 10, name: 'Section A - Standard', vehicleType: 'Standard', zoneAccessType: 'GENERAL', slotCapacity: 24, status: 'Active' },
-        { id: 103, floorId: 10, name: 'Section C - EV Charge', vehicleType: 'EV Charging', zoneAccessType: 'GENERAL', slotCapacity: 8, status: 'Active' },
-        { id: 104, floorId: 10, name: 'Motorbike Zone A', vehicleType: 'Motorbike', zoneAccessType: 'GENERAL', slotCapacity: 50, status: 'Active' },
-        { id: 105, floorId: 10, name: 'Motorbike Zone B', vehicleType: 'Motorbike', zoneAccessType: 'MONTHLY', slotCapacity: 30, status: 'Active' },
-        
-        { id: 111, floorId: 11, name: 'Section D - Standard', vehicleType: 'Standard', zoneAccessType: 'GENERAL', slotCapacity: 24, status: 'Active' }
-      ];
-      setZones(mockZones);
+      showToastMessage('Could not load infrastructure from server.', 'error');
+      setBuildings([]);
+      setFloors([]);
+      setZones([]);
+      setSelectedBuildingId(null);
+      setSelectedFloorId(null);
     } finally {
       setLoading(false);
     }
@@ -143,114 +126,85 @@ export function SlotManagementDashboard() {
     fetchInitialData();
   }, [fetchInitialData]);
 
-  // Fetch Slots when selectedFloorId changes
-  useEffect(() => {
+  // Fetch Slots and active sessions when selectedFloorId changes
+  const fetchSlotsForFloor = useCallback(async () => {
     if (!selectedFloorId) return;
+    setLoading(true);
+    try {
+      const floorZones = zones.filter(z => z.floorId === selectedFloorId && z.vehicleType !== 'Motorbike');
+      
+      // Fetch active parking sessions to match license plates and details
+      const sessionRes = await api.get<BaseResponse<ParkingSessionDto[]>>('/parking-sessions/active').catch(() => null);
+      const activeSess = sessionRes?.success && sessionRes.data ? sessionRes.data : [];
+      setActiveSessions(activeSess);
 
-    const fetchSlotsForFloor = async () => {
-      setLoading(true);
-      try {
-        const floorZones = zones.filter(z => z.floorId === selectedFloorId && z.vehicleType !== 'Motorbike');
-        
-        // Fetch active parking sessions to match license plates and details
-        const sessionRes = await api.get<BaseResponse<ParkingSessionDto[]>>('/parking-sessions/active').catch(() => null);
-        const activeSessions = sessionRes?.success ? sessionRes.data : [];
+      // Fetch slots for each zone on the floor in parallel
+      const zoneSlotsPromises = floorZones.map(async (zone) => {
+        try {
+          const res = await api.get<BaseResponse<ParkingSlotDto[]>>(`/ParkingSlots/zone/${zone.id}`);
+          if (res.success && res.data) {
+            return res.data.map(item => {
+              // Find active session for this slot
+              const session = activeSess.find(s => s.slotId === item.id);
+              
+              let assignedVehicle = undefined;
+              if (session) {
+                assignedVehicle = {
+                  plate: session.licensePlateIn,
+                  model: 'Registered Vehicle',
+                  ownerName: session.monthlySubscriptionId ? `Subscriber (Sub ID: ${session.monthlySubscriptionId})` : 'Visitor / Short-term',
+                  memberId: session.monthlySubscriptionId ? `SUB-${session.monthlySubscriptionId}` : 'WALK-IN',
+                  startDate: session.checkInTime,
+                  endDate: session.checkOutTime || undefined,
+                  notes: session.bookingId ? `Booking #${session.bookingId}` : 'Check-in via staff'
+                };
+              }
 
-        // Fetch slots for each zone on the floor in parallel
-        const zoneSlotsPromises = floorZones.map(async (zone) => {
-          try {
-            const res = await api.get<BaseResponse<ParkingSlotDto[]>>(`/ParkingSlots/zone/${zone.id}`);
-            if (res.success && res.data) {
-              return res.data.map(item => {
-                // Find active session for this slot
-                const session = activeSessions?.find(s => s.slotId === item.id);
-                
-                let assignedVehicle = undefined;
-                if (session) {
-                  assignedVehicle = {
-                    plate: session.licensePlateIn,
-                    model: 'Registered Vehicle',
-                    ownerName: session.monthlySubscriptionId ? `Subscriber (Sub ID: ${session.monthlySubscriptionId})` : 'Visitor / Short-term',
-                    memberId: session.monthlySubscriptionId ? `SUB-${session.monthlySubscriptionId}` : 'WALK-IN',
-                    startDate: session.checkInTime,
-                    endDate: session.checkOutTime || undefined,
-                    notes: session.bookingId ? `Booking #${session.bookingId}` : 'Check-in via staff'
-                  };
+              const mapStatus = (statusVal: number): Slot['status'] => {
+                switch (statusVal) {
+                  case 0: return 'AVAILABLE';
+                  case 1: return 'MAINTENANCE';
+                  case 2: return 'OCCUPIED';
+                  case 3: return 'BLOCKED';
+                  default: return 'AVAILABLE';
                 }
+              };
 
-                const mapStatus = (statusVal: number): Slot['status'] => {
-                  switch (statusVal) {
-                    case 0: return 'AVAILABLE';
-                    case 1: return 'MAINTENANCE';
-                    case 2: return 'OCCUPIED';
-                    case 3: return 'BLOCKED';
-                    default: return 'AVAILABLE';
-                  }
-                };
-
-                return {
-                  id: item.id,
-                  slotCode: item.code,
-                  slotName: item.name,
-                  zoneId: item.zoneId,
-                  zoneName: zone.name,
-                  floorId: selectedFloorId,
-                  buildingId: selectedBuildingId || 0,
-                  slotType: zone.vehicleType === 'EV Charging' ? 'EV Charging' as const : 'Standard' as const,
-                  status: mapStatus(item.status),
-                  assignedVehicle
-                };
-              });
-            }
-          } catch (slotErr) {
-            console.error(`Error loading slots for zone ${zone.id}:`, slotErr);
-          }
-          return [];
-        });
-
-        const results = await Promise.all(zoneSlotsPromises);
-        const allSlots = results.flat();
-
-        if (allSlots.length > 0) {
-          setSlots(allSlots);
-        } else {
-          // Mock data fallback if zone returns empty
-          const fallbackSlots: Slot[] = [];
-          floorZones.forEach(z => {
-            const size = z.vehicleType === 'EV Charging' ? 8 : 12;
-            for (let i = 1; i <= size; i++) {
-              const code = `${z.name.split(' ').slice(-1)[0] || 'Z'}-${i.toString().padStart(2, '0')}`;
-              fallbackSlots.push({
-                id: z.id * 10 + i,
-                slotCode: code,
-                zoneId: z.id,
-                zoneName: z.name,
+              return {
+                id: item.id,
+                slotCode: item.code,
+                slotName: item.name,
+                zoneId: item.zoneId,
+                zoneName: zone.name,
                 floorId: selectedFloorId,
                 buildingId: selectedBuildingId || 0,
-                slotType: z.vehicleType === 'EV Charging' ? 'EV Charging' : 'Standard',
-                status: i === 3 ? 'OCCUPIED' : i === 5 ? 'BLOCKED' : i === 7 ? 'MAINTENANCE' : 'AVAILABLE',
-                assignedVehicle: i === 3 ? {
-                  plate: '29A-999.99',
-                  model: 'Tesla Model Y',
-                  ownerName: 'Vinh Hoang',
-                  memberId: 'MEM-4044',
-                  startDate: new Date(Date.now() - 4 * 3600000).toISOString(),
-                  notes: 'Reserved VIP spot'
-                } : undefined
-              });
-            }
-          });
-          setSlots(fallbackSlots);
+                slotType: zone.vehicleType === 'EV Charging' ? 'EV Charging' as const : 'Standard' as const,
+                status: mapStatus(item.status),
+                assignedVehicle
+              };
+            });
+          }
+        } catch (slotErr) {
+          console.error(`Error loading slots for zone ${zone.id}:`, slotErr);
         }
-      } catch (err) {
-        console.error('Failed to load slots:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
+        return [];
+      });
 
-    fetchSlotsForFloor();
+      const results = await Promise.all(zoneSlotsPromises);
+      const allSlots = results.flat();
+
+      setSlots(allSlots);
+    } catch (err) {
+      console.error('Failed to load slots:', err);
+      setSlots([]);
+    } finally {
+      setLoading(false);
+    }
   }, [selectedFloorId, zones, selectedBuildingId]);
+
+  useEffect(() => {
+    fetchSlotsForFloor();
+  }, [fetchSlotsForFloor]);
 
   // Derived filterings
   const activeFloors = useMemo(() => {
@@ -312,22 +266,46 @@ export function SlotManagementDashboard() {
       }
       return s;
     }));
-  }, []);
+    fetchSlotsForFloor();
+  }, [fetchSlotsForFloor]);
 
-  // Active Allocations list filtering
-  const filteredActiveAllocations = useMemo(() => {
-    return slots.filter(s => {
-      if (!s.assignedVehicle) return false;
+  // Active Sessions list filtering for the current floor
+  const filteredSessions = useMemo(() => {
+    return activeSessions.filter(session => {
+      const zone = zones.find(z => z.id === session.zoneId);
+      if (!zone || zone.floorId !== selectedFloorId) return false;
+
+      const slot = slots.find(s => s.id === session.slotId);
+      const slotCode = slot ? slot.slotCode : '';
+      const plate = session.licensePlateIn || '';
+      const subText = session.monthlySubscriptionId ? `SUB-${session.monthlySubscriptionId}` : 'WALK-IN';
       
       const searchMatch = 
-        s.slotCode.toLowerCase().includes(tableSearchQuery.toLowerCase()) ||
-        s.assignedVehicle.plate.toLowerCase().includes(tableSearchQuery.toLowerCase()) ||
-        s.assignedVehicle.ownerName.toLowerCase().includes(tableSearchQuery.toLowerCase());
-        
+        slotCode.toLowerCase().includes(tableSearchQuery.toLowerCase()) ||
+        plate.toLowerCase().includes(tableSearchQuery.toLowerCase()) ||
+        subText.toLowerCase().includes(tableSearchQuery.toLowerCase());
+
       if (tableTypeFilter === 'All') return searchMatch;
-      return searchMatch && s.slotType === tableTypeFilter;
+      if (tableTypeFilter === 'Motorbike') return searchMatch && zone.vehicleType === 'Motorbike';
+      return searchMatch && slot?.slotType === tableTypeFilter;
     });
-  }, [slots, tableSearchQuery, tableTypeFilter]);
+  }, [activeSessions, zones, selectedFloorId, slots, tableSearchQuery, tableTypeFilter]);
+
+  // Action to complete a session (release spot)
+  const handleForceCompleteSession = async (sessionId: number) => {
+    setCompletingSessionId(sessionId);
+    try {
+      await apiClient(`/parking-sessions/${sessionId}/complete`, { method: 'PATCH' });
+      showToastMessage('Parking session completed and slot/space released successfully.');
+      setSelectedSessionDetails(null);
+      await fetchSlotsForFloor();
+    } catch (err) {
+      console.error(err);
+      showToastMessage('Failed to complete parking session.', 'error');
+    } finally {
+      setCompletingSessionId(null);
+    }
+  };
 
   // Color Coding maps
   const getSlotColorClass = (status: Slot['status']) => {
@@ -432,7 +410,7 @@ export function SlotManagementDashboard() {
               }`}
             >
               <span className="material-symbols-outlined text-[18px]">list_alt</span>
-              Active Allocations ({slots.filter(s => s.status === 'OCCUPIED').length})
+              Session Allocations ({activeSessions.filter(s => zones.find(z => z.id === s.zoneId)?.floorId === selectedFloorId).length})
             </button>
           </div>
 
@@ -506,22 +484,26 @@ export function SlotManagementDashboard() {
                       </span>
                     </div>
 
-                    <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10 gap-3.5">
-                      {zoneSlots.map(slot => (
-                        <button
-                          key={slot.id}
-                          onClick={() => handleSlotClick(slot)}
-                          className={`h-24 border rounded-xl flex flex-col items-center justify-between py-4 px-3.5 shadow-sm transition-all hover:scale-[1.03] active:scale-95 group font-bold text-sm ${getSlotColorClass(
-                            slot.status
-                          )}`}
-                        >
-                          <span className="truncate w-full text-center px-1">{slot.slotCode}</span>
-                          <span className="material-symbols-outlined text-[18px]">
-                            {slot.slotType === 'EV Charging' ? 'ev_station' : 'directions_car'}
-                          </span>
-                        </button>
-                      ))}
-                    </div>
+                    {zoneSlots.length === 0 ? (
+                      <p className="text-xs text-slate-400 font-semibold italic text-center py-6 col-span-full">No slots configured in this zone.</p>
+                    ) : (
+                      <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10 gap-3.5">
+                        {zoneSlots.map(slot => (
+                          <button
+                            key={slot.id}
+                            onClick={() => handleSlotClick(slot)}
+                            className={`h-24 border rounded-xl flex flex-col items-center justify-between py-4 px-3.5 shadow-sm transition-all hover:scale-[1.03] active:scale-95 group font-bold text-sm ${getSlotColorClass(
+                              slot.status
+                            )}`}
+                          >
+                            <span className="truncate w-full text-center px-1">{slot.slotCode}</span>
+                            <span className="material-symbols-outlined text-[18px]">
+                              {slot.slotType === 'EV Charging' ? 'ev_station' : 'directions_car'}
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 );
               })
@@ -540,27 +522,22 @@ export function SlotManagementDashboard() {
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  {activeMotorbikeZones.map((zone, idx) => {
-                    let percentage = 60;
+                  {activeMotorbikeZones.map((zone) => {
+                    const zoneSessions = activeSessions.filter(s => s.zoneId === zone.id);
+                    const occupied = zoneSessions.length;
+                    const percentage = zone.slotCapacity > 0 ? Math.min(100, Math.round((occupied / zone.slotCapacity) * 100)) : 0;
+                    
                     let statusLabel = 'Normal';
                     let statusColorText = 'text-[#00a86b] bg-[#00a86b]/10';
+                    let progressColorClass = 'bg-[#00a86b]';
 
-                    if (idx % 3 === 0) {
-                      percentage = 92;
+                    if (percentage >= 90) {
                       statusLabel = 'Critical / Full';
                       statusColorText = 'text-[#ba1a1a] bg-[#ba1a1a]/10';
-                    } else if (idx % 2 === 0) {
-                      percentage = 80;
-                      statusLabel = 'High Occupancy';
-                      statusColorText = 'text-[#d97706] bg-[#d97706]/10';
-                    }
-
-                    const occupied = Math.round((zone.slotCapacity * percentage) / 100);
-                    
-                    let progressColorClass = 'bg-[#00a86b]';
-                    if (percentage >= 90) {
                       progressColorClass = 'bg-[#ba1a1a]';
                     } else if (percentage >= 75) {
+                      statusLabel = 'High Occupancy';
+                      statusColorText = 'text-[#d97706] bg-[#d97706]/10';
                       progressColorClass = 'bg-[#d97706]';
                     }
 
@@ -602,7 +579,7 @@ export function SlotManagementDashboard() {
           </div>
         )}
 
-        {/* ===== TAB CONTENT 2: ACTIVE ALLOCATIONS LIST ===== */}
+        {/* ===== TAB CONTENT 2: SESSION ALLOCATIONS LIST ===== */}
         {activeTab === 'list' && (
           <div className="space-y-6 animate-in fade-in duration-200">
             {/* Table Filters */}
@@ -616,7 +593,7 @@ export function SlotManagementDashboard() {
                     type="text"
                     value={tableSearchQuery}
                     onChange={(e) => setTableSearchQuery(e.target.value)}
-                    placeholder="Search by Slot, Plate, or Owner..."
+                    placeholder="Search by Slot, Plate, or Subscriber..."
                     className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg text-sm focus:ring-1 focus:ring-emerald-500/30 focus:border-emerald-500 focus:outline-none font-medium"
                   />
                 </div>
@@ -627,8 +604,9 @@ export function SlotManagementDashboard() {
                   className="border border-slate-200 rounded-lg py-2 pl-3 pr-8 text-sm focus:ring-1 focus:ring-emerald-500/30 focus:border-emerald-500 text-slate-600 focus:outline-none"
                 >
                   <option value="All">All Types</option>
-                  <option value="Standard">Standard</option>
-                  <option value="EV Charging">EV Charging</option>
+                  <option value="Standard">Standard (Car)</option>
+                  <option value="EV Charging">EV Charging (Car)</option>
+                  <option value="Motorbike">Motorbike</option>
                 </select>
               </div>
 
@@ -644,45 +622,82 @@ export function SlotManagementDashboard() {
                 <table className="w-full text-left">
                   <thead className="bg-slate-50/70 border-b border-slate-100">
                     <tr>
-                      <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Slot Code</th>
+                      <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Slot / Space</th>
                       <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Zone</th>
                       <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Vehicle Plate</th>
-                      <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Owner Name</th>
-                      <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Member ID</th>
-                      <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider text-center">Status</th>
+                      <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Card ID</th>
+                      <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Allocation Type</th>
+                      <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Check-In Time</th>
                       <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider text-right">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {filteredActiveAllocations.length === 0 ? (
+                    {filteredSessions.length === 0 ? (
                       <tr>
                         <td colSpan={7} className="px-6 py-12 text-center text-slate-400 font-medium text-xs">
-                          No active allocations found matching your search.
+                          No active parking sessions found matching your search.
                         </td>
                       </tr>
                     ) : (
-                      filteredActiveAllocations.map(s => (
-                        <tr key={s.id} className="hover:bg-slate-50/40 transition-colors">
-                          <td className="px-6 py-4 font-extrabold text-slate-800">{s.slotCode}</td>
-                          <td className="px-6 py-4 text-xs font-semibold text-slate-500">{s.zoneName}</td>
-                          <td className="px-6 py-4 font-mono text-sm font-bold text-[#006d43]">{s.assignedVehicle?.plate}</td>
-                          <td className="px-6 py-4 text-sm font-semibold text-slate-700">{s.assignedVehicle?.ownerName}</td>
-                          <td className="px-6 py-4 font-mono text-xs text-slate-400">{s.assignedVehicle?.memberId}</td>
-                          <td className="px-6 py-4 text-center">
-                            <span className="inline-flex px-2.5 py-1 bg-slate-800 text-white rounded-full text-[10px] font-bold tracking-wide uppercase">
-                              OCCUPIED
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 text-right">
-                            <button
-                              onClick={() => handleSlotClick(s)}
-                              className="text-red-650 font-bold text-xs hover:underline"
-                            >
-                              Release
-                            </button>
-                          </td>
-                        </tr>
-                      ))
+                      filteredSessions.map(session => {
+                        const zone = zones.find(z => z.id === session.zoneId);
+                        const slot = slots.find(s => s.id === session.slotId);
+                        return (
+                          <tr key={session.id} className="hover:bg-slate-50/40 transition-colors">
+                            <td className="px-6 py-4 font-extrabold text-slate-800">
+                              {slot ? (
+                                <span className="flex items-center gap-1.5">
+                                  <span className="material-symbols-outlined text-[16px] text-[#006d43]">
+                                    {slot.slotType === 'EV Charging' ? 'ev_station' : 'directions_car'}
+                                  </span>
+                                  {slot.slotCode}
+                                </span>
+                              ) : (
+                                <span className="text-slate-400 text-xs font-semibold italic flex items-center gap-1.5">
+                                  <span className="material-symbols-outlined text-[16px] text-slate-400">two_wheeler</span>
+                                  Motorbike Area
+                                </span>
+                              )}
+                            </td>
+                            <td className="px-6 py-4 text-xs font-semibold text-slate-500">{zone?.name || 'N/A'}</td>
+                            <td className="px-6 py-4 font-mono text-sm font-bold text-[#006d43]">
+                              <span className="px-2.5 py-1 border border-emerald-500/20 bg-emerald-50/50 rounded-lg">
+                                {session.licensePlateIn}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 text-sm font-semibold text-slate-600 font-mono">#{session.cardId}</td>
+                            <td className="px-6 py-4">
+                              {session.monthlySubscriptionId ? (
+                                <span className="inline-flex px-2 py-0.5 bg-blue-50 text-blue-700 border border-blue-100 rounded-md text-[10px] font-bold uppercase tracking-wide">
+                                  Member (Sub #{session.monthlySubscriptionId})
+                                </span>
+                              ) : (
+                                <span className="inline-flex px-2 py-0.5 bg-slate-100 text-slate-600 rounded-md text-[10px] font-bold uppercase tracking-wide">
+                                  Walk-in / Guest
+                                </span>
+                              )}
+                            </td>
+                            <td className="px-6 py-4 text-xs font-medium text-slate-500">
+                              {new Date(session.checkInTime).toLocaleString()}
+                            </td>
+                            <td className="px-6 py-4 text-right space-x-3">
+                              <button
+                                onClick={() => setSelectedSessionDetails(session)}
+                                className="text-[#006d43] font-bold text-xs hover:underline"
+                              >
+                                Details
+                              </button>
+                              <button
+                                onClick={() => handleForceCompleteSession(session.id)}
+                                disabled={completingSessionId === session.id}
+                                className="text-red-650 font-bold text-xs hover:underline disabled:opacity-50"
+                              >
+                                {completingSessionId === session.id ? 'Releasing...' : 'Force Release'}
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })
                     )}
                   </tbody>
                 </table>
@@ -702,6 +717,109 @@ export function SlotManagementDashboard() {
         onSlotUpdated={handleSlotUpdated}
         showToastMessage={showToastMessage}
       />
+
+      {/* ===== TEXT-BASED SESSION DETAILS MODAL ===== */}
+      {selectedSessionDetails && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[110] flex items-center justify-center p-4">
+          <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in fade-in zoom-in duration-200">
+            {/* Header */}
+            <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-emerald-50/20">
+              <div>
+                <h3 className="text-base font-extrabold text-slate-800">Active Session Details</h3>
+                <p className="text-xs text-slate-400 font-bold mt-0.5">Session ID: #{selectedSessionDetails.id}</p>
+              </div>
+              <button
+                onClick={() => setSelectedSessionDetails(null)}
+                className="p-1.5 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-600 transition-colors"
+              >
+                <span className="material-symbols-outlined text-[18px] align-middle">close</span>
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="p-6 space-y-6">
+              {/* Monospaced License Plate representation */}
+              <div className="flex flex-col items-center py-4 bg-slate-50 border border-slate-100 rounded-2xl">
+                <div className="border-[2px] border-slate-800 rounded-lg bg-white px-6 py-2.5 shadow-sm text-center min-w-[200px]">
+                  <span className="text-[10px] font-black text-slate-400 tracking-widest uppercase border-b border-slate-100 pb-0.5 block mb-1">
+                    NexPark Session
+                  </span>
+                  <span className="font-mono text-2xl font-black text-slate-800 tracking-wide">
+                    {selectedSessionDetails.licensePlateIn}
+                  </span>
+                </div>
+                <span className="text-[10px] text-slate-400 font-bold mt-2 uppercase tracking-wide">
+                  Text-Based Vehicle Record
+                </span>
+              </div>
+
+              {/* Grid of Details */}
+              <div className="grid grid-cols-2 gap-4 text-xs">
+                <div className="bg-slate-50/50 p-3 rounded-xl border border-slate-100">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Zone / Space</p>
+                  <p className="font-extrabold text-slate-700 mt-1">
+                    {zones.find(z => z.id === selectedSessionDetails.zoneId)?.name || 'N/A'}
+                  </p>
+                </div>
+
+                <div className="bg-slate-50/50 p-3 rounded-xl border border-slate-100">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Slot Number</p>
+                  <p className="font-extrabold text-slate-700 mt-1">
+                    {slots.find(s => s.id === selectedSessionDetails.slotId)?.slotCode || 'Motorbike Area (No Slot)'}
+                  </p>
+                </div>
+
+                <div className="bg-slate-50/50 p-3 rounded-xl border border-slate-100">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">RFID Card Code</p>
+                  <p className="font-extrabold font-mono text-emerald-600 mt-1">
+                    #{selectedSessionDetails.cardId}
+                  </p>
+                </div>
+
+                <div className="bg-slate-50/50 p-3 rounded-xl border border-slate-100">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Member Classification</p>
+                  <p className="font-extrabold text-slate-700 mt-1">
+                    {selectedSessionDetails.monthlySubscriptionId ? 'Monthly Subscriber' : 'Visitor / Walk-in'}
+                  </p>
+                </div>
+
+                <div className="col-span-2 bg-slate-50/50 p-3 rounded-xl border border-slate-100">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Check-In Timestamp</p>
+                  <p className="font-extrabold text-slate-700 mt-1">
+                    {new Date(selectedSessionDetails.checkInTime).toLocaleString()}
+                  </p>
+                </div>
+
+                {selectedSessionDetails.bookingId && (
+                  <div className="col-span-2 bg-emerald-50/20 p-3 rounded-xl border border-emerald-500/10">
+                    <p className="text-[10px] font-bold text-[#006d43] uppercase tracking-wider">Booking Reference</p>
+                    <p className="font-extrabold text-[#006d43] mt-1">
+                      Booking ID #{selectedSessionDetails.bookingId}
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Footer Actions */}
+            <div className="p-5 bg-slate-50 border-t border-slate-100 flex gap-3">
+              <button
+                onClick={() => setSelectedSessionDetails(null)}
+                className="flex-1 py-2.5 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-xl text-xs font-extrabold transition-colors shadow-sm"
+              >
+                Close Details
+              </button>
+              <button
+                onClick={() => handleForceCompleteSession(selectedSessionDetails.id)}
+                disabled={completingSessionId === selectedSessionDetails.id}
+                className="flex-1 py-2.5 bg-red-650 hover:bg-red-700 hover:brightness-110 text-white rounded-xl text-xs font-extrabold transition-all shadow-md shadow-red-500/10 disabled:opacity-50"
+              >
+                {completingSessionId === selectedSessionDetails.id ? 'Releasing...' : 'Force Release'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );

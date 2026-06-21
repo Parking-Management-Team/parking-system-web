@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/features/auth';
 import { api } from '@/lib/api/client';
 import { Building, BuildingStatus, BaseResponse, PagedResult } from '@/lib/types/building.types';
-import { Floor, Zone } from '../types';
+import { Floor, Zone, VehicleType } from '../types';
 
 interface FloorResponse {
   id: number;
@@ -23,26 +23,6 @@ interface ZoneResponse {
   status: number | string;
 }
 
-const mapVehicleTypeIdToType = (id: number): 'Standard' | 'VIP' | 'EV Charging' | 'Motorbike' => {
-  switch (id) {
-    case 1: return 'Standard';
-    case 2: return 'VIP';
-    case 3: return 'EV Charging';
-    case 4: return 'Motorbike';
-    default: return 'Standard';
-  }
-};
-
-const mapVehicleTypeToId = (type: 'Standard' | 'VIP' | 'EV Charging' | 'Motorbike'): number => {
-  switch (type) {
-    case 'Standard': return 1;
-    case 'VIP': return 2;
-    case 'EV Charging': return 3;
-    case 'Motorbike': return 4;
-    default: return 1;
-  }
-};
-
 // Map accessType number to string (Backend: 0 = GENERAL, 1 = MONTHLY)
 const mapAccessTypeToBackend = (type: 'GENERAL' | 'MONTHLY'): number => {
   return type === 'MONTHLY' ? 1 : 0;
@@ -61,6 +41,24 @@ const mapStatusToFrontend = (status: number | string): 'Active' | 'Inactive' => 
 const mapStatusToBackend = (status: 'Active' | 'Inactive'): number => {
   return status === 'Active' ? 0 : 3; // 0 = Available, 3 = OutOfService
 };
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const extractErrorMessage = (error: any, defaultMsg: string): string => {
+  if (error && error.data) {
+    if (typeof error.data === 'object') {
+      const data = error.data;
+      if (data.message) return data.message;
+      if (data.errors && Array.isArray(data.errors) && data.errors.length > 0) {
+        return data.errors.join(', ');
+      }
+      if (data.errors && typeof data.errors === 'object') {
+        return Object.values(data.errors).flat().join(', ');
+      }
+    }
+  }
+  return error?.message || defaultMsg;
+};
+
 
 /**
  * Custom hook quản lý toàn bộ logic nghiệp vụ (state, API, validation, cascades) của quản lý cơ sở hạ tầng (Facilities)
@@ -85,11 +83,26 @@ export function useFacilities() {
   const [selectedBuilding, setSelectedBuilding] = useState<Building | null>(null);
   const [selectedFloor, setSelectedFloor] = useState<Floor | null>(null);
 
-  // Danh sách Tầng (Floors)
-  const [floors, setFloors] = useState<Floor[]>([]);
-
   // Danh sách Phân khu (Zones)
   const [zones, setZones] = useState<Zone[]>([]);
+
+  // Danh sách Tầng (Floors)
+  const [rawFloors, setRawFloors] = useState<Floor[]>([]);
+
+  const floors = useMemo(() => {
+    return rawFloors.map(floor => {
+      const allocated = zones
+        .filter(z => z.floorId === floor.id)
+        .reduce((sum, z) => sum + z.slotCapacity, 0);
+      return {
+        ...floor,
+        totalSlots: allocated // Gán tự động tổng số slot của Floor = tổng slot của các Zone
+      };
+    });
+  }, [rawFloors, zones]);
+
+  // Danh sách Loại xe từ API (Vehicle Types)
+  const [vehicleTypes, setVehicleTypes] = useState<VehicleType[]>([]);
 
   // Tình trạng mở các Modal Tòa nhà (Building)
   const [isAddBldOpen, setIsAddBldOpen] = useState(false);
@@ -129,7 +142,7 @@ export function useFacilities() {
   // Dữ liệu nhập trên Form Phân khu
   const [formZoneCode, setFormZoneCode] = useState('');
   const [formZoneName, setFormZoneName] = useState('');
-  const [formZoneVehicleType, setFormZoneVehicleType] = useState<'Standard' | 'VIP' | 'EV Charging' | 'Motorbike'>('Standard');
+  const [formZoneVehicleTypeId, setFormZoneVehicleTypeId] = useState<number | ''>('');
   const [formZoneAccessType, setFormZoneAccessType] = useState<'GENERAL' | 'MONTHLY'>('GENERAL');
   const [formZoneSlotCapacity, setFormZoneSlotCapacity] = useState(5);
   const [formZoneStatus, setFormZoneStatus] = useState<'Active' | 'Inactive'>('Active');
@@ -177,30 +190,55 @@ export function useFacilities() {
           buildingId: item.buildingId,
           floorNumber: item.floorNumber,
           name: item.name || `Floor ${item.floorNumber}`,
-          totalSlots: 100, // Gán tạm giá trị mặc định là 100 vì DB không quản lý tổng slots ở Floor
+          totalSlots: 0, // Sẽ được tự động gán động bằng tổng capacity của các Zone bên trong
           status: mapStatusToFrontend(item.status)
         }));
-        setFloors(mappedFloors);
+        setRawFloors(mappedFloors);
+
       }
     } catch (error) {
       console.error('Không thể kết nối API Floors.', error);
     }
   };
 
-  // Fetch danh sách phân khu từ API
+  // Fetch danh sách Loại xe từ API (Vehicle Types)
+  const fetchVehicleTypes = async () => {
+    try {
+      const res = await api.get<BaseResponse<VehicleType[]>>('/vehicle-types');
+      if (res.success && res.data) {
+        setVehicleTypes(res.data);
+        return res.data;
+      }
+    } catch (error) {
+      console.error('Không thể kết nối API Vehicle Types.', error);
+    }
+    return [];
+  };
+
   const fetchZones = async () => {
     try {
+      let currentVehicleTypes = vehicleTypes;
+      if (!currentVehicleTypes || currentVehicleTypes.length === 0) {
+        currentVehicleTypes = await fetchVehicleTypes() || [];
+      }
+
       const res = await api.get<BaseResponse<ZoneResponse[]>>('/Zones');
-      if (res.success && res.data) {
-        const mappedZones: Zone[] = res.data.map((item: ZoneResponse) => ({
-          id: item.id,
-          floorId: item.floorId,
-          name: item.name,
-          vehicleType: mapVehicleTypeIdToType(item.vehicleTypeId),
-          zoneAccessType: mapAccessTypeToFrontend(item.accessType),
-          slotCapacity: item.capacity || 0,
-          status: mapStatusToFrontend(item.status)
-        }));
+      if (res.success && Array.isArray(res.data)) {
+        const safeVehicleTypes = Array.isArray(currentVehicleTypes) ? currentVehicleTypes : [];
+        const mappedZones: Zone[] = res.data.map((item: ZoneResponse) => {
+          const vt = safeVehicleTypes.find(v => v && v.id === item.vehicleTypeId);
+          return {
+            id: item.id,
+            floorId: item.floorId,
+            name: item.name,
+            code: item.code,
+            vehicleTypeId: item.vehicleTypeId,
+            vehicleType: vt ? vt.name : `Type ${item.vehicleTypeId}`,
+            zoneAccessType: mapAccessTypeToFrontend(item.accessType),
+            slotCapacity: item.capacity || 0,
+            status: mapStatusToFrontend(item.status)
+          };
+        });
         setZones(mappedZones);
       }
     } catch (error) {
@@ -230,6 +268,7 @@ export function useFacilities() {
   useEffect(() => {
     fetchBuildings(pageIndex);
     fetchFloors();
+    fetchVehicleTypes();
     fetchZones();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pageIndex]);
@@ -325,7 +364,7 @@ export function useFacilities() {
       }
     } catch (error) {
       console.error('Lỗi khi thêm tòa nhà:', error);
-      triggerToast('Network error, failed to add building', 'error');
+      triggerToast(extractErrorMessage(error, 'Network error, failed to add building'), 'error');
     } finally {
       setIsSaving(false);
     }
@@ -391,7 +430,7 @@ export function useFacilities() {
       }
     } catch (error) {
       console.error('Lỗi khi sửa tòa nhà:', error);
-      triggerToast('Network error, failed to update building', 'error');
+      triggerToast(extractErrorMessage(error, 'Network error, failed to update building'), 'error');
     } finally {
       setIsSaving(false);
     }
@@ -419,7 +458,7 @@ export function useFacilities() {
       }
     } catch (error) {
       console.error('Lỗi khi xóa tòa nhà:', error);
-      triggerToast('Network error, failed to delete building', 'error');
+      triggerToast(extractErrorMessage(error, 'Network error, failed to delete building'), 'error');
     } finally {
       setIsSaving(false);
     }
@@ -494,7 +533,7 @@ export function useFacilities() {
       }
     } catch (error) {
       console.error('Failed to add floor:', error);
-      triggerToast('Network error, failed to add floor', 'error');
+      triggerToast(extractErrorMessage(error, 'Network error, failed to add floor'), 'error');
     } finally {
       setIsSaving(false);
     }
@@ -528,7 +567,7 @@ export function useFacilities() {
       }
     } catch (error) {
       console.error('Failed to update floor:', error);
-      triggerToast('Network error, failed to update floor', 'error');
+      triggerToast(extractErrorMessage(error, 'Network error, failed to update floor'), 'error');
     } finally {
       setIsSaving(false);
     }
@@ -552,7 +591,7 @@ export function useFacilities() {
       }
     } catch (error) {
       console.error('Failed to delete floor:', error);
-      triggerToast('Network error, failed to delete floor', 'error');
+      triggerToast(extractErrorMessage(error, 'Network error, failed to delete floor'), 'error');
     } finally {
       setIsSaving(false);
     }
@@ -568,7 +607,7 @@ export function useFacilities() {
     
     setFormZoneCode(generatedCode);
     setFormZoneName('');
-    setFormZoneVehicleType('Standard');
+    setFormZoneVehicleTypeId(''); // Trống mặc định để require người dùng chọn
     setFormZoneAccessType('GENERAL');
     setFormZoneSlotCapacity(5);
     setFormZoneStatus('Active');
@@ -580,7 +619,7 @@ export function useFacilities() {
     setEditingZone(zone);
     setFormZoneCode(zone.code || '');
     setFormZoneName(zone.name);
-    setFormZoneVehicleType(zone.vehicleType);
+    setFormZoneVehicleTypeId(zone.vehicleTypeId);
     setFormZoneAccessType(zone.zoneAccessType);
     setFormZoneSlotCapacity(zone.slotCapacity);
     setFormZoneStatus(zone.status);
@@ -597,6 +636,11 @@ export function useFacilities() {
     e.preventDefault();
     if (!selectedFloor) return;
 
+    if (!formZoneVehicleTypeId) {
+      triggerToast('Please select a vehicle type!', 'error');
+      return;
+    }
+
     // Nghiệp vụ 1: Đảm bảo tên phân khu (Zone Name) không trùng lặp trong cùng một tầng
     const zoneExists = activeZones.some(z => z.name.toLowerCase() === formZoneName.toLowerCase());
     if (zoneExists) {
@@ -610,7 +654,7 @@ export function useFacilities() {
         floorId: selectedFloor.id,
         code: formZoneCode,
         name: formZoneName,
-        vehicleTypeId: mapVehicleTypeToId(formZoneVehicleType),
+        vehicleTypeId: Number(formZoneVehicleTypeId),
         accessType: mapAccessTypeToBackend(formZoneAccessType),
         capacity: formZoneSlotCapacity
       });
@@ -623,7 +667,7 @@ export function useFacilities() {
       }
     } catch (error) {
       console.error('Failed to add zone:', error);
-      triggerToast('Network error, failed to add zone', 'error');
+      triggerToast(extractErrorMessage(error, 'Network error, failed to add zone'), 'error');
     } finally {
       setIsSaving(false);
     }
@@ -632,6 +676,11 @@ export function useFacilities() {
   const handleEditZoneSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingZone || !selectedFloor) return;
+
+    if (!formZoneVehicleTypeId) {
+      triggerToast('Please select a vehicle type!', 'error');
+      return;
+    }
 
     // Nghiệp vụ 1: Kiểm tra trùng tên với phân khu khác trên cùng một tầng
     const zoneExists = activeZones.some(z => z.name.toLowerCase() === formZoneName.toLowerCase() && z.id !== editingZone.id);
@@ -645,7 +694,7 @@ export function useFacilities() {
       const res = await api.put<BaseResponse<unknown>>(`/Zones/${editingZone.id}`, {
         code: formZoneCode,
         name: formZoneName,
-        vehicleTypeId: mapVehicleTypeToId(formZoneVehicleType),
+        vehicleTypeId: Number(formZoneVehicleTypeId),
         accessType: mapAccessTypeToBackend(formZoneAccessType),
         capacity: formZoneSlotCapacity
       });
@@ -659,7 +708,7 @@ export function useFacilities() {
       }
     } catch (error) {
       console.error('Failed to update zone:', error);
-      triggerToast('Network error, failed to update zone', 'error');
+      triggerToast(extractErrorMessage(error, 'Network error, failed to update zone'), 'error');
     } finally {
       setIsSaving(false);
     }
@@ -680,7 +729,7 @@ export function useFacilities() {
       }
     } catch (error) {
       console.error('Failed to delete zone:', error);
-      triggerToast('Network error, failed to delete zone', 'error');
+      triggerToast(extractErrorMessage(error, 'Network error, failed to delete zone'), 'error');
     } finally {
       setIsSaving(false);
     }
@@ -789,8 +838,9 @@ export function useFacilities() {
     setFormZoneCode,
     formZoneName,
     setFormZoneName,
-    formZoneVehicleType,
-    setFormZoneVehicleType,
+    vehicleTypes,
+    formZoneVehicleTypeId,
+    setFormZoneVehicleTypeId,
     formZoneAccessType,
     setFormZoneAccessType,
     formZoneSlotCapacity,

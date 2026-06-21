@@ -11,6 +11,13 @@ export interface Floor {
   status: 'Active' | 'Inactive';
 }
 
+export interface VehicleType {
+  id: number;
+  name: string;
+  description?: string;
+  vehicleTypeStatus: string;
+}
+
 /**
  * Định nghĩa cấu trúc dữ liệu cho Phân khu (Zone) quản lý nội bộ
  */
@@ -19,7 +26,8 @@ export interface Zone {
   floorId: number;
   code?: string;        // Mã code của zone (ví dụ: ZM01, ZC01)
   name: string;        // Tên phân khu (ví dụ: Zone A, Zone B)
-  vehicleType: 'Standard' | 'VIP' | 'EV Charging' | 'Motorbike'; // Loại xe cho phép đỗ
+  vehicleTypeId: number; // ID của loại xe cho phép đỗ
+  vehicleType: string;  // Tên loại xe cho phép đỗ
   zoneAccessType: 'GENERAL' | 'MONTHLY'; // GENERAL = Walk-in/Booking, MONTHLY = Thẻ tháng
   slotCapacity: number; // Sức chứa ô đỗ của phân khu này
   status: 'Active' | 'Inactive';

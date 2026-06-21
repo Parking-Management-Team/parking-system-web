@@ -55,12 +55,6 @@ export const ROLE_NAVIGATION: Record<string, NavigationItem[]> = {
       icon: 'help',
       isFooter: true,
     },
-    {
-      label: 'Settings',
-      href: '#',
-      icon: 'settings',
-      isFooter: true,
-    },
   ],
   STAFF: [
     {
@@ -103,12 +97,6 @@ export const ROLE_NAVIGATION: Record<string, NavigationItem[]> = {
       label: 'Support',
       href: '#',
       icon: 'help',
-      isFooter: true,
-    },
-    {
-      label: 'Settings',
-      href: '#',
-      icon: 'settings',
       isFooter: true,
     },
     {
@@ -163,12 +151,6 @@ export const ROLE_NAVIGATION: Record<string, NavigationItem[]> = {
       label: 'Support',
       href: '#',
       icon: 'help',
-      isFooter: true,
-    },
-    {
-      label: 'Settings',
-      href: '#',
-      icon: 'settings',
       isFooter: true,
     },
   ],

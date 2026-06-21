@@ -1,6 +1,20 @@
 import React from 'react';
 import { Floor, Zone } from '../types';
 
+const getVehicleIcon = (type?: string) => {
+  const t = (type || '').toLowerCase();
+  if (t.includes('car') || t.includes('xe hơi') || t.includes('xe o to') || t.includes('ô tô')) {
+    return 'directions_car';
+  }
+  if (t.includes('motor') || t.includes('xe máy') || t.includes('xe gắn máy') || t.includes('moto')) {
+    return 'motorcycle';
+  }
+  if (t.includes('ev') || t.includes('electric') || t.includes('điện')) {
+    return 'ev_charger';
+  }
+  return 'directions_car';
+};
+
 interface ZoneColumnProps {
   selectedFloor: Floor | null;
   activeZones: Zone[];
@@ -20,7 +34,8 @@ export default function ZoneColumn({
   handleOpenDelZone
 }: ZoneColumnProps) {
   // Tính toán tổng số slots đã được phân bổ cho các phân khu
-  const allocatedSlots = activeZones.reduce((sum, z) => sum + z.slotCapacity, 0);
+  const allocatedZones = Array.isArray(activeZones) ? activeZones : [];
+  const allocatedSlots = allocatedZones.reduce((sum, z) => sum + z.slotCapacity, 0);
   const totalSlots = selectedFloor ? selectedFloor.totalSlots : 0;
   const allocationPercentage = totalSlots > 0 ? Math.min((allocatedSlots / totalSlots) * 100, 100) : 0;
 
@@ -70,8 +85,8 @@ export default function ZoneColumn({
           </div>
 
           <div className="divide-y divide-slate-100 overflow-y-auto max-h-[490px] flex-grow">
-            {activeZones.length > 0 ? (
-              activeZones.map(zone => (
+            {allocatedZones.length > 0 ? (
+              allocatedZones.map(zone => (
                 <div 
                   key={zone.id}
                   className="p-4 bg-white hover:bg-slate-50 transition-all flex justify-between items-center group"
@@ -79,12 +94,8 @@ export default function ZoneColumn({
                   <div className="flex-1 min-w-0 pr-3">
                     <h3 className="font-bold text-xs text-[#111c2d] flex items-center gap-2">
                       {zone.name}
-                      <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-semibold ${
-                        zone.vehicleType === 'VIP' ? 'bg-amber-100 text-amber-800' :
-                        zone.vehicleType === 'EV Charging' ? 'bg-[#006d43]/10 text-[#006d43]' :
-                        zone.vehicleType === 'Motorbike' ? 'bg-blue-100 text-blue-800' :
-                        'bg-slate-100 text-slate-700'
-                      }`}>
+                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-semibold bg-slate-100 text-slate-700 border border-slate-200/50">
+                        <span className="material-symbols-outlined text-[10px]">{getVehicleIcon(zone.vehicleType)}</span>
                         {zone.vehicleType}
                       </span>
                       <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-semibold ${

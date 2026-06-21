@@ -1,55 +1,112 @@
 'use client';
 
-// Dữ liệu mẫu: lưu lượng xe theo từng khung giờ (sẽ thay bằng API sau)
-const MOCK_HOURLY_DATA = [30, 45, 60, 95, 75, 50, 40, 65, 85, 110, 80, 55];
-const PEAK_INDEX = 9; // Khung giờ cao điểm (mốc 18h)
+interface RevenueChartItem {
+  date: string;
+  val: number;
+}
 
-/**
- * HourlyTrafficChart - Biểu đồ cột hiển thị lưu lượng xe theo giờ
- *
- * Dùng pure CSS bar chart (không cần thư viện chart).
- * Tooltip hiện số check-in khi hover.
- * Cột cao nhất được tô màu emerald để nổi bật.
- *
- * TODO: Thay MOCK_HOURLY_DATA bằng dữ liệu từ API backend.
- */
-export function HourlyTrafficChart() {
-  const maxValue = Math.max(...MOCK_HOURLY_DATA);
+interface HourlyTrafficChartProps {
+  chartData: RevenueChartItem[];
+}
+
+export function HourlyTrafficChart({ chartData }: HourlyTrafficChartProps) {
+  const maxVal = Math.max(...chartData.map(d => d.val), 0);
 
   return (
-    <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
+    <div className="bg-white p-6 rounded-2xl border border-[#eceef6] shadow-sm">
       <div className="flex items-center justify-between pb-6 border-b border-slate-100">
         <div>
-          <h3 className="text-lg font-bold text-slate-800">Hourly Traffic</h3>
-          <p className="text-xs text-slate-400">Hourly check-in and check-out distribution</p>
+          <h3 className="text-lg font-black text-slate-800">Daily Revenue Trends</h3>
+          <p className="text-xs text-slate-400 font-semibold">Comparison of daily total revenue over the last 7 days</p>
         </div>
-        <select className="bg-slate-50 border border-slate-200 text-slate-600 text-xs rounded-xl px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-emerald-500 cursor-pointer">
-          <option>Today</option>
-          <option>Yesterday</option>
-          <option>Last 7 Days</option>
-        </select>
+        <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-lg uppercase tracking-wider">
+          Live Data
+        </span>
       </div>
 
-      {/* CSS Bar Chart */}
-      <div className="h-64 flex items-end justify-between pt-6 px-4">
-        {MOCK_HOURLY_DATA.map((value, i) => (
-          <div key={i} className="flex flex-col items-center gap-2 w-[6%] group">
-            <div className="relative w-full">
-              {/* Tooltip khi hover */}
-              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 bg-slate-800 text-white text-[10px] px-2 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-10">
-                {value} check-ins
-              </div>
-              {/* Cột bar */}
-              <div
-                className={`w-full rounded-t-lg transition-all duration-500 group-hover:bg-emerald-400 ${
-                  i === PEAK_INDEX ? 'bg-emerald-500' : 'bg-slate-200'
-                }`}
-                style={{ height: `${(value / maxValue) * 200}px`, minHeight: '10px' }}
-              />
-            </div>
-            <span className="text-[10px] text-slate-400 font-medium">{i * 2}h</span>
+      <div className="pt-6">
+        {chartData.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-56 bg-slate-50/50 rounded-xl border border-dashed border-slate-200">
+            <span className="material-symbols-outlined text-slate-350 text-3xl">bar_chart</span>
+            <p className="text-xs text-slate-400 font-bold mt-2">No revenue history available for this building.</p>
           </div>
-        ))}
+        ) : (
+          /* SVG Bar Chart with subtle grids */
+          <svg className="w-full h-56" viewBox="0 0 600 220" xmlns="http://www.w3.org/2000/svg">
+            {/* Background Grids */}
+            <line x1="40" y1="20" x2="580" y2="20" stroke="#f1f3f9" strokeWidth="1" strokeDasharray="4 4" />
+            <line x1="40" y1="70" x2="580" y2="70" stroke="#f1f3f9" strokeWidth="1" strokeDasharray="4 4" />
+            <line x1="40" y1="120" x2="580" y2="120" stroke="#f1f3f9" strokeWidth="1" strokeDasharray="4 4" />
+            <line x1="40" y1="170" x2="580" y2="170" stroke="#e9ecf4" strokeWidth="1.5" />
+
+            {/* Chart Bars */}
+            {chartData.map((item, idx) => {
+              const barWidth = 36;
+              const spacing = 580 / (chartData.length + 1);
+              const x = 40 + (idx + 0.5) * spacing - barWidth / 2;
+              
+              // Prevent divide by zero
+              const barHeight = maxVal > 0 ? (item.val / maxVal) * 135 : 0;
+              const y = 170 - barHeight;
+
+              const isMax = item.val === maxVal && maxVal > 0;
+              const formattedVal = new Intl.NumberFormat('vi-VN', {
+                style: 'currency',
+                currency: 'VND',
+                maximumFractionDigits: 0
+              }).format(item.val);
+
+              return (
+                <g key={idx} className="group cursor-pointer">
+                  {/* Tooltip Overlay */}
+                  <rect
+                    x={x - 30}
+                    y={Math.max(y - 30, 5)}
+                    width={barWidth + 60}
+                    height={25}
+                    rx={5}
+                    fill="#1e293b"
+                    className="opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                  />
+                  <text
+                    x={x + barWidth / 2}
+                    y={Math.max(y - 14, 21)}
+                    fill="#ffffff"
+                    fontSize="9"
+                    fontWeight="bold"
+                    textAnchor="middle"
+                    className="opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                  >
+                    {formattedVal}
+                  </text>
+
+                  {/* Bar */}
+                  <rect
+                    x={x}
+                    y={y}
+                    width={barWidth}
+                    height={barHeight}
+                    rx={6}
+                    fill={isMax ? '#006d43' : '#a7f3d0'}
+                    className="transition-all duration-300 hover:fill-[#006d43]/90"
+                  />
+
+                  {/* X label */}
+                  <text
+                    x={x + barWidth / 2}
+                    y="192"
+                    fill="#94a3b8"
+                    fontSize="10"
+                    fontWeight="bold"
+                    textAnchor="middle"
+                  >
+                    {item.date}
+                  </text>
+                </g>
+              );
+            })}
+          </svg>
+        )}
       </div>
     </div>
   );

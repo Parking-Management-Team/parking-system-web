@@ -25,6 +25,7 @@ export default function PricingWorkspace() {
     handleOpenCreatePolicy,
     handleOpenActivateDialog,
     handleOpenAddWindow,
+    handleDeleteTariff,
     vehicleTypes
   } = pricing;
 
@@ -335,13 +336,26 @@ export default function PricingWorkspace() {
                                       </div>
                                     </div>
 
-                                    <button 
-                                      onClick={() => handleOpenEditTariff(tariffRowRepresentation)}
-                                      className="h-8 w-8 rounded-lg flex items-center justify-center bg-white border border-slate-200 hover:border-emerald-500 hover:text-emerald-600 text-slate-400 transition-colors shrink-0 shadow-sm"
-                                      title="Edit Window"
-                                    >
-                                      <span className="material-symbols-outlined text-[16px]">edit</span>
-                                    </button>
+                                    <div className="flex gap-1.5 shrink-0">
+                                      <button 
+                                        onClick={() => handleOpenEditTariff(tariffRowRepresentation)}
+                                        className="h-8 w-8 rounded-lg flex items-center justify-center bg-white border border-slate-200 hover:border-emerald-500 hover:text-emerald-600 text-slate-400 transition-colors shadow-sm"
+                                        title="Edit Window"
+                                      >
+                                        <span className="material-symbols-outlined text-[16px]">edit</span>
+                                      </button>
+                                      <button 
+                                        onClick={() => {
+                                          if (confirm('Are you sure you want to delete this pricing window? This action cannot be undone.')) {
+                                            handleDeleteTariff(tariffRowRepresentation.id);
+                                          }
+                                        }}
+                                        className="h-8 w-8 rounded-lg flex items-center justify-center bg-white border border-slate-200 hover:border-red-500 hover:text-red-600 text-slate-400 transition-colors shadow-sm"
+                                        title="Delete Window"
+                                      >
+                                        <span className="material-symbols-outlined text-[16px]">delete</span>
+                                      </button>
+                                    </div>
                                   </div>
                                 );
                               })}

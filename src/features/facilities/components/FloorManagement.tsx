@@ -65,30 +65,25 @@ export default function FloorManagement() {
   };
 
   // Lấy danh sách icon tương ứng với loại phương tiện của Zone
-  const getVehicleIcon = (type: 'Standard' | 'VIP' | 'EV Charging' | 'Motorbike') => {
-    switch (type) {
-      case 'VIP':
-        return 'stars';
-      case 'EV Charging':
-        return 'electric_car';
-      case 'Motorbike':
-        return 'two_wheeler';
-      default:
-        return 'directions_car';
+  const getVehicleIcon = (type: string) => {
+    const t = type.toLowerCase();
+    if (t.includes('car') || t.includes('xe hơi') || t.includes('xe o to') || t.includes('ô tô')) {
+      return 'directions_car';
     }
+    if (t.includes('motor') || t.includes('xe máy') || t.includes('xe gắn máy') || t.includes('moto')) {
+      return 'motorcycle';
+    }
+    if (t.includes('ev') || t.includes('electric') || t.includes('điện')) {
+      return 'electric_car';
+    }
+    return 'directions_car';
   };
 
-  const getVehicleColorClass = (type: 'Standard' | 'VIP' | 'EV Charging' | 'Motorbike') => {
-    switch (type) {
-      case 'VIP':
-        return 'bg-amber-50 text-amber-600 border-amber-200';
-      case 'EV Charging':
-        return 'bg-cyan-50 text-cyan-600 border-cyan-200';
-      case 'Motorbike':
-        return 'bg-indigo-50 text-indigo-600 border-indigo-200';
-      default:
-        return 'bg-slate-50 text-slate-600 border-slate-200';
+  const getVehicleColorClass = (type: string) => {
+    if (type) {
+      return 'bg-slate-50 text-slate-600 border-slate-200';
     }
+    return 'bg-slate-50 text-slate-600 border-slate-200';
   };
 
   // Tính toán các chỉ số cho tầng đang được quản lý phân khu
@@ -164,8 +159,6 @@ export default function FloorManagement() {
               <tbody className="divide-y divide-slate-100 text-sm">
                 {activeFloors.map((floor) => {
                   const allocated = getFloorAllocatedCapacity(floor.id);
-                  const total = floor.totalSlots;
-                  const percent = total > 0 ? Math.min(100, Math.round((allocated / total) * 100)) : 0;
                   const zoneCount = getFloorZoneCount(floor.id);
 
                   return (
@@ -182,20 +175,17 @@ export default function FloorManagement() {
                         <div className="flex flex-col gap-1.5 max-w-[150px]">
                           <div className="flex justify-between text-xs text-slate-500 font-medium">
                             <span>{zoneCount} Active {zoneCount === 1 ? 'Zone' : 'Zones'}</span>
-                            <span>{percent}%</span>
                           </div>
                           <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
                             <div 
-                              className={`h-full rounded-full transition-all duration-500 ${
-                                percent > 90 ? 'bg-rose-500' : percent > 50 ? 'bg-amber-500' : 'bg-[#006d43]'
-                              }`}
-                              style={{ width: `${percent}%` }}
+                              className="h-full rounded-full transition-all duration-500 bg-[#006d43]"
+                              style={{ width: zoneCount > 0 ? '100%' : '0%' }}
                             />
                           </div>
                         </div>
                       </td>
                       <td className="py-4 px-6 text-[#111c2d] font-semibold">
-                        {allocated} <span className="text-slate-400 font-normal">/ {total} slots</span>
+                        {allocated} slots
                       </td>
                       <td className="py-4 px-6">
                         <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${
@@ -268,41 +258,37 @@ export default function FloorManagement() {
 
             {/* Thống kê Phân bổ Tải lượng (Capacity Metrics Grid) */}
             <div className="px-6 py-4 bg-slate-50 border-b border-slate-100">
-              <div className="grid grid-cols-3 gap-4 mb-4">
-                <div className="bg-white p-3.5 rounded-xl border border-slate-200">
-                  <div className="text-[10px] uppercase tracking-wider font-semibold text-slate-400">Floor Limit</div>
-                  <div className="text-xl font-bold text-[#111c2d] mt-0.5">{currentFloorMetrics.total} <span className="text-xs font-normal text-slate-500">slots</span></div>
+              <div className="grid grid-cols-2 gap-4 mb-4">
+                <div className="bg-white p-3.5 rounded-xl border border-slate-200 shadow-sm flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-lg bg-emerald-50 text-[#006d43] flex items-center justify-center">
+                    <span className="material-symbols-outlined text-[20px]">tag</span>
+                  </div>
+                  <div>
+                    <div className="text-[10px] uppercase tracking-wider font-semibold text-slate-400">Total Floor Slots</div>
+                    <div className="text-lg font-bold text-[#111c2d] mt-0.5">{currentFloorMetrics.allocated} <span className="text-xs font-normal text-slate-500">slots</span></div>
+                  </div>
                 </div>
-                <div className="bg-white p-3.5 rounded-xl border border-slate-200">
-                  <div className="text-[10px] uppercase tracking-wider font-semibold text-slate-400">Allocated</div>
-                  <div className="text-xl font-bold text-[#006d43] mt-0.5">{currentFloorMetrics.allocated} <span className="text-xs font-normal text-slate-500">slots</span></div>
-                </div>
-                <div className="bg-white p-3.5 rounded-xl border border-slate-200">
-                  <div className="text-[10px] uppercase tracking-wider font-semibold text-slate-400">Available Space</div>
-                  <div className={`text-xl font-bold mt-0.5 ${currentFloorMetrics.remaining === 0 ? 'text-amber-500' : 'text-slate-800'}`}>
-                    {currentFloorMetrics.remaining} <span className="text-xs font-normal text-slate-500">slots</span>
+                <div className="bg-white p-3.5 rounded-xl border border-slate-200 shadow-sm flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-lg bg-emerald-50 text-[#006d43] flex items-center justify-center">
+                    <span className="material-symbols-outlined text-[20px]">grid_view</span>
+                  </div>
+                  <div>
+                    <div className="text-[10px] uppercase tracking-wider font-semibold text-slate-400">Zones Layout</div>
+                    <div className="text-lg font-bold text-[#111c2d] mt-0.5">{activeZones.length} <span className="text-xs font-normal text-slate-500">active zones</span></div>
                   </div>
                 </div>
               </div>
               <div className="space-y-1">
                 <div className="flex justify-between text-xs font-semibold text-slate-600">
                   <span>Allocation Level</span>
-                  <span className={currentFloorMetrics.percent > 100 ? 'text-rose-600' : 'text-[#006d43]'}>{currentFloorMetrics.percent}%</span>
+                  <span className="text-[#006d43]">100%</span>
                 </div>
-                <div className="w-full h-2 bg-slate-200 rounded-full overflow-hidden">
+                <div className="w-full h-1.5 bg-slate-200 rounded-full overflow-hidden">
                   <div 
-                    className={`h-full rounded-full transition-all duration-300 ${
-                      currentFloorMetrics.percent > 100 ? 'bg-rose-500' : currentFloorMetrics.percent > 85 ? 'bg-amber-500' : 'bg-[#006d43]'
-                    }`}
-                    style={{ width: `${Math.min(100, currentFloorMetrics.percent)}%` }}
+                    className="h-full rounded-full transition-all duration-300 bg-[#006d43]"
+                    style={{ width: activeZones.length > 0 ? '100%' : '0%' }}
                   />
                 </div>
-                {currentFloorMetrics.percent > 100 && (
-                  <p className="text-[11px] text-rose-500 font-medium mt-1 flex items-center gap-1">
-                    <span className="material-symbols-outlined text-[13px]">warning</span>
-                    Total allocated slots exceed the floor capacity limit!
-                  </p>
-                )}
               </div>
             </div>
 

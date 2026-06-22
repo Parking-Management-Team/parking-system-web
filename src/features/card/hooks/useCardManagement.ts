@@ -55,12 +55,14 @@ export function useCardManagement() {
     const search = searchCode.trim().toUpperCase();
 
     return cards.filter((card) => {
-      const matchesCode = card.cardCode.toUpperCase().includes(search);
+      const matchesSearch =
+        card.cardCode.toUpperCase().includes(search) ||
+        (card.vehiclePlate?.toUpperCase().includes(search) ?? false);
       const matchesType = typeFilter === 'ALL' || card.cardType === typeFilter;
       const matchesStatus =
         statusFilter === 'ALL' || card.cardStatus === statusFilter;
 
-      return matchesCode && matchesType && matchesStatus;
+      return matchesSearch && matchesType && matchesStatus;
     });
   }, [cards, searchCode, statusFilter, typeFilter]);
 

@@ -232,12 +232,13 @@ export default function VehicleCheckin() {
 
   const [licensePlate, setLicensePlate] = useState('51A-123.45');
   const [vehicleType, setVehicleType] = useState<VehicleType>('CAR');
-  const [customerType, setCustomerType] = useState<CustomerType>('WALK_IN');
+  const [isBookingCheckin, setIsBookingCheckin] = useState(false);
   const [bookingCode, setBookingCode] = useState('BK-001');
   const [cardCode, setCardCode] = useState('Card 1');
   const [selectedZoneId, setSelectedZoneId] = useState<number | null>(1);
   const [isCheckedIn, setIsCheckedIn] = useState(false);
   const [sessionSearch, setSessionSearch] = useState('');
+  const [activeView, setActiveView] = useState<'CHECKIN' | 'SESSIONS'>('CHECKIN');
 
   /* ==========================================================
      STATE CONFIRM ACTUAL SLOT
@@ -291,6 +292,15 @@ export default function VehicleCheckin() {
   const selectedCard = cards.find(
     (card) => card.code.toUpperCase() === normalizedCardCode
   );
+
+  // Customer type is inferred from the scanned card. NORMAL cards can opt into
+  // the booking flow; MONTHLY cards always use their subscription.
+  const customerType: CustomerType =
+    selectedCard?.type === 'MONTHLY'
+      ? 'MONTHLY'
+      : isBookingCheckin
+        ? 'BOOKING'
+        : 'WALK_IN';
 
   // Tìm booking đang được nhập
   const selectedBooking = typedMockData.bookings.find(
@@ -349,11 +359,6 @@ export default function VehicleCheckin() {
     return candidateZones.filter((zone) => !isZoneFull(zone));
   }, [candidateZones]);
 
-  // Zone đã đầy
-  const fullZones = useMemo(() => {
-    return candidateZones.filter((zone) => isZoneFull(zone));
-  }, [candidateZones]);
-
   const filteredSessions = useMemo(() => {
     const normalizedSearch = sessionSearch.trim().toUpperCase().replace(/\s/g, '');
 
@@ -393,7 +398,7 @@ export default function VehicleCheckin() {
     );
 
     if (monthlySubscription) {
-      setCustomerType('MONTHLY');
+      setIsBookingCheckin(false);
       setVehicleType(monthlySubscription.vehicleType);
     }
   }, [selectedCard]);
@@ -757,30 +762,78 @@ export default function VehicleCheckin() {
   return (
     <div className="p-8 space-y-8">
       {/* HEADER */}
-      <div>
-        <h1 className="text-2xl font-bold text-slate-800">
-          Vehicle Check-in Portal
-        </h1>
-        <p className="text-slate-500 text-sm mt-1">
-          Staff manually checks vehicle information, card code, pricing policy
-          and zone availability before creating a parking session.
-        </p>
+      <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-800">
+            Vehicle Check-in Portal
+          </h1>
+          <p className="text-slate-500 text-sm mt-1">
+            Scan a card to identify the customer and complete vehicle check-in.
+          </p>
+        </div>
+
+        <nav className="inline-flex w-fit rounded-xl border border-slate-200 bg-white p-1 shadow-sm" aria-label="Check-in sections">
+          <button
+            type="button"
+            onClick={() => setActiveView('CHECKIN')}
+            className={`flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-bold transition-all ${
+              activeView === 'CHECKIN'
+                ? 'bg-slate-900 text-white shadow-sm'
+                : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800'
+            }`}
+          >
+            <span className="material-symbols-outlined text-lg">login</span>
+            Check-in
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveView('SESSIONS')}
+            className={`flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-bold transition-all ${
+              activeView === 'SESSIONS'
+                ? 'bg-slate-900 text-white shadow-sm'
+                : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800'
+            }`}
+          >
+            <span className="material-symbols-outlined text-lg">history</span>
+            Parking sessions
+            <span className={`rounded-md px-1.5 py-0.5 text-[10px] ${activeView === 'SESSIONS' ? 'bg-white/15' : 'bg-slate-100'}`}>
+              {sessions.length}
+            </span>
+          </button>
+        </nav>
       </div>
 
       {/* MAIN CONTENT */}
+      {activeView === 'CHECKIN' && (
       <div className="grid grid-cols-1 xl:grid-cols-5 gap-8">
         {/* LEFT SIDE */}
         <div className="xl:col-span-3 space-y-8">
           {/* CHECK-IN FORM */}
           <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-6">
-            <div className="pb-4 border-b border-slate-100">
-              <h3 className="text-lg font-bold text-slate-800">
-                Check-in Registration
-              </h3>
-              <p className="text-sm text-slate-500 mt-1">
-                Walk-in/Booking uses NORMAL card. Monthly Subscription uses
-                MONTHLY card.
-              </p>
+            <div className="flex flex-col gap-4 border-b border-slate-100 pb-4 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h3 className="text-lg font-bold text-slate-800">
+                  Check-in Registration
+                </h3>
+                <p className="text-sm text-slate-500 mt-1">
+                  Customer type loads automatically from the selected card.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setIsBookingCheckin((current) => !current)}
+                disabled={selectedCard?.type === 'MONTHLY'}
+                aria-pressed={isBookingCheckin}
+                className={`flex items-center justify-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-bold transition-all focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-40 ${
+                  isBookingCheckin
+                    ? 'border-blue-600 bg-blue-600 text-white shadow-md shadow-blue-600/20'
+                    : 'border-blue-200 bg-blue-50 text-blue-700 hover:border-blue-300 hover:bg-blue-100'
+                }`}
+              >
+                <span className="material-symbols-outlined text-lg">confirmation_number</span>
+                {isBookingCheckin ? 'Booking selected' : 'Booking check-in'}
+              </button>
             </div>
 
             <form onSubmit={handleCheckin} className="space-y-6">
@@ -815,24 +868,8 @@ export default function VehicleCheckin() {
                   </select>
                 </div>
 
-                {/* CUSTOMER TYPE */}
-                <div className="space-y-2">
-                  <label className="text-xs font-bold text-slate-500 uppercase">
-                    Customer Type
-                  </label>
-                  <select
-                    value={customerType}
-                    onChange={(e) => setCustomerType(e.target.value as CustomerType)}
-                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 font-semibold text-slate-700"
-                  >
-                    <option value="WALK_IN">Walk-in</option>
-                    <option value="BOOKING">Booking</option>
-                    <option value="MONTHLY">Monthly Subscription</option>
-                  </select>
-                </div>
-
                 {/* CARD CODE */}
-                <div className="space-y-2">
+                <div className="space-y-2 sm:col-span-2">
                   <label className="text-xs font-bold text-slate-500 uppercase">
                     Card Code
                   </label>
@@ -860,6 +897,9 @@ export default function VehicleCheckin() {
                     <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs font-bold">
                       <span className={getCardStatusClassName(selectedCard.status)}>
                         {selectedCard.type} · {selectedCard.status}
+                      </span>
+                      <span className="rounded-md bg-slate-100 px-2 py-1 text-slate-600">
+                        {getCustomerTypeLabel(customerType)}
                       </span>
                       {selectedCard.vehiclePlate && (
                         <span className="text-emerald-600">
@@ -920,33 +960,6 @@ export default function VehicleCheckin() {
                   </div>
                 )}
 
-                {/* RECOMMENDED ZONE */}
-                {!(customerType === 'MONTHLY' && vehicleType === 'CAR') && (
-                  <div className="space-y-2 sm:col-span-2">
-                    <label className="text-xs font-bold text-slate-500 uppercase">
-                      Recommended Zone
-                    </label>
-
-                    <select
-                      value={selectedZoneId ?? ''}
-                      onChange={(e) => setSelectedZoneId(Number(e.target.value))}
-                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 font-bold text-slate-700"
-                    >
-                      {availableZones.map((zone) => (
-                        <option key={zone.id} value={zone.id}>
-                          {zone.name} - {getSlotsLeft(zone)} places left
-                        </option>
-                      ))}
-                    </select>
-
-                    {availableZones.length === 0 && (
-                      <p className="text-xs text-red-600 font-bold">
-                        No available zone for this vehicle type.
-                      </p>
-                    )}
-                  </div>
-                )}
-
                 {/* MONTHLY CAR SLOT */}
                 {customerType === 'MONTHLY' && vehicleType === 'CAR' && (
                   <div className="space-y-2 sm:col-span-2">
@@ -966,10 +979,11 @@ export default function VehicleCheckin() {
               {/* SUBMIT BUTTON */}
               <button
                 type="submit"
+                disabled={!canCheckin}
                 className="w-full py-4 bg-emerald-500 text-white rounded-xl font-bold shadow-lg shadow-emerald-500/20 hover:bg-emerald-600 transition-all flex items-center justify-center gap-2 disabled:bg-slate-300 disabled:shadow-none"
               >
                 <span className="material-symbols-outlined">login</span>
-                Confirm Check-in & Create Parking Session
+                Confirm Check-in
               </button>
             </form>
           </div>
@@ -1008,76 +1022,96 @@ export default function VehicleCheckin() {
           </div>
 
           {/* ZONE AVAILABILITY */}
-          <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-5">
-            <h3 className="text-lg font-bold text-slate-800">
-              Zone Availability
-            </h3>
+          <div className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
+            <div className="flex items-start justify-between gap-4 border-b border-slate-100 px-6 py-5">
+              <div>
+                <h3 className="text-lg font-bold text-slate-800">Open zones</h3>
+                <p className="mt-1 text-xs leading-5 text-slate-500">
+                  Live availability for {getVehicleTypeLabel(vehicleType).toLowerCase()} check-in.
+                </p>
+              </div>
+              <span className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-50 px-2.5 py-1.5 text-[10px] font-black uppercase tracking-wider text-emerald-700">
+                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" />
+                Live
+              </span>
+            </div>
 
-            {/* AVAILABLE ZONES */}
-            <div>
-              <h4 className="text-xs font-bold text-emerald-700 uppercase mb-3">
-                Available Zones
-              </h4>
+            <div className="space-y-3 p-4">
+              {availableZones.map((zone) => {
+                const spacesLeft = getSlotsLeft(zone);
+                const availabilityPercent = Math.round((spacesLeft / zone.capacity) * 100);
+                const isNearlyFull = availabilityPercent <= 20;
+                const isSelected = zone.id === selectedZoneId;
 
-              <div className="space-y-3">
-                {availableZones.map((zone) => (
-                  <div
+                return (
+                  <button
                     key={zone.id}
-                    className="p-4 rounded-xl border border-emerald-100 bg-emerald-50"
+                    type="button"
+                    onClick={() => setSelectedZoneId(zone.id)}
+                    aria-pressed={isSelected}
+                    className={`group w-full rounded-xl border p-4 text-left transition-all focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 ${
+                      isSelected
+                        ? 'border-emerald-300 bg-emerald-50/70 shadow-sm shadow-emerald-900/5'
+                        : 'border-slate-200 bg-white hover:border-emerald-200 hover:bg-slate-50/70'
+                    }`}
                   >
-                    <div className="flex justify-between text-sm font-bold text-slate-700">
-                      <span>{zone.name}</span>
-                      <span className="text-emerald-600">
-                        {getSlotsLeft(zone)} left
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className={`h-2 w-2 shrink-0 rounded-full ${isNearlyFull ? 'bg-amber-500' : 'bg-emerald-500'}`} />
+                          <p className="truncate text-sm font-bold text-slate-800">{zone.name}</p>
+                        </div>
+                        <p className="mt-1 pl-4 text-[11px] text-slate-500">
+                          {zone.buildingName} · {zone.floorName}
+                        </p>
+                      </div>
+
+                      <div className="shrink-0 text-right">
+                        <p className={`text-xl font-black tabular-nums ${isNearlyFull ? 'text-amber-600' : 'text-emerald-600'}`}>
+                          {spacesLeft}
+                        </p>
+                        <p className="text-[9px] font-bold uppercase tracking-wider text-slate-400">spaces open</p>
+                      </div>
+                    </div>
+
+                    <div className="mt-4 flex items-center gap-3">
+                      <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-200/80">
+                        <div
+                          className={`h-full rounded-full transition-all duration-500 ${isNearlyFull ? 'bg-amber-500' : 'bg-emerald-500'}`}
+                          style={{ width: `${availabilityPercent}%` }}
+                        />
+                      </div>
+                      <span className="w-9 text-right text-[10px] font-bold tabular-nums text-slate-500">
+                        {availabilityPercent}%
                       </span>
                     </div>
 
-                    <p className="text-xs text-slate-500 mt-1">
-                      {zone.occupied}/{zone.capacity} occupied · {zone.accessType}
-                    </p>
-                  </div>
-                ))}
+                    {isSelected && (
+                      <div className="mt-3 flex items-center gap-1.5 border-t border-emerald-200/70 pt-3 text-[10px] font-bold text-emerald-700">
+                        <span className="material-symbols-outlined text-sm">check_circle</span>
+                        Recommended for this check-in
+                      </div>
+                    )}
+                  </button>
+                );
+              })}
 
-                {availableZones.length === 0 && (
-                  <p className="text-sm text-slate-400">No available zone.</p>
-                )}
-              </div>
-            </div>
-
-            {/* FULL ZONES */}
-            <div>
-              <h4 className="text-xs font-bold text-red-700 uppercase mb-3">
-                Full Zones
-              </h4>
-
-              <div className="space-y-3">
-                {fullZones.map((zone) => (
-                  <div
-                    key={zone.id}
-                    className="p-4 rounded-xl border border-red-100 bg-red-50"
-                  >
-                    <div className="flex justify-between text-sm font-bold text-slate-700">
-                      <span>{zone.name}</span>
-                      <span className="text-red-600">Full</span>
-                    </div>
-
-                    <p className="text-xs text-slate-500 mt-1">
-                      {zone.occupied}/{zone.capacity} occupied · {zone.accessType}
-                    </p>
-                  </div>
-                ))}
-
-                {fullZones.length === 0 && (
-                  <p className="text-sm text-slate-400">No full zone.</p>
-                )}
-              </div>
+              {availableZones.length === 0 && (
+                <div className="px-4 py-8 text-center">
+                  <span className="material-symbols-outlined text-3xl text-slate-300">block</span>
+                  <p className="mt-2 text-sm font-semibold text-slate-600">No open zone available</p>
+                  <p className="mt-1 text-xs text-slate-400">Try another vehicle type or contact the floor operator.</p>
+                </div>
+              )}
             </div>
           </div>
 
         </div>
       </div>
+      )}
 
       {/* ACTIVE PARKING SESSIONS TABLE */}
+      {activeView === 'SESSIONS' && (
       <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-5">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
           <div>
@@ -1232,6 +1266,7 @@ export default function VehicleCheckin() {
           </table>
         </div>
       </div>
+      )}
 
       {isCheckedIn && (
         <div className="fixed inset-0 z-[100] bg-emerald-500 flex flex-col items-center justify-center px-6 text-center text-white">

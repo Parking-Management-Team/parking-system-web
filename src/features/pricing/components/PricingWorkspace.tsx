@@ -13,6 +13,7 @@ export default function PricingWorkspace() {
     tariffs,
     memberships,
     fees,
+    incidentTypes,
     showToast,
     toastMessage,
     toastType,
@@ -28,6 +29,9 @@ export default function PricingWorkspace() {
     handleOpenAddWindow,
     handleDeleteTariff,
     handleOpenEditPolicy,
+    handleOpenAddIncidentType,
+    handleOpenEditIncidentType,
+    handleDeleteIncidentType,
     vehicleTypes
   } = pricing;
 
@@ -39,6 +43,8 @@ export default function PricingWorkspace() {
       handleOpenCreatePolicy();
     } else if (activeTab === 'memberships') {
       handleOpenAddMembership();
+    } else if (activeTab === 'incident-types') {
+      handleOpenAddIncidentType();
     } else {
       handleOpenAddFee();
     }
@@ -50,8 +56,10 @@ export default function PricingWorkspace() {
         return 'Create New Pricing Policy';
       case 'memberships':
         return 'Add Monthly Membership';
-      case 'fees':
-        return 'Add Fee/Penalty';
+      case 'incident-types':
+        return 'Add Incident Type';
+      default:
+        return 'Add Penalty Configuration';
     }
   };
 
@@ -116,6 +124,16 @@ export default function PricingWorkspace() {
                 }`}
               >
                 Monthly Memberships
+              </button>
+              <button
+                onClick={() => setActiveTab('incident-types')}
+                className={`py-4 px-1 border-b-2 font-bold text-sm transition-all whitespace-nowrap ${
+                  activeTab === 'incident-types'
+                    ? 'border-[#006d43] text-[#006d43]'
+                    : 'border-transparent text-slate-400 hover:text-slate-600 hover:border-slate-300'
+                }`}
+              >
+                Incident Types
               </button>
               <button
                 onClick={() => setActiveTab('fees')}
@@ -466,7 +484,82 @@ export default function PricingWorkspace() {
               </div>
             )}
 
-            {/* TAB 3: SERVICE FEES & PENALTIES */}
+            {/* TAB 3: INCIDENT TYPES */}
+            {activeTab === 'incident-types' && (
+              <div className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <h4 className="text-base font-bold text-[#111c2d]">Incident Types Management</h4>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {incidentTypes.map((it) => (
+                    <div 
+                      key={it.id} 
+                      className="bg-white border border-slate-200 rounded-2xl p-5 hover:shadow-md transition-all"
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center">
+                            <span className="material-symbols-outlined text-amber-600 text-[20px]">warning</span>
+                          </div>
+                          <div>
+                            <span className="text-[10px] font-mono bg-slate-100 text-slate-500 px-2 py-0.5 rounded">
+                              {it.incidentCode}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <button 
+                            onClick={() => handleOpenEditIncidentType(it)}
+                            className="h-7 w-7 flex items-center justify-center rounded-full hover:bg-slate-100 text-slate-400 hover:text-[#006d43] transition-colors"
+                            title="Edit incident type"
+                          >
+                            <span className="material-symbols-outlined text-[16px]">edit</span>
+                          </button>
+                          <button 
+                            onClick={() => handleDeleteIncidentType(it.id)}
+                            className="h-7 w-7 flex items-center justify-center rounded-full hover:bg-red-50 text-slate-400 hover:text-red-500 transition-colors"
+                            title="Delete incident type"
+                          >
+                            <span className="material-symbols-outlined text-[16px]">delete</span>
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="mt-4">
+                        <h5 className="text-sm font-bold text-slate-800">{it.incidentName}</h5>
+                        <p className="text-xs text-slate-500 mt-1 line-clamp-2">{it.description || 'Không có mô tả'}</p>
+                      </div>
+
+                      <div className="mt-4 pt-3 border-t border-slate-100">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs text-slate-400 font-medium">Phạt mặc định</span>
+                          <span className="text-sm font-bold text-red-600">
+                            {it.defaultPenaltyFee.toLocaleString('en-US')} VND
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {incidentTypes.length === 0 && (
+                  <div className="text-center py-12 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+                    <span className="material-symbols-outlined text-slate-300 text-[48px]">add_circle</span>
+                    <p className="text-slate-400 text-sm mt-2 font-medium">Chưa có incident type nào</p>
+                    <button
+                      onClick={handleOpenAddIncidentType}
+                      className="mt-4 inline-flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl transition-all"
+                    >
+                      <span className="material-symbols-outlined text-[16px]">add</span>
+                      Thêm Incident Type
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* TAB 4: SERVICE FEES & PENALTIES */}
             {activeTab === 'fees' && (
               <div className="space-y-4">
                 <div className="flex justify-between items-center">

@@ -63,14 +63,20 @@ export default function PricingModals({ pricing }: PricingModalsProps) {
     setFormFeeName,
     formFeeAmount,
     setFormFeeAmount,
-    formFeeTriggerType,
-    setFormFeeTriggerType,
-    formFeeTriggerVal,
-    setFormFeeTriggerVal,
     formFeeDescription,
     setFormFeeDescription,
-    formFeeIsActive,
-    setFormFeeIsActive,
+
+    // Incident Type States
+    isIncidentTypeModalOpen,
+    editingIncidentType,
+    formIncidentCode,
+    setFormIncidentCode,
+    formIncidentName,
+    setFormIncidentName,
+    formIncidentDescription,
+    setFormIncidentDescription,
+    formIncidentDefaultFee,
+    setFormIncidentDefaultFee,
 
     // Handlers
     handleCloseEditTariff,
@@ -81,6 +87,9 @@ export default function PricingModals({ pricing }: PricingModalsProps) {
 
     handleCloseFeeModal,
     handleSaveFee,
+
+    handleCloseIncidentTypeModal,
+    handleSaveIncidentType,
     vehicleTypes,
     submitError
   } = pricing;
@@ -525,6 +534,95 @@ export default function PricingModals({ pricing }: PricingModalsProps) {
                 className="px-5 py-2.5 rounded-xl bg-[#006d43] hover:bg-[#005c38] text-white font-semibold text-xs transition-all shadow-md"
               >
                 {editingFee ? 'Save Changes' : 'Save Configuration'}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    );
+  }
+
+  {/* Render Add/Edit Incident Type Modal */}
+  if (isIncidentTypeModalOpen) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 overflow-y-auto">
+        <div className="bg-white w-full max-w-md rounded-2xl shadow-xl flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+          
+          <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+            <h2 className="text-xl font-bold text-slate-800">
+              {editingIncidentType ? 'Edit Incident Type' : 'Add Incident Type'}
+            </h2>
+            <button 
+              onClick={handleCloseIncidentTypeModal}
+              className="h-9 w-9 flex items-center justify-center rounded-full hover:bg-slate-100 transition-colors text-slate-400 hover:text-slate-600"
+            >
+              <span className="material-symbols-outlined text-[20px]">close</span>
+            </button>
+          </div>
+
+          <form onSubmit={handleSaveIncidentType} className="p-6 space-y-4 bg-slate-50/50">
+            <div>
+              <label className="block text-xs font-bold text-slate-500 mb-1.5 uppercase tracking-wide">Incident Code</label>
+              <input 
+                type="text" 
+                value={formIncidentCode}
+                onChange={(e) => setFormIncidentCode(e.target.value)}
+                className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all"
+                placeholder="e.g. TICKET_LOST"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-500 mb-1.5 uppercase tracking-wide">Incident Name</label>
+              <input 
+                type="text" 
+                value={formIncidentName}
+                onChange={(e) => setFormIncidentName(e.target.value)}
+                className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all"
+                placeholder="e.g. Mất vé"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-500 mb-1.5 uppercase tracking-wide">Description</label>
+              <textarea 
+                value={formIncidentDescription}
+                onChange={(e) => setFormIncidentDescription(e.target.value)}
+                className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all resize-none"
+                rows={3}
+                placeholder="Mô tả sự cố..."
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-500 mb-1.5 uppercase tracking-wide">Default Penalty Fee (VND)</label>
+              <div className="relative">
+                <input 
+                  type="number" 
+                  value={formIncidentDefaultFee === 0 ? '' : formIncidentDefaultFee}
+                  onChange={(e) => setFormIncidentDefaultFee(Number(e.target.value))}
+                  className="w-full bg-white border border-slate-200 rounded-xl pl-4 pr-12 py-2.5 text-sm font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all"
+                  placeholder="0"
+                />
+                <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">VND</span>
+              </div>
+            </div>
+
+            <div className="pt-4 border-t border-slate-100 flex items-center justify-end gap-3 bg-white">
+              <button 
+                type="button"
+                onClick={handleCloseIncidentTypeModal}
+                className="px-5 py-2.5 rounded-xl border border-slate-200 text-slate-500 hover:bg-slate-50 font-semibold text-xs transition-all"
+              >
+                Cancel
+              </button>
+              <button 
+                type="submit"
+                className="px-5 py-2.5 rounded-xl bg-[#006d43] hover:bg-[#005c38] text-white font-semibold text-xs transition-all shadow-md"
+              >
+                {editingIncidentType ? 'Save Changes' : 'Create Incident Type'}
               </button>
             </div>
           </form>

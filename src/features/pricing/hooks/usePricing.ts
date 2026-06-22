@@ -455,7 +455,7 @@ interface PolicyApiResponse {
   }, [tariffs, vehicleTypes]);
 
   // UI state variables
-  const [activeTab, setActiveTab] = useState<'standard' | 'memberships' | 'fees'>('standard');
+  const [activeTab, setActiveTab] = useState<'standard' | 'memberships' | 'incident-types' | 'fees'>('standard');
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
   const [toastType, setToastType] = useState<'success' | 'error'>('success');
@@ -788,6 +788,73 @@ interface PolicyApiResponse {
 
   const handleDeleteFee = (id: string) => {
     triggerToast('Penalty configurations cannot be deleted, they are deactivated when a new configuration is created.', 'error');
+  };
+
+  // === INCIDENT TYPE HANDLERS ===
+  const [isIncidentTypeModalOpen, setIsIncidentTypeModalOpen] = useState(false);
+  const [editingIncidentType, setEditingIncidentType] = useState<IncidentType | null>(null);
+  const [formIncidentCode, setFormIncidentCode] = useState('');
+  const [formIncidentName, setFormIncidentName] = useState('');
+  const [formIncidentDescription, setFormIncidentDescription] = useState('');
+  const [formIncidentDefaultFee, setFormIncidentDefaultFee] = useState(0);
+
+  const handleOpenAddIncidentType = () => {
+    setEditingIncidentType(null);
+    setFormIncidentCode('');
+    setFormIncidentName('');
+    setFormIncidentDescription('');
+    setFormIncidentDefaultFee(0);
+    setIsIncidentTypeModalOpen(true);
+  };
+
+  const handleOpenEditIncidentType = (it: IncidentType) => {
+    setEditingIncidentType(it);
+    setFormIncidentCode(it.incidentCode);
+    setFormIncidentName(it.incidentName);
+    setFormIncidentDescription(it.description);
+    setFormIncidentDefaultFee(it.defaultPenaltyFee);
+    setIsIncidentTypeModalOpen(true);
+  };
+
+  const handleCloseIncidentTypeModal = () => {
+    setIsIncidentTypeModalOpen(false);
+    setEditingIncidentType(null);
+  };
+
+  const handleSaveIncidentType = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formIncidentCode.trim() || !formIncidentName.trim()) {
+      triggerToast('Incident Code and Name are required.', 'error');
+      return;
+    }
+
+    if (editingIncidentType) {
+      setIncidentTypes(prev =>
+        prev.map(it =>
+          it.id === editingIncidentType.id
+            ? { ...it, incidentCode: formIncidentCode, incidentName: formIncidentName, description: formIncidentDescription, defaultPenaltyFee: formIncidentDefaultFee }
+            : it
+        )
+      );
+      triggerToast('Incident type updated successfully!', 'success');
+    } else {
+      const maxId = incidentTypes.reduce((max, it) => Math.max(max, it.id), 0);
+      const newIncidentType: IncidentType = {
+        id: maxId + 1,
+        incidentCode: formIncidentCode,
+        incidentName: formIncidentName,
+        description: formIncidentDescription,
+        defaultPenaltyFee: formIncidentDefaultFee
+      };
+      setIncidentTypes(prev => [...prev, newIncidentType]);
+      triggerToast('Incident type created successfully!', 'success');
+    }
+    handleCloseIncidentTypeModal();
+  };
+
+  const handleDeleteIncidentType = (id: number) => {
+    setIncidentTypes(prev => prev.filter(it => it.id !== id));
+    triggerToast('Incident type deleted.', 'success');
   };
 
   // --- Handlers cho Create Policy (S1) ---
@@ -1311,7 +1378,24 @@ interface PolicyApiResponse {
     handleOpenEditFee,
     handleCloseFeeModal,
     handleSaveFee,
-    handleDeleteFee
+    handleDeleteFee,
+
+    // Incident Type Handlers
+    isIncidentTypeModalOpen,
+    editingIncidentType,
+    formIncidentCode,
+    setFormIncidentCode,
+    formIncidentName,
+    setFormIncidentName,
+    formIncidentDescription,
+    setFormIncidentDescription,
+    formIncidentDefaultFee,
+    setFormIncidentDefaultFee,
+    handleOpenAddIncidentType,
+    handleOpenEditIncidentType,
+    handleCloseIncidentTypeModal,
+    handleSaveIncidentType,
+    handleDeleteIncidentType
   };
 
 }

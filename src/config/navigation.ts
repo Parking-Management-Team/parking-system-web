@@ -149,4 +149,58 @@ export const ROLE_NAVIGATION: Record<string, NavigationItem[]> = {
       isFooter: true,
     },
   ],
+  DRIVER: [
+    {
+      label: 'Dashboard',
+      href: '/dashboard/driver',
+      icon: 'grid_view',
+    },
+    {
+      label: 'Parking Booking',
+      href: '/dashboard/driver/booking',
+      icon: 'calendar_month',
+    },
+    {
+      label: 'Parking Session',
+      href: '/dashboard/driver/sessions',
+      icon: 'timer',
+    },
+    {
+      label: 'Payment',
+      href: '/dashboard/driver/payments',
+      icon: 'account_balance_wallet',
+    },
+    {
+      label: 'Payment History',
+      href: '/dashboard/driver/payment-history',
+      icon: 'receipt_long',
+    },
+    {
+      label: 'Parking History',
+      href: '/dashboard/driver/parking-history',
+      icon: 'history',
+    },
+    {
+      label: 'My Vehicles',
+      href: '/dashboard/driver/vehicles',
+      icon: 'directions_car',
+    },
+    {
+      label: 'Feedback & Reports',
+      href: '/dashboard/driver/reports',
+      icon: 'chat_bubble',
+    },
+    {
+      label: 'Help Center',
+      href: '/dashboard/driver/help',
+      icon: 'help',
+    },
+    {
+      label: 'My Profile',
+      href: '/dashboard/profile',
+      icon: 'person',
+      isFooter: true,
+    },
+  ],
 };
+

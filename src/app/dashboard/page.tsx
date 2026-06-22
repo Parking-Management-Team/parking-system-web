@@ -30,6 +30,9 @@ export default function DashboardRedirect() {
     } else if (user.role === 'ADMIN') {
       // Vai trò Admin -> điều hướng đến admin portal
       router.replace('/dashboard/admin');
+    } else if (user.role === 'DRIVER') {
+      // Vai trò Driver -> điều hướng đến driver portal
+      router.replace('/dashboard/driver');
     } else {
       // Các vai trò khác -> tạm thời quay về trang chủ hoặc trang tương ứng
       router.replace('/');

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/features/auth';
 import { api, apiClient } from '@/lib/api/client';
@@ -37,6 +37,11 @@ export function SlotManagementDashboard() {
   // Session details modal states
   const [selectedSessionDetails, setSelectedSessionDetails] = useState<ParkingSessionDto | null>(null);
   const [completingSessionId, setCompletingSessionId] = useState<number | null>(null);
+
+  // Real-time polling
+  const POLL_INTERVAL_MS = 10_000;
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Show Toast Helper
   const showToastMessage = useCallback((message: string, type: 'success' | 'error' = 'success') => {
@@ -205,6 +210,76 @@ export function SlotManagementDashboard() {
   useEffect(() => {
     fetchSlotsForFloor();
   }, [fetchSlotsForFloor]);
+
+  // ─── Auto-polling: refresh slots + sessions every 10s ─────────────
+  const refreshSlotsAndSessions = useCallback(async () => {
+    if (!selectedFloorId) return;
+    try {
+      const floorZones = zones.filter(z => z.floorId === selectedFloorId && z.vehicleType !== 'Motorbike');
+
+      const sessionRes = await api.get<BaseResponse<ParkingSessionDto[]>>('/parking-sessions/active').catch(() => null);
+      const activeSess = sessionRes?.success && sessionRes.data ? sessionRes.data : [];
+      setActiveSessions(activeSess);
+
+      const zoneSlotsPromises = floorZones.map(async (zone) => {
+        try {
+          const res = await api.get<BaseResponse<ParkingSlotDto[]>>(`/ParkingSlots/zone/${zone.id}`);
+          if (res.success && res.data) {
+            return res.data.map(item => {
+              const session = activeSess.find(s => s.slotId === item.id);
+              let assignedVehicle = undefined;
+              if (session) {
+                assignedVehicle = {
+                  plate: session.licensePlateIn,
+                  model: 'Registered Vehicle',
+                  ownerName: session.monthlySubscriptionId ? `Subscriber (Sub ID: ${session.monthlySubscriptionId})` : 'Visitor / Short-term',
+                  memberId: session.monthlySubscriptionId ? `SUB-${session.monthlySubscriptionId}` : 'WALK-IN',
+                  startDate: session.checkInTime,
+                  endDate: session.checkOutTime || undefined,
+                  notes: session.bookingId ? `Booking #${session.bookingId}` : 'Check-in via staff'
+                };
+              }
+              const mapStatus = (statusVal: number): Slot['status'] => {
+                switch (statusVal) {
+                  case 0: return 'AVAILABLE';
+                  case 1: return 'MAINTENANCE';
+                  case 2: return 'OCCUPIED';
+                  case 3: return 'BLOCKED';
+                  default: return 'AVAILABLE';
+                }
+              };
+              return {
+                id: item.id,
+                slotCode: item.code,
+                slotName: item.name,
+                zoneId: item.zoneId,
+                zoneName: zone.name,
+                floorId: selectedFloorId,
+                buildingId: selectedBuildingId || 0,
+                slotType: zone.vehicleType === 'EV Charging' ? 'EV Charging' as const : 'Standard' as const,
+                status: mapStatus(item.status),
+                assignedVehicle
+              };
+            });
+          }
+        } catch { return []; }
+        return [];
+      });
+
+      const results = await Promise.all(zoneSlotsPromises);
+      setSlots(results.flat());
+      setLastUpdated(new Date());
+    } catch { /* silent polling failure */ }
+  }, [selectedFloorId, zones, selectedBuildingId]);
+
+  useEffect(() => {
+    if (pollingRef.current) clearInterval(pollingRef.current);
+    if (!selectedFloorId) return;
+    pollingRef.current = setInterval(refreshSlotsAndSessions, POLL_INTERVAL_MS);
+    return () => {
+      if (pollingRef.current) clearInterval(pollingRef.current);
+    };
+  }, [refreshSlotsAndSessions, selectedFloorId]);
 
   // Derived filterings
   const activeFloors = useMemo(() => {
@@ -388,7 +463,7 @@ export function SlotManagementDashboard() {
         </div>
 
         {/* ===== TAB BAR NAVIGATION ===== */}
-        <div className="mb-8 border-b border-slate-200 flex justify-between items-center">
+        <div className="mb-4 border-b border-slate-200 flex justify-between items-center">
           <div className="flex gap-8">
             <button
               onClick={() => setActiveTab('map')}
@@ -414,13 +489,131 @@ export function SlotManagementDashboard() {
             </button>
           </div>
 
-          {loading && (
-            <div className="flex items-center gap-2 text-xs font-semibold text-slate-500 pb-3">
-              <div className="w-4 h-4 border-2 border-[#006d43] border-t-transparent rounded-full animate-spin"></div>
-              Syncing status...
-            </div>
-          )}
+          <div className="flex items-center gap-3 pb-3">
+            {loading && (
+              <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-500">
+                <div className="w-3.5 h-3.5 border-2 border-[#006d43] border-t-transparent rounded-full animate-spin"></div>
+                Syncing...
+              </div>
+            )}
+            {lastUpdated && !loading && (
+              <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-400">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#006d43] opacity-60"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-[#006d43]"></span>
+                </span>
+                LIVE · Updated {lastUpdated.toLocaleTimeString()}
+              </div>
+            )}
+            <button
+              onClick={refreshSlotsAndSessions}
+              title="Refresh now"
+              className="p-1.5 rounded-lg text-slate-400 hover:text-[#006d43] hover:bg-emerald-50 transition-colors"
+            >
+              <span className="material-symbols-outlined text-[16px] align-middle">refresh</span>
+            </button>
+          </div>
         </div>
+
+        {/* ===== FLOOR CAPACITY SUMMARY BAR ===== */}
+        {selectedFloorId && (() => {
+          const floorCarSlots = slots;
+          const totalCar = floorCarSlots.length;
+          const availableCar = floorCarSlots.filter(s => s.status === 'AVAILABLE').length;
+          const occupiedCar = floorCarSlots.filter(s => s.status === 'OCCUPIED').length;
+          const floorMotorZones = activeMotorbikeZones;
+          const totalMoto = floorMotorZones.reduce((sum, z) => sum + z.slotCapacity, 0);
+          const occupiedMoto = activeSessions.filter(s => floorMotorZones.some(z => z.id === s.zoneId)).length;
+          const availableMoto = Math.max(0, totalMoto - occupiedMoto);
+          const carPct = totalCar > 0 ? Math.round((occupiedCar / totalCar) * 100) : 0;
+          const motoPct = totalMoto > 0 ? Math.round((occupiedMoto / totalMoto) * 100) : 0;
+
+          return (
+            <div className="mb-8 grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* Car Capacity */}
+              <div className="bg-white border border-slate-100 shadow-sm rounded-2xl p-4 flex flex-col gap-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="material-symbols-outlined text-[#006d43] text-[20px]">directions_car</span>
+                    <span className="text-xs font-extrabold text-slate-700 uppercase tracking-wide">Car Slots · This Floor</span>
+                  </div>
+                  <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full ${
+                    carPct >= 90 ? 'bg-red-50 text-red-600' :
+                    carPct >= 75 ? 'bg-amber-50 text-amber-600' :
+                    'bg-emerald-50 text-[#006d43]'
+                  }`}>
+                    {carPct}% Full
+                  </span>
+                </div>
+                <div className="flex items-end gap-4">
+                  <div className="text-center">
+                    <p className="text-2xl font-black text-[#006d43]">{availableCar}</p>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase mt-0.5">Available</p>
+                  </div>
+                  <div className="h-8 w-px bg-slate-100"></div>
+                  <div className="text-center">
+                    <p className="text-2xl font-black text-[#263143]">{occupiedCar}</p>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase mt-0.5">Occupied</p>
+                  </div>
+                  <div className="h-8 w-px bg-slate-100"></div>
+                  <div className="text-center">
+                    <p className="text-2xl font-black text-slate-600">{totalCar}</p>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase mt-0.5">Total</p>
+                  </div>
+                </div>
+                <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
+                  <div
+                    className={`h-full rounded-full transition-all duration-700 ${
+                      carPct >= 90 ? 'bg-red-500' : carPct >= 75 ? 'bg-amber-500' : 'bg-[#006d43]'
+                    }`}
+                    style={{ width: `${carPct}%` }}
+                  />
+                </div>
+              </div>
+
+              {/* Motorbike Capacity */}
+              <div className="bg-white border border-slate-100 shadow-sm rounded-2xl p-4 flex flex-col gap-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="material-symbols-outlined text-slate-600 text-[20px]">two_wheeler</span>
+                    <span className="text-xs font-extrabold text-slate-700 uppercase tracking-wide">Motorbike Zones · This Floor</span>
+                  </div>
+                  <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full ${
+                    motoPct >= 90 ? 'bg-red-50 text-red-600' :
+                    motoPct >= 75 ? 'bg-amber-50 text-amber-600' :
+                    'bg-emerald-50 text-[#006d43]'
+                  }`}>
+                    {motoPct}% Full
+                  </span>
+                </div>
+                <div className="flex items-end gap-4">
+                  <div className="text-center">
+                    <p className="text-2xl font-black text-[#006d43]">{availableMoto}</p>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase mt-0.5">Available</p>
+                  </div>
+                  <div className="h-8 w-px bg-slate-100"></div>
+                  <div className="text-center">
+                    <p className="text-2xl font-black text-[#263143]">{occupiedMoto}</p>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase mt-0.5">Occupied</p>
+                  </div>
+                  <div className="h-8 w-px bg-slate-100"></div>
+                  <div className="text-center">
+                    <p className="text-2xl font-black text-slate-600">{totalMoto}</p>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase mt-0.5">Capacity</p>
+                  </div>
+                </div>
+                <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
+                  <div
+                    className={`h-full rounded-full transition-all duration-700 ${
+                      motoPct >= 90 ? 'bg-red-500' : motoPct >= 75 ? 'bg-amber-500' : 'bg-[#006d43]'
+                    }`}
+                    style={{ width: `${motoPct}%` }}
+                  />
+                </div>
+              </div>
+            </div>
+          );
+        })()}
 
         {/* ===== TAB CONTENT 1: VISUAL LAYOUT MAP ===== */}
         {activeTab === 'map' && (

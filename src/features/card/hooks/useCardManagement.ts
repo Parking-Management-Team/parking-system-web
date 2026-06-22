@@ -1,7 +1,11 @@
 'use client';
-
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import cardsMock from '../mock/cards.json';
+import {
+  createCard as createCardFromApi,
+  fetchCards as fetchCardsFromApi,
+  markCardLost as markCardLostFromApi,
+  updateCardStatus as updateCardStatusFromApi,
+} from '../services/card.service';
 import type {
   AssignMonthlySubscriptionInput,
   AssignSessionInput,
@@ -10,9 +14,8 @@ import type {
   CardType,
   CreateCardInput,
   ParkingCard,
+  UpdatableCardStatus,
 } from '../types/card';
-
-const initialCards = cardsMock as ParkingCard[];
 
 const result = (
   success: boolean,
@@ -25,11 +28,11 @@ const getAssignmentError = (card: ParkingCard): CardOperationResult | null => {
     return result(false, 'Lost cards cannot be assigned.');
   }
 
-  if (card.cardStatus === 'INACTIVE') {
-    return result(false, 'Inactive cards cannot be assigned.');
+  if (card.cardStatus === 'BLOCKED') {
+    return result(false, 'Blocked cards cannot be assigned.');
   }
 
-  if (card.cardStatus === 'ASSIGNED') {
+  if (card.cardStatus === 'ASSIGNED' || card.cardStatus === 'ACTIVE') {
     return result(false, 'This card is already assigned. Release it first.');
   }
 
@@ -41,10 +44,24 @@ export function useCardManagement() {
   const [searchCode, setSearchCode] = useState('');
   const [typeFilter, setTypeFilter] = useState<'ALL' | CardType>('ALL');
   const [statusFilter, setStatusFilter] = useState<'ALL' | CardStatus>('ALL');
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const fetchCards = useCallback(async () => {
-    // TODO: Replace with API call
-    setCards(initialCards.map((card) => ({ ...card })));
+    setIsLoading(true);
+    setLoadError(null);
+
+    try {
+      const apiCards = await fetchCardsFromApi();
+      setCards(apiCards);
+    } catch (error) {
+      setCards([]);
+      setLoadError(
+        error instanceof Error ? error.message : 'Could not load parking cards.'
+      );
+    } finally {
+      setIsLoading(false);
+    }
   }, []);
 
   useEffect(() => {
@@ -58,6 +75,7 @@ export function useCardManagement() {
       const matchesSearch =
         card.cardCode.toUpperCase().includes(search) ||
         (card.vehiclePlate?.toUpperCase().includes(search) ?? false);
+
       const matchesType = typeFilter === 'ALL' || card.cardType === typeFilter;
       const matchesStatus =
         statusFilter === 'ALL' || card.cardStatus === statusFilter;
@@ -66,8 +84,9 @@ export function useCardManagement() {
     });
   }, [cards, searchCode, statusFilter, typeFilter]);
 
-  const createCard = (input: CreateCardInput): CardOperationResult => {
-    // TODO: Replace with API call
+  const createCard = async (
+    input: CreateCardInput
+  ): Promise<CardOperationResult> => {
     const cardCode = input.cardCode.trim().toUpperCase();
 
     if (!cardCode) {
@@ -82,29 +101,22 @@ export function useCardManagement() {
       return result(false, 'Card code must be unique.');
     }
 
-    const newCard: ParkingCard = {
-      id: Date.now(),
-      cardCode,
-      cardType: input.cardType,
-      cardStatus: 'AVAILABLE',
-      currentSessionId: null,
-      monthlySubscriptionId: null,
-      subscriptionCode: null,
-      vehiclePlate: null,
-      validFrom: null,
-      validTo: null,
-      createdAt: new Date().toISOString(),
-    };
-
-    setCards((current) => [newCard, ...current]);
-    return result(true, `${cardCode} was created as an available card.`);
+    try {
+      await createCardFromApi({ ...input, cardCode });
+      await fetchCards();
+      return result(true, `${cardCode} was created as an available card.`);
+    } catch (error) {
+      return result(
+        false,
+        error instanceof Error ? error.message : 'Could not create card.'
+      );
+    }
   };
 
-  const updateCardStatus = (
+  const updateCardStatus = async (
     cardId: number,
-    nextStatus: 'AVAILABLE' | 'INACTIVE'
-  ): CardOperationResult => {
-    // TODO: Replace with API call
+    nextStatus: UpdatableCardStatus
+  ): Promise<CardOperationResult> => {
     const card = cards.find((item) => item.id === cardId);
 
     if (!card) return result(false, 'Card not found.');
@@ -113,29 +125,67 @@ export function useCardManagement() {
       return result(false, 'Lost cards require incident handling to change status.');
     }
 
-    if (card.cardStatus === 'ASSIGNED') {
+    if (card.cardStatus === 'ASSIGNED' || card.cardStatus === 'ACTIVE') {
       return result(false, 'Release the assigned card before changing its status.');
     }
 
-    setCards((current) =>
-      current.map((item) =>
-        item.id === cardId ? { ...item, cardStatus: nextStatus } : item
-      )
-    );
+    try {
+      await updateCardStatusFromApi(cardId, nextStatus);
+      await fetchCards();
 
-    return result(
-      true,
-      `${card.cardCode} is now ${
-        nextStatus === 'AVAILABLE' ? 'active and available' : 'inactive'
-      }.`
-    );
+      return result(
+        true,
+        `${card.cardCode} is now ${
+          nextStatus === 'AVAILABLE'
+            ? 'available'
+            : nextStatus === 'BLOCKED'
+              ? 'blocked'
+              : 'lost'
+        }.`
+      );
+    } catch (error) {
+      return result(
+        false,
+        error instanceof Error ? error.message : 'Could not update card status.'
+      );
+    }
+  };
+
+  const markCardLost = async (
+    cardId: number
+  ): Promise<CardOperationResult> => {
+    const card = cards.find((item) => item.id === cardId);
+
+    if (!card) return result(false, 'Card not found.');
+    if (card.cardStatus === 'LOST') {
+      return result(false, 'Card is already marked as lost.');
+    }
+
+    try {
+      await markCardLostFromApi(cardId);
+      await fetchCards();
+
+      if (card.cardStatus === 'ASSIGNED' || card.cardStatus === 'ACTIVE') {
+        return result(
+          true,
+          'Lost card requires incident handling before releasing.',
+          'warning'
+        );
+      }
+
+      return result(true, `${card.cardCode} was marked as lost.`, 'warning');
+    } catch (error) {
+      return result(
+        false,
+        error instanceof Error ? error.message : 'Could not mark card as lost.'
+      );
+    }
   };
 
   const assignCardToSession = (
     cardId: number,
     input: AssignSessionInput
   ): CardOperationResult => {
-    // TODO: Replace with API call
     const card = cards.find((item) => item.id === cardId);
 
     if (!card) return result(false, 'Card not found.');
@@ -143,8 +193,8 @@ export function useCardManagement() {
     const assignmentError = getAssignmentError(card);
     if (assignmentError) return assignmentError;
 
-    if (card.cardType !== 'NORMAL') {
-      return result(false, 'Only NORMAL cards can be assigned to a parking session.');
+    if (card.cardType !== 'PARKING_CARD') {
+      return result(false, 'Only PARKING_CARD cards can be assigned to a parking session.');
     }
 
     if (!Number.isInteger(input.currentSessionId) || input.currentSessionId <= 0) {
@@ -171,7 +221,6 @@ export function useCardManagement() {
     cardId: number,
     input: AssignMonthlySubscriptionInput
   ): CardOperationResult => {
-    // TODO: Replace with API call
     const card = cards.find((item) => item.id === cardId);
 
     if (!card) return result(false, 'Card not found.');
@@ -180,10 +229,7 @@ export function useCardManagement() {
     if (assignmentError) return assignmentError;
 
     if (card.cardType !== 'MONTHLY') {
-      return result(
-        false,
-        'Only MONTHLY cards can be assigned to a monthly subscription.'
-      );
+      return result(false, 'Only MONTHLY cards can be assigned to a monthly subscription.');
     }
 
     const subscriptionCode = input.subscriptionCode?.trim().toUpperCase();
@@ -192,10 +238,7 @@ export function useCardManagement() {
       Number(input.monthlySubscriptionId) > 0;
 
     if (!hasSubscriptionId && !subscriptionCode) {
-      return result(
-        false,
-        'MONTHLY card requires monthlySubscriptionId or subscriptionCode.'
-      );
+      return result(false, 'MONTHLY card requires monthlySubscriptionId or subscriptionCode.');
     }
 
     if (input.validFrom && input.validTo && input.validFrom >= input.validTo) {
@@ -224,7 +267,6 @@ export function useCardManagement() {
   };
 
   const releaseCard = (cardId: number): CardOperationResult => {
-    // TODO: Replace with API call
     const card = cards.find((item) => item.id === cardId);
 
     if (!card) return result(false, 'Card not found.');
@@ -267,30 +309,6 @@ export function useCardManagement() {
     return result(true, `${card.cardCode} was released and is now available.`);
   };
 
-  const markCardLost = (cardId: number): CardOperationResult => {
-    // TODO: Replace with API call
-    const card = cards.find((item) => item.id === cardId);
-
-    if (!card) return result(false, 'Card not found.');
-    if (card.cardStatus === 'LOST') return result(false, 'Card is already marked as lost.');
-
-    setCards((current) =>
-      current.map((item) =>
-        item.id === cardId ? { ...item, cardStatus: 'LOST' } : item
-      )
-    );
-
-    if (card.cardStatus === 'ASSIGNED') {
-      return result(
-        true,
-        'Lost card requires incident handling before releasing.',
-        'warning'
-      );
-    }
-
-    return result(true, `${card.cardCode} was marked as lost.`, 'warning');
-  };
-
   return {
     cards,
     filteredCards,
@@ -300,6 +318,8 @@ export function useCardManagement() {
     setTypeFilter,
     statusFilter,
     setStatusFilter,
+    isLoading,
+    loadError,
     fetchCards,
     createCard,
     updateCardStatus,
@@ -311,3 +331,4 @@ export function useCardManagement() {
 }
 
 export type UseCardManagementResult = ReturnType<typeof useCardManagement>;
+

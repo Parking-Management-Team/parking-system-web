@@ -1,6 +1,16 @@
-export type CardType = 'NORMAL' | 'MONTHLY';
+export type CardType = 'PARKING_CARD' | 'MONTHLY' | 'UNKNOWN';
 
-export type CardStatus = 'AVAILABLE' | 'ASSIGNED' | 'INACTIVE' | 'LOST';
+export type CardStatus =
+  | 'AVAILABLE'
+  | 'ACTIVE'
+  | 'ASSIGNED'
+  | 'LOST'
+  | 'BLOCKED'
+  | 'UNKNOWN';
+
+export type CreatableCardType = 'PARKING_CARD' | 'MONTHLY';
+
+export type UpdatableCardStatus = 'AVAILABLE' | 'BLOCKED' | 'LOST';
 
 export interface ParkingCard {
   id: number;
@@ -18,7 +28,7 @@ export interface ParkingCard {
 
 export interface CreateCardInput {
   cardCode: string;
-  cardType: CardType;
+  cardType: CreatableCardType;
 }
 
 export interface AssignSessionInput {

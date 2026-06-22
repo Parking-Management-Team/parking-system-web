@@ -33,11 +33,6 @@ export const ROLE_NAVIGATION: Record<string, NavigationItem[]> = {
       icon: 'local_parking',
     },
     {
-      label: 'Vehicle Details',
-      href: '/dashboard/manager/vehicles',
-      icon: 'directions_car',
-    },
-    {
       label: 'Pricing Management',
       href: '/dashboard/manager/pricing',
       icon: 'payments',

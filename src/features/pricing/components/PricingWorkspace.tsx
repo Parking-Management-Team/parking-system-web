@@ -26,8 +26,11 @@ export default function PricingWorkspace() {
     handleOpenActivateDialog,
     handleOpenAddWindow,
     handleDeleteTariff,
+    handleOpenEditPolicy,
     vehicleTypes
   } = pricing;
+
+  const [showOnlyActive, setShowOnlyActive] = React.useState(false);
 
   // Handler for primary button based on active tab
   const handlePrimaryAction = () => {
@@ -132,17 +135,32 @@ export default function PricingWorkspace() {
             {/* TAB 1: STANDARD TARIFFS (POLICY CARD VIEW) */}
             {activeTab === 'standard' && (
               <div className="space-y-6 animate-in fade-in duration-200">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <h4 className="text-base font-bold text-[#111c2d]">Standard Pricing Policies</h4>
-                  <div className="flex items-center gap-2">
-                    <span className="w-2.5 h-2.5 rounded-full bg-[#006d43] animate-pulse"></span>
-                    <span className="text-xs font-bold text-emerald-600 uppercase tracking-wide">Live Configuration</span>
+                  <div className="flex items-center gap-4 flex-wrap">
+                    <label className="inline-flex items-center gap-2 cursor-pointer group bg-white border border-slate-200 hover:border-slate-300 rounded-xl px-3.5 py-1.5 transition-all shadow-sm">
+                      <input 
+                        type="checkbox" 
+                        checked={showOnlyActive}
+                        onChange={(e) => setShowOnlyActive(e.target.checked)}
+                        className="rounded text-[#006d43] focus:ring-[#006d43]/20 border-slate-300 w-4 h-4 cursor-pointer"
+                      />
+                      <span className="text-xs font-bold text-slate-500 group-hover:text-slate-700 uppercase tracking-wide transition-colors select-none">
+                        Show Active Only
+                      </span>
+                    </label>
+                    <div className="flex items-center gap-2 bg-emerald-50/50 border border-emerald-100 rounded-xl px-3 py-1.5">
+                      <span className="w-2 h-2 rounded-full bg-[#006d43] animate-pulse"></span>
+                      <span className="text-xs font-bold text-emerald-600 uppercase tracking-wide">Live Configuration</span>
+                    </div>
                   </div>
                 </div>
 
                 <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-                  {tariffs.map((policy, index) => {
-                    const isActive = policy.pricingPolicyStatus === 'Active';
+                  {tariffs
+                    .filter(policy => !showOnlyActive || policy.pricingPolicyStatus === 'Active')
+                    .map((policy, index) => {
+                      const isActive = policy.pricingPolicyStatus === 'Active';
                     const matchingVehicle = vehicleTypes.find(v => v.id === policy.vehicleTypeId);
                     const isMotorbike = matchingVehicle ? matchingVehicle.name.toLowerCase().includes('motorbike') || matchingVehicle.name.toLowerCase().includes('motorcycle') : policy.vehicleTypeId === 1;
                     const vehicleTypeName = matchingVehicle ? matchingVehicle.name : (policy.vehicleTypeId === 1 ? 'Motorbike' : 'Car');
@@ -213,6 +231,13 @@ export default function PricingWorkspace() {
                               >
                                 + Add Window
                               </button>
+                              <button 
+                                onClick={() => handleOpenEditPolicy(policy)}
+                                className="h-8 w-8 rounded-lg flex items-center justify-center bg-slate-100 hover:bg-[#006d43]/10 text-slate-600 hover:text-[#006d43] transition-colors"
+                                title="Edit Policy Details"
+                              >
+                                <span className="material-symbols-outlined text-[16px]">edit</span>
+                              </button>
                             </div>
                           </div>
 
@@ -235,7 +260,7 @@ export default function PricingWorkspace() {
                             </div>
                             <div className="h-6 w-full bg-slate-100 rounded-xl overflow-hidden relative border border-slate-200 flex items-center">
                               {segments.map((seg, idx) => {
-                                const isNight = isNightSlot(seg.name, policy.pricingWindows?.[idx]?.startTime || '');
+                                const isNight = isNightSlot(seg.name, policy.pricingWindows?.[seg.originalIndex]?.startTime || '');
                                 return (
                                   <div 
                                     key={idx}
@@ -248,7 +273,7 @@ export default function PricingWorkspace() {
                                         ? 'bg-indigo-900/95 border-indigo-950/20 hover:bg-indigo-900' 
                                         : 'bg-amber-600/95 border-amber-700/20 hover:bg-amber-600'
                                     }`}
-                                    title={`${seg.name}: ${(policy.pricingWindows?.[idx]?.startTime || '').substring(0, 5)} - ${(policy.pricingWindows?.[idx]?.endTime || '').substring(0, 5)}`}
+                                    title={`${seg.name}: ${(policy.pricingWindows?.[seg.originalIndex]?.startTime || '').substring(0, 5)} - ${(policy.pricingWindows?.[seg.originalIndex]?.endTime || '').substring(0, 5)}`}
                                   >
                                     <span className="text-[8px] font-black truncate flex items-center gap-0.5">
                                       <span className="material-symbols-outlined text-[8px]">

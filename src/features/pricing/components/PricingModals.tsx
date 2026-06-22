@@ -4,6 +4,7 @@ import { FeePenaltyType } from '../types';
 import CreatePolicyModal from './CreatePolicyModal';
 import ActivatePolicyDialog from './ActivatePolicyDialog';
 import AddWindowModal from './AddWindowModal';
+import EditPolicyModal from './EditPolicyModal';
 
 interface PricingModalsProps {
   pricing: UsePricingResult;
@@ -75,7 +76,8 @@ export default function PricingModals({ pricing }: PricingModalsProps) {
 
     handleCloseFeeModal,
     handleSaveFee,
-    vehicleTypes
+    vehicleTypes,
+    submitError
   } = pricing;
 
 
@@ -99,6 +101,16 @@ export default function PricingModals({ pricing }: PricingModalsProps) {
           {/* Modal Body */}
           <form onSubmit={handleSaveTariff} className="flex-grow overflow-y-auto p-6 space-y-6 bg-slate-50/50">
             
+            {submitError && (
+              <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-xl flex items-start gap-3 animate-in fade-in slide-in-from-top-4 duration-200">
+                <span className="material-symbols-outlined text-red-500 text-[22px] shrink-0 mt-0.5">error</span>
+                <div className="flex-grow">
+                  <h4 className="text-sm font-bold text-red-800">Cannot Save Changes</h4>
+                  <p className="text-xs font-semibold text-red-700 mt-0.5 leading-relaxed">{submitError}</p>
+                </div>
+              </div>
+            )}
+
             {/* Core Details */}
             <div className="rounded-xl border border-emerald-500/10 bg-[#F4FBF3] p-5 space-y-4">
               <div className="flex items-center gap-2 border-b border-emerald-500/5 pb-2">
@@ -588,6 +600,7 @@ export default function PricingModals({ pricing }: PricingModalsProps) {
       <CreatePolicyModal pricing={pricing} />
       <ActivatePolicyDialog pricing={pricing} />
       <AddWindowModal pricing={pricing} />
+      <EditPolicyModal pricing={pricing} />
     </>
   );
 }

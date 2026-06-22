@@ -1,6 +1,76 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useAuth } from '@/features/auth';
 import { api } from '@/lib/api/client';
+
+interface ApiErrorLike {
+  status?: number;
+  message?: string;
+  name?: string;
+  data?: {
+    message?: string;
+    errors?: Record<string, string[] | string> | string[];
+  };
+}
+
+const simplifyErrorMessage = (message: string): string => {
+  if (!message) return message;
+  const lower = message.toLowerCase();
+  if (
+    message.includes('BR-FEE-029') || 
+    lower.includes('active policies cannot be modified') || 
+    lower.includes('cannot modify pricing configuration for active policy')
+  ) {
+    return 'Active policies cannot be modified.';
+  }
+  return message;
+};
+
+// Helper to extract clean error message from API response or JavaScript Error
+const extractErrorMessage = (error: unknown): string => {
+  let rawMsg = '';
+  if (error && typeof error === 'object') {
+    const err = error as ApiErrorLike;
+    const isApiError = err.name === 'ApiError' || ('status' in err && 'data' in err);
+    if (isApiError && err.data) {
+      const errorData = err.data;
+      
+      // 1. Check validation errors dictionary
+      if (errorData.errors && typeof errorData.errors === 'object' && !Array.isArray(errorData.errors)) {
+        const msgList: string[] = [];
+        const dict = errorData.errors as Record<string, string[] | string>;
+        for (const key in dict) {
+          const val = dict[key];
+          if (Array.isArray(val)) {
+            msgList.push(...val);
+          } else if (typeof val === 'string') {
+            msgList.push(val);
+          }
+        }
+        if (msgList.length > 0) {
+          rawMsg = msgList.join(' | ');
+        }
+      }
+      
+      // 2. Check array errors
+      if (!rawMsg && Array.isArray(errorData.errors) && errorData.errors.length > 0) {
+        rawMsg = errorData.errors.join(', ');
+      }
+      
+      // 3. Check message
+      if (!rawMsg && errorData.message) {
+        rawMsg = errorData.message;
+      }
+    }
+    
+    if (!rawMsg && 'status' in err) {
+      rawMsg = `API Error ${err.status}: ${err.message || 'Request failed'}`;
+    }
+  }
+  if (!rawMsg) {
+    rawMsg = error instanceof Error ? error.message : 'Unknown connection error';
+  }
+  return simplifyErrorMessage(rawMsg);
+};
 import { 
   StandardTariff, 
   PricingWindow, 
@@ -190,13 +260,60 @@ export function usePricing() {
     }
   };
 
+interface WindowApiResponse {
+  pricingWindowId?: number;
+  id?: number;
+  pricingPolicyId?: number;
+  windowName: string;
+  startTime: string;
+  endTime: string;
+  baseDurationMinutes: number;
+  basePrice: number;
+  incrementBlockMinutes: number;
+  incrementPrice: number;
+  windowCap: number | null;
+  gracePeriodMinutes: number;
+}
+
+interface PolicyApiResponse {
+  pricingPolicyId?: number;
+  id?: number;
+  vehicleTypeId: number;
+  policyName: string;
+  effectiveStart: string;
+  effectiveEnd: string | null;
+  pricingPolicyStatus: string;
+  pricingWindows: WindowApiResponse[];
+}
+
   // Fetch pricing policies on component mount
   const fetchPolicies = async () => {
     try {
-      const response = await api.get<{ data: StandardTariff[], success: boolean }>('/pricing-policies');
+      const response = await api.get<{ data: PolicyApiResponse[], success: boolean }>('/pricing-policies');
       if (response && response.success && Array.isArray(response.data)) {
         if (response.data.length > 0) {
-          setTariffs(response.data);
+          const mappedPolicies: StandardTariff[] = response.data.map((policy: PolicyApiResponse) => ({
+            pricingPolicyId: policy.pricingPolicyId ?? policy.id ?? 0,
+            vehicleTypeId: policy.vehicleTypeId,
+            policyName: policy.policyName,
+            effectiveStart: policy.effectiveStart,
+            effectiveEnd: policy.effectiveEnd,
+            pricingPolicyStatus: policy.pricingPolicyStatus === 'Active' || policy.pricingPolicyStatus === 'ACTIVE' ? 'Active' : 'Inactive',
+            pricingWindows: (policy.pricingWindows || []).map((win: WindowApiResponse) => ({
+              pricingWindowId: win.pricingWindowId ?? win.id ?? 0,
+              pricingPolicyId: win.pricingPolicyId ?? policy.id ?? policy.pricingPolicyId ?? 0,
+              windowName: win.windowName,
+              startTime: win.startTime,
+              endTime: win.endTime,
+              baseDurationMinutes: win.baseDurationMinutes,
+              basePrice: win.basePrice,
+              incrementBlockMinutes: win.incrementBlockMinutes,
+              incrementPrice: win.incrementPrice,
+              windowCap: win.windowCap,
+              gracePeriodMinutes: win.gracePeriodMinutes
+            }))
+          }));
+          setTariffs(mappedPolicies);
         }
       }
     } catch (error) {
@@ -268,10 +385,11 @@ export function usePricing() {
     setTimeout(() => setShowToast(false), 3000);
   };
 
-  // Modals Visibility
+    // Modals Visibility
   const [isEditTariffOpen, setIsEditTariffOpen] = useState(false);
   const [isEditMembershipOpen, setIsEditMembershipOpen] = useState(false);
   const [isFeeModalOpen, setIsFeeModalOpen] = useState(false); // Handles both Add and Edit
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   // Currently editing objects - stored as a tariff row format to bind with Modal forms
   const [editingTariff, setEditingTariff] = useState<TariffRow | null>(null);
@@ -303,6 +421,13 @@ export function usePricing() {
   // --- State cho Dialog Kích hoạt (S2) ---
   const [isActivateDialogOpen, setIsActivateDialogOpen] = useState(false);
   const [activatingPolicy, setActivatingPolicy] = useState<StandardTariff | null>(null);
+
+  // --- State cho Modal Chỉnh sửa thông tin chính sách (Edit Policy) ---
+  const [isEditPolicyOpen, setIsEditPolicyOpen] = useState(false);
+  const [editPolicyTarget, setEditPolicyTarget] = useState<StandardTariff | null>(null);
+  const [editPolicyName, setEditPolicyName] = useState('');
+  const [editEffectiveStart, setEditEffectiveStart] = useState('');
+  const [editEffectiveEnd, setEditEffectiveEnd] = useState('');
 
   // --- State cho Modal Thêm khung giờ vào chính sách có sẵn (S5) ---
   const [isAddWindowOpen, setIsAddWindowOpen] = useState(false);
@@ -336,6 +461,7 @@ export function usePricing() {
 
   // === TARIFF HANDLERS ===
   const handleOpenEditTariff = (tariffRow: TariffRow) => {
+    setSubmitError(null);
     setEditingTariff(tariffRow);
     setFormTariffName(tariffRow.vehicleType + ' ' + (tariffRow.timeSlot.includes('Night') ? 'Night' : 'Day') + ' Tariff');
     const matchingVehicle = vehicleTypes.find(v => tariffRow.vehicleType.toLowerCase().includes(v.name.toLowerCase()));
@@ -354,6 +480,7 @@ export function usePricing() {
   };
 
   const handleCloseEditTariff = () => {
+    setSubmitError(null);
     setIsEditTariffOpen(false);
     setEditingTariff(null);
   };
@@ -361,14 +488,17 @@ export function usePricing() {
   const handleSaveTariff = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingTariff) return;
+    setSubmitError(null);
 
     if (formTariffBasePrice <= 0 || formTariffBlockPrice <= 0) {
+      setSubmitError('Please input positive values for rates.');
       triggerToast('Please input positive values for rates.', 'error');
       return;
     }
 
     const hasCap = formTariffEnableCap && !removeWindowCap;
     if (hasCap && formTariffMaxCap <= formTariffBasePrice) {
+      setSubmitError('Daily Cap must be greater than Base Price.');
       triggerToast('Daily Cap must be greater than Base Price.', 'error');
       return;
     }
@@ -393,51 +523,22 @@ export function usePricing() {
       gracePeriodMinutes: parseInt(formTariffGraceVal)
     };
 
-    const updateLocalState = () => {
-      const updated = tariffs.map((policy) => {
-        if (policy.pricingPolicyId === policyId) {
-          const updatedWindows = policy.pricingWindows.map((window) => {
-            if (window.pricingWindowId === windowId) {
-              return {
-                ...window,
-                startTime: formTariffStartTime + (formTariffStartTime.length === 5 ? ':00' : ''),
-                endTime: formTariffEndTime + (formTariffEndTime.length === 5 ? ':00' : ''),
-                baseDurationMinutes: parseFloat(formTariffInitialDuration) * 60,
-                basePrice: formTariffBasePrice,
-                incrementBlockMinutes: parseFloat(formTariffIncrement) * 60,
-                incrementPrice: formTariffBlockPrice,
-                windowCap: hasCap ? formTariffMaxCap : null,
-                gracePeriodMinutes: parseInt(formTariffGraceVal)
-              };
-            }
-            return window;
-          });
-          return {
-            ...policy,
-            pricingWindows: updatedWindows
-          };
-        }
-        return policy;
-      });
-      setTariffs(updated);
-    };
-
     try {
       const res = await api.put<{ success: boolean }>(`/pricing-policies/windows/${windowId}`, requestBody);
       if (res && res.success) {
-        fetchPolicies();
-        triggerToast('Pricing Policy updated successfully!');
+        await fetchPolicies();
+        triggerToast('Pricing Policy updated successfully!', 'success');
+        handleCloseEditTariff();
       } else {
-        updateLocalState();
-        triggerToast('Pricing Policy updated locally!');
+        setSubmitError('Failed to update pricing window.');
+        triggerToast('Failed to update pricing window.', 'error');
       }
     } catch (error) {
-      console.error('Failed to update pricing window via API, saving locally:', error);
-      updateLocalState();
-      triggerToast('Pricing Policy updated locally (Offline/Fallback)!');
+      console.error('Failed to update pricing window via API:', error);
+      const errorMsg = extractErrorMessage(error);
+      setSubmitError(errorMsg);
+      triggerToast(errorMsg, 'error');
     }
-
-    handleCloseEditTariff();
   };
 
   const handleToggleTariffStatus = async (id: string) => {
@@ -450,63 +551,41 @@ export function usePricing() {
     const matchingVehicle = vehicleTypes.find(v => v.id === policy.vehicleTypeId);
     const vehicleName = matchingVehicle ? matchingVehicle.name : (policy.vehicleTypeId === 1 ? 'Motorbike' : 'Car');
 
-    const updateLocalState = () => {
-      setTariffs(prev => prev.map(p => {
-        if (p.pricingPolicyId === policyId) {
-          return { ...p, pricingPolicyStatus: nextStatus };
-        }
-        return p;
-      }));
-    };
-
     if (nextStatus === 'Active') {
       try {
         const res = await api.post<{ success: boolean }>(`/pricing-policies/${policyId}/activate`, {});
         if (res && res.success) {
-          fetchPolicies();
-          triggerToast(`${vehicleName} Policy status updated to Active!`);
+          await fetchPolicies();
+          triggerToast(`${vehicleName} Policy status updated to Active!`, 'success');
         } else {
-          updateLocalState();
-          triggerToast(`${vehicleName} Policy status updated locally!`);
+          triggerToast(`Failed to activate ${vehicleName} Policy.`, 'error');
         }
       } catch (error) {
         console.error('Failed to activate policy:', error);
-        updateLocalState();
-        triggerToast(`${vehicleName} Policy status updated locally (Offline/Fallback)!`);
+        const errorMsg = extractErrorMessage(error);
+        triggerToast(errorMsg, 'error');
       }
     } else {
-      updateLocalState();
-      triggerToast(`${vehicleName} Policy status updated to Inactive!`);
+      triggerToast(`To deactivate this policy, please activate another policy for the same vehicle type.`, 'error');
     }
   };
 
   const handleDeleteTariff = async (id: string) => {
-    const [policyIdStr, windowIdStr] = id.split('-');
-    const policyId = parseInt(policyIdStr);
+    const [_, windowIdStr] = id.split('-');
     const windowId = parseInt(windowIdStr);
 
-    const updateLocalState = () => {
-      setTariffs(
-        tariffs.map((policy) => {
-          if (policy.pricingPolicyId === policyId) {
-            return {
-              ...policy,
-              pricingWindows: policy.pricingWindows.filter((w) => w.pricingWindowId !== windowId)
-            };
-          }
-          return policy;
-        }).filter((policy) => policy.pricingWindows.length > 0)
-      );
-    };
-
     try {
-      await api.delete(`/pricing-policies/windows/${windowId}`);
-      fetchPolicies();
-      triggerToast('Policy window deleted successfully!');
+      const res = await api.delete<{ success: boolean }>(`/pricing-policies/windows/${windowId}`);
+      if (res && res.success) {
+        await fetchPolicies();
+        triggerToast('Policy window deleted successfully!', 'success');
+      } else {
+        triggerToast('Failed to delete pricing window.', 'error');
+      }
     } catch (error) {
-      console.error('Failed to delete pricing window via API, deleting locally:', error);
-      updateLocalState();
-      triggerToast('Policy window deleted locally (Offline/Fallback)!');
+      console.error('Failed to delete pricing window via API:', error);
+      const errorMsg = extractErrorMessage(error);
+      triggerToast(errorMsg, 'error');
     }
   };
 
@@ -638,12 +717,13 @@ export function usePricing() {
 
   // --- Handlers cho Create Policy (S1) ---
   const handleOpenCreatePolicy = () => {
+    setSubmitError(null);
     setNewPolicyName('');
     setNewVehicleTypeId(1);
     const now = new Date();
     const tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
     const tzOffset = tomorrow.getTimezoneOffset() * 60000;
-    const localTomorrowISO = new Date(tomorrow.getTime() - tzOffset).toISOString().slice(0, 16);
+    const localTomorrowISO = new Date(tomorrow.getTime() - tzOffset).toISOString().slice(0, 10);
     setNewEffectiveStart(localTomorrowISO);
     setNewEffectiveEnd('');
     setNewWindows([{
@@ -661,6 +741,7 @@ export function usePricing() {
   };
 
   const handleCloseCreatePolicy = () => {
+    setSubmitError(null);
     setIsCreatePolicyOpen(false);
   };
 
@@ -694,42 +775,50 @@ export function usePricing() {
 
   const handleSaveCreatePolicy = async (e: React.FormEvent) => {
     e.preventDefault();
+    setSubmitError(null);
     if (!newPolicyName.trim()) {
+      setSubmitError('Please enter the pricing policy name.');
       triggerToast('Please enter the pricing policy name.', 'error');
       return;
     }
     if (!newEffectiveStart) {
+      setSubmitError('Please select the effective start date.');
       triggerToast('Please select the effective start date.', 'error');
       return;
     }
     if (newWindows.length === 0) {
+      setSubmitError('The policy must contain at least 1 pricing window.');
       triggerToast('The policy must contain at least 1 pricing window.', 'error');
       return;
     }
 
     const coverage = validate24hCoverage(newWindows);
     if (!coverage.isValid) {
+      setSubmitError(coverage.message);
       triggerToast(coverage.message, 'error');
       return;
     }
 
     const overlap = validateNoOverlap(newWindows);
     if (!overlap.isValid) {
+      setSubmitError(overlap.conflictPairs[0]);
       triggerToast(overlap.conflictPairs[0], 'error');
       return;
     }
 
-    const start = new Date(newEffectiveStart);
-    if (start.getTime() < Date.now() - 60000) {
+    const todayLocal = new Date();
+    const tzOffset = todayLocal.getTimezoneOffset() * 60000;
+    const todayStr = new Date(todayLocal.getTime() - tzOffset).toISOString().slice(0, 10);
+    if (newEffectiveStart < todayStr) {
+      setSubmitError('Start date cannot be in the past.');
       triggerToast('Start date cannot be in the past.', 'error');
       return;
     }
 
     if (newEffectiveEnd) {
-      const end = new Date(newEffectiveEnd);
-      const minEnd = new Date(start.getTime() + 24 * 60 * 60 * 1000);
-      if (end.getTime() < minEnd.getTime()) {
-        triggerToast('End date must be at least 1 day after start date.', 'error');
+      if (newEffectiveEnd <= newEffectiveStart) {
+        setSubmitError('End date must be after start date.');
+        triggerToast('End date must be after start date.', 'error');
         return;
       }
     }
@@ -752,44 +841,22 @@ export function usePricing() {
       }))
     };
 
-    const fallbackPolicy: StandardTariff = {
-      pricingPolicyId: Date.now(),
-      vehicleTypeId: newVehicleTypeId,
-      policyName: newPolicyName,
-      effectiveStart: newEffectiveStart,
-      effectiveEnd: newEffectiveEnd || null,
-      pricingPolicyStatus: 'Inactive',
-      pricingWindows: newWindows.map((w, idx) => ({
-        pricingWindowId: Date.now() + idx,
-        pricingPolicyId: Date.now(),
-        windowName: w.windowName,
-        startTime: w.startTime + (w.startTime.length === 5 ? ':00' : ''),
-        endTime: w.endTime + (w.endTime.length === 5 ? ':00' : ''),
-        baseDurationMinutes: w.baseDurationMinutes,
-        basePrice: w.basePrice,
-        incrementBlockMinutes: w.incrementBlockMinutes,
-        incrementPrice: w.incrementPrice,
-        windowCap: w.windowCap,
-        gracePeriodMinutes: w.gracePeriodMinutes
-      }))
-    };
-
     try {
       const res = await api.post<{ success: boolean }>('/pricing-policies', requestBody);
       if (res && res.success) {
-        fetchPolicies();
+        await fetchPolicies();
         triggerToast('New pricing policy created successfully!', 'success');
+        setIsCreatePolicyOpen(false);
       } else {
-        setTariffs(prev => [...prev, fallbackPolicy]);
-        triggerToast('New pricing policy created locally!', 'success');
+        setSubmitError('Failed to create pricing policy.');
+        triggerToast('Failed to create pricing policy.', 'error');
       }
     } catch (error) {
-      console.error('Failed to create pricing policy via API, saving locally:', error);
-      setTariffs(prev => [...prev, fallbackPolicy]);
-      triggerToast('New pricing policy created locally (Offline/Fallback)!', 'success');
+      console.error('Failed to create pricing policy via API:', error);
+      const errorMsg = extractErrorMessage(error);
+      setSubmitError(errorMsg);
+      triggerToast(errorMsg, 'error');
     }
-
-    setIsCreatePolicyOpen(false);
   };
 
   // --- Handlers cho Activate Policy (S2) ---
@@ -807,40 +874,102 @@ export function usePricing() {
     if (!activatingPolicy) return;
     
     const targetPolicyId = activatingPolicy.pricingPolicyId;
-    const vehicleTypeId = activatingPolicy.vehicleTypeId;
-
-    const updateLocalState = () => {
-      setTariffs(prev => prev.map(p => {
-        if (p.pricingPolicyId === targetPolicyId) {
-          return { ...p, pricingPolicyStatus: 'Active' };
-        } else if (p.vehicleTypeId === vehicleTypeId) {
-          return { ...p, pricingPolicyStatus: 'Inactive' };
-        }
-        return p;
-      }));
-    };
 
     try {
       const res = await api.post<{ success: boolean }>(`/pricing-policies/${targetPolicyId}/activate`, {});
       if (res && res.success) {
-        fetchPolicies();
+        await fetchPolicies();
         triggerToast(`Pricing policy "${activatingPolicy.policyName}" activated successfully!`, 'success');
+        setIsActivateDialogOpen(false);
+        setActivatingPolicy(null);
       } else {
-        updateLocalState();
-        triggerToast(`Pricing policy activated locally!`, 'success');
+        triggerToast(`Failed to activate pricing policy.`, 'error');
       }
     } catch (error) {
-      console.error('Failed to activate pricing policy via API, activating locally:', error);
-      updateLocalState();
-      triggerToast(`Pricing policy activated locally (Offline/Fallback)!`, 'success');
+      console.error('Failed to activate pricing policy via API:', error);
+      const errorMsg = extractErrorMessage(error);
+      triggerToast(errorMsg, 'error');
+    }
+  };
+
+  // --- Handlers cho Edit Policy ---
+  const handleOpenEditPolicy = (policy: StandardTariff) => {
+    setSubmitError(null);
+    setEditPolicyTarget(policy);
+    setEditPolicyName(policy.policyName);
+    
+    const startStr = policy.effectiveStart ? policy.effectiveStart.split('T')[0] : '';
+    const endStr = policy.effectiveEnd ? policy.effectiveEnd.split('T')[0] : '';
+    
+    setEditEffectiveStart(startStr);
+    setEditEffectiveEnd(endStr);
+    setIsEditPolicyOpen(true);
+  };
+
+  const handleCloseEditPolicy = () => {
+    setIsEditPolicyOpen(false);
+    setEditPolicyTarget(null);
+    setEditPolicyName('');
+    setEditEffectiveStart('');
+    setEditEffectiveEnd('');
+    setSubmitError(null);
+  };
+
+  const handleSaveEditPolicy = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editPolicyTarget) return;
+
+    setSubmitError(null);
+    if (!editPolicyName.trim()) {
+      setSubmitError('Please enter the pricing policy name.');
+      triggerToast('Please enter the pricing policy name.', 'error');
+      return;
     }
 
-    setIsActivateDialogOpen(false);
-    setActivatingPolicy(null);
+    try {
+      if (editEffectiveEnd && editEffectiveStart && editEffectiveEnd < editEffectiveStart) {
+        throw new Error('End date must be after start date.');
+      }
+
+      const isActive = editPolicyTarget.pricingPolicyStatus?.toLowerCase() === 'active';
+      const requestBody: {
+        policyName: string;
+        pricingPolicyStatus: string | null;
+        effectiveStart?: string;
+        effectiveEnd: string | null;
+      } = {
+        policyName: editPolicyName.trim(),
+        pricingPolicyStatus: null,
+        effectiveEnd: editEffectiveEnd ? `${editEffectiveEnd}T00:00:00.000Z` : null
+      };
+
+      if (!isActive) {
+        if (!editEffectiveStart) {
+          throw new Error('Please select the effective start date.');
+        }
+        requestBody.effectiveStart = `${editEffectiveStart}T00:00:00.000Z`;
+      }
+
+      const res = await api.put<{ success: boolean }>(`/pricing-policies/${editPolicyTarget.pricingPolicyId}`, requestBody);
+      if (res && res.success) {
+        await fetchPolicies();
+        triggerToast('Pricing policy updated successfully!', 'success');
+        handleCloseEditPolicy();
+      } else {
+        setSubmitError('Failed to update pricing policy.');
+        triggerToast('Failed to update pricing policy.', 'error');
+      }
+    } catch (error) {
+      console.error('Failed to update pricing policy via API:', error);
+      const errorMsg = extractErrorMessage(error);
+      setSubmitError(errorMsg);
+      triggerToast(errorMsg, 'error');
+    }
   };
 
   // --- Handlers cho Add Window (S5) ---
   const handleOpenAddWindow = (policyId: number) => {
+    setSubmitError(null);
     setAddWindowTargetPolicyId(policyId);
     setFormAddWindowName('');
     setFormAddWindowStartTime('06:00');
@@ -856,25 +985,30 @@ export function usePricing() {
   };
 
   const handleCloseAddWindow = () => {
+    setSubmitError(null);
     setIsAddWindowOpen(false);
     setAddWindowTargetPolicyId(null);
   };
 
-  const handleSaveAddWindow = (e: React.FormEvent) => {
+  const handleSaveAddWindow = async (e: React.FormEvent) => {
     e.preventDefault();
+    setSubmitError(null);
     if (!addWindowTargetPolicyId) return;
 
     if (!formAddWindowName.trim()) {
+      setSubmitError('Please enter a window name.');
       triggerToast('Please enter a window name.', 'error');
       return;
     }
 
     if (formAddWindowBasePrice <= 0 || formAddWindowBlockPrice <= 0) {
-      triggerToast('Base price must be greater than 0.', 'error');
+      setSubmitError('Base price and Block price must be greater than 0.');
+      triggerToast('Base price and Block price must be greater than 0.', 'error');
       return;
     }
 
     if (formAddWindowEnableCap && formAddWindowMaxCap <= formAddWindowBasePrice) {
+      setSubmitError('Daily cap must be greater than the base price.');
       triggerToast('Daily cap must be greater than the base price.', 'error');
       return;
     }
@@ -882,10 +1016,10 @@ export function usePricing() {
     const parentPolicy = tariffs.find(p => p.pricingPolicyId === addWindowTargetPolicyId);
     if (!parentPolicy) return;
 
-    const newWinReq: CreatePricingWindowRequest = {
+    const newWinReq = {
       windowName: formAddWindowName,
-      startTime: formAddWindowStartTime,
-      endTime: formAddWindowEndTime,
+      startTime: formAddWindowStartTime + (formAddWindowStartTime.length === 5 ? ':00' : ''),
+      endTime: formAddWindowEndTime + (formAddWindowEndTime.length === 5 ? ':00' : ''),
       baseDurationMinutes: parseFloat(formAddWindowInitialDuration) * 60,
       basePrice: formAddWindowBasePrice,
       incrementBlockMinutes: parseFloat(formAddWindowIncrement) * 60,
@@ -906,37 +1040,33 @@ export function usePricing() {
       gracePeriodMinutes: w.gracePeriodMinutes
     }));
 
-    const overlap = validateNoOverlap([...existingWinsMapped, newWinReq]);
+    const overlap = validateNoOverlap([...existingWinsMapped, {
+      ...newWinReq,
+      startTime: formAddWindowStartTime.substring(0, 5),
+      endTime: formAddWindowEndTime.substring(0, 5)
+    }]);
     if (!overlap.isValid) {
+      setSubmitError(overlap.conflictPairs[0]);
       triggerToast(overlap.conflictPairs[0], 'error');
       return;
     }
 
-    setTariffs(prev => prev.map(p => {
-      if (p.pricingPolicyId === addWindowTargetPolicyId) {
-        const newWindow: PricingWindow = {
-          pricingWindowId: Date.now(),
-          pricingPolicyId: p.pricingPolicyId,
-          windowName: newWinReq.windowName,
-          startTime: newWinReq.startTime + ':00',
-          endTime: newWinReq.endTime + ':00',
-          baseDurationMinutes: newWinReq.baseDurationMinutes,
-          basePrice: newWinReq.basePrice,
-          incrementBlockMinutes: newWinReq.incrementBlockMinutes,
-          incrementPrice: newWinReq.incrementPrice,
-          windowCap: newWinReq.windowCap,
-          gracePeriodMinutes: newWinReq.gracePeriodMinutes
-        };
-        return {
-          ...p,
-          pricingWindows: [...p.pricingWindows, newWindow]
-        };
+    try {
+      const res = await api.post<{ success: boolean }>(`/pricing-policies/${addWindowTargetPolicyId}/windows`, newWinReq);
+      if (res && res.success) {
+        await fetchPolicies();
+        triggerToast('New pricing window added successfully!', 'success');
+        setIsAddWindowOpen(false);
+      } else {
+        setSubmitError('Failed to add pricing window.');
+        triggerToast('Failed to add pricing window.', 'error');
       }
-      return p;
-    }));
-
-    setIsAddWindowOpen(false);
-    triggerToast('New pricing window added successfully!', 'success');
+    } catch (error) {
+      console.error('Failed to add pricing window via API:', error);
+      const errorMsg = extractErrorMessage(error);
+      setSubmitError(errorMsg);
+      triggerToast(errorMsg, 'error');
+    }
   };
 
   return {
@@ -953,6 +1083,8 @@ export function usePricing() {
     toastMessage,
     toastType,
     triggerToast,
+    submitError,
+    setSubmitError,
 
     // Modal control toggles
     isEditTariffOpen,
@@ -963,12 +1095,14 @@ export function usePricing() {
     isCreatePolicyOpen,
     isActivateDialogOpen,
     isAddWindowOpen,
+    isEditPolicyOpen,
 
     // Editing targets
     editingTariff,
     editingMembership,
     editingFee,
     activatingPolicy,
+    editPolicyTarget,
 
     // Tariff form fields
     formTariffName,
@@ -1071,6 +1205,17 @@ export function usePricing() {
     handleOpenActivateDialog,
     handleCloseActivateDialog,
     handleConfirmActivate,
+
+    // Edit Policy Handlers & Fields
+    editPolicyName,
+    setEditPolicyName,
+    editEffectiveStart,
+    setEditEffectiveStart,
+    editEffectiveEnd,
+    setEditEffectiveEnd,
+    handleOpenEditPolicy,
+    handleCloseEditPolicy,
+    handleSaveEditPolicy,
 
     // S5 Handlers
     handleOpenAddWindow,

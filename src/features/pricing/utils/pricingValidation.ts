@@ -103,15 +103,59 @@ export const validateNoOverlap = (windows: CreatePricingWindowRequest[]): {
 
 // Calculate timeline layout data (for 24h visual bar)
 export const computeTimelineSegments = (windows: CreatePricingWindowRequest[]) => {
-  return windows.map((w) => {
+  const segments: Array<{
+    name: string;
+    startPercent: number;
+    widthPercent: number;
+    originalIndex: number;
+  }> = [];
+
+  (windows || []).forEach((w, idx) => {
     const start = timeToMinutes(w.startTime);
-    const duration = getWindowDurationMinutes(w.startTime, w.endTime);
-    return {
-      name: w.windowName,
-      startPercent: (start / 1440) * 100,
-      widthPercent: (duration / 1440) * 100,
-    };
+    const end = timeToMinutes(w.endTime);
+
+    if (end < start) {
+      // Overnight window: split into two segments
+      const durationEndOfTheDay = 1440 - start;
+      const durationStartOfTheDay = end;
+
+      if (durationEndOfTheDay > 0) {
+        segments.push({
+          name: w.windowName,
+          startPercent: (start / 1440) * 100,
+          widthPercent: (durationEndOfTheDay / 1440) * 100,
+          originalIndex: idx,
+        });
+      }
+      if (durationStartOfTheDay > 0) {
+        segments.push({
+          name: w.windowName,
+          startPercent: 0,
+          widthPercent: (durationStartOfTheDay / 1440) * 100,
+          originalIndex: idx,
+        });
+      }
+    } else if (start === end && w.startTime && w.endTime) {
+      // Full 24 hours
+      segments.push({
+        name: w.windowName,
+        startPercent: 0,
+        widthPercent: 100,
+        originalIndex: idx,
+      });
+    } else {
+      // Normal window
+      const duration = end - start;
+      segments.push({
+        name: w.windowName,
+        startPercent: (start / 1440) * 100,
+        widthPercent: (duration / 1440) * 100,
+        originalIndex: idx,
+      });
+    }
   });
+
+  return segments;
 };
 
 // Determine if a pricing window is considered a Night slot

@@ -32,7 +32,8 @@ export default function AddWindowModal({ pricing }: AddWindowModalProps) {
     formAddWindowMaxCap,
     setFormAddWindowMaxCap,
     formAddWindowGraceVal,
-    setFormAddWindowGraceVal
+    setFormAddWindowGraceVal,
+    submitError
   } = pricing;
 
   if (!isAddWindowOpen) return null;
@@ -64,6 +65,16 @@ export default function AddWindowModal({ pricing }: AddWindowModalProps) {
 
         {/* ===== FORM BODY ===== */}
         <form onSubmit={handleSaveAddWindow} className="p-6 space-y-5 flex-grow overflow-y-auto">
+          
+          {submitError && (
+            <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-xl flex items-start gap-3 animate-in fade-in slide-in-from-top-4 duration-200">
+              <span className="material-symbols-outlined text-red-500 text-[22px] shrink-0 mt-0.5">error</span>
+              <div className="flex-grow">
+                <h4 className="text-sm font-bold text-red-800">Cannot Add Window</h4>
+                <p className="text-xs font-semibold text-red-700 mt-0.5 leading-relaxed">{submitError}</p>
+              </div>
+            </div>
+          )}
           
           {/* Tên khung giờ */}
           <div>

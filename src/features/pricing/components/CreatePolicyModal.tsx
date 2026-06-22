@@ -25,6 +25,7 @@ export default function CreatePolicyModal({ pricing }: CreatePolicyModalProps) {
     handleUpdateNewWindow,
     handleSaveCreatePolicy,
     vehicleTypes,
+    submitError
   } = pricing;
 
   // Calculate timeline details
@@ -62,6 +63,16 @@ export default function CreatePolicyModal({ pricing }: CreatePolicyModalProps) {
         {/* ===== BODY ===== */}
         <form onSubmit={handleSaveCreatePolicy} className="flex-grow overflow-y-auto p-6 space-y-6 bg-slate-50/30">
           
+          {submitError && (
+            <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-xl flex items-start gap-3 animate-in fade-in slide-in-from-top-4 duration-200">
+              <span className="material-symbols-outlined text-red-500 text-[22px] shrink-0 mt-0.5">error</span>
+              <div className="flex-grow">
+                <h4 className="text-sm font-bold text-red-800">Cannot Create Policy</h4>
+                <p className="text-xs font-semibold text-red-700 mt-0.5 leading-relaxed">{submitError}</p>
+              </div>
+            </div>
+          )}
+
           {/* Section 1: General Info */}
           <div className="bg-white border border-slate-100 rounded-2xl p-5 shadow-sm space-y-4">
             <h3 className="text-xs font-black uppercase text-slate-400 tracking-wider flex items-center gap-1.5 mb-2">
@@ -100,7 +111,7 @@ export default function CreatePolicyModal({ pricing }: CreatePolicyModalProps) {
               <div>
                 <label className="block text-xs font-bold text-slate-500 mb-1.5 uppercase tracking-wide">Effective Start Date</label>
                 <input 
-                  type="datetime-local" 
+                  type="date" 
                   value={newEffectiveStart}
                   onChange={(e) => setNewEffectiveStart(e.target.value)}
                   className="w-full bg-slate-50/50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500 focus:bg-white transition-all"
@@ -126,7 +137,7 @@ export default function CreatePolicyModal({ pricing }: CreatePolicyModalProps) {
                 <div className="md:col-span-2">
                   <label className="block text-xs font-bold text-slate-500 mb-1.5 uppercase tracking-wide">Effective End Date</label>
                   <input 
-                    type="datetime-local" 
+                    type="date" 
                     value={newEffectiveEnd}
                     onChange={(e) => setNewEffectiveEnd(e.target.value)}
                     className="w-full bg-slate-50/50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500 focus:bg-white transition-all"
@@ -322,7 +333,7 @@ export default function CreatePolicyModal({ pricing }: CreatePolicyModalProps) {
             <div className="h-10 w-full bg-slate-100 rounded-2xl overflow-hidden relative border border-slate-200 flex items-center">
               {/* Render segments */}
               {segments.map((seg, idx) => {
-                const isNight = isNightSlot(seg.name, newWindows[idx]?.startTime || '');
+                const isNight = isNightSlot(seg.name, newWindows[seg.originalIndex]?.startTime || '');
                 return (
                   <div 
                     key={idx}
@@ -335,7 +346,7 @@ export default function CreatePolicyModal({ pricing }: CreatePolicyModalProps) {
                         ? 'bg-indigo-900/95 border-indigo-950/20 hover:bg-indigo-900' 
                         : 'bg-amber-600/95 border-amber-700/20 hover:bg-amber-600'
                     }`}
-                    title={`${seg.name}: ${newWindows[idx]?.startTime || ''} - ${newWindows[idx]?.endTime || ''}`}
+                    title={`${seg.name}: ${newWindows[seg.originalIndex]?.startTime || ''} - ${newWindows[seg.originalIndex]?.endTime || ''}`}
                   >
                     <span className="text-[9px] font-black truncate flex items-center gap-0.5">
                       <span className="material-symbols-outlined text-[10px]">
@@ -343,7 +354,7 @@ export default function CreatePolicyModal({ pricing }: CreatePolicyModalProps) {
                       </span>
                       {seg.name}
                     </span>
-                    <span className="text-[8px] font-bold opacity-80 block truncate pl-3.5">{newWindows[idx]?.startTime || ''}-{newWindows[idx]?.endTime || ''}</span>
+                    <span className="text-[8px] font-bold opacity-80 block truncate pl-3.5">{newWindows[seg.originalIndex]?.startTime || ''}-{newWindows[seg.originalIndex]?.endTime || ''}</span>
                   </div>
                 );
               })}

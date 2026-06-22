@@ -528,12 +528,12 @@ export default function PricingWorkspace() {
 
                       <div className="mt-4">
                         <h5 className="text-sm font-bold text-slate-800">{it.incidentName}</h5>
-                        <p className="text-xs text-slate-500 mt-1 line-clamp-2">{it.description || 'Không có mô tả'}</p>
+                        <p className="text-xs text-slate-500 mt-1 line-clamp-2">{it.description || 'No description'}</p>
                       </div>
 
                       <div className="mt-4 pt-3 border-t border-slate-100">
                         <div className="flex items-center justify-between">
-                          <span className="text-xs text-slate-400 font-medium">Phạt mặc định</span>
+                          <span className="text-xs text-slate-400 font-medium">Default Fee</span>
                           <span className="text-sm font-bold text-red-600">
                             {it.defaultPenaltyFee.toLocaleString('en-US')} VND
                           </span>
@@ -546,13 +546,13 @@ export default function PricingWorkspace() {
                 {incidentTypes.length === 0 && (
                   <div className="text-center py-12 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
                     <span className="material-symbols-outlined text-slate-300 text-[48px]">add_circle</span>
-                    <p className="text-slate-400 text-sm mt-2 font-medium">Chưa có incident type nào</p>
+                    <p className="text-slate-400 text-sm mt-2 font-medium">No incident types yet</p>
                     <button
                       onClick={handleOpenAddIncidentType}
                       className="mt-4 inline-flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl transition-all"
                     >
                       <span className="material-symbols-outlined text-[16px]">add</span>
-                      Thêm Incident Type
+                      Add Incident Type
                     </button>
                   </div>
                 )}

@@ -91,11 +91,11 @@ const mockVehicleTypes: VehicleType[] = [
 
 // Mock fallback incident types
 const mockIncidentTypes: IncidentType[] = [
-  { id: 1, incidentCode: 'TICKET_LOST', incidentName: 'Mất vé', description: 'Khách hàng làm mất vé gửi xe', defaultPenaltyFee: 50000 },
-  { id: 2, incidentCode: 'VEHICLE_DAMAGED', incidentName: 'Hư hỏng xe', description: 'Xe bị hư hỏng trong bãi gửi xe', defaultPenaltyFee: 200000 },
-  { id: 3, incidentCode: 'LATE_PAYMENT', incidentName: 'Trả phí trễ', description: 'Thanh toán phí gửi xe trễ hạn', defaultPenaltyFee: 10000 },
-  { id: 4, incidentCode: 'ILLEGAL_PARKING', incidentName: 'Đỗ xe trái phép', description: 'Đỗ xe tại vị trí không được phép', defaultPenaltyFee: 30000 },
-  { id: 5, incidentCode: 'OVERSTAY', incidentName: 'Quá giờ gửi', description: 'Vượt quá thời gian gửi xe quy định', defaultPenaltyFee: 15000 }
+  { id: 1, incidentCode: 'TICKET_LOST', incidentName: 'Lost Ticket', description: 'Customer lost their parking ticket', defaultPenaltyFee: 50000 },
+  { id: 2, incidentCode: 'VEHICLE_DAMAGED', incidentName: 'Vehicle Damage', description: 'Vehicle was damaged while in the parking facility', defaultPenaltyFee: 200000 },
+  { id: 3, incidentCode: 'LATE_PAYMENT', incidentName: 'Late Payment', description: 'Payment was made after the required deadline', defaultPenaltyFee: 10000 },
+  { id: 4, incidentCode: 'ILLEGAL_PARKING', incidentName: 'Illegal Parking', description: 'Vehicle parked in an unauthorized area', defaultPenaltyFee: 30000 },
+  { id: 5, incidentCode: 'OVERSTAY', incidentName: 'Overstay', description: 'Vehicle exceeded the allowed parking duration', defaultPenaltyFee: 15000 }
 ];
 
 // Mock initial data matching PBMS Database Schema

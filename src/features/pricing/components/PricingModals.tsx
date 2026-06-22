@@ -580,7 +580,7 @@ export default function PricingModals({ pricing }: PricingModalsProps) {
                 value={formIncidentName}
                 onChange={(e) => setFormIncidentName(e.target.value)}
                 className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all"
-                placeholder="e.g. Mất vé"
+                placeholder="e.g. Lost Ticket"
                 required
               />
             </div>
@@ -592,7 +592,7 @@ export default function PricingModals({ pricing }: PricingModalsProps) {
                 onChange={(e) => setFormIncidentDescription(e.target.value)}
                 className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all resize-none"
                 rows={3}
-                placeholder="Mô tả sự cố..."
+                placeholder="Describe the incident..."
               />
             </div>
 

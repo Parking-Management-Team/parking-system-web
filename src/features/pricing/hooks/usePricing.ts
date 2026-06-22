@@ -83,97 +83,6 @@ import {
 } from '../types';
 import { validate24hCoverage, validateNoOverlap } from '../utils/pricingValidation';
 
-// Mock fallback vehicle types
-const mockVehicleTypes: VehicleType[] = [
-  { id: 1, name: 'Motorbike', vehicleTypeStatus: 'ACTIVE' },
-  { id: 2, name: 'Car', vehicleTypeStatus: 'ACTIVE' }
-];
-
-// Mock fallback incident types
-const mockIncidentTypes: IncidentType[] = [
-  { id: 1, incidentCode: 'TICKET_LOST', incidentName: 'Lost Ticket', description: 'Customer lost their parking ticket', defaultPenaltyFee: 50000 },
-  { id: 2, incidentCode: 'VEHICLE_DAMAGED', incidentName: 'Vehicle Damage', description: 'Vehicle was damaged while in the parking facility', defaultPenaltyFee: 200000 },
-  { id: 3, incidentCode: 'LATE_PAYMENT', incidentName: 'Late Payment', description: 'Payment was made after the required deadline', defaultPenaltyFee: 10000 },
-  { id: 4, incidentCode: 'ILLEGAL_PARKING', incidentName: 'Illegal Parking', description: 'Vehicle parked in an unauthorized area', defaultPenaltyFee: 30000 },
-  { id: 5, incidentCode: 'OVERSTAY', incidentName: 'Overstay', description: 'Vehicle exceeded the allowed parking duration', defaultPenaltyFee: 15000 }
-];
-
-// Mock initial data matching PBMS Database Schema
-const initialTariffs: StandardTariff[] = [
-  {
-    pricingPolicyId: 1,
-    vehicleTypeId: 1, // Motorbike
-    policyName: 'Motorbike Standard Tariff',
-    effectiveStart: '2026-01-01',
-    effectiveEnd: null,
-    pricingPolicyStatus: 'Active',
-    pricingWindows: [
-      {
-        pricingWindowId: 1,
-        pricingPolicyId: 1,
-        windowName: 'Day Slot',
-        startTime: '06:00:00',
-        endTime: '18:00:00',
-        baseDurationMinutes: 240, // 4 hours
-        basePrice: 5000,
-        incrementBlockMinutes: 60, // 1 hour
-        incrementPrice: 1000,
-        windowCap: 10000,
-        gracePeriodMinutes: 15
-      },
-      {
-        pricingWindowId: 2,
-        pricingPolicyId: 1,
-        windowName: 'Night Slot',
-        startTime: '18:00:00',
-        endTime: '06:00:00',
-        baseDurationMinutes: 720, // 12 hours
-        basePrice: 10000,
-        incrementBlockMinutes: 60, // 1 hour
-        incrementPrice: 2000,
-        windowCap: 20000,
-        gracePeriodMinutes: 15
-      }
-    ]
-  },
-  {
-    pricingPolicyId: 2,
-    vehicleTypeId: 2, // Car
-    policyName: 'Car Standard Tariff',
-    effectiveStart: '2026-01-01',
-    effectiveEnd: null,
-    pricingPolicyStatus: 'Active',
-    pricingWindows: [
-      {
-        pricingWindowId: 3,
-        pricingPolicyId: 2,
-        windowName: 'Day Slot',
-        startTime: '06:00:00',
-        endTime: '18:00:00',
-        baseDurationMinutes: 120, // 2 hours
-        basePrice: 20000,
-        incrementBlockMinutes: 60, // 1 hour
-        incrementPrice: 5000,
-        windowCap: 50000,
-        gracePeriodMinutes: 15
-      },
-      {
-        pricingWindowId: 4,
-        pricingPolicyId: 2,
-        windowName: 'Night Slot',
-        startTime: '18:00:00',
-        endTime: '06:00:00',
-        baseDurationMinutes: 720, // 12 hours
-        basePrice: 50000,
-        incrementBlockMinutes: 60, // 1 hour
-        incrementPrice: 10000,
-        windowCap: 150000,
-        gracePeriodMinutes: 15
-      }
-    ]
-  }
-];
-
 interface RawVehicleType {
   id?: number;
   Id?: number;
@@ -193,8 +102,8 @@ export function usePricing() {
 
 
   // Main feature state lists
-  const [tariffs, setTariffs] = useState<StandardTariff[]>(initialTariffs);
-  const [vehicleTypes, setVehicleTypes] = useState<VehicleType[]>(mockVehicleTypes);
+  const [tariffs, setTariffs] = useState<StandardTariff[]>([]);
+  const [vehicleTypes, setVehicleTypes] = useState<VehicleType[]>([]);
 
   // Fetch vehicle types from API, fallback to mock data on error
   const fetchVehicleTypes = useCallback(async () => {
@@ -210,12 +119,9 @@ export function usePricing() {
             vehicleTypeStatus: item.vehicleTypeStatus ?? item.VehicleTypeStatus ?? 'ACTIVE'
           }));
           setVehicleTypes(mapped);
-      } else {
-        setVehicleTypes(mockVehicleTypes);
       }
     } catch (error) {
-      console.error('Failed to fetch vehicle types from API, using mock fallback:', error);
-      setVehicleTypes(mockVehicleTypes);
+      console.error('Failed to fetch vehicle types from API:', error);
     }
   }, []);
 
@@ -276,7 +182,7 @@ interface PolicyApiResponse {
         }
       }
     } catch (error) {
-      console.error('Failed to fetch pricing policies from API, using mock fallback:', error);
+      console.error('Failed to fetch pricing policies from API:', error);
     }
   }, []);
 
@@ -299,7 +205,7 @@ interface PolicyApiResponse {
       isActive: boolean;
     }
 
-    let loadedVehicleTypes = mockVehicleTypes;
+    let loadedVehicleTypes: VehicleType[] = [];
     let loadedIncidentTypes: IncidentType[] = [];
 
     // Step 1: Load vehicle types and incident types independently
@@ -324,12 +230,9 @@ interface PolicyApiResponse {
       const itRes = await api.get<{ data?: IncidentType[], success?: boolean }>('/incident-types');
       if (itRes && itRes.success && Array.isArray(itRes.data) && itRes.data.length > 0) {
         loadedIncidentTypes = itRes.data;
-      } else {
-        loadedIncidentTypes = mockIncidentTypes;
       }
     } catch (error) {
-      console.error('Failed to fetch incident types, using mock fallback:', error);
-      loadedIncidentTypes = mockIncidentTypes;
+      console.error('Failed to fetch incident types:', error);
     }
     setIncidentTypes(loadedIncidentTypes);
 

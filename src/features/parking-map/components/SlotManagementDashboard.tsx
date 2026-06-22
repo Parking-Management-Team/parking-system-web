@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useAuth } from '@/features/auth';
 import { api, apiClient } from '@/lib/api/client';
 import { Building, BaseResponse, PagedResult } from '@/lib/types/building.types';
-import { Floor, FloorResponse, Zone, ZoneResponse, Slot, ParkingSlotDto, ParkingSessionDto } from '../types';
+import { Floor, FloorResponse, Zone, ZoneResponse, Slot, ParkingSlotDto, ParkingSessionDto, FloorSlotSummary } from '../types';
 import { SlotActionModal } from './SlotActionModal';
 
 export function SlotManagementDashboard() {
@@ -42,6 +42,9 @@ export function SlotManagementDashboard() {
   const POLL_INTERVAL_MS = 10_000;
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Slot Summary Data from API
+  const [floorSlotSummary, setFloorSlotSummary] = useState<FloorSlotSummary | null>(null);
 
   // Show Toast Helper
   const showToastMessage = useCallback((message: string, type: 'success' | 'error' = 'success') => {
@@ -131,6 +134,25 @@ export function SlotManagementDashboard() {
     fetchInitialData();
   }, [fetchInitialData]);
 
+  // Fetch Slot Summary from API
+  const fetchSlotSummary = useCallback(async () => {
+    if (!selectedBuildingId || !selectedFloorId) return;
+    try {
+      const res = await api.get<BaseResponse<FloorSlotSummary[]>>(`/Floors/building/${selectedBuildingId}/slot-summary`);
+      if (res.success && res.data) {
+        const summary = res.data.find(s => s.floorId === selectedFloorId);
+        setFloorSlotSummary(summary || null);
+      }
+    } catch (err) {
+      console.error('Failed to load slot summary:', err);
+      setFloorSlotSummary(null);
+    }
+  }, [selectedBuildingId, selectedFloorId]);
+
+  useEffect(() => {
+    fetchSlotSummary();
+  }, [fetchSlotSummary]);
+
   // Fetch Slots and active sessions when selectedFloorId changes
   const fetchSlotsForFloor = useCallback(async () => {
     if (!selectedFloorId) return;
@@ -168,9 +190,9 @@ export function SlotManagementDashboard() {
               const mapStatus = (statusVal: number): Slot['status'] => {
                 switch (statusVal) {
                   case 0: return 'AVAILABLE';
-                  case 1: return 'MAINTENANCE';
-                  case 2: return 'OCCUPIED';
-                  case 3: return 'BLOCKED';
+                  case 1: return 'OCCUPIED';
+                  case 2: return 'BLOCKED';
+                  case 3: return 'MAINTENANCE';
                   default: return 'AVAILABLE';
                 }
               };
@@ -242,9 +264,9 @@ export function SlotManagementDashboard() {
               const mapStatus = (statusVal: number): Slot['status'] => {
                 switch (statusVal) {
                   case 0: return 'AVAILABLE';
-                  case 1: return 'MAINTENANCE';
-                  case 2: return 'OCCUPIED';
-                  case 3: return 'BLOCKED';
+                  case 1: return 'OCCUPIED';
+                  case 2: return 'BLOCKED';
+                  case 3: return 'MAINTENANCE';
                   default: return 'AVAILABLE';
                 }
               };
@@ -269,6 +291,15 @@ export function SlotManagementDashboard() {
       const results = await Promise.all(zoneSlotsPromises);
       setSlots(results.flat());
       setLastUpdated(new Date());
+
+      // Refresh slot summary
+      if (selectedBuildingId) {
+        const summaryRes = await api.get<BaseResponse<FloorSlotSummary[]>>(`/Floors/building/${selectedBuildingId}/slot-summary`).catch(() => null);
+        if (summaryRes?.success && summaryRes.data) {
+          const summary = summaryRes.data.find(s => s.floorId === selectedFloorId);
+          setFloorSlotSummary(summary || null);
+        }
+      }
     } catch { /* silent polling failure */ }
   }, [selectedFloorId, zones, selectedBuildingId]);
 
@@ -341,8 +372,9 @@ export function SlotManagementDashboard() {
       }
       return s;
     }));
-    fetchSlotsForFloor();
-  }, [fetchSlotsForFloor]);
+    fetchSlotSummary();
+    setTimeout(() => fetchSlotsForFloor(), 500);
+  }, [fetchSlotsForFloor, fetchSlotSummary]);
 
   // Active Sessions list filtering for the current floor
   const filteredSessions = useMemo(() => {
@@ -516,104 +548,84 @@ export function SlotManagementDashboard() {
         </div>
 
         {/* ===== FLOOR CAPACITY SUMMARY BAR ===== */}
-        {selectedFloorId && (() => {
-          const floorCarSlots = slots;
-          const totalCar = floorCarSlots.length;
-          const availableCar = floorCarSlots.filter(s => s.status === 'AVAILABLE').length;
-          const occupiedCar = floorCarSlots.filter(s => s.status === 'OCCUPIED').length;
-          const floorMotorZones = activeMotorbikeZones;
-          const totalMoto = floorMotorZones.reduce((sum, z) => sum + z.slotCapacity, 0);
-          const occupiedMoto = activeSessions.filter(s => floorMotorZones.some(z => z.id === s.zoneId)).length;
-          const availableMoto = Math.max(0, totalMoto - occupiedMoto);
-          const carPct = totalCar > 0 ? Math.round((occupiedCar / totalCar) * 100) : 0;
-          const motoPct = totalMoto > 0 ? Math.round((occupiedMoto / totalMoto) * 100) : 0;
-
-          return (
-            <div className="mb-8 grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {/* Car Capacity */}
-              <div className="bg-white border border-slate-100 shadow-sm rounded-2xl p-4 flex flex-col gap-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="material-symbols-outlined text-[#006d43] text-[20px]">directions_car</span>
-                    <span className="text-xs font-extrabold text-slate-700 uppercase tracking-wide">Car Slots · This Floor</span>
+        {selectedFloorId && floorSlotSummary && (
+          <div className="mb-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {floorSlotSummary.vehicleTypeSummaries.map((vehicleType) => {
+              const { vehicleTypeName, totalSlots, statusCounts } = vehicleType;
+              const occupied = statusCounts?.Occupied ?? 0;
+              const blocked = statusCounts?.Blocked ?? 0;
+              const available = statusCounts?.Available ?? 0;
+              const total = totalSlots ?? 0;
+              const occupiedPct = total > 0 ? Math.round((occupied / total) * 100) : 0;
+              const blockedPct = total > 0 ? Math.round((blocked / total) * 100) : 0;
+              const availablePct = total > 0 ? Math.round((available / total) * 100) : 0;
+              const isMotorbike = vehicleTypeName?.toUpperCase().includes('MOTOR') || vehicleTypeName?.toUpperCase().includes('BIKE');
+              
+              return (
+                <div key={vehicleType.vehicleTypeId} className="bg-white border-2 border-slate-200 shadow-md rounded-2xl p-5 flex flex-col gap-3 hover:shadow-lg transition-shadow">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2.5">
+                      <div className={`p-2 rounded-xl ${isMotorbike ? 'bg-slate-100' : 'bg-emerald-50'}`}>
+                        <span className={`material-symbols-outlined text-[20px] ${isMotorbike ? 'text-slate-600' : 'text-[#006d43]'}`}>
+                          {isMotorbike ? 'two_wheeler' : 'directions_car'}
+                        </span>
+                      </div>
+                      <span className="text-xs font-extrabold text-slate-700 uppercase tracking-wide">{vehicleTypeName} · Floor {floorSlotSummary.floorNumber}</span>
+                    </div>
                   </div>
-                  <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full ${
-                    carPct >= 90 ? 'bg-red-50 text-red-600' :
-                    carPct >= 75 ? 'bg-amber-50 text-amber-600' :
-                    'bg-emerald-50 text-[#006d43]'
-                  }`}>
-                    {carPct}% Full
-                  </span>
-                </div>
-                <div className="flex items-end gap-4">
-                  <div className="text-center">
-                    <p className="text-2xl font-black text-[#006d43]">{availableCar}</p>
-                    <p className="text-[10px] font-bold text-slate-400 uppercase mt-0.5">Available</p>
+                  
+                  <div className="flex items-end gap-4">
+                    <div className="text-center">
+                      <p className="text-2xl font-black text-[#006d43]">{available}</p>
+                      <p className="text-[10px] font-bold text-slate-400 uppercase mt-0.5">Available</p>
+                    </div>
+                    <div className="h-8 w-px bg-slate-100"></div>
+                    <div className="text-center">
+                      <p className="text-2xl font-black text-[#263143]">{occupied}</p>
+                      <p className="text-[10px] font-bold text-slate-400 uppercase mt-0.5">Occupied</p>
+                    </div>
+                    <div className="h-8 w-px bg-slate-100"></div>
+                    <div className="text-center">
+                      <p className="text-2xl font-black text-[#ba1a1a]">{blocked}</p>
+                      <p className="text-[10px] font-bold text-slate-400 uppercase mt-0.5">Blocked</p>
+                    </div>
+                    <div className="h-8 w-px bg-slate-100"></div>
+                    <div className="text-center">
+                      <p className="text-2xl font-black text-slate-600">{total}</p>
+                      <p className="text-[10px] font-bold text-slate-400 uppercase mt-0.5">Total</p>
+                    </div>
                   </div>
-                  <div className="h-8 w-px bg-slate-100"></div>
-                  <div className="text-center">
-                    <p className="text-2xl font-black text-[#263143]">{occupiedCar}</p>
-                    <p className="text-[10px] font-bold text-slate-400 uppercase mt-0.5">Occupied</p>
-                  </div>
-                  <div className="h-8 w-px bg-slate-100"></div>
-                  <div className="text-center">
-                    <p className="text-2xl font-black text-slate-600">{totalCar}</p>
-                    <p className="text-[10px] font-bold text-slate-400 uppercase mt-0.5">Total</p>
-                  </div>
-                </div>
-                <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
-                  <div
-                    className={`h-full rounded-full transition-all duration-700 ${
-                      carPct >= 90 ? 'bg-red-500' : carPct >= 75 ? 'bg-amber-500' : 'bg-[#006d43]'
-                    }`}
-                    style={{ width: `${carPct}%` }}
-                  />
-                </div>
-              </div>
-
-              {/* Motorbike Capacity */}
-              <div className="bg-white border border-slate-100 shadow-sm rounded-2xl p-4 flex flex-col gap-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="material-symbols-outlined text-slate-600 text-[20px]">two_wheeler</span>
-                    <span className="text-xs font-extrabold text-slate-700 uppercase tracking-wide">Motorbike Zones · This Floor</span>
-                  </div>
-                  <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full ${
-                    motoPct >= 90 ? 'bg-red-50 text-red-600' :
-                    motoPct >= 75 ? 'bg-amber-50 text-amber-600' :
-                    'bg-emerald-50 text-[#006d43]'
-                  }`}>
-                    {motoPct}% Full
-                  </span>
-                </div>
-                <div className="flex items-end gap-4">
-                  <div className="text-center">
-                    <p className="text-2xl font-black text-[#006d43]">{availableMoto}</p>
-                    <p className="text-[10px] font-bold text-slate-400 uppercase mt-0.5">Available</p>
-                  </div>
-                  <div className="h-8 w-px bg-slate-100"></div>
-                  <div className="text-center">
-                    <p className="text-2xl font-black text-[#263143]">{occupiedMoto}</p>
-                    <p className="text-[10px] font-bold text-slate-400 uppercase mt-0.5">Occupied</p>
-                  </div>
-                  <div className="h-8 w-px bg-slate-100"></div>
-                  <div className="text-center">
-                    <p className="text-2xl font-black text-slate-600">{totalMoto}</p>
-                    <p className="text-[10px] font-bold text-slate-400 uppercase mt-0.5">Capacity</p>
+                  
+                  {/* Progress Bar with Percentage */}
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between text-[10px] font-bold">
+                      <span className="text-slate-500 uppercase tracking-wider">Capacity Usage</span>
+                      <div className="flex items-center gap-3">
+                        <span className="text-[#006d43]">{availablePct}% free</span>
+                        <span className="text-[#263143]">{occupiedPct}% occupied</span>
+                        {blocked > 0 && <span className="text-[#ba1a1a]">{blockedPct}% blocked</span>}
+                      </div>
+                    </div>
+                    <div className="w-full bg-slate-100 h-3 rounded-full overflow-hidden flex">
+                      <div
+                        className="h-full bg-[#006d43] transition-all duration-700"
+                        style={{ width: `${availablePct}%` }}
+                      />
+                      <div
+                        className="h-full bg-[#263143] transition-all duration-700"
+                        style={{ width: `${occupiedPct}%` }}
+                      />
+                      <div
+                        className="h-full bg-[#ba1a1a] transition-all duration-700"
+                        style={{ width: `${blockedPct}%` }}
+                      />
+                    </div>
                   </div>
                 </div>
-                <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
-                  <div
-                    className={`h-full rounded-full transition-all duration-700 ${
-                      motoPct >= 90 ? 'bg-red-500' : motoPct >= 75 ? 'bg-amber-500' : 'bg-[#006d43]'
-                    }`}
-                    style={{ width: `${motoPct}%` }}
-                  />
-                </div>
-              </div>
-            </div>
-          );
-        })()}
+              );
+            })}
+          </div>
+        )}
 
         {/* ===== TAB CONTENT 1: VISUAL LAYOUT MAP ===== */}
         {activeTab === 'map' && (
@@ -656,12 +668,14 @@ export function SlotManagementDashboard() {
                     <div className="flex items-center justify-between mb-6">
                       <div>
                         <h3 className="text-base font-extrabold text-slate-800 flex items-center gap-2">
-                          <span className="material-symbols-outlined text-[#006d43] text-[20px]">directions_car</span>
+                          <span className={`material-symbols-outlined text-[20px] ${zone.vehicleType === 'EV Charging' ? 'text-amber-500' : 'text-[#006d43]'}`}>
+                            {zone.vehicleType === 'EV Charging' ? 'ev_station' : 'directions_car'}
+                          </span>
                           {zone.name}
                         </h3>
                         <div className="flex items-center gap-2 mt-1">
-                          <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider bg-slate-100 px-2 py-0.5 rounded-md">
-                            Type: {zone.vehicleType}
+                          <span className="text-[11px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-slate-100 text-slate-600">
+                            {zone.vehicleType}
                           </span>
                           <span className={`text-[11px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md ${
                             zone.zoneAccessType === 'MONTHLY' 
@@ -691,7 +705,7 @@ export function SlotManagementDashboard() {
                           >
                             <span className="truncate w-full text-center px-1">{slot.slotCode}</span>
                             <span className="material-symbols-outlined text-[18px]">
-                              {slot.slotType === 'EV Charging' ? 'ev_station' : 'directions_car'}
+                              {zone.vehicleType === 'EV Charging' ? 'ev_station' : 'directions_car'}
                             </span>
                           </button>
                         ))}

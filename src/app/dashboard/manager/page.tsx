@@ -223,6 +223,7 @@ export default function ManagerDashboard() {
             <select
               value={selectedBuildingId || ''}
               onChange={(e) => setSelectedBuildingId(Number(e.target.value))}
+              aria-label="Select Building"
               className="pl-9 pr-8 py-2.5 bg-white border border-slate-200 text-slate-700 text-sm font-bold rounded-xl focus:ring-1 focus:ring-emerald-500/30 focus:border-emerald-500 focus:outline-none appearance-none cursor-pointer shadow-sm min-w-[200px]"
             >
               {buildings.map(bld => (

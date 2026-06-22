@@ -88,6 +88,15 @@ function normalizeSession(raw: any): ParkingSessionRecord & {
   };
 }
 
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 export default function ParkingHistoryPage() {
   const { user, showToast } = useAuth();
   const router = useRouter();
@@ -188,11 +197,13 @@ export default function ParkingHistoryPage() {
   }, [fetchHistory]);
 
   const handleExportPDF = () => {
+    const safeFullName = escapeHtml(user?.fullName || 'Driver');
+
     // Build print-friendly content
     const printContent = `
       <html>
         <head>
-          <title>Parking History - ${user?.fullName || 'Driver'}</title>
+          <title>Parking History - ${safeFullName}</title>
           <style>
             body { font-family: sans-serif; font-size: 12px; padding: 20px; }
             h1 { font-size: 18px; margin-bottom: 4px; }
@@ -206,7 +217,7 @@ export default function ParkingHistoryPage() {
         </head>
         <body>
           <h1>Parking History</h1>
-          <p>Exported for: ${user?.fullName || 'Driver'} &nbsp;|&nbsp; ${new Date().toLocaleDateString()}</p>
+          <p>Exported for: ${safeFullName} &nbsp;|&nbsp; ${new Date().toLocaleDateString()}</p>
           <table>
             <thead>
               <tr>
@@ -221,18 +232,28 @@ export default function ParkingHistoryPage() {
               </tr>
             </thead>
             <tbody>
-              ${filteredSessions.map(s => `
+              ${filteredSessions.map(s => {
+                const safeId = escapeHtml(String(s.id).slice(0, 8));
+                const safePlate = escapeHtml(s.plate);
+                const safeCheckIn = escapeHtml(s.checkIn);
+                const safeCheckOut = escapeHtml(s.checkOut);
+                const safeDuration = escapeHtml(s.duration);
+                const safeZone = escapeHtml(s.zone);
+                const safeStatus = s.status === 'completed' || s.status === 'cancelled' || s.status === 'active' ? s.status : 'cancelled';
+                const safeStatusText = escapeHtml(safeStatus);
+                return `
                 <tr>
-                  <td>#${String(s.id).slice(0, 8)}</td>
-                  <td>${s.plate}</td>
-                  <td>${s.checkIn}</td>
-                  <td>${s.checkOut}</td>
-                  <td>${s.duration}</td>
-                  <td>${s.zone}</td>
+                  <td>#${safeId}</td>
+                  <td>${safePlate}</td>
+                  <td>${safeCheckIn}</td>
+                  <td>${safeCheckOut}</td>
+                  <td>${safeDuration}</td>
+                  <td>${safeZone}</td>
                   <td>$${s.fee.toFixed(2)}</td>
-                  <td><span class="badge-${s.status}">${s.status}</span></td>
+                  <td><span class="badge-${safeStatus}">${safeStatusText}</span></td>
                 </tr>
-              `).join('')}
+              `;
+              }).join('')}
             </tbody>
           </table>
         </body>

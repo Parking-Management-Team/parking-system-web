@@ -51,24 +51,31 @@ export interface TariffRow {
 
 export interface MonthlyMembership {
   id: string;
+  vehicleTypeId: number;
   vehicleType: string;
   price: string;
   priceNum: number;
+  hasConfig: boolean;
 }
-
-export type FeePenaltyType = 'deposit' | 'noshow' | 'lostcard' | 'wrongzone';
-export type TriggerType = 'time' | 'manual';
 
 export interface ServiceFeeOrPenalty {
   id: string;
+  incidentTypeId: number;
   name: string;
-  type: FeePenaltyType;
+  type: string;
   amount: string;
   amountNum: number;
   description: string;
-  triggerType: TriggerType;
-  triggerVal?: number; // minutes for time-based trigger
   isActive: boolean;
+  hasConfig: boolean;
+}
+
+export interface IncidentType {
+  id: number;
+  incidentCode: string;
+  incidentName: string;
+  description: string;
+  defaultPenaltyFee: number;
 }
 
 // Request body để tạo 1 khung giờ trong chính sách mới

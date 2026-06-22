@@ -19,6 +19,7 @@ export default function PricingWorkspace() {
     triggerToast,
     handleOpenEditTariff,
     handleOpenEditMembership,
+    handleOpenAddMembership,
     handleOpenAddFee,
     handleOpenEditFee,
     handleDeleteFee,
@@ -37,7 +38,7 @@ export default function PricingWorkspace() {
     if (activeTab === 'standard') {
       handleOpenCreatePolicy();
     } else if (activeTab === 'memberships') {
-      triggerToast('Monthly membership plans are automatically synchronized from the central system.', 'error');
+      handleOpenAddMembership();
     } else {
       handleOpenAddFee();
     }
@@ -401,30 +402,51 @@ export default function PricingWorkspace() {
                   {memberships.map((membership) => (
                     <div 
                       key={membership.id} 
-                      className="bg-white border border-slate-200 rounded-2xl p-6 relative group hover:shadow-md transition-all flex flex-col justify-between"
+                      className={`bg-white border rounded-2xl p-6 relative group hover:shadow-md transition-all flex flex-col justify-between ${
+                        membership.hasConfig ? 'border-slate-200' : 'border-dashed border-slate-350 bg-slate-50/30'
+                      }`}
                     >
                       <div className="flex justify-between items-start">
-                        <div className="w-12 h-12 rounded-xl bg-emerald-50 flex items-center justify-center text-[#006d43]">
+                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
+                          membership.hasConfig ? 'bg-emerald-50 text-[#006d43]' : 'bg-slate-100 text-slate-400'
+                        }`}>
                           <span className="material-symbols-outlined text-[28px]">
-                            {membership.vehicleType.includes('Motorbike') ? 'two_wheeler' : 'directions_car'}
+                            {membership.vehicleType.toLowerCase().includes('motorbike') || membership.vehicleType.toLowerCase().includes('xe máy') ? 'two_wheeler' : 'directions_car'}
                           </span>
                         </div>
-                        <button 
-                          onClick={() => handleOpenEditMembership(membership)}
-                          className="h-8 w-8 flex items-center justify-center rounded-full hover:bg-slate-100 text-slate-400 hover:text-[#006d43] transition-colors"
-                          title="Edit subscription rate"
-                        >
-                          <span className="material-symbols-outlined text-[18px]">edit</span>
-                        </button>
+                        {membership.hasConfig && (
+                          <button 
+                            onClick={() => handleOpenEditMembership(membership)}
+                            className="h-8 w-8 flex items-center justify-center rounded-full hover:bg-slate-100 text-slate-400 hover:text-[#006d43] transition-colors"
+                            title="Edit subscription rate"
+                          >
+                            <span className="material-symbols-outlined text-[18px]">edit</span>
+                          </button>
+                        )}
                       </div>
 
                       <div className="mt-6">
                         <h5 className="text-slate-800 text-base font-bold">{membership.vehicleType} Passes</h5>
                         <div className="flex items-baseline gap-1 mt-2">
-                          <span className="text-3xl font-black text-slate-800 tracking-tight">
-                            {membership.priceNum.toLocaleString('en-US')}
-                          </span>
-                          <span className="text-xs text-slate-400 font-bold uppercase tracking-wider">VND / month</span>
+                          {membership.hasConfig ? (
+                            <>
+                              <span className="text-3xl font-black text-slate-800 tracking-tight">
+                                {membership.priceNum.toLocaleString('en-US')}
+                              </span>
+                              <span className="text-xs text-slate-400 font-bold uppercase tracking-wider">VND / month</span>
+                            </>
+                          ) : (
+                            <div className="flex flex-col gap-2 w-full mt-1">
+                              <span className="text-slate-400 font-medium text-sm italic">Chưa có cấu hình</span>
+                              <button
+                                onClick={() => handleOpenEditMembership(membership)}
+                                className="w-full mt-2 inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-sm transition-all"
+                              >
+                                <span className="material-symbols-outlined text-[16px]">add_circle</span>
+                                Tạo cấu hình
+                              </button>
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -453,70 +475,73 @@ export default function PricingWorkspace() {
 
                 <div className="grid grid-cols-1 gap-4">
                   {fees.map((fee) => {
-                    const isPenalty = fee.type === 'lostcard' || fee.type === 'wrongzone' || fee.type === 'noshow';
+                    const isPenalty = true; // Representing penalty configurations
+                    const iconName = fee.type.toLowerCase().includes('ticket') || fee.type.toLowerCase().includes('card')
+                      ? 'credit_card_off'
+                      : (fee.type.toLowerCase().includes('vehicle') ? 'directions_car' : 'warning');
+                    
                     return (
                       <div 
                         key={fee.id} 
                         className={`border rounded-2xl p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 transition-all hover:shadow-sm ${
-                          isPenalty 
+                          fee.hasConfig 
                             ? 'bg-[#FFF8F6] border-red-200/60' 
-                            : 'bg-white border-slate-200'
+                            : 'bg-slate-50/30 border-slate-250 border-dashed'
                         }`}
                       >
                         <div className="flex items-start gap-4">
                           <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${
-                            isPenalty 
+                            fee.hasConfig 
                               ? 'bg-red-50 text-red-600' 
-                              : 'bg-emerald-50 text-[#006d43]'
+                              : 'bg-slate-100 text-slate-400'
                           }`}>
                             <span className="material-symbols-outlined text-[24px]">
-                              {fee.type === 'deposit' && 'book_online'}
-                              {fee.type === 'noshow' && 'history_toggle_off'}
-                              {fee.type === 'lostcard' && 'credit_card_off'}
-                              {fee.type === 'wrongzone' && 'warning'}
+                              {iconName}
                             </span>
                           </div>
                           <div>
                             <div className="flex items-center gap-2">
                               <h5 className="text-sm font-bold text-slate-800">{fee.name}</h5>
                               <span className={`text-[9px] font-extrabold uppercase px-2 py-0.5 rounded-full ${
-                                fee.isActive 
-                                  ? 'bg-emerald-100 text-emerald-700' 
+                                fee.hasConfig 
+                                  ? 'bg-red-100 text-red-700' 
                                   : 'bg-slate-100 text-slate-400'
                               }`}>
-                                {fee.isActive ? 'Active' : 'Disabled'}
+                                {fee.hasConfig ? 'Active' : 'Unconfigured'}
                               </span>
                             </div>
                             <p className="text-xs text-slate-500 font-semibold mt-1">{fee.description}</p>
-                            {fee.triggerType === 'time' && (
-                              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-1 flex items-center gap-1">
-                                <span className="material-symbols-outlined text-[12px]">alarm</span>
-                                Time Trigger: {fee.triggerVal} mins
-                              </p>
-                            )}
                           </div>
                         </div>
 
                         <div className="flex items-center justify-between md:justify-end gap-6 w-full md:w-auto border-t md:border-none pt-3 md:pt-0">
-                          <div className={`text-lg font-black tracking-tight ${isPenalty ? 'text-red-600' : 'text-slate-800'}`}>
-                            {fee.amount}
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <button 
-                              onClick={() => handleOpenEditFee(fee)}
-                              className="h-8 w-8 flex items-center justify-center rounded-full hover:bg-slate-100 text-slate-500 hover:text-[#006d43]"
-                              title="Edit fee policy"
-                            >
-                              <span className="material-symbols-outlined text-[18px]">edit</span>
-                            </button>
-                            <button 
-                              onClick={() => handleDeleteFee(fee.id)}
-                              className="h-8 w-8 flex items-center justify-center rounded-full hover:bg-red-50 text-slate-400 hover:text-red-500"
-                              title="Delete fee policy"
-                            >
-                              <span className="material-symbols-outlined text-[18px]">delete</span>
-                            </button>
-                          </div>
+                          {fee.hasConfig ? (
+                            <>
+                              <div className="text-lg font-black tracking-tight text-red-600">
+                                {fee.amount}
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <button 
+                                  onClick={() => handleOpenEditFee(fee)}
+                                  className="h-8 w-8 flex items-center justify-center rounded-full hover:bg-slate-100 text-slate-500 hover:text-[#006d43]"
+                                  title="Edit penalty configuration"
+                                >
+                                  <span className="material-symbols-outlined text-[18px]">edit</span>
+                                </button>
+                              </div>
+                            </>
+                          ) : (
+                            <div className="flex items-center gap-3">
+                              <span className="text-slate-400 font-medium text-xs italic">Chưa có cấu hình</span>
+                              <button
+                                onClick={() => handleOpenEditFee(fee)}
+                                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-red-600 hover:bg-red-700 text-white font-bold text-xs rounded-xl shadow-sm transition-all"
+                              >
+                                <span className="material-symbols-outlined text-[14px]">add_circle</span>
+                                Tạo cấu hình
+                              </button>
+                            </div>
+                          )}
                         </div>
                       </div>
                     );

@@ -257,7 +257,7 @@ interface PolicyApiResponse {
               id: `vt-${vt.id}`,
               vehicleTypeId: vt.id,
               vehicleType: vt.name,
-              price: 'Chưa có',
+              price: 'No config',
               priceNum: 0,
               hasConfig: false
             };
@@ -293,7 +293,7 @@ interface PolicyApiResponse {
               incidentTypeId: it.id,
               name: it.incidentName,
               type: it.incidentCode,
-              amount: 'Chưa có',
+              amount: 'No config',
               amountNum: it.defaultPenaltyFee,
               description: it.description,
               isActive: false,

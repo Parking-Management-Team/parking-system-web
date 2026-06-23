@@ -429,7 +429,7 @@ export default function PricingWorkspace() {
                           membership.hasConfig ? 'bg-emerald-50 text-[#006d43]' : 'bg-slate-100 text-slate-400'
                         }`}>
                           <span className="material-symbols-outlined text-[28px]">
-                            {membership.vehicleType.toLowerCase().includes('motorbike') || membership.vehicleType.toLowerCase().includes('xe máy') ? 'two_wheeler' : 'directions_car'}
+                            {membership.vehicleType.toLowerCase().includes('motorbike') ? 'two_wheeler' : 'directions_car'}
                           </span>
                         </div>
                         {membership.hasConfig && (
@@ -455,13 +455,13 @@ export default function PricingWorkspace() {
                             </>
                           ) : (
                             <div className="flex flex-col gap-2 w-full mt-1">
-                              <span className="text-slate-400 font-medium text-sm italic">Chưa có cấu hình</span>
+                              <span className="text-slate-400 font-medium text-sm italic">No configuration</span>
                               <button
                                 onClick={() => handleOpenEditMembership(membership)}
                                 className="w-full mt-2 inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-sm transition-all"
                               >
                                 <span className="material-symbols-outlined text-[16px]">add_circle</span>
-                                Tạo cấu hình
+                                Create configuration
                               </button>
                             </div>
                           )}
@@ -625,13 +625,13 @@ export default function PricingWorkspace() {
                             </>
                           ) : (
                             <div className="flex items-center gap-3">
-                              <span className="text-slate-400 font-medium text-xs italic">Chưa có cấu hình</span>
+                              <span className="text-slate-400 font-medium text-xs italic">No configuration</span>
                               <button
                                 onClick={() => handleOpenEditFee(fee)}
                                 className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-red-600 hover:bg-red-700 text-white font-bold text-xs rounded-xl shadow-sm transition-all"
                               >
                                 <span className="material-symbols-outlined text-[14px]">add_circle</span>
-                                Tạo cấu hình
+                                Create configuration
                               </button>
                             </div>
                           )}

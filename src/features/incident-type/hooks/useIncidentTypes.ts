@@ -15,7 +15,7 @@ export function useIncidentTypes() {
       setIncidentTypes(data);
     } catch (err) {
       console.error('Error fetching incident types:', err);
-      setError('Không thể tải danh sách loại sự cố');
+      setError('Failed to load incident types');
     } finally {
       setLoading(false);
     }
@@ -31,7 +31,7 @@ export function useIncidentTypes() {
       return false;
     } catch (err) {
       console.error('Error creating incident type:', err);
-      setError('Không thể tạo loại sự cố');
+      setError('Failed to create incident type');
       return false;
     }
   };
@@ -46,7 +46,7 @@ export function useIncidentTypes() {
       return false;
     } catch (err) {
       console.error('Error updating incident type:', err);
-      setError('Không thể cập nhật loại sự cố');
+      setError('Failed to update incident type');
       return false;
     }
   };
@@ -61,7 +61,7 @@ export function useIncidentTypes() {
       return false;
     } catch (err) {
       console.error('Error deleting incident type:', err);
-      setError('Không thể xóa loại sự cố');
+      setError('Failed to delete incident type');
       return false;
     }
   };

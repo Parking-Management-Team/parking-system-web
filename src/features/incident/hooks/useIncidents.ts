@@ -20,7 +20,7 @@ export function useIncidents() {
       setIncidents(data);
     } catch (err) {
       console.error('Error fetching incidents:', err);
-      setError('Không thể tải danh sách sự cố');
+      setError('Failed to load incidents');
     } finally {
       setLoading(false);
     }
@@ -31,7 +31,7 @@ export function useIncidents() {
       return await incidentService.getById(id);
     } catch (err) {
       console.error('Error fetching incident:', err);
-      setError('Không thể tải thông tin sự cố');
+      setError('Failed to load incident details');
       return null;
     }
   };
@@ -41,7 +41,7 @@ export function useIncidents() {
       return await incidentService.getBySessionId(sessionId);
     } catch (err) {
       console.error('Error fetching incidents by session:', err);
-      setError('Không thể tải sự cố theo phiên');
+      setError('Failed to load incidents by session');
       return [];
     }
   };
@@ -56,7 +56,7 @@ export function useIncidents() {
       return false;
     } catch (err) {
       console.error('Error creating incident:', err);
-      setError('Không thể tạo sự cố');
+      setError('Failed to create incident');
       return false;
     }
   };
@@ -71,7 +71,7 @@ export function useIncidents() {
       return false;
     } catch (err) {
       console.error('Error updating incident:', err);
-      setError('Không thể cập nhật sự cố');
+      setError('Failed to update incident');
       return false;
     }
   };
@@ -86,7 +86,7 @@ export function useIncidents() {
       return false;
     } catch (err) {
       console.error('Error updating incident status:', err);
-      setError('Không thể cập nhật trạng thái sự cố');
+      setError('Failed to update incident status');
       return false;
     }
   };
@@ -101,7 +101,7 @@ export function useIncidents() {
       return false;
     } catch (err) {
       console.error('Error deleting incident:', err);
-      setError('Không thể xóa sự cố');
+      setError('Failed to delete incident');
       return false;
     }
   };

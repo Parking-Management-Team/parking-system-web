@@ -154,8 +154,8 @@ interface PolicyApiResponse {
   // Fetch pricing policies on component mount
   const fetchPolicies = useCallback(async () => {
     try {
-      const response = await api.get<{ data: PolicyApiResponse[], success: boolean }>('/api/pricing-policies');
-      if (response && response.success && Array.isArray(response.data)) {
+      const response = await api.get<{ data: PolicyApiResponse[]; status: number }>('/api/pricing-policies');
+      if (response && response.status === 200 && Array.isArray(response.data)) {
         if (response.data.length > 0) {
           const mappedPolicies: StandardTariff[] = response.data.map((policy: PolicyApiResponse) => ({
             pricingPolicyId: policy.pricingPolicyId ?? policy.id ?? 0,
@@ -238,8 +238,8 @@ interface PolicyApiResponse {
 
     // Step 2: Load subscription and penalty configs independently
     try {
-      const subRes = await api.get<{ data?: SubscriptionPriceConfig[], success?: boolean }>('/api/subscription-price-configs?onlyActive=true');
-      if (subRes && subRes.success && Array.isArray(subRes.data)) {
+      const subRes = await api.get<{ data?: SubscriptionPriceConfig[]; status: number }>('/api/subscription-price-configs?onlyActive=true');
+      if (subRes && subRes.status === 200 && Array.isArray(subRes.data)) {
         const configs = subRes.data;
         const mappedSub = loadedVehicleTypes.map((vt) => {
           const activeConfig = configs.find((c) => c.vehicleTypeId === vt.id && c.isActive);
@@ -511,8 +511,8 @@ interface PolicyApiResponse {
     };
 
     try {
-      const res = await api.put<{ success: boolean }>(`/api/pricing-policies/windows/${windowId}`, requestBody);
-      if (res && res.success) {
+      const res = await api.put<{ status: number }>(`/api/pricing-policies/windows/${windowId}`, requestBody);
+      if (res && res.status === 200) {
         await fetchPolicies();
         triggerToast('Pricing Policy updated successfully!', 'success');
         handleCloseEditTariff();
@@ -540,8 +540,8 @@ interface PolicyApiResponse {
 
     if (nextStatus === 'Active') {
       try {
-        const res = await api.post<{ success: boolean }>(`/api/pricing-policies/${policyId}/activate`, {});
-        if (res && res.success) {
+        const res = await api.post<{ status: number }>(`/api/pricing-policies/${policyId}/activate`, {});
+        if (res && res.status === 200) {
           await fetchPolicies();
           triggerToast(`${vehicleName} Policy status updated to Active!`, 'success');
         } else {
@@ -562,8 +562,8 @@ interface PolicyApiResponse {
     const windowId = parseInt(windowIdStr);
 
     try {
-      const res = await api.delete<{ success: boolean }>(`/api/pricing-policies/windows/${windowId}`);
-      if (res && res.success) {
+      const res = await api.delete<{ status: number }>(`/api/pricing-policies/windows/${windowId}`);
+      if (res && res.status === 200) {
         await fetchPolicies();
         triggerToast('Policy window deleted successfully!', 'success');
       } else {
@@ -615,8 +615,8 @@ interface PolicyApiResponse {
         price: formMembershipPrice
       };
 
-      const res = await api.post<{ success: boolean }>('/api/subscription-price-configs', requestBody);
-      if (res && res.success) {
+      const res = await api.post<{ status: number; data?: { id: number } }>('/api/subscription-price-configs', requestBody);
+      if (res && (res.status === 200 || res.status === 201)) {
         await loadAllData();
         triggerToast('Monthly Membership fee updated successfully!', 'success');
         handleCloseEditMembership();
@@ -625,6 +625,38 @@ interface PolicyApiResponse {
       }
     } catch (error) {
       console.error('Failed to update membership pricing via API:', error);
+      const errorMsg = extractErrorMessage(error);
+      triggerToast(errorMsg, 'error');
+    }
+  };
+
+  const handleDeactivateMembership = async (configId: number) => {
+    try {
+      const res = await api.put<{ status: number }>(`/api/subscription-price-configs/${configId}/deactivate`, {});
+      if (res && res.status === 200) {
+        await loadAllData();
+        triggerToast('Membership deactivated successfully!', 'success');
+      } else {
+        triggerToast('Failed to deactivate membership.', 'error');
+      }
+    } catch (error) {
+      console.error('Failed to deactivate membership:', error);
+      const errorMsg = extractErrorMessage(error);
+      triggerToast(errorMsg, 'error');
+    }
+  };
+
+  const handleDeleteMembership = async (configId: number) => {
+    try {
+      const res = await api.delete<{ status: number }>(`/api/subscription-price-configs/${configId}`);
+      if (res && res.status === 200) {
+        await loadAllData();
+        triggerToast('Membership deleted successfully!', 'success');
+      } else {
+        triggerToast('Failed to delete membership.', 'error');
+      }
+    } catch (error) {
+      console.error('Failed to delete membership:', error);
       const errorMsg = extractErrorMessage(error);
       triggerToast(errorMsg, 'error');
     }
@@ -924,8 +956,8 @@ interface PolicyApiResponse {
     };
 
     try {
-      const res = await api.post<{ success: boolean }>('/api/pricing-policies', requestBody);
-      if (res && res.success) {
+      const res = await api.post<{ status: number }>('/api/pricing-policies', requestBody);
+      if (res && res.status === 200) {
         await fetchPolicies();
         triggerToast('New pricing policy created successfully!', 'success');
         setIsCreatePolicyOpen(false);
@@ -958,8 +990,8 @@ interface PolicyApiResponse {
     const targetPolicyId = activatingPolicy.pricingPolicyId;
 
     try {
-      const res = await api.post<{ success: boolean }>(`/api/pricing-policies/${targetPolicyId}/activate`, {});
-      if (res && res.success) {
+      const res = await api.post<{ status: number }>(`/api/pricing-policies/${targetPolicyId}/activate`, {});
+      if (res && res.status === 200) {
         await fetchPolicies();
         triggerToast(`Pricing policy "${activatingPolicy.policyName}" activated successfully!`, 'success');
         setIsActivateDialogOpen(false);
@@ -1032,8 +1064,8 @@ interface PolicyApiResponse {
         requestBody.effectiveStart = `${editEffectiveStart}T00:00:00.000Z`;
       }
 
-      const res = await api.put<{ success: boolean }>(`/api/pricing-policies/${editPolicyTarget.pricingPolicyId}`, requestBody);
-      if (res && res.success) {
+      const res = await api.put<{ status: number }>(`/api/pricing-policies/${editPolicyTarget.pricingPolicyId}`, requestBody);
+      if (res && res.status === 200) {
         await fetchPolicies();
         triggerToast('Pricing policy updated successfully!', 'success');
         handleCloseEditPolicy();
@@ -1134,8 +1166,8 @@ interface PolicyApiResponse {
     }
 
     try {
-      const res = await api.post<{ success: boolean }>(`/api/pricing-policies/${addWindowTargetPolicyId}/windows`, newWinReq);
-      if (res && res.success) {
+      const res = await api.post<{ status: number }>(`/api/pricing-policies/${addWindowTargetPolicyId}/windows`, newWinReq);
+      if (res && res.status === 200) {
         await fetchPolicies();
         triggerToast('New pricing window added successfully!', 'success');
         setIsAddWindowOpen(false);
@@ -1313,6 +1345,8 @@ interface PolicyApiResponse {
     handleOpenEditMembership,
     handleCloseEditMembership,
     handleSaveMembership,
+    handleDeactivateMembership,
+    handleDeleteMembership,
 
     handleOpenAddFee,
     handleOpenEditFee,

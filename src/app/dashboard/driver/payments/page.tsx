@@ -64,9 +64,10 @@ export default function PaymentsPage() {
     setMounted(true);
   }, []);
 
-  const [walletBalance, setWalletBalance] = useState<number>(156.00);
+  const [walletBalance, setWalletBalance] = useState<number>(500000);
   const [showTopUpModal, setShowTopUpModal] = useState<boolean>(false);
-  const [topUpAmount, setTopUpAmount] = useState<string>('20.00');
+  const [topUpAmount, setTopUpAmount] = useState<string>('50000');
+  const [vehicles, setVehicles] = useState<any[]>([]);
   
   const [savedCards, setSavedCards] = useState<SavedCard[]>([
     { id: '1', type: 'visa', last4: '4242', expiry: '12/26', holder: 'NGUYEN VAN A', isDefault: true },
@@ -117,9 +118,12 @@ export default function PaymentsPage() {
 
       // 2. Fetch user vehicles
       let userPlates: string[] = [];
+      let vehiclesList: any[] = [];
       try {
         const vehRes = await api.get<any>(`/vehicles?accountId=${user.id}`);
         if (vehRes.success && vehRes.data) {
+          vehiclesList = vehRes.data;
+          setVehicles(vehRes.data);
           userPlates = vehRes.data.map((v: any) => v.licensePlate);
         }
       } catch (err) {
@@ -136,6 +140,13 @@ export default function PaymentsPage() {
 
           if (matchedSession) {
             setActiveSession(matchedSession);
+            const checkInDate = new Date(matchedSession.checkInTime);
+            const diffSecs = Math.max(0, Math.floor((Date.now() - checkInDate.getTime()) / 1000));
+            setDuration(diffSecs);
+            const matchedVehicle = vehiclesList.find((v: any) => v.licensePlate === matchedSession.licensePlateIn);
+            const isMotor = matchedVehicle?.vehicleTypeId === 1 || matchedSession.slotCode?.startsWith('M');
+            const rate = isMotor ? 5000 : 20000;
+            setCost((diffSecs / 3600) * rate);
           } else {
             setActiveSession(null);
           }
@@ -156,6 +167,8 @@ export default function PaymentsPage() {
     const saved = localStorage.getItem('wallet_balance');
     if (saved) {
       setWalletBalance(parseFloat(saved));
+    } else {
+      localStorage.setItem('wallet_balance', '500000');
     }
   }, []);
 
@@ -172,19 +185,23 @@ export default function PaymentsPage() {
       const checkInDate = new Date(activeSession.checkInTime);
       const diffSecs = Math.max(0, Math.floor((Date.now() - checkInDate.getTime()) / 1000));
       setDuration(diffSecs);
-      setCost(parseFloat(((diffSecs / 3600) * 3.0).toFixed(2)));
+      
+      const matchedVehicle = vehicles.find(v => v.licensePlate === activeSession.licensePlateIn);
+      const isMotor = matchedVehicle?.vehicleTypeId === 1 || activeSession.slotCode?.startsWith('M');
+      const rate = isMotor ? 5000 : 20000;
+      setCost((diffSecs / 3600) * rate);
 
       timer = setInterval(() => {
         setDuration((prev) => {
           const next = prev + 1;
-          const nextCost = (next / 3600) * 3.0;
-          setCost(parseFloat(nextCost.toFixed(2)));
+          const nextCost = (next / 3600) * rate;
+          setCost(nextCost);
           return next;
         });
       }, 1000);
     }
     return () => clearInterval(timer);
-  }, [activeSession]);
+  }, [activeSession, vehicles]);
 
   const formatDuration = (totalSeconds: number) => {
     const hours = Math.floor(totalSeconds / 3600);
@@ -225,7 +242,7 @@ export default function PaymentsPage() {
     setWalletBalance(newBal);
     localStorage.setItem('wallet_balance', newBal.toString());
     setShowTopUpModal(false);
-    showToast(`Successfully topped up $${amt.toFixed(2)} to your Smart Wallet!`, 'success');
+    showToast(`Successfully topped up ${amt.toLocaleString('vi-VN')} đ to your Smart Wallet!`, 'success');
   };
 
   // Pay via Wallet
@@ -373,6 +390,9 @@ export default function PaymentsPage() {
     showToast('New card added successfully!', 'success');
   };
 
+  const matchedVehicleForActive = vehicles.find(v => v.licensePlate === activeSession?.licensePlateIn);
+  const isMotor = matchedVehicleForActive?.vehicleTypeId === 1 || activeSession?.slotCode?.startsWith('M');
+
   return (
     <div className="p-8 max-w-[1200px] mx-auto space-y-6">
       
@@ -413,10 +433,10 @@ export default function PaymentsPage() {
             </div>
 
             <div className="mt-6">
-              <span className="text-sm text-slate-400 font-medium">$</span>
-              <span className="text-4xl font-extrabold font-mono tracking-tight text-white ml-1 tabular-nums">
-                {walletBalance.toFixed(2)}
+              <span className="text-4xl font-extrabold font-mono tracking-tight text-white tabular-nums">
+                {walletBalance.toLocaleString('vi-VN')}
               </span>
+              <span className="text-sm text-slate-400 font-medium ml-1.5">đ</span>
             </div>
 
             <div className="h-[1px] bg-slate-700/50 my-6"></div>
@@ -557,8 +577,8 @@ export default function PaymentsPage() {
                 <div className="border-t border-slate-200 my-2"></div>
                 
                 <div className="flex justify-between items-baseline pt-1">
-                  <span className="text-xs font-bold text-slate-500">Current Total Fee</span>
-                  <span className="text-2xl font-extrabold font-mono text-emerald-600">${cost.toFixed(2)}</span>
+                  <span className="text-xs font-bold text-slate-500">Current Total Fee ({isMotor ? '5.000' : '20.000'} đ/h)</span>
+                  <span className="text-2xl font-extrabold font-mono text-emerald-600">{Math.round(cost).toLocaleString('vi-VN')} đ</span>
                 </div>
               </div>
 
@@ -569,7 +589,7 @@ export default function PaymentsPage() {
                   className="w-full py-3 bg-slate-800 hover:bg-slate-900 active:scale-[0.98] text-white text-xs font-bold rounded-xl shadow-sm transition-all flex items-center justify-center gap-1.5 disabled:opacity-50"
                 >
                   <Wallet className="w-4 h-4 text-emerald-400" />
-                  <span>Pay Fee via Smart Wallet (${cost.toFixed(2)})</span>
+                  <span>Pay Fee via Smart Wallet ({Math.round(cost).toLocaleString('vi-VN')} đ)</span>
                 </button>
 
                 <button 
@@ -648,7 +668,7 @@ export default function PaymentsPage() {
               <div>
                 <label className="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-2">Select Amount</label>
                 <div className="grid grid-cols-4 gap-2">
-                  {['10.00', '20.00', '50.00', '100.00'].map((val) => (
+                  {['50000', '100000', '200000', '500000'].map((val) => (
                     <button
                       key={val}
                       type="button"
@@ -659,21 +679,21 @@ export default function PaymentsPage() {
                           : 'border-slate-200 text-slate-600 hover:border-slate-300'
                       }`}
                     >
-                      ${val}
+                      {parseInt(val).toLocaleString('vi-VN')} đ
                     </button>
                   ))}
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-2">Or enter Custom Amount ($)</label>
+                <label className="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-2">Or enter Custom Amount (đ)</label>
                 <input
                   type="number"
-                  step="0.01"
-                  min="1"
+                  step="1000"
+                  min="1000"
                   value={topUpAmount}
                   onChange={(e) => setTopUpAmount(e.target.value)}
-                  placeholder="0.00"
+                  placeholder="0"
                   className="w-full px-4 py-2.5 border border-slate-200/60 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 text-sm font-semibold rounded-xl"
                   required
                 />
@@ -923,7 +943,7 @@ export default function PaymentsPage() {
             <div className="p-6 text-center space-y-5">
               <div className="space-y-1">
                 <p className="text-xs text-slate-400 uppercase tracking-widest font-semibold">Payment Request</p>
-                <h4 className="text-2xl font-extrabold text-slate-800">${cost.toFixed(2)}</h4>
+                <h4 className="text-2xl font-extrabold text-slate-800">{Math.round(cost).toLocaleString('vi-VN')} đ</h4>
                 <p className="text-[10px] text-slate-400 max-w-[280px] mx-auto">
                   Scan the VietQR code or pay via PayOS in the browser to settle your active parking fee.
                 </p>

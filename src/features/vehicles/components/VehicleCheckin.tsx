@@ -289,9 +289,8 @@ export default function VehicleCheckin() {
         ? 'BOOKING'
         : 'WALK_IN';
 
-  // Tìm booking đang được nhập
   const selectedBooking = typedMockData.bookings.find(
-    (booking) => booking.code.toUpperCase() === bookingCode.trim().toUpperCase()
+    (booking) => formatLicensePlate(booking.vehiclePlate) === formattedPlate
   );
 
   // Tìm monthly subscription theo card hoặc biển số
@@ -395,22 +394,17 @@ export default function VehicleCheckin() {
  isLicensePlateValid && 
  Boolean(selectedCard) && 
  Boolean(vehicleType) && 
- bookingCode.trim().length > 0;
+ Boolean(selectedBooking);
 
-  /* ==========================================================
-     APPLY BOOKING INFO
-     Nút này dùng để giả lập lấy thông tin booking từ BE.
-  ========================================================== */
-
-  const handleApplyBookingInfo = () => {
+  useEffect(() => {
     if (!selectedBooking) {
-      alert('Booking not found.');
+      setBookingCode('');
       return;
     }
 
-    setLicensePlate(selectedBooking.vehiclePlate);
+    setBookingCode(selectedBooking.code);
     setVehicleType(selectedBooking.vehicleType);
-  };
+  }, [selectedBooking]);
 
   /* ==========================================================
      APPLY MONTHLY CARD INFO
@@ -784,23 +778,13 @@ const handleCheckin = async (e: React.FormEvent) => {
                       Booking Code
                     </label>
 
-                    <div className="flex gap-3">
-                      <input
-                        type="text"
-                        value={bookingCode}
-                        onChange={(e) => setBookingCode(e.target.value)}
-                        placeholder="Example: BK-001"
-                        className="flex-1 px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 font-mono font-bold uppercase text-slate-700"
-                      />
-
-                      <button
-                        type="button"
-                        onClick={handleApplyBookingInfo}
-                        className="px-4 py-3 bg-blue-50 text-blue-700 rounded-xl font-bold hover:bg-blue-100"
-                      >
-                        Load
-                      </button>
-                    </div>
+                    <input
+                      type="text"
+                      value={bookingCode}
+                      readOnly
+                      placeholder="No booking code"
+                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-mono font-bold uppercase text-slate-700"
+                    />
                   </div>
                 )}
 

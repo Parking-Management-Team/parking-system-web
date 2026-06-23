@@ -94,6 +94,24 @@ const getCurrentDateTime = () => {
  * - Hoàn tất checkout
  */
 export default function VehicleCheckout() {
+  // ─── BLACKLIST STATE & HOOKS ──────────────────────────────────────
+  const [blacklist, setBlacklist] = useState<any[]>([]);
+
+  React.useEffect(() => {
+    const loadBlacklist = async () => {
+      try {
+        const { blacklistService } = await import('@/features/blacklist/services/blacklist.service');
+        const res = await blacklistService.getAll(1, 9999);
+        if (res && res.items) {
+          setBlacklist(res.items);
+        }
+      } catch (err) {
+        console.error('Failed to load blacklist:', err);
+      }
+    };
+    loadBlacklist();
+  }, []);
+
   /*
     State lưu từ khóa tìm kiếm.
     Staff có thể nhập biển số, mã vé hoặc mã thẻ.
@@ -105,6 +123,37 @@ export default function VehicleCheckout() {
     Ban đầu là null vì chưa tìm session.
   */
   const [sessionData, setSessionData] = useState<ParkingSession | null>(null);
+
+  const isPlateBlacklisted = React.useMemo(() => {
+    if (!sessionData) return false;
+    const cleanPlate = sessionData.plate.replace(/[^A-Z0-9]/g, '');
+    return blacklist.some(
+      (item) => item.licensePlate?.toUpperCase().replace(/[^A-Z0-9]/g, '') === cleanPlate
+    );
+  }, [blacklist, sessionData]);
+
+  const isCardBlacklisted = React.useMemo(() => {
+    if (!sessionData) return false;
+    const cleanCard = sessionData.cardCode.replace(/[^A-Z0-9]/g, '');
+    return blacklist.some(
+      (item) => item.cardCode?.toUpperCase().replace(/[^A-Z0-9]/g, '') === cleanCard
+    );
+  }, [blacklist, sessionData]);
+
+  const blacklistReason = React.useMemo(() => {
+    if (!sessionData) return null;
+    if (isPlateBlacklisted) {
+      const cleanPlate = sessionData.plate.replace(/[^A-Z0-9]/g, '');
+      const match = blacklist.find((item) => item.licensePlate?.toUpperCase().replace(/[^A-Z0-9]/g, '') === cleanPlate);
+      return `Vehicle ${sessionData.plate} is blacklisted: "${match?.reason}"`;
+    }
+    if (isCardBlacklisted) {
+      const cleanCard = sessionData.cardCode.replace(/[^A-Z0-9]/g, '');
+      const match = blacklist.find((item) => item.cardCode?.toUpperCase().replace(/[^A-Z0-9]/g, '') === cleanCard);
+      return `Card ${sessionData.cardCode} is blacklisted: "${match?.reason}"`;
+    }
+    return null;
+  }, [blacklist, isPlateBlacklisted, isCardBlacklisted, sessionData]);
 
   /*
     State lưu biển số thực tế Staff nhìn thấy lúc xe ra.
@@ -208,6 +257,11 @@ export default function VehicleCheckout() {
 
     if (!isPlateMatched) {
       alert('License plate does not match. Please verify before checkout.');
+      return;
+    }
+
+    if (isPlateBlacklisted || isCardBlacklisted) {
+      alert(`Checkout blocked. Reason: ${blacklistReason}`);
       return;
     }
 
@@ -387,6 +441,16 @@ export default function VehicleCheckout() {
                 </div>
               </div>
 
+              {blacklistReason && (
+                <div className="p-4 bg-red-50 border border-red-200 rounded-xl flex items-start gap-3 my-2">
+                  <span className="material-symbols-outlined text-red-600 shrink-0">block</span>
+                  <div>
+                    <h4 className="font-bold text-red-800 text-sm">Checkout Blocked (Blacklisted Entity)</h4>
+                    <p className="text-red-700 text-xs mt-0.5">{blacklistReason}</p>
+                  </div>
+                </div>
+              )}
+
               {/* THÔNG TIN SESSION */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 bg-slate-50 p-4 rounded-xl border border-slate-100 text-slate-700">
                 <div>
@@ -489,10 +553,10 @@ export default function VehicleCheckout() {
                   <button
                     type="button"
                     onClick={handleStartCheckout}
-                    disabled={!isPlateMatched}
+                    disabled={!isPlateMatched || isPlateBlacklisted || isCardBlacklisted}
                     className="px-5 py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                   >
-                    Start Checkout & Lock Fee
+                    {isPlateBlacklisted || isCardBlacklisted ? 'Blocked - Blacklisted Entity' : 'Start Checkout & Lock Fee'}
                   </button>
                 )}
               </div>

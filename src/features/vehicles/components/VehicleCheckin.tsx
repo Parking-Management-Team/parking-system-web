@@ -390,12 +390,62 @@ export default function VehicleCheckin() {
   // Rule 1: Biển số không được rỗng
   const isLicensePlateValid = formattedPlate.length > 0;
 
+  // ─── BLACKLIST VALIDATION ──────────────────────────────────────────
+  const [blacklist, setBlacklist] = useState<any[]>([]);
+
+  useEffect(() => {
+    const loadBlacklist = async () => {
+      try {
+        const { blacklistService } = await import('@/features/blacklist/services/blacklist.service');
+        const res = await blacklistService.getAll(1, 9999);
+        if (res && res.items) {
+          setBlacklist(res.items);
+        }
+      } catch (err) {
+        console.error('Failed to load blacklist:', err);
+      }
+    };
+    loadBlacklist();
+  }, []);
+
+  const isPlateBlacklisted = useMemo(() => {
+    if (!formattedPlate) return false;
+    const cleanPlate = formattedPlate.replace(/[^A-Z0-9]/g, '');
+    return blacklist.some(
+      (item) => item.licensePlate?.toUpperCase().replace(/[^A-Z0-9]/g, '') === cleanPlate
+    );
+  }, [blacklist, formattedPlate]);
+
+  const isCardBlacklisted = useMemo(() => {
+    if (!normalizedCardCode) return false;
+    const cleanCard = normalizedCardCode.replace(/[^A-Z0-9]/g, '');
+    return blacklist.some(
+      (item) => item.cardCode?.toUpperCase().replace(/[^A-Z0-9]/g, '') === cleanCard
+    );
+  }, [blacklist, normalizedCardCode]);
+
+  const blacklistReason = useMemo(() => {
+    if (isPlateBlacklisted) {
+      const cleanPlate = formattedPlate.replace(/[^A-Z0-9]/g, '');
+      const match = blacklist.find((item) => item.licensePlate?.toUpperCase().replace(/[^A-Z0-9]/g, '') === cleanPlate);
+      return `Vehicle ${formattedPlate} is blacklisted: "${match?.reason}"`;
+    }
+    if (isCardBlacklisted) {
+      const cleanCard = normalizedCardCode.replace(/[^A-Z0-9]/g, '');
+      const match = blacklist.find((item) => item.cardCode?.toUpperCase().replace(/[^A-Z0-9]/g, '') === cleanCard);
+      return `Card ${normalizedCardCode} is blacklisted: "${match?.reason}"`;
+    }
+    return null;
+  }, [blacklist, isPlateBlacklisted, isCardBlacklisted, formattedPlate, normalizedCardCode]);
+
   // FE chỉ validate các field bắt buộc; business rules do BE xử lý.
  const canCheckin = 
  isLicensePlateValid && 
  Boolean(selectedCard) && 
  Boolean(vehicleType) && 
- bookingCode.trim().length > 0;
+ bookingCode.trim().length > 0 &&
+ !isPlateBlacklisted &&
+ !isCardBlacklisted;
 
   /* ==========================================================
      APPLY BOOKING INFO
@@ -714,7 +764,11 @@ const handleCheckin = async (e: React.FormEvent) => {
                     value={licensePlate}
                     onChange={(e) => setLicensePlate(e.target.value)}
                     placeholder="Example: 51A-123.45"
-                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 font-mono text-lg font-bold uppercase tracking-wider text-slate-700"
+                    className={`w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 font-mono text-lg font-bold uppercase tracking-wider ${
+                      isPlateBlacklisted
+                        ? 'border-red-300 bg-red-50/30 text-red-900 focus:ring-red-500'
+                        : 'bg-slate-50 border-slate-200 focus:ring-emerald-500 text-slate-700'
+                    }`}
                   />
                 </div>
 
@@ -747,7 +801,11 @@ const handleCheckin = async (e: React.FormEvent) => {
                    value={cardCode} 
                    onChange={(e) => setCardCode(e.target.value.toUpperCase())} 
                    placeholder="Enter card code, EX:CARD12" 
-                   className="w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 font-mono font-bold uppercase text-slate-700" />
+                   className={`w-full pl-12 pr-4 py-3 border rounded-xl focus:outline-none focus:ring-2 font-mono font-bold uppercase ${
+                     isCardBlacklisted
+                       ? 'border-red-300 bg-red-50/30 text-red-900 focus:ring-red-500'
+                       : 'bg-slate-50 border-slate-200 focus:ring-emerald-500 text-slate-700'
+                   }`} />
                   </div>
 
                   <p className="text-xs text-slate-400">
@@ -836,6 +894,16 @@ const handleCheckin = async (e: React.FormEvent) => {
                   </div>
                 )}
               </div>
+
+              {blacklistReason && (
+                <div className="p-4 bg-red-50 border border-red-200 rounded-xl flex items-start gap-3 my-4">
+                  <span className="material-symbols-outlined text-red-600 shrink-0">block</span>
+                  <div>
+                    <h4 className="font-bold text-red-800 text-sm">Check-in Blocked (Blacklisted)</h4>
+                    <p className="text-red-700 text-xs mt-0.5">{blacklistReason}</p>
+                  </div>
+                </div>
+              )}
 
               {/* SUBMIT BUTTON */}
               <button

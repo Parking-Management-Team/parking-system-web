@@ -137,6 +137,11 @@ export const ROLE_NAVIGATION: Record<string, NavigationItem[]> = {
       icon: 'block',
     },
     {
+      label: 'System Audit Logs',
+      href: '/dashboard/admin/audit-logs',
+      icon: 'history',
+    },
+    {
       label: 'My Profile',
       href: '/dashboard/profile',
       icon: 'person',

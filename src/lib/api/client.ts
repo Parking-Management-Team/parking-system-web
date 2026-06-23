@@ -79,7 +79,12 @@ export async function apiClient<T>(
       throw new ApiError(res.status, data);
     }
 
-    return res.json() as Promise<T>;
+    if (res.status === 204) {
+      return {} as T;
+    }
+
+    const text = await res.text();
+    return text ? (JSON.parse(text) as T) : ({} as T);
   } finally {
     clearTimeout(timeout);
   }
@@ -92,12 +97,14 @@ export async function apiClient<T>(
  * Tự động stringify body và set Content-Type: application/json.
  */
 export const api = {
-  get:    <T>(url: string, opts?: RequestInit) =>
+  get: <T>(url: string, opts?: RequestInit) =>
     apiClient<T>(url, { method: 'GET', ...opts }),
-  post:   <T>(url: string, body: unknown, opts?: RequestInit) =>
+  post: <T>(url: string, body: unknown, opts?: RequestInit) =>
     apiClient<T>(url, { method: 'POST', body: JSON.stringify(body), ...opts }),
-  put:    <T>(url: string, body: unknown, opts?: RequestInit) =>
-    apiClient<T>(url, { method: 'PUT',  body: JSON.stringify(body), ...opts }),
+  put: <T>(url: string, body: unknown, opts?: RequestInit) =>
+    apiClient<T>(url, { method: 'PUT', body: JSON.stringify(body), ...opts }),
+  patch: <T>(url: string, body?: unknown, opts?: RequestInit) =>
+    apiClient<T>(url, { method: 'PATCH', body: body ? JSON.stringify(body) : undefined, ...opts }),
   delete: <T>(url: string, opts?: RequestInit) =>
     apiClient<T>(url, { method: 'DELETE', ...opts }),
 };

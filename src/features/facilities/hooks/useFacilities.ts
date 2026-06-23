@@ -45,8 +45,8 @@ const mapStatusToBackend = (status: 'Active' | 'Inactive'): number => {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const extractErrorMessage = (error: any, defaultMsg: string): string => {
   if (error && error.data) {
-    if (typeof error.data === 'object') {
-      const data = error.data;
+    const data = error.data;
+    if (typeof data === 'object' && data !== null) {
       if (data.message) return data.message;
       if (data.errors && Array.isArray(data.errors) && data.errors.length > 0) {
         return data.errors.join(', ');
@@ -54,9 +54,16 @@ const extractErrorMessage = (error: any, defaultMsg: string): string => {
       if (data.errors && typeof data.errors === 'object') {
         return Object.values(data.errors).flat().join(', ');
       }
+      if (data.detail) return data.detail;
+      if (data.title && data.title !== 'One or more validation errors occurred.') {
+        return data.title;
+      }
     }
   }
-  return error?.message || defaultMsg;
+  if (error?.message && error.message !== 'Failed') {
+    return error.message;
+  }
+  return defaultMsg;
 };
 
 

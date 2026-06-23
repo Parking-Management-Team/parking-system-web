@@ -174,12 +174,12 @@ export function SlotActionModal({
         checkInTime: new Date().toISOString()
       });
 
-      // 3. Update the slot status to Occupied (2)
+      // 3. Update the slot status to Occupied (1)
       await api.put(`/ParkingSlots/${slot.id}`, {
         code: slot.slotCode,
         name: slot.slotName || `Slot ${slot.slotCode}`,
         vehicleTypeId: slot.slotType === 'EV Charging' ? 3 : 1,
-        status: 2 // Occupied
+        status: 1 // Occupied
       });
 
       // Trigger Parent callback
@@ -237,8 +237,8 @@ export function SlotActionModal({
     setIsSubmitting(true);
     try {
       let statusVal = 0; // Available
-      if (newStatus === 'BLOCKED') statusVal = 3;
-      else if (newStatus === 'MAINTENANCE') statusVal = 1;
+      if (newStatus === 'BLOCKED') statusVal = 2;
+      else if (newStatus === 'MAINTENANCE') statusVal = 3;
 
       await api.put(`/ParkingSlots/${slot.id}`, {
         code: slot.slotCode,

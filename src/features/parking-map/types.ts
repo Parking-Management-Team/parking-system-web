@@ -102,3 +102,23 @@ export interface Slot {
     notes?: string;
   };
 }
+
+export interface StatusCounts {
+  Available: number;
+  Occupied: number;
+  Blocked: number;
+}
+
+export interface VehicleTypeSlotSummary {
+  vehicleTypeId: number;
+  vehicleTypeName: string;
+  totalSlots: number;
+  statusCounts: StatusCounts;
+}
+
+export interface FloorSlotSummary {
+  floorId: number;
+  floorNumber: number;
+  totalSlots: number;
+  vehicleTypeSummaries: VehicleTypeSlotSummary[];
+}

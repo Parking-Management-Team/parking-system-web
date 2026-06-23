@@ -108,7 +108,7 @@ export function usePricing() {
   // Fetch vehicle types from API, fallback to mock data on error
   const fetchVehicleTypes = useCallback(async () => {
     try {
-      const response = await api.get<{ data?: RawVehicleType[], success?: boolean }>('/api/vehicle-types');
+      const response = await api.get<{ data?: RawVehicleType[], success?: boolean }>('/vehicle-types');
       if (response && response.success && Array.isArray(response.data)) {
         const mapped: VehicleType[] = response.data
           .filter((item: RawVehicleType) => (item.id ?? item.Id) !== undefined && (item.name ?? item.TypeName ?? item.typeName ?? item.Name) !== undefined)
@@ -154,8 +154,8 @@ interface PolicyApiResponse {
   // Fetch pricing policies on component mount
   const fetchPolicies = useCallback(async () => {
     try {
-      const response = await api.get<{ data: PolicyApiResponse[]; status: number }>('/api/pricing-policies');
-      if (response && response.status === 200 && Array.isArray(response.data)) {
+      const response = await api.get<{ data: PolicyApiResponse[]; success: boolean }>('/pricing-policies');
+      if (response && Array.isArray(response.data)) {
         if (response.data.length > 0) {
           const mappedPolicies: StandardTariff[] = response.data.map((policy: PolicyApiResponse) => ({
             pricingPolicyId: policy.pricingPolicyId ?? policy.id ?? 0,
@@ -210,7 +210,7 @@ interface PolicyApiResponse {
 
     // Step 1: Load vehicle types and incident types independently
     try {
-      const vtRes = await api.get<{ data?: RawVehicleType[], success?: boolean }>('/api/vehicle-types');
+      const vtRes = await api.get<{ data?: RawVehicleType[], success?: boolean }>('/vehicle-types');
       if (vtRes && vtRes.success && Array.isArray(vtRes.data)) {
         loadedVehicleTypes = vtRes.data
           .filter((item: RawVehicleType) => (item.id ?? item.Id) !== undefined && (item.name ?? item.TypeName ?? item.typeName ?? item.Name) !== undefined)
@@ -227,8 +227,8 @@ interface PolicyApiResponse {
     }
 
     try {
-      const itRes = await api.get<{ data?: IncidentType[]; status?: number }>('/api/IncidentType');
-      if (itRes && itRes.status === 200 && Array.isArray(itRes.data) && itRes.data.length > 0) {
+      const itRes = await api.get<{ data?: IncidentType[]; success?: boolean }>('/IncidentType');
+      if (itRes && Array.isArray(itRes.data) && itRes.data.length > 0) {
         loadedIncidentTypes = itRes.data;
       }
     } catch (error) {
@@ -238,8 +238,8 @@ interface PolicyApiResponse {
 
     // Step 2: Load subscription and penalty configs independently
     try {
-      const subRes = await api.get<{ data?: SubscriptionPriceConfig[]; status: number }>('/api/subscription-price-configs?onlyActive=true');
-      if (subRes && subRes.status === 200 && Array.isArray(subRes.data)) {
+      const subRes = await api.get<{ data?: SubscriptionPriceConfig[]; success: boolean }>('/subscription-price-configs?onlyActive=true');
+      if (subRes && Array.isArray(subRes.data)) {
         const configs = subRes.data;
         const mappedSub = loadedVehicleTypes.map((vt) => {
           const activeConfig = configs.find((c) => c.vehicleTypeId === vt.id && c.isActive);
@@ -270,8 +270,8 @@ interface PolicyApiResponse {
     }
 
     try {
-      const penRes = await api.get<{ data?: PenaltyConfig[]; status?: number }>('/api/penalty-configs?onlyActive=true');
-      if (penRes && penRes.status === 200 && Array.isArray(penRes.data)) {
+      const penRes = await api.get<{ data?: PenaltyConfig[]; success?: boolean }>('/penalty-configs?onlyActive=true');
+      if (penRes && Array.isArray(penRes.data)) {
         const configs = penRes.data;
         const mappedPen = loadedIncidentTypes.map((it) => {
           const activeConfig = configs.find((c) => c.incidentTypeId === it.id && c.isActive);
@@ -511,8 +511,8 @@ interface PolicyApiResponse {
     };
 
     try {
-      const res = await api.put<{ status: number }>(`/api/pricing-policies/windows/${windowId}`, requestBody);
-      if (res && res.status === 200) {
+      const res = await api.put<{ success: boolean }>(`/pricing-policies/windows/${windowId}`, requestBody);
+      if (res) {
         await fetchPolicies();
         triggerToast('Pricing Policy updated successfully!', 'success');
         handleCloseEditTariff();
@@ -540,8 +540,8 @@ interface PolicyApiResponse {
 
     if (nextStatus === 'Active') {
       try {
-        const res = await api.post<{ status: number }>(`/api/pricing-policies/${policyId}/activate`, {});
-        if (res && res.status === 200) {
+        const res = await api.post<{ success: boolean }>(`/pricing-policies/${policyId}/activate`, {});
+        if (res) {
           await fetchPolicies();
           triggerToast(`${vehicleName} Policy status updated to Active!`, 'success');
         } else {
@@ -562,8 +562,8 @@ interface PolicyApiResponse {
     const windowId = parseInt(windowIdStr);
 
     try {
-      const res = await api.delete<{ status: number }>(`/api/pricing-policies/windows/${windowId}`);
-      if (res && res.status === 200) {
+      const res = await api.delete<{ success: boolean }>(`/pricing-policies/windows/${windowId}`);
+      if (res) {
         await fetchPolicies();
         triggerToast('Policy window deleted successfully!', 'success');
       } else {
@@ -615,8 +615,8 @@ interface PolicyApiResponse {
         price: formMembershipPrice
       };
 
-      const res = await api.post<{ status: number; data?: { id: number } }>('/api/subscription-price-configs', requestBody);
-      if (res && (res.status === 200 || res.status === 201)) {
+      const res = await api.post<{ success: boolean; data?: { id: number } }>('/subscription-price-configs', requestBody);
+      if (res) {
         await loadAllData();
         triggerToast('Monthly Membership fee updated successfully!', 'success');
         handleCloseEditMembership();
@@ -632,8 +632,8 @@ interface PolicyApiResponse {
 
   const handleDeactivateMembership = async (configId: number) => {
     try {
-      const res = await api.put<{ status: number }>(`/api/subscription-price-configs/${configId}/deactivate`, {});
-      if (res && res.status === 200) {
+      const res = await api.put<{ success: boolean }>(`/subscription-price-configs/${configId}/deactivate`, {});
+      if (res) {
         await loadAllData();
         triggerToast('Membership deactivated successfully!', 'success');
       } else {
@@ -648,8 +648,8 @@ interface PolicyApiResponse {
 
   const handleDeleteMembership = async (configId: number) => {
     try {
-      const res = await api.delete<{ status: number }>(`/api/subscription-price-configs/${configId}`);
-      if (res && res.status === 200) {
+      const res = await api.delete<{ success: boolean }>(`/subscription-price-configs/${configId}`);
+      if (res) {
         await loadAllData();
         triggerToast('Membership deleted successfully!', 'success');
       } else {
@@ -706,8 +706,8 @@ interface PolicyApiResponse {
         penaltyFee: formFeeAmount
       };
 
-      const res = await api.post<{ status: number }>('/api/penalty-configs', requestBody);
-      if (res && res.status === 200) {
+      const res = await api.post<{ success: boolean }>('/penalty-configs', requestBody);
+      if (res) {
         await loadAllData();
         triggerToast('Penalty configuration updated successfully!', 'success');
         handleCloseFeeModal();
@@ -728,8 +728,8 @@ interface PolicyApiResponse {
         triggerToast('Invalid penalty config ID.', 'error');
         return;
       }
-      const res = await api.put<{ status: number }>(`/api/penalty-configs/${configId}/deactivate`, {});
-      if (res && res.status === 200) {
+      const res = await api.put<{ success: boolean }>(`/penalty-configs/${configId}/deactivate`, {});
+      if (res) {
         await loadAllData();
         triggerToast('Penalty configuration deactivated successfully!', 'success');
       } else {
@@ -782,23 +782,23 @@ interface PolicyApiResponse {
 
     try {
       if (editingIncidentType) {
-        const res = await api.put<{ status: number }>(`/api/IncidentType/${editingIncidentType.id}`, {
+        const res = await api.put<{ success: boolean }>(`/IncidentType/${editingIncidentType.id}`, {
           incidentName: formIncidentName,
           description: formIncidentDescription
         });
-        if (res && res.status === 200) {
+        if (res) {
           await loadAllData();
           triggerToast('Incident type updated successfully!', 'success');
         } else {
           triggerToast('Failed to update incident type.', 'error');
         }
       } else {
-        const res = await api.post<{ status: number }>('/api/IncidentType', {
+        const res = await api.post<{ success: boolean }>('/IncidentType', {
           incidentCode: formIncidentCode,
           incidentName: formIncidentName,
           description: formIncidentDescription
         });
-        if (res && res.status === 200) {
+        if (res) {
           await loadAllData();
           triggerToast('Incident type created successfully!', 'success');
         } else {
@@ -815,8 +815,8 @@ interface PolicyApiResponse {
 
   const handleDeleteIncidentType = async (id: number) => {
     try {
-      const res = await api.delete<{ status: number }>(`/api/IncidentType/${id}`);
-      if (res && res.status === 200) {
+      const res = await api.delete<{ success: boolean }>(`/IncidentType/${id}`);
+      if (res) {
         await loadAllData();
         triggerToast('Incident type deleted.', 'success');
       } else {
@@ -956,8 +956,8 @@ interface PolicyApiResponse {
     };
 
     try {
-      const res = await api.post<{ status: number }>('/api/pricing-policies', requestBody);
-      if (res && res.status === 200) {
+      const res = await api.post<{ success: boolean }>('/pricing-policies', requestBody);
+      if (res) {
         await fetchPolicies();
         triggerToast('New pricing policy created successfully!', 'success');
         setIsCreatePolicyOpen(false);
@@ -990,8 +990,8 @@ interface PolicyApiResponse {
     const targetPolicyId = activatingPolicy.pricingPolicyId;
 
     try {
-      const res = await api.post<{ status: number }>(`/api/pricing-policies/${targetPolicyId}/activate`, {});
-      if (res && res.status === 200) {
+      const res = await api.post<{ success: boolean }>(`/pricing-policies/${targetPolicyId}/activate`, {});
+      if (res) {
         await fetchPolicies();
         triggerToast(`Pricing policy "${activatingPolicy.policyName}" activated successfully!`, 'success');
         setIsActivateDialogOpen(false);
@@ -1064,8 +1064,8 @@ interface PolicyApiResponse {
         requestBody.effectiveStart = `${editEffectiveStart}T00:00:00.000Z`;
       }
 
-      const res = await api.put<{ status: number }>(`/api/pricing-policies/${editPolicyTarget.pricingPolicyId}`, requestBody);
-      if (res && res.status === 200) {
+      const res = await api.put<{ success: boolean }>(`/pricing-policies/${editPolicyTarget.pricingPolicyId}`, requestBody);
+      if (res) {
         await fetchPolicies();
         triggerToast('Pricing policy updated successfully!', 'success');
         handleCloseEditPolicy();
@@ -1166,8 +1166,8 @@ interface PolicyApiResponse {
     }
 
     try {
-      const res = await api.post<{ status: number }>(`/api/pricing-policies/${addWindowTargetPolicyId}/windows`, newWinReq);
-      if (res && res.status === 200) {
+      const res = await api.post<{ success: boolean }>(`/pricing-policies/${addWindowTargetPolicyId}/windows`, newWinReq);
+      if (res) {
         await fetchPolicies();
         triggerToast('New pricing window added successfully!', 'success');
         setIsAddWindowOpen(false);

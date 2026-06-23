@@ -1,7 +1,7 @@
 import { api } from '@/lib/api/client';
 import { IncidentType, CreateIncidentTypeRequest, UpdateIncidentTypeRequest, IncidentTypeApiResponse } from '../types';
 
-const BASE_URL = '/api/IncidentType';
+const BASE_URL = '/IncidentType';
 
 export const incidentTypeService = {
   getAll: async (): Promise<IncidentType[]> => {
@@ -21,11 +21,11 @@ export const incidentTypeService = {
 
   update: async (id: number, data: UpdateIncidentTypeRequest): Promise<boolean> => {
     const res = await api.put<IncidentTypeApiResponse<void>>(`${BASE_URL}/${id}`, data);
-    return res.status === 200;
+    return res.success === true;
   },
 
   delete: async (id: number): Promise<boolean> => {
     const res = await api.delete<IncidentTypeApiResponse<void>>(`${BASE_URL}/${id}`);
-    return res.status === 200;
+    return res.success === true;
   }
 };

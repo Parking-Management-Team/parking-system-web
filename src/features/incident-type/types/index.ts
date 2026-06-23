@@ -18,7 +18,9 @@ export interface UpdateIncidentTypeRequest {
 }
 
 export interface IncidentTypeApiResponse<T> {
-  status: number;
-  message: string;
+  success: boolean;
   data: T;
+  message?: string | null;
+  errorCode?: string | null;
+  errors?: Record<string, string[]> | null;
 }

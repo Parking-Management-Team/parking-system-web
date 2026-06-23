@@ -22,7 +22,7 @@ const statusClassNames: Record<CardStatus, string> = {
 };
 
 const typeClassNames: Record<CardType, string> = {
-  NORMAL: 'bg-cyan-50 text-cyan-700 border-cyan-200',
+  PARKING_CARD: 'bg-cyan-50 text-cyan-700 border-cyan-200',
   MONTHLY: 'bg-amber-50 text-amber-700 border-amber-200',
   UNKNOWN: 'bg-slate-100 text-slate-600 border-slate-200',
 };

@@ -7,7 +7,7 @@ import {
   IncidentApiResponse,
 } from '../types';
 
-const BASE_URL = '/api/Incident';
+const BASE_URL = '/Incident';
 
 export const incidentService = {
   getAll: async (): Promise<Incident[]> => {
@@ -34,16 +34,16 @@ export const incidentService = {
 
   update: async (id: number, data: UpdateIncidentRequest): Promise<boolean> => {
     const res = await api.put<IncidentApiResponse<void>>(`${BASE_URL}/${id}`, data);
-    return res.status === 200;
+    return res.success === true;
   },
 
   updateStatus: async (id: number, data: UpdateIncidentStatusRequest): Promise<boolean> => {
     const res = await api.patch<IncidentApiResponse<void>>(`${BASE_URL}/${id}/status`, data);
-    return res.status === 200;
+    return res.success === true;
   },
 
   delete: async (id: number): Promise<boolean> => {
     const res = await api.delete<IncidentApiResponse<void>>(`${BASE_URL}/${id}`);
-    return res.status === 200;
+    return res.success === true;
   },
 };

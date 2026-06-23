@@ -78,7 +78,7 @@ export function useIncidents() {
 
   const updateIncidentStatus = async (id: number, status: IncidentStatus): Promise<boolean> => {
     try {
-      const success = await incidentService.updateStatus(id, { status });
+      const success = await incidentService.updateStatus(id, { request: { status: String(status) } });
       if (success) {
         await fetchIncidents();
         return true;

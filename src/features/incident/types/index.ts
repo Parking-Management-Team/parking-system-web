@@ -1,9 +1,9 @@
 export interface Incident {
   id: number;
   sessionId: number;
-  licensePlate: string;
+  licensePlate?: string | null;
   incidentTypeId: number;
-  incidentName: string;
+  incidentName?: string | null;
   description?: string;
   penaltyFee: number;
   status: IncidentStatus;
@@ -11,11 +11,11 @@ export interface Incident {
   resolvedAt: string | null;
 }
 
-export type IncidentStatus = 'Open' | 'Processing' | 'Resolved' | 'Cancelled';
+export type IncidentStatus = 'Open' | 'Processing' | 'Resolved' | 'Cancelled' | number;
 
 export interface CreateIncidentRequest {
   sessionId: number;
-  licensePlate: string;
+  licensePlate?: string;
   incidentTypeId: number;
   description?: string;
   penaltyFee: number;
@@ -27,11 +27,16 @@ export interface UpdateIncidentRequest {
 }
 
 export interface UpdateIncidentStatusRequest {
-  status: IncidentStatus;
+  request: {
+    status: string;
+    description?: string;
+  };
 }
 
 export interface IncidentApiResponse<T> {
-  status: number;
-  message: string;
+  success: boolean;
   data: T;
+  message?: string | null;
+  errorCode?: string | null;
+  errors?: Record<string, string[]> | null;
 }

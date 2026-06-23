@@ -2,6 +2,15 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import mockData from '@/features/vehicles/components/mocks/vehicle-checkin.mock.json';
+import {
+  fetchCards as fetchCardsFromApi,
+  setLocalCardStatusOverride,
+} from '@/features/card/services/card.service';
+import {
+  checkInVehicle,
+  fetchActiveParkingSessions,
+  type VehicleCheckinSession as ParkingSession,
+} from '@/features/vehicles/services/vehicle-checkin.service';
 /* ==========================================================
    TYPE DEFINITIONS
    Định nghĩa các kiểu dữ liệu dùng trong màn hình Vehicle Check-in
@@ -106,23 +115,6 @@ type PricingPolicyCheck = {
   message: string;
 };
 
-// Kiểu dữ liệu Parking Session
-type ParkingSession = {
-  id: number;
-  sessionCode: string;
-  licensePlate: string;
-  vehicleType: VehicleType;
-  customerType: CustomerType;
-  cardId: number;
-  cardCode: string;
-  zoneId: number | null;
-  zoneName: string;
-  actualSlotId: number | null;
-  actualSlotCode: string | null;
-  checkInTime: string;
-  status: ParkingSessionStatus;
-};
-
 // Kiểu dữ liệu tổng của file JSON mock
 type VehicleCheckinMockData = {
   cards: ParkingCard[];
@@ -145,11 +137,6 @@ const typedMockData = mockData as VehicleCheckinMockData;
    HELPER FUNCTIONS
    Các hàm nhỏ dùng để format và xử lý UI
 ========================================================== */
-
-// Format thời gian check-in để hiển thị trong bảng session
-const getCurrentDateTime = () => {
-  return new Date().toLocaleString('vi-VN', { hour12: false });
-};
 
 // Chuẩn hóa biển số: xóa khoảng trắng và chuyển thành chữ hoa
 const formatLicensePlate = (plate: string) => {
@@ -179,7 +166,8 @@ const getCustomerTypeLabel = (type: CustomerType) => {
 };
 
 // Hiển thị tên loại xe cho dễ đọc
-const getVehicleTypeLabel = (type: VehicleType) => {
+const getVehicleTypeLabel = (type: ParkingSession['vehicleType']) => {
+  if (type === 'UNKNOWN') return 'Unknown';
   return type === 'CAR' ? 'Car' : 'Motorcycle';
 };
 
@@ -218,12 +206,11 @@ export default function VehicleCheckin() {
      Sau này gắn API thì thay các state này bằng dữ liệu response từ BE.
   ========================================================== */
 
-  const [cards, setCards] = useState<ParkingCard[]>(typedMockData.cards);
-  const [zones, setZones] = useState<ParkingZone[]>(typedMockData.zones);
+  const [cards, setCards] = useState<ParkingCard[]>([]);
+  const [zones] = useState<ParkingZone[]>(typedMockData.zones);
   const [slots, setSlots] = useState<ParkingSlot[]>(typedMockData.slots);
-  const [sessions, setSessions] = useState<ParkingSession[]>(
-    typedMockData.activeSessions
-  );
+  const [sessions, setSessions] = useState<ParkingSession[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   /* ==========================================================
      STATE FORM CHECK-IN
@@ -232,9 +219,9 @@ export default function VehicleCheckin() {
 
   const [licensePlate, setLicensePlate] = useState('51A-123.45');
   const [vehicleType, setVehicleType] = useState<VehicleType>('CAR');
-  const [isBookingCheckin, setIsBookingCheckin] = useState(false);
+  const isBookingCheckin = true; 
   const [bookingCode, setBookingCode] = useState('BK-001');
-  const [cardCode, setCardCode] = useState('Card 1');
+  const [cardCode, setCardCode] = useState('');
   const [selectedZoneId, setSelectedZoneId] = useState<number | null>(1);
   const [isCheckedIn, setIsCheckedIn] = useState(false);
   const [sessionSearch, setSessionSearch] = useState('');
@@ -250,33 +237,33 @@ export default function VehicleCheckin() {
     Record<number, number>
   >({});
 
-  /* ==========================================================
-     API PLACEHOLDER
-     Chừa sẵn chỗ để gắn API sau này.
-     Hiện tại chưa gọi API thật, chỉ dùng JSON mock.
-  ========================================================== */
-
-  /*
-  const API_BASE_URL =
-    process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:5029';
-
-  const fetchCheckinData = async () => {
-    // TODO API:
-    // GET /api/cards
-    // GET /api/zones
-    // GET /api/slots
-    // GET /api/parking-sessions/active
-    // GET /api/pricing-policies/check-valid?vehicleType=CAR
-
-    const response = await fetch(`${API_BASE_URL}/api/checkin/init`);
-    const result = await response.json();
-
-    setCards(result.data.cards);
-    setZones(result.data.zones);
-    setSlots(result.data.slots);
-    setSessions(result.data.activeSessions);
+  const fetchAvailableCards = async () => {
+    const apiCards = await fetchCardsFromApi();
+    const availableCards: ParkingCard[] = apiCards
+      .filter(
+        (card) =>
+          card.cardStatus === 'AVAILABLE' && card.cardType === 'PARKING_CARD'
+      )
+      .map((card) => ({
+        id: card.id,
+        code: card.cardCode,
+        type: 'NORMAL',
+        status: 'AVAILABLE',
+        vehiclePlate: null,
+        monthlySubscriptionId: null,
+      }));
+    setCards(availableCards);
   };
-  */
+
+  const fetchActiveSessions = async () => {
+    setSessions(await fetchActiveParkingSessions());
+  };
+
+  useEffect(() => {
+    Promise.all([fetchAvailableCards(), fetchActiveSessions()]).catch((error) => {
+      console.error('Failed to load vehicle check-in data:', error);
+    });
+  }, []);
 
   /* ==========================================================
      FIND SELECTED DATA
@@ -313,14 +300,6 @@ export default function VehicleCheckin() {
       subscription.cardCode.toUpperCase() === normalizedCardCode ||
       subscription.vehiclePlate.toUpperCase() === formattedPlate
   );
-
-  // Tìm pricing policy check theo loại xe
-  const pricingPolicyCheck = typedMockData.pricingPolicyChecks.find(
-    (policy) => policy.vehicleType === vehicleType
-  );
-
-  // Tìm zone đang được chọn
-  const selectedZone = zones.find((zone) => zone.id === selectedZoneId);
 
   // Tìm slot tháng đã gán cho xe tháng
   const assignedMonthlySlot = slots.find(
@@ -398,9 +377,8 @@ export default function VehicleCheckin() {
     );
 
     if (monthlySubscription) {
-      setIsBookingCheckin(false);
-      setVehicleType(monthlySubscription.vehicleType);
-    }
+  setVehicleType(monthlySubscription.vehicleType);
+}
   }, [selectedCard]);
 
   /* ==========================================================
@@ -412,80 +390,12 @@ export default function VehicleCheckin() {
   // Rule 1: Biển số không được rỗng
   const isLicensePlateValid = formattedPlate.length > 0;
 
-  // Rule 2: Xe không được có session đang mở
-  const hasActiveSession = sessions.some(
-    (session) =>
-      session.licensePlate.toUpperCase() === formattedPlate &&
-      session.status === 'ACTIVE'
-  );
-
-  const hasNoActiveSession = !hasActiveSession;
-
-  // Rule 3: Card phải hợp lệ theo loại khách
-  const isCardValid = (() => {
-    if (!selectedCard) return false;
-
-    if (customerType === 'MONTHLY') {
-      return selectedCard.type === 'MONTHLY' && selectedCard.status === 'ASSIGNED';
-    }
-
-    return selectedCard.type === 'NORMAL' && selectedCard.status === 'AVAILABLE';
-  })();
-
-  // Rule 4: Pricing Policy phải có đúng 1 policy hợp lệ, window phủ 24h và không overlap
-  const isPricingPolicyValid =
-    pricingPolicyCheck?.validPolicyCount === 1 &&
-    pricingPolicyCheck.windowsCover24Hours &&
-    !pricingPolicyCheck.windowsOverlap;
-
-  // Rule 5: Booking hợp lệ khi chọn customer type là BOOKING
-  const isBookingValid = (() => {
-    if (customerType !== 'BOOKING') return true;
-
-    if (!selectedBooking) return false;
-
-    return (
-      selectedBooking.status === 'CONFIRMED' &&
-      selectedBooking.depositPaid &&
-      selectedBooking.isWithinGrace &&
-      selectedBooking.vehiclePlate.toUpperCase() === formattedPlate &&
-      selectedBooking.vehicleType === vehicleType
-    );
-  })();
-
-  // Rule 6: Monthly subscription hợp lệ khi chọn customer type là MONTHLY
-  const isMonthlySubscriptionValid = (() => {
-    if (customerType !== 'MONTHLY') return true;
-
-    if (!selectedMonthlySubscription) return false;
-
-    return (
-      selectedMonthlySubscription.status === 'ACTIVE' &&
-      selectedMonthlySubscription.vehiclePlate.toUpperCase() === formattedPlate &&
-      selectedMonthlySubscription.vehicleType === vehicleType
-    );
-  })();
-
-  // Rule 7: Có zone/slot phù hợp
-  const isAllocationValid = (() => {
-    // Ô tô tháng phải có slot tháng riêng
-    if (customerType === 'MONTHLY' && vehicleType === 'CAR') {
-      return Boolean(assignedMonthlySlot && assignedMonthlySlot.status === 'AVAILABLE');
-    }
-
-    // Các trường hợp còn lại cần có zone còn chỗ
-    return Boolean(selectedZone && !isZoneFull(selectedZone));
-  })();
-
-  // Toàn bộ form hợp lệ thì mới cho check-in
-  const canCheckin =
-    isLicensePlateValid &&
-    hasNoActiveSession &&
-    isCardValid &&
-    isPricingPolicyValid &&
-    isBookingValid &&
-    isMonthlySubscriptionValid &&
-    isAllocationValid;
+  // FE chỉ validate các field bắt buộc; business rules do BE xử lý.
+ const canCheckin = 
+ isLicensePlateValid && 
+ Boolean(selectedCard) && 
+ Boolean(vehicleType) && 
+ bookingCode.trim().length > 0;
 
   /* ==========================================================
      APPLY BOOKING INFO
@@ -523,118 +433,87 @@ export default function VehicleCheckin() {
      Sau này đổi phần này thành POST API.
   ========================================================== */
 
-  const handleCheckin = async (e: React.FormEvent) => {
-    e.preventDefault();
+const handleCheckin = async (e: React.FormEvent) => {
+  e.preventDefault();
 
-    // Kiểm tra toàn bộ validation trước khi tạo session
-    if (!canCheckin) {
-      alert('Check-in failed. Please check the entered information.');
+  if (!canCheckin || !selectedCard) {
+    alert('License plate, vehicle type and an available card are required.');
+    return;
+  }
+
+  setIsSubmitting(true);
+
+  try {
+    await checkInVehicle({
+      licensePlate: formattedPlate,
+      vehicleTypeId: vehicleType === 'CAR' ? 2 : 1,
+      cardCode: selectedCard.code,
+      buildingId: 1,
+      staffId: 2,
+    });
+
+    await Promise.all([fetchActiveSessions(), fetchAvailableCards()]);
+
+    setCardCode('');
+    setIsCheckedIn(true);
+    setTimeout(() => setIsCheckedIn(false), 3000);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Check-in failed.';
+
+    const shouldUseMockFallback =
+      message.includes('No available GENERAL slot') ||
+      message.includes('No available') ||
+      message.includes('slot');
+
+    if (!shouldUseMockFallback) {
+      alert(message);
+      setIsSubmitting(false);
       return;
     }
 
-    // Card bắt buộc phải tồn tại
-    if (!selectedCard) {
-      alert('Card not found.');
-      return;
-    }
+    const mockSessionId = Date.now();
 
-    // Xác định zone name lưu vào session
-    let finalZoneId: number | null = selectedZone?.id ?? null;
-    let finalZoneName = selectedZone?.name ?? '-';
-
-    // Với ô tô tháng, zone lấy từ slot tháng đã gán
-    if (customerType === 'MONTHLY' && vehicleType === 'CAR') {
-      const monthlyZone = zones.find(
-        (zone) => zone.id === assignedMonthlySlot?.zoneId
-      );
-
-      finalZoneId = monthlyZone?.id ?? null;
-      finalZoneName = monthlyZone?.name ?? 'Monthly Zone';
-    }
-
-    // Với ô tô tháng, slot có sẵn ngay vì đã được cấp riêng trong MONTHLY zone
-    const finalSlotId =
-      customerType === 'MONTHLY' && vehicleType === 'CAR'
-        ? assignedMonthlySlot?.id ?? null
-        : null;
-
-    const finalSlotCode =
-      customerType === 'MONTHLY' && vehicleType === 'CAR'
-        ? assignedMonthlySlot?.code ?? null
-        : null;
-
-    // Tạo Parking Session giả lập
-    const newSession: ParkingSession = {
-      id: Date.now(),
-      sessionCode: `SS-${Date.now().toString().slice(-5)}`,
+    const mockSession: ParkingSession = {
+      id: mockSessionId,
+      sessionCode: `MOCK-${mockSessionId}`,
       licensePlate: formattedPlate,
       vehicleType,
       customerType,
       cardId: selectedCard.id,
       cardCode: selectedCard.code,
-      zoneId: finalZoneId,
-      zoneName: finalZoneName,
-      actualSlotId: finalSlotId,
-      actualSlotCode: finalSlotCode,
-      checkInTime: getCurrentDateTime(),
+      zoneId: selectedZoneId,
+      zoneName:
+        zones.find((zone) => zone.id === selectedZoneId)?.name ??
+        'Mock General Zone',
+      actualSlotId: null,
+      actualSlotCode: null,
+      checkInTime: new Date().toISOString(),
       status: 'ACTIVE',
     };
 
-    /*
-      TODO API:
-      Sau này thay đoạn setState bên dưới bằng API thật:
+    setSessions((current) => [mockSession, ...current]);
 
-      const response = await fetch(`${API_BASE_URL}/api/parking-sessions/check-in`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          licensePlate: formattedPlate,
-          vehicleType,
-          customerType,
-          bookingCode: customerType === 'BOOKING' ? bookingCode : null,
-          cardCode,
-          recommendedZoneId: finalZoneId
-        })
-      });
+    setLocalCardStatusOverride(selectedCard.code, {
+      cardStatus: 'ASSIGNED',
+      vehiclePlate: formattedPlate,
+      currentSessionId: mockSessionId,
+    });
 
-      const result = await response.json();
-      setSessions((prev) => [result.data, ...prev]);
-    */
-
-    // Thêm session mới lên đầu bảng
-    setSessions((prev) => [newSession, ...prev]);
-
-    // Cập nhật Card sang ASSIGNED sau khi check-in thành công
-    setCards((prev) =>
-      prev.map((card) =>
-        card.id === selectedCard.id ? { ...card, status: 'ASSIGNED' } : card
-      )
+    setCards((current) =>
+      current.filter((card) => card.code !== selectedCard.code)
     );
 
-    // Cập nhật số lượng occupied của zone
-    setZones((prev) =>
-      prev.map((zone) =>
-        zone.id === finalZoneId ? { ...zone, occupied: zone.occupied + 1 } : zone
-      )
-    );
-
-    // Nếu là ô tô tháng thì slot tháng chuyển thành OCCUPIED ngay
-    if (finalSlotId) {
-      setSlots((prev) =>
-        prev.map((slot) =>
-          slot.id === finalSlotId
-            ? { ...slot, status: 'OCCUPIED', assignedVehiclePlate: formattedPlate }
-            : slot
-        )
-      );
-    }
-
-    // Hiện success overlay
+    setCardCode('');
     setIsCheckedIn(true);
-
-    // Tắt success overlay sau 3 giây
     setTimeout(() => setIsCheckedIn(false), 3000);
-  };
+
+    alert(
+      'BE does not have an available GENERAL slot, so FE created a mock check-in session for demo.'
+    );
+  } finally {
+    setIsSubmitting(false);
+  }
+};
 
   /* ==========================================================
      HANDLE CONFIRM ACTUAL SLOT
@@ -820,20 +699,6 @@ export default function VehicleCheckin() {
                 </p>
               </div>
 
-              <button
-                type="button"
-                onClick={() => setIsBookingCheckin((current) => !current)}
-                disabled={selectedCard?.type === 'MONTHLY'}
-                aria-pressed={isBookingCheckin}
-                className={`flex items-center justify-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-bold transition-all focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-40 ${
-                  isBookingCheckin
-                    ? 'border-blue-600 bg-blue-600 text-white shadow-md shadow-blue-600/20'
-                    : 'border-blue-200 bg-blue-50 text-blue-700 hover:border-blue-300 hover:bg-blue-100'
-                }`}
-              >
-                <span className="material-symbols-outlined text-lg">confirmation_number</span>
-                {isBookingCheckin ? 'Booking selected' : 'Booking check-in'}
-              </button>
             </div>
 
             <form onSubmit={handleCheckin} className="space-y-6">
@@ -877,20 +742,16 @@ export default function VehicleCheckin() {
                     <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
                       contactless
                     </span>
-                    <input
-                      type="text"
-                      autoComplete="off"
-                      spellCheck={false}
-                      value={cardCode}
-                      onChange={(e) => setCardCode(e.target.value)}
-                      placeholder="Example: CARD-000001"
-                      className="w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 font-mono font-bold uppercase text-slate-700"
-                    />
+                   <input 
+                   type="text" 
+                   value={cardCode} 
+                   onChange={(e) => setCardCode(e.target.value.toUpperCase())} 
+                   placeholder="Enter card code, EX:CARD12" 
+                   className="w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 font-mono font-bold uppercase text-slate-700" />
                   </div>
 
                   <p className="text-xs text-slate-400">
-                    Enter or scan a card code. A linked vehicle plate will be
-                    filled automatically.
+                    Staff must enter the exact physical card code. Only AVAILABLE cards from the server are accepted.
                   </p>
 
                   {selectedCard && (
@@ -979,11 +840,11 @@ export default function VehicleCheckin() {
               {/* SUBMIT BUTTON */}
               <button
                 type="submit"
-                disabled={!canCheckin}
+                disabled={!canCheckin || isSubmitting}
                 className="w-full py-4 bg-emerald-500 text-white rounded-xl font-bold shadow-lg shadow-emerald-500/20 hover:bg-emerald-600 transition-all flex items-center justify-center gap-2 disabled:bg-slate-300 disabled:shadow-none"
               >
                 <span className="material-symbols-outlined">login</span>
-                Confirm Check-in
+                {isSubmitting ? 'Checking in...' : 'Confirm Check-in'}
               </button>
             </form>
           </div>

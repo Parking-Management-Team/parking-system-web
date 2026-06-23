@@ -13,7 +13,7 @@ import { ProfileFeature } from '@/features/profile';
  */
 export default function ProfilePage() {
   return (
-    <ProtectedRoute allowedRoles={['MANAGER', 'STAFF', 'ADMIN']}>
+    <ProtectedRoute allowedRoles={['MANAGER', 'STAFF', 'ADMIN', 'DRIVER']}>
       <div className="min-h-screen bg-[#f8f9ff] flex text-slate-800 antialiased">
         {/* Unified Sidebar Navigation */}
         <Sidebar />

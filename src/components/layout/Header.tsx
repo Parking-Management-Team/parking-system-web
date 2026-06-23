@@ -83,7 +83,7 @@ export default function Header() {
       ];
     }
 
-    const roleSegment = segments[1]; // Ví dụ: "manager", "staff", "admin"
+    const roleSegment = segments[1]; // Ví dụ: "manager", "staff", "admin", "driver"
     const dashboardHome = `/dashboard/${roleSegment || 'manager'}`;
 
     // Nếu chỉ ở trang chủ dashboard tương ứng với role (độ dài URL <= 2)
@@ -91,7 +91,8 @@ export default function Header() {
       const roleLabels: Record<string, string> = {
         manager: 'Manager Portal',
         staff: 'Staff Portal',
-        admin: 'Admin Portal'
+        admin: 'Admin Portal',
+        driver: 'Driver Portal'
       };
       return [
         { label: roleLabels[roleSegment] || 'Dashboard', href: dashboardHome },
@@ -118,7 +119,13 @@ export default function Header() {
       roles: 'Role & Permission',
       analytics: 'Parking Analytics',
       devices: 'Device Monitoring',
-      settings: 'System Settings'
+      settings: 'System Settings',
+      booking: 'Parking Booking',
+      sessions: 'Parking Session',
+      payments: 'Payment',
+      'payment-history': 'Payment History',
+      'parking-history': 'Parking History',
+      help: 'Help Center'
     };
 
     // Bản đồ chuyển đổi từ URL segment sang tên hiển thị (Tiêu đề phụ / phân nhánh đầu tiên)
@@ -137,7 +144,13 @@ export default function Header() {
       roles: 'Roles & Permissions',
       analytics: 'Analytics Overview',
       devices: 'Device Status',
-      settings: 'Configuration Panel'
+      settings: 'Configuration Panel',
+      booking: 'Book Parking Space',
+      sessions: 'Active Session Track',
+      payments: 'Payment Dashboard',
+      'payment-history': 'Transaction Log',
+      'parking-history': 'Parking Log',
+      help: 'FAQ Portal'
     };
 
     const primaryLabel = labelMap[pageSegment] || pageSegment.charAt(0).toUpperCase() + pageSegment.slice(1);
@@ -183,6 +196,7 @@ export default function Header() {
     if (role === 'MANAGER') return 'Manager';
     if (role === 'STAFF') return 'Staff';
     if (role === 'ADMIN') return 'Administrator';
+    if (role === 'DRIVER') return 'Verified Driver';
     return role;
   }, [user]);
 

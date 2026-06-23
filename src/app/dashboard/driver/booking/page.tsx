@@ -60,19 +60,40 @@ export default function BookingPage() {
 
   // Mounting state for Portal
   const [mounted, setMounted] = useState(false);
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
+  
   // Selected states
   const [selectedVehicle, setSelectedVehicle] = useState<string>('');
   const [selectedBuilding, setSelectedBuilding] = useState<string>('');
   const [selectedFloor, setSelectedFloor] = useState<string>('');
   const [selectedSlotCode, setSelectedSlotCode] = useState<string>('');
-  const [bookingDate, setBookingDate] = useState<string>('2026-06-23');
-  const [startTime, setStartTime] = useState<string>('08:00');
-  const [endTime, setEndTime] = useState<string>('12:00');
+  const [bookingDate, setBookingDate] = useState<string>('');
+  const [startTime, setStartTime] = useState<string>('');
+  const [endTime, setEndTime] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
+
+  useEffect(() => {
+    setMounted(true);
+    
+    // Set initial date/time values based on GMT+7 timezone to avoid SSR hydration mismatch
+    // Default start time is current time + 15 minutes
+    const nowGmt7 = new Date(Date.now() + 7 * 60 * 60 * 1000);
+    const startGmt7 = new Date(nowGmt7.getTime() + 15 * 60 * 1000);
+    
+    const year = startGmt7.getUTCFullYear();
+    const month = String(startGmt7.getUTCMonth() + 1).padStart(2, '0');
+    const day = String(startGmt7.getUTCDate()).padStart(2, '0');
+    setBookingDate(`${year}-${month}-${day}`);
+
+    const hours = String(startGmt7.getUTCHours()).padStart(2, '0');
+    const minutes = String(startGmt7.getUTCMinutes()).padStart(2, '0');
+    setStartTime(`${hours}:${minutes}`);
+
+    // Default end time to 1 hour after start time
+    const endGmt7 = new Date(startGmt7.getTime() + 1 * 60 * 60 * 1000);
+    const endHours = String(endGmt7.getUTCHours()).padStart(2, '0');
+    const endMinutes = String(endGmt7.getUTCMinutes()).padStart(2, '0');
+    setEndTime(`${endHours}:${endMinutes}`);
+  }, []);
 
   // API Data States
   const [vehicles, setVehicles] = useState<VehicleItem[]>([]);
@@ -85,11 +106,33 @@ export default function BookingPage() {
   const [showPaymentModal, setShowPaymentModal] = useState<boolean>(false);
   const [paymentUrl, setPaymentUrl] = useState<string>('');
   const [qrCodeUrl, setQrCodeUrl] = useState<string>('');
-  const [depositAmount, setDepositAmount] = useState<number>(5.00);
+  const [depositAmount, setDepositAmount] = useState<number>(20000);
 
   // Identify active vehicle and its type ID
   const activeVehicle = vehicles.find(v => v.licensePlate === selectedVehicle);
   const selectedVehicleTypeId = activeVehicle?.vehicleTypeId || 2; // Default to Car (2) if none selected
+
+  const getEstimatedDeposit = () => {
+    if (!bookingDate || !startTime) return selectedVehicleTypeId === 1 ? 5000 : 20000;
+    try {
+      const dt = new Date(`${bookingDate}T${startTime}:00+07:00`);
+      const utcHours = dt.getUTCHours();
+      const utcMinutes = dt.getUTCMinutes();
+      const utcTimeVal = utcHours * 60 + utcMinutes;
+      const isDayWindow = utcTimeVal >= 360 && utcTimeVal < 1320;
+      if (selectedVehicleTypeId === 1) {
+        return isDayWindow ? 5000 : 10000;
+      } else {
+        return isDayWindow ? 20000 : 40000;
+      }
+    } catch {
+      return selectedVehicleTypeId === 1 ? 5000 : 20000;
+    }
+  };
+
+  useEffect(() => {
+    setDepositAmount(getEstimatedDeposit());
+  }, [selectedVehicleTypeId, bookingDate, startTime]);
 
   // Load Vehicles & Buildings
   useEffect(() => {
@@ -294,16 +337,23 @@ export default function BookingPage() {
     if (!startTime || !endTime) return 0;
     const [startH, startM] = startTime.split(':').map(Number);
     const [endH, endM] = endTime.split(':').map(Number);
-    const durationHours = (endH + endM / 60) - (startH + startM / 60);
+    let durationHours = (endH + endM / 60) - (startH + startM / 60);
+    
+    // Support overnight duration
+    if (durationHours < 0) {
+      durationHours += 24;
+    }
     
     if (durationHours <= 0) return 0;
-    const cost = durationHours * 3.0; // $3.0/hr
-    return Math.min(cost, 20.0);
+    const rate = selectedVehicleTypeId === 1 ? 5000 : 20000;
+    const cost = durationHours * rate;
+    const cap = selectedVehicleTypeId === 1 ? 20000 : 150000;
+    return Math.min(cost, cap);
   };
 
   const handleBookingSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedSlotCode) {
+    if (selectedVehicleTypeId !== 1 && !selectedSlotCode) {
       showToast("Please select a parking slot!", "error");
       return;
     }
@@ -312,9 +362,28 @@ export default function BookingPage() {
       return;
     }
 
+    // Validate times in the frontend
+    const now = new Date();
+    const selectedStart = new Date(`${bookingDate}T${startTime}:00+07:00`);
+    const selectedEnd = new Date(`${bookingDate}T${endTime}:00+07:00`);
+
+    // Check if start time is at least 15 minutes from now
+    const diffStartMinutes = (selectedStart.getTime() - now.getTime()) / (1000 * 60);
+    if (diffStartMinutes < 14) {
+      showToast("Thời gian bắt đầu đặt chỗ phải cách hiện tại tối thiểu 15 phút!", "error");
+      return;
+    }
+
+    // Check if end time is at least 1 hour after start time
+    const diffEndHours = (selectedEnd.getTime() - selectedStart.getTime()) / (1000 * 60 * 60);
+    if (diffEndHours < 0.99) {
+      showToast("Thời gian kết thúc phải cách thời gian bắt đầu tối thiểu 1 tiếng!", "error");
+      return;
+    }
+
     setIsLoading(true);
     try {
-      const checkinTime = new Date(`${bookingDate}T${startTime}:00`).toISOString();
+      const checkinTime = new Date(`${bookingDate}T${startTime}:00+07:00`).toISOString();
       const payload = {
         accountId: user.id,
         licensePlate: selectedVehicle,
@@ -337,7 +406,7 @@ export default function BookingPage() {
           });
 
           if (payRes.success && payRes.data) {
-            setDepositAmount(payRes.data.amount || 5.00);
+            setDepositAmount(payRes.data.amount || getEstimatedDeposit());
             setPaymentUrl(payRes.data.paymentUrl || '');
             setQrCodeUrl(payRes.data.qrCodeUrl || '');
             setShowPaymentModal(true);
@@ -466,7 +535,17 @@ export default function BookingPage() {
               <h2 className="font-bold text-slate-800 text-base">Select Floor & Parking Slot</h2>
             </div>
             
-            {floors.length === 0 ? (
+            {selectedVehicleTypeId === 1 ? (
+              <div className="p-6 bg-emerald-50/50 border border-emerald-100 rounded-xl text-center space-y-3">
+                <div className="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto">
+                  <Clock className="w-6 h-6" />
+                </div>
+                <p className="text-sm font-bold text-slate-700">Đăng ký đỗ xe máy theo khung giờ</p>
+                <p className="text-xs text-slate-500 max-w-md mx-auto leading-relaxed">
+                  Xe máy được đỗ tại khu vực đỗ xe máy chung (Motorbike Zone) tại Tầng 1. Hệ thống không yêu cầu chọn vị trí ô đỗ cụ thể. Bạn chỉ cần chọn thời gian gửi dự kiến ở phần Tóm tắt đặt chỗ.
+                </p>
+              </div>
+            ) : floors.length === 0 ? (
               <div className="p-6 bg-slate-50 border border-slate-200/60 rounded-xl text-center space-y-2">
                 <AlertTriangle className="w-8 h-8 text-amber-500 mx-auto" />
                 <p className="text-sm font-bold text-slate-700">Tòa nhà không còn chỗ trống hoặc không hỗ trợ đặt chỗ trước cho loại xe này.</p>
@@ -602,29 +681,44 @@ export default function BookingPage() {
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-slate-400 font-medium">Selected Slot</span>
-                <span className={`font-bold ${selectedSlotCode ? 'text-emerald-600' : 'text-slate-400 italic'}`}>
-                  {selectedSlotCode || 'Not selected'}
+                <span className={`font-bold ${selectedVehicleTypeId === 1 || selectedSlotCode ? 'text-emerald-600' : 'text-slate-400 italic'}`}>
+                  {selectedVehicleTypeId === 1 ? 'Khu vực xe máy' : (selectedSlotCode || 'Not selected')}
                 </span>
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-slate-400 font-medium">Date & Time</span>
-                <span className="font-bold text-slate-700 text-xs">{bookingDate} {startTime}</span>
+                <span className="font-bold text-slate-700 text-xs">
+                  {bookingDate} {(() => {
+                    if (!startTime) return '';
+                    const [h, m] = startTime.split(':');
+                    const hours = parseInt(h, 10);
+                    const ampm = hours >= 12 ? 'PM' : 'AM';
+                    const displayHours = hours % 12 || 12;
+                    return `${String(displayHours).padStart(2, '0')}:${m} ${ampm}`;
+                  })()}
+                </span>
               </div>
             </div>
 
             <div className="h-[1px] bg-slate-100 my-4"></div>
 
-            <div className="flex items-center justify-between bg-slate-50 border border-[#e2e8f0] p-4 rounded-xl">
-              <div>
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Estimated Cost</p>
-                <p className="text-xs text-slate-400 mt-0.5">Rate: $3.00/hr</p>
+            <div className="space-y-3 bg-slate-50 border border-[#e2e8f0] p-4 rounded-xl">
+              <div className="flex justify-between items-center text-xs">
+                <span className="text-slate-400 font-medium">Estimated Parking Fee</span>
+                <span className="font-bold text-slate-700">{calculateCost().toLocaleString('vi-VN')} đ</span>
               </div>
-              <span className="text-3xl font-black text-slate-800">${calculateCost().toFixed(2)}</span>
+              <div className="flex justify-between items-center text-sm font-bold pt-2 border-t border-slate-200/60">
+                <span className="text-slate-500">Required Deposit</span>
+                <span className="text-xl font-black text-[#00a86b]">{getEstimatedDeposit().toLocaleString('vi-VN')} đ</span>
+              </div>
+              <p className="text-[10px] text-slate-400 leading-normal">
+                * Note: The deposit will be deducted from your final parking fee upon checkout.
+              </p>
             </div>
 
             <button
               type="submit"
-              disabled={isLoading || !selectedSlotCode}
+              disabled={isLoading || (selectedVehicleTypeId !== 1 && !selectedSlotCode)}
               className="w-full py-4 rounded-xl bg-[#00a86b] text-white font-bold text-sm shadow-md shadow-emerald-500/10 hover:bg-[#00905b] disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
             >
               {isLoading ? (
@@ -666,7 +760,7 @@ export default function BookingPage() {
             <div className="p-6 text-center space-y-5">
               <div className="space-y-1">
                 <p className="text-xs text-slate-400 uppercase tracking-widest font-semibold">Payment Request</p>
-                <h4 className="text-2xl font-extrabold text-slate-800">${depositAmount.toFixed(2)}</h4>
+                <h4 className="text-2xl font-extrabold text-slate-800">{depositAmount.toLocaleString('vi-VN')} đ</h4>
                 <p className="text-[10px] text-slate-400 max-w-[280px] mx-auto">
                   A deposit is required to lock your slot. Scan the VietQR code or pay via PayOS in the browser.
                 </p>

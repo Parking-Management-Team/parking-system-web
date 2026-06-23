@@ -229,7 +229,7 @@ export default function ParkingHistoryPage() {
                   <td>${s.checkOut}</td>
                   <td>${s.duration}</td>
                   <td>${s.zone}</td>
-                  <td>$${s.fee.toFixed(2)}</td>
+                  <td>${Math.round(s.fee).toLocaleString('vi-VN')} đ</td>
                   <td><span class="badge-${s.status}">${s.status}</span></td>
                 </tr>
               `).join('')}
@@ -422,7 +422,7 @@ export default function ParkingHistoryPage() {
                     <td className="px-6 py-4 font-medium text-slate-700">{s.duration}</td>
                     <td className="px-6 py-4 font-medium text-slate-700">{s.zone}</td>
                     <td className="px-6 py-4 font-mono font-bold text-slate-700">
-                      {s.fee > 0 ? `$${s.fee.toFixed(2)}` : '$0.00'}
+                      {s.fee > 0 ? `${Math.round(s.fee).toLocaleString('vi-VN')} đ` : '0 đ'}
                     </td>
                     <td className="px-6 py-4">
                       <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold capitalize ${

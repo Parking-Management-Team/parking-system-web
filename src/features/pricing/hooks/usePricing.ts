@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useAuth } from '@/features/auth';
 import { api } from '@/lib/api/client';
 
@@ -77,143 +77,11 @@ import {
   TariffRow, 
   MonthlyMembership, 
   ServiceFeeOrPenalty, 
-  FeePenaltyType, 
-  TriggerType,
   CreatePricingWindowRequest,
-  VehicleType
+  VehicleType,
+  IncidentType
 } from '../types';
 import { validate24hCoverage, validateNoOverlap } from '../utils/pricingValidation';
-
-// Mock fallback vehicle types
-const mockVehicleTypes: VehicleType[] = [
-  { id: 1, name: 'Motorbike', vehicleTypeStatus: 'ACTIVE' },
-  { id: 2, name: 'Car', vehicleTypeStatus: 'ACTIVE' }
-];
-
-// Mock initial data matching PBMS Database Schema
-const initialTariffs: StandardTariff[] = [
-  {
-    pricingPolicyId: 1,
-    vehicleTypeId: 1, // Motorbike
-    policyName: 'Motorbike Standard Tariff',
-    effectiveStart: '2026-01-01',
-    effectiveEnd: null,
-    pricingPolicyStatus: 'Active',
-    pricingWindows: [
-      {
-        pricingWindowId: 1,
-        pricingPolicyId: 1,
-        windowName: 'Day Slot',
-        startTime: '06:00:00',
-        endTime: '18:00:00',
-        baseDurationMinutes: 240, // 4 hours
-        basePrice: 5000,
-        incrementBlockMinutes: 60, // 1 hour
-        incrementPrice: 1000,
-        windowCap: 10000,
-        gracePeriodMinutes: 15
-      },
-      {
-        pricingWindowId: 2,
-        pricingPolicyId: 1,
-        windowName: 'Night Slot',
-        startTime: '18:00:00',
-        endTime: '06:00:00',
-        baseDurationMinutes: 720, // 12 hours
-        basePrice: 10000,
-        incrementBlockMinutes: 60, // 1 hour
-        incrementPrice: 2000,
-        windowCap: 20000,
-        gracePeriodMinutes: 15
-      }
-    ]
-  },
-  {
-    pricingPolicyId: 2,
-    vehicleTypeId: 2, // Car
-    policyName: 'Car Standard Tariff',
-    effectiveStart: '2026-01-01',
-    effectiveEnd: null,
-    pricingPolicyStatus: 'Active',
-    pricingWindows: [
-      {
-        pricingWindowId: 3,
-        pricingPolicyId: 2,
-        windowName: 'Day Slot',
-        startTime: '06:00:00',
-        endTime: '18:00:00',
-        baseDurationMinutes: 120, // 2 hours
-        basePrice: 20000,
-        incrementBlockMinutes: 60, // 1 hour
-        incrementPrice: 5000,
-        windowCap: 50000,
-        gracePeriodMinutes: 15
-      },
-      {
-        pricingWindowId: 4,
-        pricingPolicyId: 2,
-        windowName: 'Night Slot',
-        startTime: '18:00:00',
-        endTime: '06:00:00',
-        baseDurationMinutes: 720, // 12 hours
-        basePrice: 50000,
-        incrementBlockMinutes: 60, // 1 hour
-        incrementPrice: 10000,
-        windowCap: 150000,
-        gracePeriodMinutes: 15
-      }
-    ]
-  }
-];
-
-const initialMemberships: MonthlyMembership[] = [
-  {
-    id: 'm1',
-    vehicleType: 'Motorbike',
-    price: '200,000 VND / month',
-    priceNum: 200000
-  },
-  {
-    id: 'm2',
-    vehicleType: 'Car',
-    price: '1,500,000 VND / month',
-    priceNum: 1500000
-  }
-];
-
-const initialFees: ServiceFeeOrPenalty[] = [
-  {
-    id: 'f1',
-    name: 'Booking Deposit',
-    type: 'deposit',
-    amount: '5,000 VND',
-    amountNum: 5000,
-    description: 'No-show penalty applies after 45m.',
-    triggerType: 'time',
-    triggerVal: 45,
-    isActive: true
-  },
-  {
-    id: 'f2',
-    name: 'Lost Card Penalty',
-    type: 'lostcard',
-    amount: '50,000 VND',
-    amountNum: 50000,
-    description: 'Requires immediate reporting.',
-    triggerType: 'manual',
-    isActive: true
-  },
-  {
-    id: 'f3',
-    name: 'Wrong Zone Penalty',
-    type: 'wrongzone',
-    amount: '100,000 VND',
-    amountNum: 100000,
-    description: 'Applied per incident.',
-    triggerType: 'manual',
-    isActive: true
-  }
-];
 
 interface RawVehicleType {
   id?: number;
@@ -234,11 +102,11 @@ export function usePricing() {
 
 
   // Main feature state lists
-  const [tariffs, setTariffs] = useState<StandardTariff[]>(initialTariffs);
-  const [vehicleTypes, setVehicleTypes] = useState<VehicleType[]>(mockVehicleTypes);
+  const [tariffs, setTariffs] = useState<StandardTariff[]>([]);
+  const [vehicleTypes, setVehicleTypes] = useState<VehicleType[]>([]);
 
   // Fetch vehicle types from API, fallback to mock data on error
-  const fetchVehicleTypes = async () => {
+  const fetchVehicleTypes = useCallback(async () => {
     try {
       const response = await api.get<{ data?: RawVehicleType[], success?: boolean }>('/vehicle-types');
       if (response && response.success && Array.isArray(response.data)) {
@@ -250,15 +118,12 @@ export function usePricing() {
             description: item.description ?? item.Description,
             vehicleTypeStatus: item.vehicleTypeStatus ?? item.VehicleTypeStatus ?? 'ACTIVE'
           }));
-        setVehicleTypes(mapped);
-      } else {
-        setVehicleTypes(mockVehicleTypes);
+          setVehicleTypes(mapped);
       }
     } catch (error) {
-      console.error('Failed to fetch vehicle types from API, using mock fallback:', error);
-      setVehicleTypes(mockVehicleTypes);
+      console.error('Failed to fetch vehicle types from API:', error);
     }
-  };
+  }, []);
 
 interface WindowApiResponse {
   pricingWindowId?: number;
@@ -287,7 +152,7 @@ interface PolicyApiResponse {
 }
 
   // Fetch pricing policies on component mount
-  const fetchPolicies = async () => {
+  const fetchPolicies = useCallback(async () => {
     try {
       const response = await api.get<{ data: PolicyApiResponse[], success: boolean }>('/pricing-policies');
       if (response && response.success && Array.isArray(response.data)) {
@@ -317,16 +182,136 @@ interface PolicyApiResponse {
         }
       }
     } catch (error) {
-      console.error('Failed to fetch pricing policies from API, using mock fallback:', error);
+      console.error('Failed to fetch pricing policies from API:', error);
     }
-  };
+  }, []);
+
+  const [memberships, setMemberships] = useState<MonthlyMembership[]>([]);
+  const [fees, setFees] = useState<ServiceFeeOrPenalty[]>([]);
+  const [incidentTypes, setIncidentTypes] = useState<IncidentType[]>([]);
+
+  const loadAllData = useCallback(async () => {
+    interface SubscriptionPriceConfig {
+      id: number;
+      vehicleTypeId: number;
+      price: number;
+      isActive: boolean;
+    }
+
+    interface PenaltyConfig {
+      id: number;
+      incidentTypeId: number;
+      penaltyFee: number;
+      isActive: boolean;
+    }
+
+    let loadedVehicleTypes: VehicleType[] = [];
+    let loadedIncidentTypes: IncidentType[] = [];
+
+    // Step 1: Load vehicle types and incident types independently
+    try {
+      const vtRes = await api.get<{ data?: RawVehicleType[], success?: boolean }>('/vehicle-types');
+      if (vtRes && vtRes.success && Array.isArray(vtRes.data)) {
+        loadedVehicleTypes = vtRes.data
+          .filter((item: RawVehicleType) => (item.id ?? item.Id) !== undefined && (item.name ?? item.TypeName ?? item.typeName ?? item.Name) !== undefined)
+          .map((item: RawVehicleType) => ({
+            id: (item.id ?? item.Id) as number,
+            name: (item.name ?? item.TypeName ?? item.typeName ?? item.Name) as string,
+            description: item.description ?? item.Description,
+            vehicleTypeStatus: item.vehicleTypeStatus ?? item.VehicleTypeStatus ?? 'ACTIVE'
+          }));
+        setVehicleTypes(loadedVehicleTypes);
+      }
+    } catch (error) {
+      console.error('Failed to fetch vehicle types:', error);
+    }
+
+    try {
+      const itRes = await api.get<{ data?: IncidentType[], success?: boolean }>('/incident-types');
+      if (itRes && itRes.success && Array.isArray(itRes.data) && itRes.data.length > 0) {
+        loadedIncidentTypes = itRes.data;
+      }
+    } catch (error) {
+      console.error('Failed to fetch incident types:', error);
+    }
+    setIncidentTypes(loadedIncidentTypes);
+
+    // Step 2: Load subscription and penalty configs independently
+    try {
+      const subRes = await api.get<{ data?: SubscriptionPriceConfig[], success?: boolean }>('/subscription-price-configs?onlyActive=true');
+      if (subRes && subRes.success && Array.isArray(subRes.data)) {
+        const configs = subRes.data;
+        const mappedSub = loadedVehicleTypes.map((vt) => {
+          const activeConfig = configs.find((c) => c.vehicleTypeId === vt.id && c.isActive);
+          if (activeConfig) {
+            return {
+              id: activeConfig.id.toString(),
+              vehicleTypeId: vt.id,
+              vehicleType: vt.name,
+              price: `${activeConfig.price.toLocaleString('en-US')} VND / month`,
+              priceNum: activeConfig.price,
+              hasConfig: true
+            };
+          } else {
+            return {
+              id: `vt-${vt.id}`,
+              vehicleTypeId: vt.id,
+              vehicleType: vt.name,
+              price: 'Chưa có',
+              priceNum: 0,
+              hasConfig: false
+            };
+          }
+        });
+        setMemberships(mappedSub);
+      }
+    } catch (error) {
+      console.error('Failed to fetch subscription price configs:', error);
+    }
+
+    try {
+      const penRes = await api.get<{ data?: PenaltyConfig[], success?: boolean }>('/penalty-configs?onlyActive=true');
+      if (penRes && penRes.success && Array.isArray(penRes.data)) {
+        const configs = penRes.data;
+        const mappedPen = loadedIncidentTypes.map((it) => {
+          const activeConfig = configs.find((c) => c.incidentTypeId === it.id && c.isActive);
+          if (activeConfig) {
+            return {
+              id: activeConfig.id.toString(),
+              incidentTypeId: it.id,
+              name: it.incidentName,
+              type: it.incidentCode,
+              amount: `${activeConfig.penaltyFee.toLocaleString('en-US')} VND`,
+              amountNum: activeConfig.penaltyFee,
+              description: it.description,
+              isActive: true,
+              hasConfig: true
+            };
+          } else {
+            return {
+              id: `it-${it.id}`,
+              incidentTypeId: it.id,
+              name: it.incidentName,
+              type: it.incidentCode,
+              amount: 'Chưa có',
+              amountNum: it.defaultPenaltyFee,
+              description: it.description,
+              isActive: false,
+              hasConfig: false
+            };
+          }
+        });
+        setFees(mappedPen);
+      }
+    } catch (error) {
+      console.error('Failed to fetch penalty configs:', error);
+    }
+  }, []);
 
   useEffect(() => {
-    fetchVehicleTypes();
     fetchPolicies();
-  }, []);
-  const [memberships, setMemberships] = useState<MonthlyMembership[]>(initialMemberships);
-  const [fees, setFees] = useState<ServiceFeeOrPenalty[]>(initialFees);
+    loadAllData();
+  }, [fetchPolicies, loadAllData]);
 
   // Adapter Layer: Flatten nested StandardTariff schema to flat structure for the UI Table
   const tariffRows = useMemo(() => {
@@ -373,7 +358,7 @@ interface PolicyApiResponse {
   }, [tariffs, vehicleTypes]);
 
   // UI state variables
-  const [activeTab, setActiveTab] = useState<'standard' | 'memberships' | 'fees'>('standard');
+  const [activeTab, setActiveTab] = useState<'standard' | 'memberships' | 'incident-types' | 'fees'>('standard');
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
   const [toastType, setToastType] = useState<'success' | 'error'>('success');
@@ -447,14 +432,16 @@ interface PolicyApiResponse {
 
 
   // Form Inputs for Membership
+  const [formMembershipVehicleTypeId, setFormMembershipVehicleTypeId] = useState<number>(1);
   const [formMembershipVehicleType, setFormMembershipVehicleType] = useState('Motorbike');
   const [formMembershipPrice, setFormMembershipPrice] = useState(0);
 
   // Form Inputs for Service Fees & Penalties
-  const [formFeeType, setFormFeeType] = useState<FeePenaltyType>('deposit');
+  const [formFeeIncidentTypeId, setFormFeeIncidentTypeId] = useState<number>(1);
+  const [formFeeType, setFormFeeType] = useState<string>('deposit');
   const [formFeeName, setFormFeeName] = useState('');
   const [formFeeAmount, setFormFeeAmount] = useState(0);
-  const [formFeeTriggerType, setFormFeeTriggerType] = useState<TriggerType>('time');
+  const [formFeeTriggerType, setFormFeeTriggerType] = useState<string>('time');
   const [formFeeTriggerVal, setFormFeeTriggerVal] = useState(45);
   const [formFeeDescription, setFormFeeDescription] = useState('');
   const [formFeeIsActive, setFormFeeIsActive] = useState(true);
@@ -592,8 +579,21 @@ interface PolicyApiResponse {
   // === MEMBERSHIP HANDLERS ===
   const handleOpenEditMembership = (membership: MonthlyMembership) => {
     setEditingMembership(membership);
+    setFormMembershipVehicleTypeId(membership.vehicleTypeId);
     setFormMembershipVehicleType(membership.vehicleType);
-    setFormMembershipPrice(membership.priceNum);
+    setFormMembershipPrice(membership.hasConfig ? membership.priceNum : 0);
+    setIsEditMembershipOpen(true);
+  };
+
+  const handleOpenAddMembership = () => {
+    setEditingMembership(null);
+    const firstUnconfigured = vehicleTypes.find(vt => !memberships.some(m => m.vehicleTypeId === vt.id && m.hasConfig));
+    const defaultVt = firstUnconfigured || vehicleTypes[0];
+    if (defaultVt) {
+      setFormMembershipVehicleTypeId(defaultVt.id);
+      setFormMembershipVehicleType(defaultVt.name);
+    }
+    setFormMembershipPrice(0);
     setIsEditMembershipOpen(true);
   };
 
@@ -602,52 +602,56 @@ interface PolicyApiResponse {
     setEditingMembership(null);
   };
 
-  const handleSaveMembership = (e: React.FormEvent) => {
+  const handleSaveMembership = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!editingMembership) return;
-
     if (formMembershipPrice <= 0) {
       triggerToast('Price must be a positive number.', 'error');
       return;
     }
 
-    setMemberships(
-      memberships.map((m) =>
-        m.id === editingMembership.id
-          ? {
-              ...m,
-              priceNum: formMembershipPrice,
-              price: `${formMembershipPrice.toLocaleString('en-US')} VND / month`
-            }
-          : m
-      )
-    );
-    handleCloseEditMembership();
-    triggerToast('Monthly Membership fee updated!');
+    try {
+      const requestBody = {
+        vehicleTypeId: formMembershipVehicleTypeId,
+        price: formMembershipPrice
+      };
+
+      const res = await api.post<{ success: boolean }>('/subscription-price-configs', requestBody);
+      if (res && res.success) {
+        await loadAllData();
+        triggerToast('Monthly Membership fee updated successfully!', 'success');
+        handleCloseEditMembership();
+      } else {
+        triggerToast('Failed to update Monthly Membership fee.', 'error');
+      }
+    } catch (error) {
+      console.error('Failed to update membership pricing via API:', error);
+      const errorMsg = extractErrorMessage(error);
+      triggerToast(errorMsg, 'error');
+    }
   };
 
   // === FEES & PENALTIES HANDLERS ===
   const handleOpenAddFee = () => {
     setEditingFee(null);
-    setFormFeeType('deposit');
-    setFormFeeName('');
+    const firstUnconfigured = incidentTypes.find(it => !fees.some(f => f.incidentTypeId === it.id && f.hasConfig));
+    const defaultIt = firstUnconfigured || incidentTypes[0];
+    if (defaultIt) {
+      setFormFeeIncidentTypeId(defaultIt.id);
+      setFormFeeType(defaultIt.incidentCode);
+      setFormFeeName(defaultIt.incidentName);
+      setFormFeeDescription(defaultIt.description);
+    }
     setFormFeeAmount(0);
-    setFormFeeTriggerType('time');
-    setFormFeeTriggerVal(45);
-    setFormFeeDescription('');
-    setFormFeeIsActive(true);
     setIsFeeModalOpen(true);
   };
 
   const handleOpenEditFee = (fee: ServiceFeeOrPenalty) => {
     setEditingFee(fee);
+    setFormFeeIncidentTypeId(fee.incidentTypeId);
     setFormFeeType(fee.type);
     setFormFeeName(fee.name);
     setFormFeeAmount(fee.amountNum);
-    setFormFeeTriggerType(fee.triggerType);
-    setFormFeeTriggerVal(fee.triggerVal || 45);
     setFormFeeDescription(fee.description);
-    setFormFeeIsActive(fee.isActive);
     setIsFeeModalOpen(true);
   };
 
@@ -656,63 +660,104 @@ interface PolicyApiResponse {
     setEditingFee(null);
   };
 
-  const handleSaveFee = (e: React.FormEvent) => {
+  const handleSaveFee = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    const cleanName = formFeeName.trim();
-    if (!cleanName) {
-      triggerToast('Fee name is required.', 'error');
-      return;
-    }
 
     if (formFeeAmount <= 0) {
       triggerToast('Amount must be positive.', 'error');
       return;
     }
 
-    if (editingFee) {
-      // Edit mode
-      setFees(
-        fees.map((f) =>
-          f.id === editingFee.id
-            ? {
-                ...f,
-                name: cleanName,
-                type: formFeeType,
-                amountNum: formFeeAmount,
-                amount: `${formFeeAmount.toLocaleString('en-US')} VND`,
-                triggerType: formFeeTriggerType,
-                triggerVal: formFeeTriggerType === 'time' ? formFeeTriggerVal : undefined,
-                description: formFeeDescription,
-                isActive: formFeeIsActive
-              }
-            : f
-        )
-      );
-      triggerToast('Fee & Penalty updated successfully!');
-    } else {
-      // Add mode
-      const newFee: ServiceFeeOrPenalty = {
-        id: `f-${Date.now()}`,
-        name: cleanName,
-        type: formFeeType,
-        amountNum: formFeeAmount,
-        amount: `${formFeeAmount.toLocaleString('en-US')} VND`,
-        triggerType: formFeeTriggerType,
-        triggerVal: formFeeTriggerType === 'time' ? formFeeTriggerVal : undefined,
-        description: formFeeDescription,
-        isActive: formFeeIsActive
+    try {
+      const requestBody = {
+        incidentTypeId: formFeeIncidentTypeId,
+        penaltyFee: formFeeAmount
       };
-      setFees([...fees, newFee]);
-      triggerToast('New Fee & Penalty added successfully!');
-    }
 
-    handleCloseFeeModal();
+      const res = await api.post<{ success: boolean }>('/penalty-configs', requestBody);
+      if (res && res.success) {
+        await loadAllData();
+        triggerToast('Penalty configuration updated successfully!', 'success');
+        handleCloseFeeModal();
+      } else {
+        triggerToast('Failed to update penalty configuration.', 'error');
+      }
+    } catch (error) {
+      console.error('Failed to update penalty config via API:', error);
+      const errorMsg = extractErrorMessage(error);
+      triggerToast(errorMsg, 'error');
+    }
   };
 
   const handleDeleteFee = (id: string) => {
-    setFees(fees.filter((f) => f.id !== id));
-    triggerToast('Fee policy deleted.');
+    triggerToast('Penalty configurations cannot be deleted, they are deactivated when a new configuration is created.', 'error');
+  };
+
+  // === INCIDENT TYPE HANDLERS ===
+  const [isIncidentTypeModalOpen, setIsIncidentTypeModalOpen] = useState(false);
+  const [editingIncidentType, setEditingIncidentType] = useState<IncidentType | null>(null);
+  const [formIncidentCode, setFormIncidentCode] = useState('');
+  const [formIncidentName, setFormIncidentName] = useState('');
+  const [formIncidentDescription, setFormIncidentDescription] = useState('');
+  const [formIncidentDefaultFee, setFormIncidentDefaultFee] = useState(0);
+
+  const handleOpenAddIncidentType = () => {
+    setEditingIncidentType(null);
+    setFormIncidentCode('');
+    setFormIncidentName('');
+    setFormIncidentDescription('');
+    setFormIncidentDefaultFee(0);
+    setIsIncidentTypeModalOpen(true);
+  };
+
+  const handleOpenEditIncidentType = (it: IncidentType) => {
+    setEditingIncidentType(it);
+    setFormIncidentCode(it.incidentCode);
+    setFormIncidentName(it.incidentName);
+    setFormIncidentDescription(it.description);
+    setFormIncidentDefaultFee(it.defaultPenaltyFee);
+    setIsIncidentTypeModalOpen(true);
+  };
+
+  const handleCloseIncidentTypeModal = () => {
+    setIsIncidentTypeModalOpen(false);
+    setEditingIncidentType(null);
+  };
+
+  const handleSaveIncidentType = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formIncidentCode.trim() || !formIncidentName.trim()) {
+      triggerToast('Incident Code and Name are required.', 'error');
+      return;
+    }
+
+    if (editingIncidentType) {
+      setIncidentTypes(prev =>
+        prev.map(it =>
+          it.id === editingIncidentType.id
+            ? { ...it, incidentCode: formIncidentCode, incidentName: formIncidentName, description: formIncidentDescription, defaultPenaltyFee: formIncidentDefaultFee }
+            : it
+        )
+      );
+      triggerToast('Incident type updated successfully!', 'success');
+    } else {
+      const maxId = incidentTypes.reduce((max, it) => Math.max(max, it.id), 0);
+      const newIncidentType: IncidentType = {
+        id: maxId + 1,
+        incidentCode: formIncidentCode,
+        incidentName: formIncidentName,
+        description: formIncidentDescription,
+        defaultPenaltyFee: formIncidentDefaultFee
+      };
+      setIncidentTypes(prev => [...prev, newIncidentType]);
+      triggerToast('Incident type created successfully!', 'success');
+    }
+    handleCloseIncidentTypeModal();
+  };
+
+  const handleDeleteIncidentType = (id: number) => {
+    setIncidentTypes(prev => prev.filter(it => it.id !== id));
+    triggerToast('Incident type deleted.', 'success');
   };
 
   // --- Handlers cho Create Policy (S1) ---
@@ -1165,12 +1210,17 @@ interface PolicyApiResponse {
     setFormAddWindowGraceVal,
 
     // Membership form fields
+    formMembershipVehicleTypeId,
+    setFormMembershipVehicleTypeId,
     formMembershipVehicleType,
     setFormMembershipVehicleType,
     formMembershipPrice,
     setFormMembershipPrice,
 
     // Fees form fields
+    incidentTypes,
+    formFeeIncidentTypeId,
+    setFormFeeIncidentTypeId,
     formFeeType,
     setFormFeeType,
     formFeeName,
@@ -1222,6 +1272,7 @@ interface PolicyApiResponse {
     handleCloseAddWindow,
     handleSaveAddWindow,
 
+    handleOpenAddMembership,
     handleOpenEditMembership,
     handleCloseEditMembership,
     handleSaveMembership,
@@ -1230,7 +1281,24 @@ interface PolicyApiResponse {
     handleOpenEditFee,
     handleCloseFeeModal,
     handleSaveFee,
-    handleDeleteFee
+    handleDeleteFee,
+
+    // Incident Type Handlers
+    isIncidentTypeModalOpen,
+    editingIncidentType,
+    formIncidentCode,
+    setFormIncidentCode,
+    formIncidentName,
+    setFormIncidentName,
+    formIncidentDescription,
+    setFormIncidentDescription,
+    formIncidentDefaultFee,
+    setFormIncidentDefaultFee,
+    handleOpenAddIncidentType,
+    handleOpenEditIncidentType,
+    handleCloseIncidentTypeModal,
+    handleSaveIncidentType,
+    handleDeleteIncidentType
   };
 
 }

@@ -13,12 +13,14 @@ export default function PricingWorkspace() {
     tariffs,
     memberships,
     fees,
+    incidentTypes,
     showToast,
     toastMessage,
     toastType,
     triggerToast,
     handleOpenEditTariff,
     handleOpenEditMembership,
+    handleOpenAddMembership,
     handleOpenAddFee,
     handleOpenEditFee,
     handleDeleteFee,
@@ -27,6 +29,9 @@ export default function PricingWorkspace() {
     handleOpenAddWindow,
     handleDeleteTariff,
     handleOpenEditPolicy,
+    handleOpenAddIncidentType,
+    handleOpenEditIncidentType,
+    handleDeleteIncidentType,
     vehicleTypes
   } = pricing;
 
@@ -37,7 +42,9 @@ export default function PricingWorkspace() {
     if (activeTab === 'standard') {
       handleOpenCreatePolicy();
     } else if (activeTab === 'memberships') {
-      triggerToast('Monthly membership plans are automatically synchronized from the central system.', 'error');
+      handleOpenAddMembership();
+    } else if (activeTab === 'incident-types') {
+      handleOpenAddIncidentType();
     } else {
       handleOpenAddFee();
     }
@@ -49,8 +56,10 @@ export default function PricingWorkspace() {
         return 'Create New Pricing Policy';
       case 'memberships':
         return 'Add Monthly Membership';
-      case 'fees':
-        return 'Add Fee/Penalty';
+      case 'incident-types':
+        return 'Add Incident Type';
+      default:
+        return 'Add Penalty Configuration';
     }
   };
 
@@ -115,6 +124,16 @@ export default function PricingWorkspace() {
                 }`}
               >
                 Monthly Memberships
+              </button>
+              <button
+                onClick={() => setActiveTab('incident-types')}
+                className={`py-4 px-1 border-b-2 font-bold text-sm transition-all whitespace-nowrap ${
+                  activeTab === 'incident-types'
+                    ? 'border-[#006d43] text-[#006d43]'
+                    : 'border-transparent text-slate-400 hover:text-slate-600 hover:border-slate-300'
+                }`}
+              >
+                Incident Types
               </button>
               <button
                 onClick={() => setActiveTab('fees')}
@@ -401,30 +420,51 @@ export default function PricingWorkspace() {
                   {memberships.map((membership) => (
                     <div 
                       key={membership.id} 
-                      className="bg-white border border-slate-200 rounded-2xl p-6 relative group hover:shadow-md transition-all flex flex-col justify-between"
+                      className={`bg-white border rounded-2xl p-6 relative group hover:shadow-md transition-all flex flex-col justify-between ${
+                        membership.hasConfig ? 'border-slate-200' : 'border-dashed border-slate-350 bg-slate-50/30'
+                      }`}
                     >
                       <div className="flex justify-between items-start">
-                        <div className="w-12 h-12 rounded-xl bg-emerald-50 flex items-center justify-center text-[#006d43]">
+                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
+                          membership.hasConfig ? 'bg-emerald-50 text-[#006d43]' : 'bg-slate-100 text-slate-400'
+                        }`}>
                           <span className="material-symbols-outlined text-[28px]">
-                            {membership.vehicleType.includes('Motorbike') ? 'two_wheeler' : 'directions_car'}
+                            {membership.vehicleType.toLowerCase().includes('motorbike') ? 'two_wheeler' : 'directions_car'}
                           </span>
                         </div>
-                        <button 
-                          onClick={() => handleOpenEditMembership(membership)}
-                          className="h-8 w-8 flex items-center justify-center rounded-full hover:bg-slate-100 text-slate-400 hover:text-[#006d43] transition-colors"
-                          title="Edit subscription rate"
-                        >
-                          <span className="material-symbols-outlined text-[18px]">edit</span>
-                        </button>
+                        {membership.hasConfig && (
+                          <button 
+                            onClick={() => handleOpenEditMembership(membership)}
+                            className="h-8 w-8 flex items-center justify-center rounded-full hover:bg-slate-100 text-slate-400 hover:text-[#006d43] transition-colors"
+                            title="Edit subscription rate"
+                          >
+                            <span className="material-symbols-outlined text-[18px]">edit</span>
+                          </button>
+                        )}
                       </div>
 
                       <div className="mt-6">
                         <h5 className="text-slate-800 text-base font-bold">{membership.vehicleType} Passes</h5>
                         <div className="flex items-baseline gap-1 mt-2">
-                          <span className="text-3xl font-black text-slate-800 tracking-tight">
-                            {membership.priceNum.toLocaleString('en-US')}
-                          </span>
-                          <span className="text-xs text-slate-400 font-bold uppercase tracking-wider">VND / month</span>
+                          {membership.hasConfig ? (
+                            <>
+                              <span className="text-3xl font-black text-slate-800 tracking-tight">
+                                {membership.priceNum.toLocaleString('en-US')}
+                              </span>
+                              <span className="text-xs text-slate-400 font-bold uppercase tracking-wider">VND / month</span>
+                            </>
+                          ) : (
+                            <div className="flex flex-col gap-2 w-full mt-1">
+                              <span className="text-slate-400 font-medium text-sm italic">No configuration</span>
+                              <button
+                                onClick={() => handleOpenEditMembership(membership)}
+                                className="w-full mt-2 inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-sm transition-all"
+                              >
+                                <span className="material-symbols-outlined text-[16px]">add_circle</span>
+                                Create configuration
+                              </button>
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -444,7 +484,82 @@ export default function PricingWorkspace() {
               </div>
             )}
 
-            {/* TAB 3: SERVICE FEES & PENALTIES */}
+            {/* TAB 3: INCIDENT TYPES */}
+            {activeTab === 'incident-types' && (
+              <div className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <h4 className="text-base font-bold text-[#111c2d]">Incident Types Management</h4>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {incidentTypes.map((it) => (
+                    <div 
+                      key={it.id} 
+                      className="bg-white border border-slate-200 rounded-2xl p-5 hover:shadow-md transition-all"
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center">
+                            <span className="material-symbols-outlined text-amber-600 text-[20px]">warning</span>
+                          </div>
+                          <div>
+                            <span className="text-[10px] font-mono bg-slate-100 text-slate-500 px-2 py-0.5 rounded">
+                              {it.incidentCode}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <button 
+                            onClick={() => handleOpenEditIncidentType(it)}
+                            className="h-7 w-7 flex items-center justify-center rounded-full hover:bg-slate-100 text-slate-400 hover:text-[#006d43] transition-colors"
+                            title="Edit incident type"
+                          >
+                            <span className="material-symbols-outlined text-[16px]">edit</span>
+                          </button>
+                          <button 
+                            onClick={() => handleDeleteIncidentType(it.id)}
+                            className="h-7 w-7 flex items-center justify-center rounded-full hover:bg-red-50 text-slate-400 hover:text-red-500 transition-colors"
+                            title="Delete incident type"
+                          >
+                            <span className="material-symbols-outlined text-[16px]">delete</span>
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="mt-4">
+                        <h5 className="text-sm font-bold text-slate-800">{it.incidentName}</h5>
+                        <p className="text-xs text-slate-500 mt-1 line-clamp-2">{it.description || 'No description'}</p>
+                      </div>
+
+                      <div className="mt-4 pt-3 border-t border-slate-100">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs text-slate-400 font-medium">Default Fee</span>
+                          <span className="text-sm font-bold text-red-600">
+                            {it.defaultPenaltyFee.toLocaleString('en-US')} VND
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {incidentTypes.length === 0 && (
+                  <div className="text-center py-12 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+                    <span className="material-symbols-outlined text-slate-300 text-[48px]">add_circle</span>
+                    <p className="text-slate-400 text-sm mt-2 font-medium">No incident types yet</p>
+                    <button
+                      onClick={handleOpenAddIncidentType}
+                      className="mt-4 inline-flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl transition-all"
+                    >
+                      <span className="material-symbols-outlined text-[16px]">add</span>
+                      Add Incident Type
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* TAB 4: SERVICE FEES & PENALTIES */}
             {activeTab === 'fees' && (
               <div className="space-y-4">
                 <div className="flex justify-between items-center">
@@ -453,70 +568,73 @@ export default function PricingWorkspace() {
 
                 <div className="grid grid-cols-1 gap-4">
                   {fees.map((fee) => {
-                    const isPenalty = fee.type === 'lostcard' || fee.type === 'wrongzone' || fee.type === 'noshow';
+                    const isPenalty = true; // Representing penalty configurations
+                    const iconName = fee.type.toLowerCase().includes('ticket') || fee.type.toLowerCase().includes('card')
+                      ? 'credit_card_off'
+                      : (fee.type.toLowerCase().includes('vehicle') ? 'directions_car' : 'warning');
+                    
                     return (
                       <div 
                         key={fee.id} 
                         className={`border rounded-2xl p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 transition-all hover:shadow-sm ${
-                          isPenalty 
+                          fee.hasConfig 
                             ? 'bg-[#FFF8F6] border-red-200/60' 
-                            : 'bg-white border-slate-200'
+                            : 'bg-slate-50/30 border-slate-250 border-dashed'
                         }`}
                       >
                         <div className="flex items-start gap-4">
                           <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${
-                            isPenalty 
+                            fee.hasConfig 
                               ? 'bg-red-50 text-red-600' 
-                              : 'bg-emerald-50 text-[#006d43]'
+                              : 'bg-slate-100 text-slate-400'
                           }`}>
                             <span className="material-symbols-outlined text-[24px]">
-                              {fee.type === 'deposit' && 'book_online'}
-                              {fee.type === 'noshow' && 'history_toggle_off'}
-                              {fee.type === 'lostcard' && 'credit_card_off'}
-                              {fee.type === 'wrongzone' && 'warning'}
+                              {iconName}
                             </span>
                           </div>
                           <div>
                             <div className="flex items-center gap-2">
                               <h5 className="text-sm font-bold text-slate-800">{fee.name}</h5>
                               <span className={`text-[9px] font-extrabold uppercase px-2 py-0.5 rounded-full ${
-                                fee.isActive 
-                                  ? 'bg-emerald-100 text-emerald-700' 
+                                fee.hasConfig 
+                                  ? 'bg-red-100 text-red-700' 
                                   : 'bg-slate-100 text-slate-400'
                               }`}>
-                                {fee.isActive ? 'Active' : 'Disabled'}
+                                {fee.hasConfig ? 'Active' : 'Unconfigured'}
                               </span>
                             </div>
                             <p className="text-xs text-slate-500 font-semibold mt-1">{fee.description}</p>
-                            {fee.triggerType === 'time' && (
-                              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-1 flex items-center gap-1">
-                                <span className="material-symbols-outlined text-[12px]">alarm</span>
-                                Time Trigger: {fee.triggerVal} mins
-                              </p>
-                            )}
                           </div>
                         </div>
 
                         <div className="flex items-center justify-between md:justify-end gap-6 w-full md:w-auto border-t md:border-none pt-3 md:pt-0">
-                          <div className={`text-lg font-black tracking-tight ${isPenalty ? 'text-red-600' : 'text-slate-800'}`}>
-                            {fee.amount}
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <button 
-                              onClick={() => handleOpenEditFee(fee)}
-                              className="h-8 w-8 flex items-center justify-center rounded-full hover:bg-slate-100 text-slate-500 hover:text-[#006d43]"
-                              title="Edit fee policy"
-                            >
-                              <span className="material-symbols-outlined text-[18px]">edit</span>
-                            </button>
-                            <button 
-                              onClick={() => handleDeleteFee(fee.id)}
-                              className="h-8 w-8 flex items-center justify-center rounded-full hover:bg-red-50 text-slate-400 hover:text-red-500"
-                              title="Delete fee policy"
-                            >
-                              <span className="material-symbols-outlined text-[18px]">delete</span>
-                            </button>
-                          </div>
+                          {fee.hasConfig ? (
+                            <>
+                              <div className="text-lg font-black tracking-tight text-red-600">
+                                {fee.amount}
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <button 
+                                  onClick={() => handleOpenEditFee(fee)}
+                                  className="h-8 w-8 flex items-center justify-center rounded-full hover:bg-slate-100 text-slate-500 hover:text-[#006d43]"
+                                  title="Edit penalty configuration"
+                                >
+                                  <span className="material-symbols-outlined text-[18px]">edit</span>
+                                </button>
+                              </div>
+                            </>
+                          ) : (
+                            <div className="flex items-center gap-3">
+                              <span className="text-slate-400 font-medium text-xs italic">No configuration</span>
+                              <button
+                                onClick={() => handleOpenEditFee(fee)}
+                                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-red-600 hover:bg-red-700 text-white font-bold text-xs rounded-xl shadow-sm transition-all"
+                              >
+                                <span className="material-symbols-outlined text-[14px]">add_circle</span>
+                                Create configuration
+                              </button>
+                            </div>
+                          )}
                         </div>
                       </div>
                     );

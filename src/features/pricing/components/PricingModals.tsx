@@ -1,6 +1,5 @@
 import React from 'react';
 import { UsePricingResult } from '../hooks/usePricing';
-import { FeePenaltyType } from '../types';
 import CreatePolicyModal from './CreatePolicyModal';
 import ActivatePolicyDialog from './ActivatePolicyDialog';
 import AddWindowModal from './AddWindowModal';
@@ -47,25 +46,37 @@ export default function PricingModals({ pricing }: PricingModalsProps) {
     setRemoveWindowCap,
 
     // Membership States
+    formMembershipVehicleTypeId,
+    setFormMembershipVehicleTypeId,
     formMembershipVehicleType,
+    setFormMembershipVehicleType,
     formMembershipPrice,
     setFormMembershipPrice,
 
     // Fee States
+    incidentTypes,
+    formFeeIncidentTypeId,
+    setFormFeeIncidentTypeId,
     formFeeType,
     setFormFeeType,
     formFeeName,
     setFormFeeName,
     formFeeAmount,
     setFormFeeAmount,
-    formFeeTriggerType,
-    setFormFeeTriggerType,
-    formFeeTriggerVal,
-    setFormFeeTriggerVal,
     formFeeDescription,
     setFormFeeDescription,
-    formFeeIsActive,
-    setFormFeeIsActive,
+
+    // Incident Type States
+    isIncidentTypeModalOpen,
+    editingIncidentType,
+    formIncidentCode,
+    setFormIncidentCode,
+    formIncidentName,
+    setFormIncidentName,
+    formIncidentDescription,
+    setFormIncidentDescription,
+    formIncidentDefaultFee,
+    setFormIncidentDefaultFee,
 
     // Handlers
     handleCloseEditTariff,
@@ -76,6 +87,9 @@ export default function PricingModals({ pricing }: PricingModalsProps) {
 
     handleCloseFeeModal,
     handleSaveFee,
+
+    handleCloseIncidentTypeModal,
+    handleSaveIncidentType,
     vehicleTypes,
     submitError
   } = pricing;
@@ -339,14 +353,16 @@ export default function PricingModals({ pricing }: PricingModalsProps) {
     );
   }
 
-  {/* Render Edit Membership Modal */}
-  if (isEditMembershipOpen && editingMembership) {
+  {/* Render Add/Edit Membership Modal */}
+  if (isEditMembershipOpen) {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 overflow-y-auto">
         <div className="bg-white w-full max-w-md rounded-2xl shadow-xl flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
           
           <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
-            <h2 className="text-xl font-bold text-slate-800">Edit Membership</h2>
+            <h2 className="text-xl font-bold text-slate-800">
+              {editingMembership ? 'Edit Membership Price' : 'Add Monthly Subscription Price'}
+            </h2>
             <button 
               onClick={handleCloseEditMembership}
               className="h-9 w-9 flex items-center justify-center rounded-full hover:bg-slate-100 transition-colors text-slate-400 hover:text-slate-600"
@@ -358,12 +374,34 @@ export default function PricingModals({ pricing }: PricingModalsProps) {
           <form onSubmit={handleSaveMembership} className="p-6 space-y-4 bg-slate-50/50">
             <div>
               <label className="block text-xs font-bold text-slate-500 mb-1.5 uppercase tracking-wide">Vehicle Type</label>
-              <input 
-                type="text" 
-                value={formMembershipVehicleType} 
-                disabled
-                className="w-full bg-slate-100 border border-slate-200 rounded-xl px-4 py-2 text-sm font-semibold text-slate-500 outline-none"
-              />
+              {editingMembership ? (
+                <input 
+                  type="text" 
+                  value={formMembershipVehicleType} 
+                  disabled
+                  className="w-full bg-slate-100 border border-slate-200 rounded-xl px-4 py-2 text-sm font-semibold text-slate-500 outline-none cursor-not-allowed"
+                />
+              ) : (
+                <div className="relative">
+                  <select 
+                    value={formMembershipVehicleTypeId}
+                    onChange={(e) => {
+                      const selectedId = Number(e.target.value);
+                      setFormMembershipVehicleTypeId(selectedId);
+                      const vt = vehicleTypes.find(v => v.id === selectedId);
+                      if (vt) {
+                        setFormMembershipVehicleType(vt.name);
+                      }
+                    }}
+                    className="w-full bg-white border border-slate-200 rounded-xl pl-4 pr-10 py-2.5 text-sm font-medium text-slate-800 appearance-none focus:outline-none focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all cursor-pointer"
+                  >
+                    {vehicleTypes.map(vt => (
+                      <option key={vt.id} value={vt.id}>{vt.name}</option>
+                    ))}
+                  </select>
+                  <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">expand_more</span>
+                </div>
+              )}
             </div>
             
             <div>
@@ -371,9 +409,9 @@ export default function PricingModals({ pricing }: PricingModalsProps) {
               <div className="relative">
                 <input 
                   type="number" 
-                  value={formMembershipPrice}
+                  value={formMembershipPrice === 0 ? '' : formMembershipPrice}
                   onChange={(e) => setFormMembershipPrice(Number(e.target.value))}
-                  className="w-full bg-white border border-slate-200 rounded-xl pl-4 pr-12 py-2 text-sm font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all"
+                  className="w-full bg-white border border-slate-200 rounded-xl pl-4 pr-12 py-2.5 text-sm font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all"
                   placeholder="0"
                 />
                 <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">VND</span>
@@ -405,11 +443,11 @@ export default function PricingModals({ pricing }: PricingModalsProps) {
   if (isFeeModalOpen) {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 overflow-y-auto">
-        <div className="bg-white w-full max-w-3xl rounded-2xl shadow-xl flex flex-col overflow-hidden max-h-[90vh] animate-in fade-in zoom-in-95 duration-200">
+        <div className="bg-white w-full max-w-lg rounded-2xl shadow-xl flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
           
           <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
             <h2 className="text-xl font-bold text-slate-800">
-              {editingFee ? 'Edit Service Fee & Penalty' : 'Add New Service Fee/Penalty'}
+              {editingFee ? 'Edit Penalty Fee' : 'Add Penalty Configuration'}
             </h2>
             <button 
               onClick={handleCloseFeeModal}
@@ -419,158 +457,67 @@ export default function PricingModals({ pricing }: PricingModalsProps) {
             </button>
           </div>
 
-          <form onSubmit={handleSaveFee} className="flex-grow overflow-y-auto p-6 space-y-5 bg-slate-50/50">
-            
-            <div className="rounded-xl border border-emerald-500/10 bg-white p-5 space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                
-                {/* Fee Type */}
-                <div>
-                  <label className="block text-xs font-bold text-slate-500 mb-1.5 uppercase tracking-wide">
-                    Fee Type <span className="text-red-500">*</span>
-                  </label>
-                  <div className="relative">
-                    <select 
-                      value={formFeeType}
-                      onChange={(e) => setFormFeeType(e.target.value as FeePenaltyType)}
-                      className="w-full bg-white border border-slate-200 rounded-xl pl-4 pr-10 py-2.5 text-sm font-medium text-slate-800 appearance-none focus:outline-none focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all"
-                    >
-                      <option value="deposit">Deposit</option>
-                      <option value="noshow">No-show</option>
-                      <option value="lostcard">Lost Card</option>
-                      <option value="wrongzone">Wrong Zone</option>
-                    </select>
-                    <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">expand_more</span>
-                  </div>
-                </div>
-
-                {/* Fee Name */}
-                <div>
-                  <label className="block text-xs font-bold text-slate-500 mb-1.5 uppercase tracking-wide">
-                    Fee Name <span className="text-red-500">*</span>
-                  </label>
-                  <input 
-                    type="text" 
-                    value={formFeeName}
-                    onChange={(e) => setFormFeeName(e.target.value)}
-                    placeholder="e.g. Booking Deposit"
-                    className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all"
-                    required
-                  />
-                </div>
-
-                {/* Fee Amount */}
-                <div className="md:col-span-2">
-                  <label className="block text-xs font-bold text-slate-500 mb-1.5 uppercase tracking-wide">
-                    Fee Amount (VND) <span className="text-red-500">*</span>
-                  </label>
-                  <div className="relative">
-                    <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none text-[20px]">payments</span>
-                    <input 
-                      type="number" 
-                      value={formFeeAmount}
-                      onChange={(e) => setFormFeeAmount(Number(e.target.value))}
-                      placeholder="0"
-                      className="w-full bg-white border border-slate-200 rounded-xl pl-12 pr-4 py-2.5 text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all text-right"
-                      required
-                    />
-                  </div>
-                </div>
-
-                {/* Trigger conditions */}
-                <div className="md:col-span-2 space-y-2">
-                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide">Trigger Conditions</label>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    
-                    {/* Time based radio */}
-                    <label 
-                      onClick={() => setFormFeeTriggerType('time')}
-                      className={`flex items-start gap-3 p-4 border rounded-xl cursor-pointer transition-all ${
-                        formFeeTriggerType === 'time' 
-                          ? 'border-emerald-500 bg-[#F4FBF3]' 
-                          : 'border-slate-200 bg-white hover:border-slate-300'
-                      }`}
-                    >
-                      <input 
-                        type="radio" 
-                        name="triggerType"
-                        checked={formFeeTriggerType === 'time'}
-                        onChange={() => {}}
-                        className="mt-1 text-emerald-600 focus:ring-emerald-500"
-                      />
-                      <div>
-                        <span className="block text-sm font-bold text-slate-700">Time-based Trigger</span>
-                        <span className="block text-xs text-slate-400 font-medium mt-0.5">Apply fee automatically after duration.</span>
-                        {formFeeTriggerType === 'time' && (
-                          <div className="mt-3 flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-                            <span className="text-xs font-semibold text-slate-600">Trigger after</span>
-                            <input 
-                              type="number" 
-                              value={formFeeTriggerVal}
-                              onChange={(e) => setFormFeeTriggerVal(Number(e.target.value))}
-                              className="w-16 bg-white border border-slate-200 rounded-lg py-1 px-2 text-center text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500"
-                            />
-                            <span className="text-xs font-semibold text-slate-600">mins</span>
-                          </div>
-                        )}
-                      </div>
-                    </label>
-
-                    {/* Manual radio */}
-                    <label 
-                      onClick={() => setFormFeeTriggerType('manual')}
-                      className={`flex items-start gap-3 p-4 border rounded-xl cursor-pointer transition-all ${
-                        formFeeTriggerType === 'manual' 
-                          ? 'border-emerald-500 bg-[#F4FBF3]' 
-                          : 'border-slate-200 bg-white hover:border-slate-300'
-                      }`}
-                    >
-                      <input 
-                        type="radio" 
-                        name="triggerType"
-                        checked={formFeeTriggerType === 'manual'}
-                        onChange={() => {}}
-                        className="mt-1 text-emerald-600 focus:ring-emerald-500"
-                      />
-                      <div>
-                        <span className="block text-sm font-bold text-slate-700">Manual Trigger</span>
-                        <span className="block text-xs text-slate-400 font-medium mt-0.5">Applied manually by operations staff.</span>
-                      </div>
-                    </label>
-
-                  </div>
-                </div>
-
-                {/* Description */}
-                <div className="md:col-span-2">
-                  <label className="block text-xs font-bold text-slate-500 mb-1.5 uppercase tracking-wide">Internal Description</label>
-                  <textarea 
-                    value={formFeeDescription}
-                    onChange={(e) => setFormFeeDescription(e.target.value)}
-                    placeholder="Add notes or rules regarding this fee..."
-                    rows={3}
-                    className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2 text-sm font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all resize-none"
-                  />
-                </div>
-
-                {/* Active status */}
-                <div className="md:col-span-2 flex items-center gap-3 pt-3 border-t border-slate-100">
-                  <button
-                    type="button"
-                    onClick={() => setFormFeeIsActive(!formFeeIsActive)}
-                    className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                      formFeeIsActive ? 'bg-[#006d43]' : 'bg-slate-200'
-                    }`}
+          <form onSubmit={handleSaveFee} className="p-6 space-y-4 bg-slate-50/50">
+            <div>
+              <label className="block text-xs font-bold text-slate-500 mb-1.5 uppercase tracking-wide">Incident Type</label>
+              {editingFee ? (
+                <input 
+                  type="text" 
+                  value={formFeeName} 
+                  disabled
+                  className="w-full bg-slate-100 border border-slate-200 rounded-xl px-4 py-2 text-sm font-semibold text-slate-500 outline-none cursor-not-allowed"
+                />
+              ) : (
+                <div className="relative">
+                  <select 
+                    value={formFeeIncidentTypeId}
+                    onChange={(e) => {
+                      const selectedId = Number(e.target.value);
+                      setFormFeeIncidentTypeId(selectedId);
+                      const found = incidentTypes.find(it => it.id === selectedId);
+                      if (found) {
+                        setFormFeeType(found.incidentCode);
+                        setFormFeeName(found.incidentName);
+                        setFormFeeDescription(found.description);
+                        setFormFeeAmount(found.defaultPenaltyFee);
+                      }
+                    }}
+                    className="w-full bg-white border border-slate-200 rounded-xl pl-4 pr-10 py-2.5 text-sm font-medium text-slate-800 appearance-none focus:outline-none focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all cursor-pointer"
                   >
-                    <span
-                      className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                        formFeeIsActive ? 'translate-x-5' : 'translate-x-0'
-                      }`}
-                    />
-                  </button>
-                  <span className="text-xs font-bold text-slate-700">Set as Active Configuration</span>
+                    {incidentTypes.map(it => (
+                      <option key={it.id} value={it.id}>{it.incidentName}</option>
+                    ))}
+                  </select>
+                  <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">expand_more</span>
                 </div>
+              )}
+            </div>
 
+            {/* Read-only details about the incident type */}
+            <div className="rounded-xl border border-slate-200 bg-white p-4 space-y-2">
+              <div className="flex justify-between items-center text-xs">
+                <span className="font-bold text-slate-400 uppercase tracking-wide">Incident Code</span>
+                <span className="font-mono bg-slate-100 text-slate-600 px-2 py-0.5 rounded text-[11px] font-semibold">{formFeeType}</span>
+              </div>
+              <div className="text-xs text-slate-500">
+                <span className="block font-bold text-slate-400 uppercase tracking-wide mb-1">Description</span>
+                <p className="bg-slate-50/50 p-2.5 rounded-lg border border-slate-100 leading-relaxed font-medium">
+                  {formFeeDescription || 'No description available.'}
+                </p>
+              </div>
+            </div>
+            
+            <div>
+              <label className="block text-xs font-bold text-slate-500 mb-1.5 uppercase tracking-wide">Penalty Fee (VND)</label>
+              <div className="relative">
+                <input 
+                  type="number" 
+                  value={formFeeAmount === 0 ? '' : formFeeAmount}
+                  onChange={(e) => setFormFeeAmount(Number(e.target.value))}
+                  className="w-full bg-white border border-slate-200 rounded-xl pl-4 pr-12 py-2.5 text-sm font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all"
+                  placeholder="0"
+                />
+                <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">VND</span>
               </div>
             </div>
 
@@ -584,9 +531,98 @@ export default function PricingModals({ pricing }: PricingModalsProps) {
               </button>
               <button 
                 type="submit"
-                className="px-5 py-2.5 rounded-xl bg-[#006d43] hover:bg-[#005c38] text-white font-semibold text-xs transition-all shadow-md shadow-[#006d43]/10"
+                className="px-5 py-2.5 rounded-xl bg-[#006d43] hover:bg-[#005c38] text-white font-semibold text-xs transition-all shadow-md"
               >
                 {editingFee ? 'Save Changes' : 'Save Configuration'}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    );
+  }
+
+  {/* Render Add/Edit Incident Type Modal */}
+  if (isIncidentTypeModalOpen) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 overflow-y-auto">
+        <div className="bg-white w-full max-w-md rounded-2xl shadow-xl flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+          
+          <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+            <h2 className="text-xl font-bold text-slate-800">
+              {editingIncidentType ? 'Edit Incident Type' : 'Add Incident Type'}
+            </h2>
+            <button 
+              onClick={handleCloseIncidentTypeModal}
+              className="h-9 w-9 flex items-center justify-center rounded-full hover:bg-slate-100 transition-colors text-slate-400 hover:text-slate-600"
+            >
+              <span className="material-symbols-outlined text-[20px]">close</span>
+            </button>
+          </div>
+
+          <form onSubmit={handleSaveIncidentType} className="p-6 space-y-4 bg-slate-50/50">
+            <div>
+              <label className="block text-xs font-bold text-slate-500 mb-1.5 uppercase tracking-wide">Incident Code</label>
+              <input 
+                type="text" 
+                value={formIncidentCode}
+                onChange={(e) => setFormIncidentCode(e.target.value)}
+                className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all"
+                placeholder="e.g. TICKET_LOST"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-500 mb-1.5 uppercase tracking-wide">Incident Name</label>
+              <input 
+                type="text" 
+                value={formIncidentName}
+                onChange={(e) => setFormIncidentName(e.target.value)}
+                className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all"
+                placeholder="e.g. Lost Ticket"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-500 mb-1.5 uppercase tracking-wide">Description</label>
+              <textarea 
+                value={formIncidentDescription}
+                onChange={(e) => setFormIncidentDescription(e.target.value)}
+                className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all resize-none"
+                rows={3}
+                placeholder="Describe the incident..."
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-500 mb-1.5 uppercase tracking-wide">Default Penalty Fee (VND)</label>
+              <div className="relative">
+                <input 
+                  type="number" 
+                  value={formIncidentDefaultFee === 0 ? '' : formIncidentDefaultFee}
+                  onChange={(e) => setFormIncidentDefaultFee(Number(e.target.value))}
+                  className="w-full bg-white border border-slate-200 rounded-xl pl-4 pr-12 py-2.5 text-sm font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all"
+                  placeholder="0"
+                />
+                <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">VND</span>
+              </div>
+            </div>
+
+            <div className="pt-4 border-t border-slate-100 flex items-center justify-end gap-3 bg-white">
+              <button 
+                type="button"
+                onClick={handleCloseIncidentTypeModal}
+                className="px-5 py-2.5 rounded-xl border border-slate-200 text-slate-500 hover:bg-slate-50 font-semibold text-xs transition-all"
+              >
+                Cancel
+              </button>
+              <button 
+                type="submit"
+                className="px-5 py-2.5 rounded-xl bg-[#006d43] hover:bg-[#005c38] text-white font-semibold text-xs transition-all shadow-md"
+              >
+                {editingIncidentType ? 'Save Changes' : 'Create Incident Type'}
               </button>
             </div>
           </form>

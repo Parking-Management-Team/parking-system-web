@@ -6,6 +6,7 @@ import type {
   CardOperationResult,
   CardStatus,
   CardType,
+  CreatableCardType,
   ParkingCard,
 } from '@/features/card/types/card';
 
@@ -13,14 +14,17 @@ type ModalMode = 'create' | null;
 
 const statusClassNames: Record<CardStatus, string> = {
   AVAILABLE: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+  ACTIVE: 'bg-blue-50 text-blue-700 border-blue-200',
   ASSIGNED: 'bg-blue-50 text-blue-700 border-blue-200',
-  INACTIVE: 'bg-slate-100 text-slate-600 border-slate-200',
   LOST: 'bg-red-50 text-red-700 border-red-200',
+  BLOCKED: 'bg-slate-100 text-slate-600 border-slate-200',
+  UNKNOWN: 'bg-amber-50 text-amber-700 border-amber-200',
 };
 
 const typeClassNames: Record<CardType, string> = {
-  NORMAL: 'bg-violet-50 text-violet-700 border-violet-200',
+  PARKING_CARD: 'bg-cyan-50 text-cyan-700 border-cyan-200',
   MONTHLY: 'bg-amber-50 text-amber-700 border-amber-200',
+  UNKNOWN: 'bg-slate-100 text-slate-600 border-slate-200',
 };
 
 const formatDateTime = (value: string) =>
@@ -56,8 +60,8 @@ const StatusToggle = ({
   onChange,
   label,
 }: {
-  status: 'AVAILABLE' | 'INACTIVE';
-  onChange: (status: 'AVAILABLE' | 'INACTIVE') => void;
+  status: 'AVAILABLE' | 'BLOCKED';
+  onChange: (status: 'AVAILABLE' | 'BLOCKED') => void;
   label: string;
 }) => (
   <div
@@ -73,7 +77,7 @@ const StatusToggle = ({
           : 'translate-x-[72px] bg-slate-700 shadow-sm shadow-slate-900/20'
       }`}
     />
-    {(['AVAILABLE', 'INACTIVE'] as const).map((option) => {
+    {(['AVAILABLE', 'BLOCKED'] as const).map((option) => {
       const isActive = status === option;
 
       return (
@@ -88,7 +92,7 @@ const StatusToggle = ({
           }`}
         >
           <span className={`h-1.5 w-1.5 rounded-full ${isActive ? 'bg-white' : 'bg-slate-300'}`} />
-          {option === 'AVAILABLE' ? 'Available' : 'Inactive'}
+          {option === 'AVAILABLE' ? 'Available' : 'Blocked'}
         </button>
       );
     })}
@@ -105,6 +109,9 @@ export default function CardManager() {
     setTypeFilter,
     statusFilter,
     setStatusFilter,
+    isLoading,
+    loadError,
+    fetchCards,
     createCard,
     updateCardStatus,
     markCardLost,
@@ -115,7 +122,7 @@ export default function CardManager() {
   const [feedback, setFeedback] = useState<CardOperationResult | null>(null);
 
   const [newCardCode, setNewCardCode] = useState('');
-  const [newCardType, setNewCardType] = useState<CardType>('NORMAL');
+  const [newCardType, setNewCardType] = useState<CreatableCardType>('PARKING_CARD');
 
   const statusCounts = useMemo(
     () =>
@@ -124,7 +131,7 @@ export default function CardManager() {
           ...counts,
           [card.cardStatus]: counts[card.cardStatus] + 1,
         }),
-        { AVAILABLE: 0, ASSIGNED: 0, INACTIVE: 0, LOST: 0 }
+        { AVAILABLE: 0, ACTIVE: 0, ASSIGNED: 0, LOST: 0, BLOCKED: 0, UNKNOWN: 0 }
       ),
     [cards]
   );
@@ -132,7 +139,7 @@ export default function CardManager() {
   const closeModal = () => {
     setModalMode(null);
     setNewCardCode('');
-    setNewCardType('NORMAL');
+    setNewCardType('PARKING_CARD');
   };
 
   const showResult = (operationResult: CardOperationResult) => {
@@ -140,16 +147,23 @@ export default function CardManager() {
     if (operationResult.success) closeModal();
   };
 
-  const handleCreateCard = (event: FormEvent<HTMLFormElement>) => {
+  const handleCreateCard = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    showResult(createCard({ cardCode: newCardCode, cardType: newCardType }));
+    showResult(await createCard({ cardCode: newCardCode, cardType: newCardType }));
   };
 
-  const handleMarkLost = (card: ParkingCard) => {
+  const handleMarkLost = async (card: ParkingCard) => {
     const confirmed = window.confirm(
       `Mark ${card.cardCode} as LOST? This action must remain in card history.`
     );
-    if (confirmed) showResult(markCardLost(card.id));
+    if (confirmed) showResult(await markCardLost(card.id));
+  };
+
+  const handleStatusChange = async (
+    cardId: number,
+    status: 'AVAILABLE' | 'BLOCKED'
+  ) => {
+    showResult(await updateCardStatus(cardId, status));
   };
 
   const feedbackClass =
@@ -220,6 +234,19 @@ export default function CardManager() {
         </div>
       )}
 
+      {loadError && (
+        <div className="flex items-center justify-between gap-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-red-700">
+          <p className="text-sm font-bold">{loadError}</p>
+          <button
+            type="button"
+            onClick={() => void fetchCards()}
+            className="rounded-lg bg-red-100 px-3 py-2 text-xs font-bold hover:bg-red-200"
+          >
+            Retry
+          </button>
+        </div>
+      )}
+
       <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-5">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="relative">
@@ -243,8 +270,9 @@ export default function CardManager() {
             className="px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-700"
           >
             <option value="ALL">All card types</option>
-            <option value="NORMAL">NORMAL</option>
+            <option value="PARKING_CARD">PARKING_CARD</option>
             <option value="MONTHLY">MONTHLY</option>
+            <option value="UNKNOWN">UNKNOWN</option>
           </select>
 
           <select
@@ -256,9 +284,11 @@ export default function CardManager() {
           >
             <option value="ALL">All card statuses</option>
             <option value="AVAILABLE">AVAILABLE</option>
+            <option value="ACTIVE">ACTIVE</option>
             <option value="ASSIGNED">ASSIGNED</option>
-            <option value="INACTIVE">INACTIVE</option>
             <option value="LOST">LOST</option>
+            <option value="BLOCKED">BLOCKED</option>
+            <option value="UNKNOWN">UNKNOWN</option>
           </select>
         </div>
 
@@ -331,10 +361,10 @@ export default function CardManager() {
                     {card.vehiclePlate ?? '—'}
                   </p>
                   <div className="max-lg:hidden" onClick={(event) => event.stopPropagation()}>
-                    {card.cardStatus === 'AVAILABLE' || card.cardStatus === 'INACTIVE' ? (
+                    {card.cardStatus === 'AVAILABLE' || card.cardStatus === 'BLOCKED' ? (
                       <StatusToggle
                         status={card.cardStatus}
-                        onChange={(status) => showResult(updateCardStatus(card.id, status))}
+                        onChange={(status) => void handleStatusChange(card.id, status)}
                         label={`Change status for ${card.cardCode}`}
                       />
                     ) : (
@@ -345,7 +375,7 @@ export default function CardManager() {
                   </div>
                   <div className="max-lg:hidden" onClick={(event) => event.stopPropagation()}>
                     {card.cardStatus !== 'LOST' ? (
-                      <ActionButton onClick={() => handleMarkLost(card)}>Mark Lost</ActionButton>
+                      <ActionButton onClick={() => void handleMarkLost(card)}>Mark Lost</ActionButton>
                     ) : (
                       <span className="px-3 py-2 text-xs font-semibold text-slate-400">Marked lost</span>
                     )}
@@ -369,10 +399,10 @@ export default function CardManager() {
                       <p className="text-xs font-bold uppercase tracking-wider text-slate-400">
                         Status
                       </p>
-                      {card.cardStatus === 'AVAILABLE' || card.cardStatus === 'INACTIVE' ? (
+                      {card.cardStatus === 'AVAILABLE' || card.cardStatus === 'BLOCKED' ? (
                         <StatusToggle
                           status={card.cardStatus}
-                          onChange={(status) => showResult(updateCardStatus(card.id, status))}
+                          onChange={(status) => void handleStatusChange(card.id, status)}
                           label={`Change status for ${card.cardCode}`}
                         />
                       ) : (
@@ -384,7 +414,7 @@ export default function CardManager() {
                     <div className="mt-5 flex items-center justify-between gap-3 border-t border-slate-200 pt-4 lg:hidden">
                       <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Action</p>
                       {card.cardStatus !== 'LOST' ? (
-                        <ActionButton onClick={() => handleMarkLost(card)}>Mark Lost</ActionButton>
+                        <ActionButton onClick={() => void handleMarkLost(card)}>Mark Lost</ActionButton>
                       ) : (
                         <span className="text-xs font-semibold text-slate-400">Card already marked lost</span>
                       )}
@@ -395,7 +425,16 @@ export default function CardManager() {
             );
           })}
 
-          {filteredCards.length === 0 && (
+          {isLoading && (
+            <div className="rounded-2xl border border-dashed border-slate-200 px-5 py-14 text-center">
+              <span className="material-symbols-outlined animate-spin text-4xl text-slate-300">
+                progress_activity
+              </span>
+              <p className="mt-2 text-sm text-slate-400">Loading cards...</p>
+            </div>
+          )}
+
+          {!isLoading && filteredCards.length === 0 && (
             <div className="rounded-2xl border border-dashed border-slate-200 px-5 py-14 text-center">
               <span className="material-symbols-outlined text-4xl text-slate-300">
                 credit_card_off
@@ -454,11 +493,11 @@ export default function CardManager() {
                   <select
                     value={newCardType}
                     onChange={(event) =>
-                      setNewCardType(event.target.value as CardType)
+                      setNewCardType(event.target.value as CreatableCardType)
                     }
                     className="w-full mt-2 px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl"
                   >
-                    <option value="NORMAL">NORMAL</option>
+                    <option value="PARKING_CARD">PARKING_CARD</option>
                     <option value="MONTHLY">MONTHLY</option>
                   </select>
                 </div>

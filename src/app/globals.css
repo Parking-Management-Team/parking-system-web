@@ -50,7 +50,7 @@
   }
 
   /* ===== ANIMATION - Hiệu ứng khi cuộn trang ===== */
-  /* Class này kết hợp với JavaScript (IntersectionObserver) để animate khi element xuất hiện */
+  /* Class này kết hợp với JavaScript (IntersectionObserver) để animate khi element xuất hiện (using requestAnimationFrame for smooth 60fps rendering) */
   .animate-on-scroll {
     opacity: 0;                           /* Mặc định ẩn */
     transform: translateY(30px);          /* Dịch xuống 30px */

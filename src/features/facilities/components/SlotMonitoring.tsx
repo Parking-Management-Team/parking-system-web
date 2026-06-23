@@ -177,6 +177,8 @@ export default function SlotMonitoring() {
   const totalSlots     = slots.length;
   const availableSlots = slots.filter(s => s.status === 'AVAILABLE').length;
   const occupiedSlots  = slots.filter(s => s.status === 'OCCUPIED').length;
+  const blockedSlots     = slots.filter(s => s.status === 'BLOCKED').length;
+  const maintenanceSlots = slots.filter(s => s.status === 'MAINTENANCE').length;
   const pct = totalSlots > 0 ? Math.round((occupiedSlots / totalSlots) * 100) : 0;
 
   // ─── Slot card colors ────────────────────────────────────────────
@@ -268,12 +270,14 @@ export default function SlotMonitoring() {
 
       {/* ── Capacity Summary ──────────────────────────────────── */}
       {selectedFloorId && (
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
           {[
             { label: 'Total Slots', value: totalSlots, color: 'text-slate-700' },
             { label: 'Available',   value: availableSlots, color: 'text-[#006d43]' },
             { label: 'Occupied',    value: occupiedSlots,  color: 'text-[#263143]' },
-            { label: 'Utilization', value: `${pct}%`,      color: pct >= 90 ? 'text-red-600' : pct >= 75 ? 'text-amber-600' : 'text-[#006d43]' },
+            { label: 'Blocked',     value: blockedSlots,   color: 'text-[#ba1a1a]' },
+            { label: 'Maintenance', value: maintenanceSlots, color: 'text-amber-600' },
+            { label: 'Utilization', value: `${pct}%`,      color: pct >= 90 ? 'text-red-650' : pct >= 75 ? 'text-amber-650' : 'text-[#006d43]' },
           ].map(stat => (
             <div key={stat.label} className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 text-center">
               <p className={`text-2xl font-black ${stat.color}`}>{stat.value}</p>

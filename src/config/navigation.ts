@@ -37,6 +37,11 @@ export const ROLE_NAVIGATION: Record<string, NavigationItem[]> = {
       href: '/dashboard/manager/pricing',
       icon: 'payments',
     },
+    {
+      label: 'Incident Tracking',
+      href: '/dashboard/manager/incidents',
+      icon: 'report_problem',
+    },
     // Các menu chân trang (Footer items)
     {
       label: 'My Profile',
@@ -115,6 +120,11 @@ export const ROLE_NAVIGATION: Record<string, NavigationItem[]> = {
       label: 'Facility Management',
       href: '/dashboard/admin/facilities',
       icon: 'location_city',
+    },
+    {
+      label: 'Incident Tracking',
+      href: '/dashboard/admin/incidents',
+      icon: 'report_problem',
     },
     {
       label: 'Role & Permission',

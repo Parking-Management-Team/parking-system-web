@@ -10,9 +10,18 @@ import {
 const BASE_URL = '/Incident';
 
 export const incidentService = {
-  getAll: async (): Promise<Incident[]> => {
-    const res = await api.get<IncidentApiResponse<Incident[]>>(BASE_URL);
-    return res.data || [];
+  getAll: async (pageIndex?: number, pageSize?: number): Promise<Incident[]> => {
+    const url = pageIndex !== undefined && pageSize !== undefined
+      ? `${BASE_URL}?pageIndex=${pageIndex}&pageSize=${pageSize}`
+      : `${BASE_URL}?pageIndex=1&pageSize=9999`;
+    const res = await api.get<IncidentApiResponse<any>>(url);
+    if (res.data && Array.isArray(res.data)) {
+      return res.data;
+    }
+    if (res.data && res.data.items && Array.isArray(res.data.items)) {
+      return res.data.items;
+    }
+    return [];
   },
 
   getById: async (id: number): Promise<Incident | null> => {

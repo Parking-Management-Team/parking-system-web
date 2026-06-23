@@ -107,6 +107,7 @@ export interface StatusCounts {
   Available: number;
   Occupied: number;
   Blocked: number;
+  Maintenance?: number;
 }
 
 export interface VehicleTypeSlotSummary {

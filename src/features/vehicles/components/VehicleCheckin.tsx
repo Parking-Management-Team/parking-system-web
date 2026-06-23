@@ -11,42 +11,18 @@ import {
   fetchActiveParkingSessions,
   type VehicleCheckinSession as ParkingSession,
 } from '@/features/vehicles/services/vehicle-checkin.service';
-/* ==========================================================
-   TYPE DEFINITIONS
-   Định nghĩa các kiểu dữ liệu dùng trong màn hình Vehicle Check-in
-========================================================== */
 
-// Loại xe hiện tại theo SRS chỉ xử lý chính: CAR và MOTORCYCLE
 type VehicleType = 'CAR' | 'MOTORCYCLE';
-
-// Loại khách khi check-in
 type CustomerType = 'WALK_IN' | 'BOOKING' | 'MONTHLY';
-
-// Loại thẻ vận hành
 type CardType = 'NORMAL' | 'MONTHLY';
-
-// Trạng thái thẻ
 type CardStatus = 'AVAILABLE' | 'ASSIGNED' | 'LOST' | 'INACTIVE';
-
-// Loại zone: GENERAL cho khách thường/booking, MONTHLY cho xe tháng
 type ZoneAccessType = 'GENERAL' | 'MONTHLY';
-
-// Trạng thái zone
 type ZoneStatus = 'ACTIVE' | 'MAINTENANCE' | 'LOCKED';
-
-// Trạng thái slot
 type SlotStatus = 'AVAILABLE' | 'OCCUPIED' | 'MAINTENANCE' | 'LOCKED';
-
-// Trạng thái booking
 type BookingStatus = 'CONFIRMED' | 'PENDING' | 'EXPIRED' | 'CANCELLED';
-
-// Trạng thái monthly subscription
 type MonthlySubscriptionStatus = 'ACTIVE' | 'EXPIRED' | 'PENDING' | 'CANCELLED';
-
-// Trạng thái parking session
 type ParkingSessionStatus = 'ACTIVE' | 'LOST_CARD_REPORTED';
 
-// Kiểu dữ liệu Card
 type ParkingCard = {
   id: number;
   code: string;
@@ -56,7 +32,6 @@ type ParkingCard = {
   monthlySubscriptionId: number | null;
 };
 
-// Kiểu dữ liệu Zone
 type ParkingZone = {
   id: number;
   code: string;
@@ -70,7 +45,6 @@ type ParkingZone = {
   occupied: number;
 };
 
-// Kiểu dữ liệu Slot
 type ParkingSlot = {
   id: number;
   code: string;
@@ -81,7 +55,6 @@ type ParkingSlot = {
   assignedVehiclePlate: string | null;
 };
 
-// Kiểu dữ liệu Booking
 type Booking = {
   id: number;
   code: string;
@@ -93,7 +66,6 @@ type Booking = {
   buildingName: string;
 };
 
-// Kiểu dữ liệu Monthly Subscription
 type MonthlySubscription = {
   id: number;
   cardCode: string;
@@ -106,7 +78,6 @@ type MonthlySubscription = {
   validTo: string;
 };
 
-// Kiểu dữ liệu kiểm tra Pricing Policy giả lập
 type PricingPolicyCheck = {
   vehicleType: VehicleType;
   validPolicyCount: number;
@@ -115,7 +86,6 @@ type PricingPolicyCheck = {
   message: string;
 };
 
-// Kiểu dữ liệu tổng của file JSON mock
 type VehicleCheckinMockData = {
   cards: ParkingCard[];
   zones: ParkingZone[];
@@ -126,34 +96,12 @@ type VehicleCheckinMockData = {
   activeSessions: ParkingSession[];
 };
 
-/* ==========================================================
-   MOCK DATA CAST
-   Ép kiểu dữ liệu JSON để TypeScript hiểu đúng structure
-========================================================== */
-
 const typedMockData = mockData as VehicleCheckinMockData;
 
-/* ==========================================================
-   HELPER FUNCTIONS
-   Các hàm nhỏ dùng để format và xử lý UI
-========================================================== */
+const formatLicensePlate = (plate: string) => plate.trim().toUpperCase();
+const isZoneFull = (zone: ParkingZone) => zone.occupied >= zone.capacity;
+const getSlotsLeft = (zone: ParkingZone) => zone.capacity - zone.occupied;
 
-// Chuẩn hóa biển số: xóa khoảng trắng và chuyển thành chữ hoa
-const formatLicensePlate = (plate: string) => {
-  return plate.trim().toUpperCase();
-};
-
-// Kiểm tra zone đã đầy chưa
-const isZoneFull = (zone: ParkingZone) => {
-  return zone.occupied >= zone.capacity;
-};
-
-// Lấy số chỗ còn lại của zone
-const getSlotsLeft = (zone: ParkingZone) => {
-  return zone.capacity - zone.occupied;
-};
-
-// Hiển thị tên loại khách cho dễ đọc
 const getCustomerTypeLabel = (type: CustomerType) => {
   switch (type) {
     case 'WALK_IN':
@@ -165,13 +113,11 @@ const getCustomerTypeLabel = (type: CustomerType) => {
   }
 };
 
-// Hiển thị tên loại xe cho dễ đọc
 const getVehicleTypeLabel = (type: ParkingSession['vehicleType']) => {
   if (type === 'UNKNOWN') return 'Unknown';
   return type === 'CAR' ? 'Car' : 'Motorcycle';
 };
 
-// Màu badge cho session status
 const getSessionStatusClassName = (status: ParkingSessionStatus) => {
   if (status === 'LOST_CARD_REPORTED') {
     return 'bg-red-50 text-red-700 border-red-200';
@@ -180,7 +126,6 @@ const getSessionStatusClassName = (status: ParkingSessionStatus) => {
   return 'bg-emerald-50 text-emerald-700 border-emerald-200';
 };
 
-// Màu badge cho card status
 const getCardStatusClassName = (status: CardStatus) => {
   switch (status) {
     case 'AVAILABLE':
@@ -194,18 +139,7 @@ const getCardStatusClassName = (status: CardStatus) => {
   }
 };
 
-/* ==========================================================
-   MAIN COMPONENT
-   Màn hình Vehicle Check-in cho Staff
-========================================================== */
-
 export default function VehicleCheckin() {
-  /* ==========================================================
-     STATE MOCK DATA
-     Hiện tại lấy từ file JSON.
-     Sau này gắn API thì thay các state này bằng dữ liệu response từ BE.
-  ========================================================== */
-
   const [cards, setCards] = useState<ParkingCard[]>([]);
   const [zones] = useState<ParkingZone[]>(typedMockData.zones);
   const [slots, setSlots] = useState<ParkingSlot[]>(typedMockData.slots);
@@ -290,7 +224,9 @@ export default function VehicleCheckin() {
         : 'WALK_IN';
 
   const selectedBooking = typedMockData.bookings.find(
-    (booking) => formatLicensePlate(booking.vehiclePlate) === formattedPlate
+    (booking) =>
+      formatLicensePlate(booking.vehiclePlate) === formattedPlate &&
+      booking.vehicleType === vehicleType
   );
 
   // Tìm monthly subscription theo card hoặc biển số

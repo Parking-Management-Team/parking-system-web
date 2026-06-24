@@ -27,10 +27,8 @@ export interface UpdateIncidentRequest {
 }
 
 export interface UpdateIncidentStatusRequest {
-  request: {
-    status: string;
-    description?: string;
-  };
+  status: number;
+  description?: string;
 }
 
 export interface IncidentApiResponse<T> {

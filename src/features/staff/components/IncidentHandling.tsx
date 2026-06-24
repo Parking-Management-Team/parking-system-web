@@ -24,7 +24,7 @@ export default function IncidentHandling() {
   const [notes, setNotes] = useState('');
 
   const handleStatusChange = async (id: number, status: IncidentStatus) => {
-    const success = await updateIncidentStatus(id, status);
+    const success = await updateIncidentStatus(id, status, notes);
     if (success) {
       setSelectedIncident(null);
       setNotes('');

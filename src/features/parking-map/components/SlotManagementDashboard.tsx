@@ -8,6 +8,30 @@ import { Building, BaseResponse, PagedResult } from '@/lib/types/building.types'
 import { Floor, FloorResponse, Zone, ZoneResponse, Slot, ParkingSlotDto, ParkingSessionDto, FloorSlotSummary } from '../types';
 import { SlotActionModal } from './SlotActionModal';
 
+function mapFloorSlotSummary(data: any[]): FloorSlotSummary[] {
+  return data.map(item => ({
+    floorId: item.floorId,
+    floorNumber: item.floorNumber,
+    totalSlots: item.totalSlots,
+    vehicleTypeSummaries: (item.vehicleTypeSummaries || []).map((vt: any) => {
+      const statusCounts: any = {};
+      if (Array.isArray(vt.statusCounts)) {
+        vt.statusCounts.forEach((sc: any) => {
+          if (sc.status) {
+            statusCounts[sc.status] = sc.count;
+          }
+        });
+      }
+      return {
+        vehicleTypeId: vt.vehicleTypeId,
+        vehicleTypeName: vt.vehicleTypeName,
+        totalSlots: vt.totalSlots,
+        statusCounts
+      };
+    })
+  }));
+}
+
 export function SlotManagementDashboard() {
   const { user } = useAuth();
   const userRole = user?.role?.toUpperCase();
@@ -138,9 +162,10 @@ export function SlotManagementDashboard() {
   const fetchSlotSummary = useCallback(async () => {
     if (!selectedBuildingId || !selectedFloorId) return;
     try {
-      const res = await api.get<BaseResponse<FloorSlotSummary[]>>(`/Floors/building/${selectedBuildingId}/slot-summary`);
+      const res = await api.get<BaseResponse<any[]>>(`/Floors/building/${selectedBuildingId}/slot-summary`);
       if (res.success && res.data) {
-        const summary = res.data.find(s => s.floorId === selectedFloorId);
+        const mappedData = mapFloorSlotSummary(res.data);
+        const summary = mappedData.find(s => s.floorId === selectedFloorId);
         setFloorSlotSummary(summary || null);
       }
     } catch (err) {
@@ -175,7 +200,17 @@ export function SlotManagementDashboard() {
               const session = activeSess.find(s => s.slotId === item.id);
               
               let assignedVehicle = undefined;
-              if (session) {
+              if (item.subscription) {
+                assignedVehicle = {
+                  plate: item.subscription.licensePlate || item.occupiedLicensePlate || 'Subscription Vehicle',
+                  model: 'Monthly Subscription',
+                  ownerName: item.subscription.accountName || `Driver #${item.subscription.accountId}`,
+                  memberId: `SUB-${item.subscription.subscriptionId}`,
+                  startDate: item.subscription.activatedAt || undefined,
+                  endDate: item.subscription.expiredAt || undefined,
+                  notes: `Status: ${item.subscription.status}. Price: ${item.subscription.monthlyPrice?.toLocaleString()} VND`
+                };
+              } else if (session) {
                 assignedVehicle = {
                   plate: session.licensePlateIn,
                   model: 'Registered Vehicle',
@@ -185,9 +220,26 @@ export function SlotManagementDashboard() {
                   endDate: session.checkOutTime || undefined,
                   notes: session.bookingId ? `Booking #${session.bookingId}` : 'Check-in via staff'
                 };
+              } else if (item.occupiedLicensePlate) {
+                assignedVehicle = {
+                  plate: item.occupiedLicensePlate,
+                  model: 'Occupied Vehicle',
+                  ownerName: 'Visitor / Unknown',
+                  memberId: 'WALK-IN',
+                  notes: 'Active session not found in list.'
+                };
               }
 
-              const mapStatus = (statusVal: number): Slot['status'] => {
+              const mapStatus = (statusVal: number | string): Slot['status'] => {
+                if (typeof statusVal === 'string') {
+                  switch (statusVal.toLowerCase()) {
+                    case 'available': return 'AVAILABLE';
+                    case 'occupied': return 'OCCUPIED';
+                    case 'blocked': return 'BLOCKED';
+                    case 'maintenance': return 'MAINTENANCE';
+                    default: return 'AVAILABLE';
+                  }
+                }
                 switch (statusVal) {
                   case 0: return 'AVAILABLE';
                   case 1: return 'OCCUPIED';
@@ -250,7 +302,17 @@ export function SlotManagementDashboard() {
             return res.data.map(item => {
               const session = activeSess.find(s => s.slotId === item.id);
               let assignedVehicle = undefined;
-              if (session) {
+              if (item.subscription) {
+                assignedVehicle = {
+                  plate: item.subscription.licensePlate || item.occupiedLicensePlate || 'Subscription Vehicle',
+                  model: 'Monthly Subscription',
+                  ownerName: item.subscription.accountName || `Driver #${item.subscription.accountId}`,
+                  memberId: `SUB-${item.subscription.subscriptionId}`,
+                  startDate: item.subscription.activatedAt || undefined,
+                  endDate: item.subscription.expiredAt || undefined,
+                  notes: `Status: ${item.subscription.status}. Price: ${item.subscription.monthlyPrice?.toLocaleString()} VND`
+                };
+              } else if (session) {
                 assignedVehicle = {
                   plate: session.licensePlateIn,
                   model: 'Registered Vehicle',
@@ -260,8 +322,26 @@ export function SlotManagementDashboard() {
                   endDate: session.checkOutTime || undefined,
                   notes: session.bookingId ? `Booking #${session.bookingId}` : 'Check-in via staff'
                 };
+              } else if (item.occupiedLicensePlate) {
+                assignedVehicle = {
+                  plate: item.occupiedLicensePlate,
+                  model: 'Occupied Vehicle',
+                  ownerName: 'Visitor / Unknown',
+                  memberId: 'WALK-IN',
+                  notes: 'Active session not found in list.'
+                };
               }
-              const mapStatus = (statusVal: number): Slot['status'] => {
+
+              const mapStatus = (statusVal: number | string): Slot['status'] => {
+                if (typeof statusVal === 'string') {
+                  switch (statusVal.toLowerCase()) {
+                    case 'available': return 'AVAILABLE';
+                    case 'occupied': return 'OCCUPIED';
+                    case 'blocked': return 'BLOCKED';
+                    case 'maintenance': return 'MAINTENANCE';
+                    default: return 'AVAILABLE';
+                  }
+                }
                 switch (statusVal) {
                   case 0: return 'AVAILABLE';
                   case 1: return 'OCCUPIED';
@@ -294,9 +374,10 @@ export function SlotManagementDashboard() {
 
       // Refresh slot summary
       if (selectedBuildingId) {
-        const summaryRes = await api.get<BaseResponse<FloorSlotSummary[]>>(`/Floors/building/${selectedBuildingId}/slot-summary`).catch(() => null);
+        const summaryRes = await api.get<BaseResponse<any[]>>(`/Floors/building/${selectedBuildingId}/slot-summary`).catch(() => null);
         if (summaryRes?.success && summaryRes.data) {
-          const summary = summaryRes.data.find(s => s.floorId === selectedFloorId);
+          const mappedData = mapFloorSlotSummary(summaryRes.data);
+          const summary = mappedData.find(s => s.floorId === selectedFloorId);
           setFloorSlotSummary(summary || null);
         }
       }
@@ -554,10 +635,12 @@ export function SlotManagementDashboard() {
               const { vehicleTypeName, totalSlots, statusCounts } = vehicleType;
               const occupied = statusCounts?.Occupied ?? 0;
               const blocked = statusCounts?.Blocked ?? 0;
+              const maintenance = statusCounts?.Maintenance ?? 0;
               const available = statusCounts?.Available ?? 0;
               const total = totalSlots ?? 0;
               const occupiedPct = total > 0 ? Math.round((occupied / total) * 100) : 0;
               const blockedPct = total > 0 ? Math.round((blocked / total) * 100) : 0;
+              const maintenancePct = total > 0 ? Math.round((maintenance / total) * 100) : 0;
               const availablePct = total > 0 ? Math.round((available / total) * 100) : 0;
               const isMotorbike = vehicleTypeName?.toUpperCase().includes('MOTOR') || vehicleTypeName?.toUpperCase().includes('BIKE');
               
@@ -574,23 +657,28 @@ export function SlotManagementDashboard() {
                     </div>
                   </div>
                   
-                  <div className="flex items-end gap-4">
-                    <div className="text-center">
+                  <div className="flex items-end gap-3 flex-wrap">
+                    <div className="text-center min-w-[50px]">
                       <p className="text-2xl font-black text-[#006d43]">{available}</p>
                       <p className="text-[10px] font-bold text-slate-400 uppercase mt-0.5">Available</p>
                     </div>
                     <div className="h-8 w-px bg-slate-100"></div>
-                    <div className="text-center">
+                    <div className="text-center min-w-[50px]">
                       <p className="text-2xl font-black text-[#263143]">{occupied}</p>
                       <p className="text-[10px] font-bold text-slate-400 uppercase mt-0.5">Occupied</p>
                     </div>
                     <div className="h-8 w-px bg-slate-100"></div>
-                    <div className="text-center">
+                    <div className="text-center min-w-[50px]">
                       <p className="text-2xl font-black text-[#ba1a1a]">{blocked}</p>
                       <p className="text-[10px] font-bold text-slate-400 uppercase mt-0.5">Blocked</p>
                     </div>
                     <div className="h-8 w-px bg-slate-100"></div>
-                    <div className="text-center">
+                    <div className="text-center min-w-[50px]">
+                      <p className="text-2xl font-black text-[#d97706]">{maintenance}</p>
+                      <p className="text-[10px] font-bold text-slate-400 uppercase mt-0.5">Maintenance</p>
+                    </div>
+                    <div className="h-8 w-px bg-slate-100"></div>
+                    <div className="text-center min-w-[50px]">
                       <p className="text-2xl font-black text-slate-600">{total}</p>
                       <p className="text-[10px] font-bold text-slate-400 uppercase mt-0.5">Total</p>
                     </div>
@@ -600,10 +688,11 @@ export function SlotManagementDashboard() {
                   <div className="space-y-1.5">
                     <div className="flex items-center justify-between text-[10px] font-bold">
                       <span className="text-slate-500 uppercase tracking-wider">Capacity Usage</span>
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <span className="text-[#006d43]">{availablePct}% free</span>
                         <span className="text-[#263143]">{occupiedPct}% occupied</span>
                         {blocked > 0 && <span className="text-[#ba1a1a]">{blockedPct}% blocked</span>}
+                        {maintenance > 0 && <span className="text-[#d97706]">{maintenancePct}% maintaining</span>}
                       </div>
                     </div>
                     <div className="w-full bg-slate-100 h-3 rounded-full overflow-hidden flex">
@@ -618,6 +707,10 @@ export function SlotManagementDashboard() {
                       <div
                         className="h-full bg-[#ba1a1a] transition-all duration-700"
                         style={{ width: `${blockedPct}%` }}
+                      />
+                      <div
+                        className="h-full bg-[#d97706] transition-all duration-700"
+                        style={{ width: `${maintenancePct}%` }}
                       />
                     </div>
                   </div>

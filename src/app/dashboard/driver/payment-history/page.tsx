@@ -79,9 +79,11 @@ export default function PaymentHistoryPage() {
 
       // 2. Fetch user vehicles to get plates
       let userPlates: string[] = [];
+      let vehiclesList: any[] = [];
       try {
         const vehRes = await api.get<any>(`/vehicles?accountId=${user.id}`);
         if (vehRes.success && Array.isArray(vehRes.data)) {
+          vehiclesList = vehRes.data;
           userPlates = vehRes.data.map((v: any) => v.licensePlate.toUpperCase());
         }
       } catch (err) {
@@ -114,7 +116,7 @@ export default function PaymentHistoryPage() {
 
         return {
           id: `bk-${b.id}`,
-          amount: b.depositAmount ?? 5.00,
+          amount: b.depositAmount ?? (b.vehicleTypeId === 1 ? 5000 : 20000),
           paymentMethod: 'Online Banking',
           status,
           createdAt: b.confirmedAt || b.createdAt || '',
@@ -130,13 +132,16 @@ export default function PaymentHistoryPage() {
           const checkIn = new Date(s.checkInTime).getTime();
           const checkOut = new Date(s.checkOutTime || new Date()).getTime();
           const diffSecs = Math.max(0, Math.floor((checkOut - checkIn) / 1000));
-          let fee = parseFloat(((diffSecs / 3600) * 3.0).toFixed(2));
+          const matchedVehicle = vehiclesList.find((v: any) => v.licensePlate.toUpperCase() === (s.licensePlateIn || s.licensePlate || '').toUpperCase());
+          const isMotor = matchedVehicle?.vehicleTypeId === 1 || s.slotCode?.startsWith('M');
+          const rate = isMotor ? 5000 : 20000;
+          let fee = (diffSecs / 3600) * rate;
 
           // Subtract deposit if linked to booking
           if (s.bookingId) {
             const matchedBooking = userBookings.find((b: any) => b.id === s.bookingId);
             if (matchedBooking) {
-              fee = Math.max(0, fee - (matchedBooking.depositAmount ?? 5.00));
+              fee = Math.max(0, fee - (matchedBooking.depositAmount ?? (isMotor ? 5000 : 20000)));
             }
           }
 
@@ -258,7 +263,7 @@ export default function PaymentHistoryPage() {
           <div className="mt-4">
             <p className="text-slate-400 text-xs font-bold uppercase tracking-wider">Total Spent</p>
             <h3 className="text-2xl font-extrabold text-[#1B2A41] mt-1">
-              {isLoading ? '—' : `$${totalSpent.toFixed(2)}`}
+              {isLoading ? '—' : `${Math.round(totalSpent).toLocaleString('vi-VN')} đ`}
             </h3>
           </div>
         </div>
@@ -273,7 +278,7 @@ export default function PaymentHistoryPage() {
           <div className="mt-4">
             <p className="text-slate-400 text-xs font-bold uppercase tracking-wider">Month Spending</p>
             <h3 className="text-2xl font-extrabold text-[#1B2A41] mt-1">
-              {isLoading ? '—' : `$${monthSpent.toFixed(2)}`}
+              {isLoading ? '—' : `${Math.round(monthSpent).toLocaleString('vi-VN')} đ`}
             </h3>
           </div>
         </div>
@@ -377,7 +382,7 @@ export default function PaymentHistoryPage() {
                       </span>
                     </td>
                     <td className="px-6 py-4 text-slate-500">{formatDate(t.createdAt || '')}</td>
-                    <td className="px-6 py-4 font-bold text-slate-700">${t.amount.toFixed(2)}</td>
+                    <td className="px-6 py-4 font-bold text-slate-700">{Math.round(t.amount).toLocaleString('vi-VN')} đ</td>
                     <td className="px-6 py-4">
                       <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold capitalize ${t.status === 'success'
                           ? 'bg-emerald-50 text-emerald-700'
@@ -507,7 +512,7 @@ export default function PaymentHistoryPage() {
 
               <div className="flex justify-between items-baseline pt-2">
                 <span className="text-sm font-bold text-slate-800">Total Paid</span>
-                <span className="text-2xl font-extrabold font-mono text-emerald-600">${selectedTxn.amount.toFixed(2)}</span>
+                <span className="text-2xl font-extrabold font-mono text-emerald-600">{Math.round(selectedTxn.amount).toLocaleString('vi-VN')} đ</span>
               </div>
 
               <div className="flex flex-col items-center justify-center space-y-3 pt-4">

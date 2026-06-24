@@ -49,6 +49,7 @@ export default function ParkingSessionsPage() {
   // API states
   const [bookings, setBookings] = useState<BookingRecord[]>([]);
   const [activeSession, setActiveSession] = useState<ParkingSessionRecord | null>(null);
+  const [vehicles, setVehicles] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
   // Mounting for portal
@@ -76,9 +77,12 @@ export default function ParkingSessionsPage() {
     setIsLoading(true);
     try {
       let userPlates: string[] = [];
+      let vehiclesList: any[] = [];
       try {
         const vehRes = await api.get<any>(`/vehicles?accountId=${user.id}`);
         if (vehRes.success && vehRes.data) {
+          setVehicles(vehRes.data);
+          vehiclesList = vehRes.data;
           userPlates = vehRes.data.map((v: any) => v.licensePlate);
         }
       } catch (err) {
@@ -115,7 +119,10 @@ export default function ParkingSessionsPage() {
             const checkInDate = new Date(matchedSession.checkInTime);
             const diffSecs = Math.max(0, Math.floor((Date.now() - checkInDate.getTime()) / 1000));
             setDuration(diffSecs);
-            setCost(parseFloat(((diffSecs / 3600) * 3.0).toFixed(2)));
+            const matchedVehicle = vehiclesList.find((v: any) => v.licensePlate === matchedSession.licensePlateIn);
+            const isMotor = matchedVehicle?.vehicleTypeId === 1 || matchedSession.slotCode?.startsWith('M');
+            const rate = isMotor ? 5000 : 20000;
+            setCost((diffSecs / 3600) * rate);
           } else {
             setActiveSession(null);
           }
@@ -137,16 +144,19 @@ export default function ParkingSessionsPage() {
   useEffect(() => {
     let timer: NodeJS.Timeout;
     if (activeTab === 'walkin' && activeSession) {
+      const matchedVehicle = vehicles.find(v => v.licensePlate === activeSession.licensePlateIn);
+      const isMotor = matchedVehicle?.vehicleTypeId === 1 || activeSession.slotCode?.startsWith('M');
+      const rate = isMotor ? 5000 : 20000;
       timer = setInterval(() => {
         setDuration(prev => {
           const next = prev + 1;
-          setCost(parseFloat(((next / 3600) * 3.0).toFixed(2)));
+          setCost((next / 3600) * rate);
           return next;
         });
       }, 1000);
     }
     return () => clearInterval(timer);
-  }, [activeTab, activeSession]);
+  }, [activeTab, activeSession, vehicles]);
 
   const formatDuration = (totalSeconds: number) => {
     const hours = Math.floor(totalSeconds / 3600);
@@ -222,6 +232,9 @@ export default function ParkingSessionsPage() {
       setIsSavingModify(false);
     }
   };
+
+  const matchedVehicleForActive = vehicles.find(v => v.licensePlate === activeSession?.licensePlateIn);
+  const isMotor = matchedVehicleForActive?.vehicleTypeId === 1 || activeSession?.slotCode?.startsWith('M');
 
   return (
     <div className="p-8 max-w-[1200px] mx-auto space-y-6">
@@ -321,7 +334,7 @@ export default function ParkingSessionsPage() {
                           <CreditCard className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
                           <div>
                             <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wide">Deposit Amount</h3>
-                            <p className="text-sm font-bold text-slate-700 mt-0.5">${booking.depositAmount?.toFixed(2) || '0.00'}</p>
+                            <p className="text-sm font-bold text-slate-700 mt-0.5">{(booking.depositAmount || 0).toLocaleString('vi-VN')} đ</p>
                             <p className="text-xs text-slate-400">Paid securely online</p>
                           </div>
                         </div>
@@ -441,8 +454,8 @@ export default function ParkingSessionsPage() {
                           <RefreshCw className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
                           <div>
                             <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wide">Accumulated Fee</h3>
-                            <p className="text-sm font-bold text-emerald-600 mt-0.5">${cost.toFixed(2)}</p>
-                            <p className="text-xs text-slate-400">Rate: $3.00/hr</p>
+                            <p className="text-sm font-bold text-emerald-600 mt-0.5">{Math.round(cost).toLocaleString('vi-VN')} đ</p>
+                            <p className="text-xs text-slate-400">Rate: {isMotor ? '5.000' : '20.000'} đ/h</p>
                           </div>
                         </div>
                       </div>

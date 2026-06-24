@@ -70,24 +70,44 @@ export default function DriverBooking() {
   useEffect(() => {
     setMounted(true);
 
-    // Set initial date/time values based on GMT+7 timezone to avoid SSR hydration mismatch
-    const nowGmt7 = new Date(Date.now() + 7 * 60 * 60 * 1000);
-    const startGmt7 = new Date(nowGmt7.getTime() + 15 * 60 * 1000);
+    // Set initial date/time values using Asia/Ho_Chi_Minh locale to avoid SSR hydration mismatch
+    const now = new Date();
 
-    const year = startGmt7.getUTCFullYear();
-    const month = String(startGmt7.getUTCMonth() + 1).padStart(2, '0');
-    const day = String(startGmt7.getUTCDate()).padStart(2, '0');
-    setBookingDate(`${year}-${month}-${day}`);
+    // Derive Vietnam local date string (YYYY-MM-DD) via Intl — works regardless of OS timezone
+    const vnDateParts = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Asia/Ho_Chi_Minh',
+      year: 'numeric', month: '2-digit', day: '2-digit'
+    }).formatToParts(now);
+    const vnDate = `${vnDateParts.find(p => p.type === 'year')?.value}-${vnDateParts.find(p => p.type === 'month')?.value}-${vnDateParts.find(p => p.type === 'day')?.value}`;
 
-    const hours = String(startGmt7.getUTCHours()).padStart(2, '0');
-    const minutes = String(startGmt7.getUTCMinutes()).padStart(2, '0');
-    setStartTime(`${hours}:${minutes}`);
+    // Start time = now + 30 min (buffer so user has time to fill the form)
+    const startMs = now.getTime() + 30 * 60 * 1000;
+    const startDate = new Date(startMs);
+    const vnStartParts = new Intl.DateTimeFormat('en-GB', {
+      timeZone: 'Asia/Ho_Chi_Minh',
+      hour: '2-digit', minute: '2-digit', hour12: false
+    }).formatToParts(startDate);
+    const startH = vnStartParts.find(p => p.type === 'hour')?.value ?? '00';
+    const startM = vnStartParts.find(p => p.type === 'minute')?.value ?? '00';
 
-    // Default end time to 4 hours after start time
-    const endGmt7 = new Date(startGmt7.getTime() + 4 * 60 * 60 * 1000);
-    const endHours = String(endGmt7.getUTCHours()).padStart(2, '0');
-    const endMinutes = String(endGmt7.getUTCMinutes()).padStart(2, '0');
-    setEndTime(`${endHours}:${endMinutes}`);
+    // End time = start + 4 hours
+    const endDate = new Date(startMs + 4 * 60 * 60 * 1000);
+    const vnEndParts = new Intl.DateTimeFormat('en-GB', {
+      timeZone: 'Asia/Ho_Chi_Minh',
+      hour: '2-digit', minute: '2-digit', hour12: false
+    }).formatToParts(endDate);
+    const endH = vnEndParts.find(p => p.type === 'hour')?.value ?? '00';
+    const endM = vnEndParts.find(p => p.type === 'minute')?.value ?? '00';
+
+    // If end time crosses midnight, advance the date by 1 day
+    const endDateStr = endDate > startDate && endH < startH
+      ? new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Ho_Chi_Minh', year: 'numeric', month: '2-digit', day: '2-digit' }).format(endDate)
+      : vnDate;
+
+    setBookingDate(vnDate);
+    setStartTime(`${startH}:${startM}`);
+    setEndTime(`${endH}:${endM}`);
+    void endDateStr; // used implicitly — bookingDate stays the start date
   }, []);
 
   // API Data States
@@ -104,39 +124,76 @@ export default function DriverBooking() {
   const [isCancelling, setIsCancelling] = useState<boolean>(false);
   const [depositAmount, setDepositAmount] = useState<number>(20000);
 
+  // Default vehicle stored locally
+  const [defaultVehicleId, setDefaultVehicleId] = useState<number | null>(null);
+
   // Identify active vehicle and its type ID
   const activeVehicle = vehicles.find(v => v.licensePlate === selectedVehicle);
-  const selectedVehicleTypeId = activeVehicle?.vehicleTypeId || 2; // Default to Car (2) if none selected
+
+  // Fall back to vehicleTypeId query param while vehicles are loading
+  const vehicleTypeParam = searchParams.get('vehicleTypeId');
+  const targetVehicleTypeId = vehicleTypeParam ? Number(vehicleTypeParam) : null;
+  const selectedVehicleTypeId = activeVehicle?.vehicleTypeId || targetVehicleTypeId || 2; // Default to Car (2) if none selected
+
+  // Booking cost estimation
+  const calculateCost = () => {
+    if (!startTime || !endTime) return 0;
+    const [startH, startM] = startTime.split(':').map(Number);
+    const [endH, endM] = endTime.split(':').map(Number);
+    let durationHours = (endH + endM / 60) - (startH + startM / 60);
+
+    // Support overnight duration
+    if (durationHours < 0) {
+      durationHours += 24;
+    }
+
+    if (durationHours <= 0) return 0;
+    const rate = selectedVehicleTypeId === 1 ? 5000 : 20000;
+    const cost = durationHours * rate;
+    const cap = selectedVehicleTypeId === 1 ? 20000 : 150000;
+    return Math.min(cost, cap);
+  };
 
   const getEstimatedDeposit = () => {
-    if (!bookingDate || !startTime) return selectedVehicleTypeId === 1 ? 5000 : 20000;
-    try {
-      const [hours, minutes] = startTime.split(':').map(Number);
-      const timeVal = hours * 60 + minutes;
-      const isDayWindow = timeVal >= 360 && timeVal < 1320; // 06:00 to 22:00
-      if (selectedVehicleTypeId === 1) {
-        return isDayWindow ? 5000 : 10000;
-      } else {
-        return isDayWindow ? 20000 : 40000;
-      }
-    } catch {
-      return selectedVehicleTypeId === 1 ? 5000 : 20000;
-    }
+    return calculateCost();
   };
 
   useEffect(() => {
     setDepositAmount(getEstimatedDeposit());
-  }, [selectedVehicleTypeId, bookingDate, startTime]);
+  }, [selectedVehicleTypeId, bookingDate, startTime, endTime]);
 
   // Load Vehicles & Buildings
   useEffect(() => {
     if (!user?.id) return;
 
+    // Load default vehicle ID from localStorage
+    const storedDefaultId = localStorage.getItem(`default_vehicle_${user.id}`);
+    if (storedDefaultId) setDefaultVehicleId(Number(storedDefaultId));
+
     api.get<any>(`/vehicles?accountId=${user.id}`)
       .then(res => {
         if (res.success && res.data && res.data.length > 0) {
-          setVehicles(res.data);
-          setSelectedVehicle(res.data[0].licensePlate);
+          const allVehicles: VehicleItem[] = res.data;
+          setVehicles(allVehicles);
+
+          const storedId = storedDefaultId ? Number(storedDefaultId) : null;
+          const vehicleTypeFromParam = vehicleTypeParam ? Number(vehicleTypeParam) : null;
+
+          // Priority: (1) default vehicle matching vehicleTypeParam, (2) default vehicle, (3) first vehicle matching vehicleTypeParam, (4) first vehicle
+          let preSelected: VehicleItem | undefined;
+
+          if (storedId && vehicleTypeFromParam) {
+            const defaultVeh = allVehicles.find(v => v.id === storedId);
+            preSelected = defaultVeh?.vehicleTypeId === vehicleTypeFromParam
+              ? defaultVeh
+              : allVehicles.find(v => v.vehicleTypeId === vehicleTypeFromParam);
+          } else if (storedId) {
+            preSelected = allVehicles.find(v => v.id === storedId);
+          } else if (vehicleTypeFromParam) {
+            preSelected = allVehicles.find(v => v.vehicleTypeId === vehicleTypeFromParam);
+          }
+
+          setSelectedVehicle((preSelected ?? allVehicles[0]).licensePlate);
         } else {
           setVehicles([]);
           setSelectedVehicle('');
@@ -281,30 +338,75 @@ export default function DriverBooking() {
       });
   }, [selectedFloor, selectedVehicleTypeId]);
 
+  // Resolve slot code from URL param → find its zone → floor → building, then auto-select all
   useEffect(() => {
     const slotParam = searchParams.get('slot');
-    if (slotParam) {
-      setSelectedSlotCode(slotParam);
-    }
+    if (!slotParam) return;
+
+    const resolveSlot = async () => {
+      try {
+        // Fetch all slots to find a match by code
+        const allSlotsRes = await api.get<any>('/ParkingSlots');
+        if (!allSlotsRes.success || !allSlotsRes.data) return;
+
+        const matchedSlot = allSlotsRes.data.find(
+          (s: any) => s.code?.toUpperCase() === slotParam.toUpperCase()
+        );
+        if (!matchedSlot) {
+          // Slot not found in all-slots list; just set the code so the grid can highlight it when loaded
+          setSelectedSlotCode(slotParam);
+          return;
+        }
+
+        // Set the slot code immediately so the grid highlights it
+        setSelectedSlotCode(matchedSlot.code);
+
+        // Fetch zone to get floorId
+        const zoneRes = await api.get<any>(`/Zones/${matchedSlot.zoneId}`);
+        if (!zoneRes.success || !zoneRes.data) return;
+        const floorId: number = zoneRes.data.floorId;
+
+        // Fetch floor to get buildingId
+        const floorRes = await api.get<any>(`/Floors/${floorId}`);
+        if (!floorRes.success || !floorRes.data) return;
+        const buildingId: number = floorRes.data.buildingId;
+
+        // Apply selections — existing effects will then load floors & slots for this floor
+        setSelectedBuilding(buildingId.toString());
+        setSelectedFloor(floorId.toString());
+      } catch (err) {
+        console.error('Error resolving slot from URL param:', err);
+        // Fallback: just set the slot code
+        setSelectedSlotCode(slotParam);
+      }
+    };
+
+    resolveSlot();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
 
-  // Booking cost estimation
-  const calculateCost = () => {
-    if (!startTime || !endTime) return 0;
-    const [startH, startM] = startTime.split(':').map(Number);
-    const [endH, endM] = endTime.split(':').map(Number);
-    let durationHours = (endH + endM / 60) - (startH + startM / 60);
+  const formatLocalVNTime = (date: Date): string => {
+    const parts = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'Asia/Ho_Chi_Minh',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false,
+    }).formatToParts(date);
 
-    // Support overnight duration
-    if (durationHours < 0) {
-      durationHours += 24;
-    }
+    const y = parts.find(p => p.type === 'year')?.value;
+    const m = parts.find(p => p.type === 'month')?.value;
+    const d = parts.find(p => p.type === 'day')?.value;
+    let hr = parts.find(p => p.type === 'hour')?.value ?? '00';
+    const min = parts.find(p => p.type === 'minute')?.value ?? '00';
+    const sec = parts.find(p => p.type === 'second')?.value ?? '00';
 
-    if (durationHours <= 0) return 0;
-    const rate = selectedVehicleTypeId === 1 ? 5000 : 20000;
-    const cost = durationHours * rate;
-    const cap = selectedVehicleTypeId === 1 ? 20000 : 150000;
-    return Math.min(cost, cap);
+    if (hr === '24') hr = '00';
+
+    return `${y}-${m}-${d}T${hr}:${min}:${sec}+07:00`;
   };
 
   const handleBookingSubmit = async (e: React.FormEvent) => {
@@ -318,27 +420,33 @@ export default function DriverBooking() {
       return;
     }
 
-    // Validate times in the frontend
+    // Validate times in the frontend — all comparisons are UTC-ms based (timezone-neutral)
     const now = new Date();
     now.setSeconds(0, 0); // Truncate seconds & milliseconds to match backend minute-level precision
+
+    // Build ISO strings with explicit +07:00 offset so Date parsing is unambiguous
     const selectedStart = new Date(`${bookingDate}T${startTime}:00+07:00`);
 
-    // Overnight booking check
-    let endDateTimeString = `${bookingDate}T${endTime}:00+07:00`;
-    if (endTime < startTime) {
-      const startDateObj = new Date(`${bookingDate}T00:00:00+07:00`);
-      const endDateObj = new Date(startDateObj.getTime() + 24 * 60 * 60 * 1000);
-      const nextYear = endDateObj.getFullYear();
-      const nextMonth = String(endDateObj.getMonth() + 1).padStart(2, '0');
-      const nextDay = String(endDateObj.getDate()).padStart(2, '0');
-      endDateTimeString = `${nextYear}-${nextMonth}-${nextDay}T${endTime}:00+07:00`;
+    // Overnight booking check: if end < start in string comparison, add 1 day
+    let endBookingDate = bookingDate;
+    if (endTime <= startTime) {
+      const d = new Date(`${bookingDate}T00:00:00+07:00`);
+      d.setDate(d.getDate() + 1);
+      endBookingDate = d.toLocaleDateString('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' });
     }
-    const selectedEnd = new Date(endDateTimeString);
+    const selectedEnd = new Date(`${endBookingDate}T${endTime}:00+07:00`);
+
+    // Get current Vietnam time for user-friendly error message
+    const vnNowStr = now.toLocaleTimeString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh', hour: '2-digit', minute: '2-digit', hour12: false });
+    const vnDateStr = now.toLocaleDateString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh', day: '2-digit', month: '2-digit', year: 'numeric' });
 
     // Check if start time is at least 15 minutes from now
     const diffStartMinutes = (selectedStart.getTime() - now.getTime()) / (1000 * 60);
     if (diffStartMinutes < 15) {
-      showToast("Thời gian bắt đầu đặt chỗ phải cách hiện tại tối thiểu 15 phút!", "error");
+      showToast(
+        `Thời gian bắt đầu phải cách hiện tại ít nhất 15 phút. Hiện tại: ${vnNowStr} ngày ${vnDateStr} (Giờ VN). Vui lòng chọn lại thời gian.`,
+        "error"
+      );
       return;
     }
 
@@ -351,8 +459,8 @@ export default function DriverBooking() {
 
     setIsLoading(true);
     try {
-      const checkinTime = selectedStart.toISOString();
-      const checkoutTime = selectedEnd.toISOString();
+      const checkinTime = formatLocalVNTime(selectedStart);
+      const checkoutTime = formatLocalVNTime(selectedEnd);
       const payload = {
         accountId: user.id,
         licensePlate: selectedVehicle,
@@ -367,7 +475,7 @@ export default function DriverBooking() {
       if (res.success && res.data) {
         const bookingId = res.data.id;
         setCreatedBookingId(bookingId);
-        setDepositAmount(getEstimatedDeposit());
+        setDepositAmount(res.data.depositAmount || getEstimatedDeposit());
         setShowPaymentModal(true);
       } else {
         showToast(res.message || 'Failed to create booking.', 'error');
@@ -448,31 +556,41 @@ export default function DriverBooking() {
               <h2 className="font-bold text-slate-800 text-base">Select Vehicle</h2>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {vehicles.map((v) => (
-                <div
-                  key={v.licensePlate}
-                  onClick={() => setSelectedVehicle(v.licensePlate)}
-                  className={`p-4 border rounded-xl cursor-pointer transition-all flex items-center justify-between group ${selectedVehicle === v.licensePlate
-                    ? 'border-[#00a86b] bg-emerald-50/10'
-                    : 'border-[#e2e8f0] hover:border-slate-300 bg-slate-50/30'
-                    }`}
-                >
-                  <div className="flex items-center gap-3">
-                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${selectedVehicle === v.licensePlate ? 'bg-[#00a86b] text-white' : 'bg-slate-100 text-slate-400 group-hover:bg-slate-200'
+              {vehicles.map((v) => {
+                const isDefault = defaultVehicleId === v.id;
+                return (
+                  <div
+                    key={v.licensePlate}
+                    onClick={() => setSelectedVehicle(v.licensePlate)}
+                    className={`p-4 border rounded-xl cursor-pointer transition-all flex items-center justify-between group ${selectedVehicle === v.licensePlate
+                      ? 'border-[#00a86b] bg-emerald-50/10'
+                      : 'border-[#e2e8f0] hover:border-slate-300 bg-slate-50/30'
+                      }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${selectedVehicle === v.licensePlate ? 'bg-[#00a86b] text-white' : 'bg-slate-100 text-slate-400 group-hover:bg-slate-200'
+                        }`}>
+                        <Car className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-1.5">
+                          <p className="text-sm font-bold text-slate-700">{v.licensePlate}</p>
+                          {isDefault && (
+                            <span className="text-[8px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded-full uppercase tracking-wide leading-none">
+                              Default
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs text-slate-400">{v.vehicleTypeName || 'Private Vehicle'}</p>
+                      </div>
+                    </div>
+                    <span className={`w-5 h-5 rounded-full border flex items-center justify-center shrink-0 ${selectedVehicle === v.licensePlate ? 'border-[#00a86b] bg-[#00a86b] text-white' : 'border-slate-300'
                       }`}>
-                      <Car className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-bold text-slate-700">{v.licensePlate}</p>
-                      <p className="text-xs text-slate-400">{v.vehicleTypeName || 'Private Vehicle'}</p>
-                    </div>
+                      {selectedVehicle === v.licensePlate && <span className="w-1.5 h-1.5 rounded-full bg-white"></span>}
+                    </span>
                   </div>
-                  <span className={`w-5 h-5 rounded-full border flex items-center justify-center shrink-0 ${selectedVehicle === v.licensePlate ? 'border-[#00a86b] bg-[#00a86b] text-white' : 'border-slate-300'
-                    }`}>
-                    {selectedVehicle === v.licensePlate && <span className="w-1.5 h-1.5 rounded-full bg-white"></span>}
-                  </span>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
 
@@ -615,6 +733,7 @@ export default function DriverBooking() {
                 <input
                   type="date"
                   value={bookingDate}
+                  min={new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' })}
                   onChange={(e) => setBookingDate(e.target.value)}
                   className="w-full bg-slate-50 border border-[#e2e8f0] rounded-xl px-4 py-2.5 text-sm focus:border-[#00a86b] focus:ring-[#00a86b]/10 transition-all outline-none"
                 />
@@ -684,16 +803,33 @@ export default function DriverBooking() {
             <div className="h-[1px] bg-slate-100 my-4"></div>
 
             <div className="space-y-3 bg-slate-50 border border-[#e2e8f0] p-4 rounded-xl">
+              {/* Rate breakdown label */}
+              {(() => {
+                const rate = selectedVehicleTypeId === 1 ? 5000 : 20000;
+                const cap = selectedVehicleTypeId === 1 ? 20000 : 150000;
+                const [sh, sm] = startTime ? startTime.split(':').map(Number) : [0, 0];
+                const [eh, em] = endTime ? endTime.split(':').map(Number) : [0, 0];
+                let dur = (eh + em / 60) - (sh + sm / 60);
+                if (dur < 0) dur += 24;
+                return (
+                  <p className="text-[10px] text-slate-400 font-medium">
+                    Rate: <span className="text-slate-600 font-bold">{rate.toLocaleString('vi-VN')} đ/hr</span>
+                    {dur > 0 && (
+                      <> · <span className="text-slate-600 font-bold">{dur % 1 === 0 ? dur : dur.toFixed(1)} hr{dur !== 1 ? 's' : ''}</span> · Max cap: <span className="text-slate-600 font-bold">{cap.toLocaleString('vi-VN')} đ</span></>
+                    )}
+                  </p>
+                );
+              })()}
               <div className="flex justify-between items-center text-xs">
                 <span className="text-slate-400 font-medium">Estimated Parking Fee</span>
                 <span className="font-bold text-slate-700">{calculateCost().toLocaleString('vi-VN')} đ</span>
               </div>
               <div className="flex justify-between items-center text-sm font-bold pt-2 border-t border-slate-200/60">
-                <span className="text-slate-500">Required Deposit</span>
+                <span className="text-slate-500">Total Amount to Pay (Tổng tiền chi trả)</span>
                 <span className="text-xl font-black text-[#00a86b]">{getEstimatedDeposit().toLocaleString('vi-VN')} đ</span>
               </div>
               <p className="text-[10px] text-slate-400 leading-normal">
-                * Note: The deposit will be deducted from your final parking fee upon checkout.
+                * Deposit is a fixed upfront fee deducted from your final parking fee upon checkout.
               </p>
             </div>
 
@@ -741,10 +877,10 @@ export default function DriverBooking() {
 
             <div className="p-6 space-y-6">
               <div className="text-center space-y-1">
-                <p className="text-[10px] text-slate-400 uppercase tracking-widest font-bold">Số tiền cần thanh toán trước</p>
+                <p className="text-[10px] text-slate-400 uppercase tracking-widest font-bold">Tổng tiền cần thanh toán</p>
                 <h4 className="text-3xl font-black text-slate-800">{depositAmount.toLocaleString('vi-VN')} đ</h4>
                 <p className="text-[11px] text-slate-500 max-w-[320px] mx-auto leading-relaxed">
-                  Để xác nhận đặt lịch đỗ xe, bạn cần hoàn tất thanh toán khoản tiền cọc này trực tuyến qua cổng VNPay.
+                  Để xác nhận đặt lịch đỗ xe, bạn cần hoàn tất thanh toán khoản tiền này trực tuyến qua cổng VNPay.
                 </p>
               </div>
 

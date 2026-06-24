@@ -218,16 +218,23 @@ export default function DriverDashboard() {
       // Load vehicles
       const vehRes = await api.get<any>(`/vehicles?accountId=${user.id}`);
       if (vehRes.success && vehRes.data && vehRes.data.length > 0) {
-        setActiveVehiclePlate(vehRes.data[0].licensePlate);
-        
-        // Auto select default vehicle type on dashboard if found
-        const firstVehicleType = vehRes.data[0].vehicleTypeId;
-        if (firstVehicleType) {
-          setSelectedVehicleTypeId(firstVehicleType);
+        const allVehicles: any[] = vehRes.data;
+        setActiveVehiclePlate(allVehicles[0].licensePlate);
+
+        // Check localStorage for a default vehicle preference
+        const storedDefaultId = localStorage.getItem(`default_vehicle_${user.id}`);
+        const defaultVehicle = storedDefaultId
+          ? allVehicles.find((v: any) => v.id === Number(storedDefaultId))
+          : null;
+
+        // Use default vehicle's type if set, otherwise fall back to first vehicle's type
+        const targetTypeId = defaultVehicle?.vehicleTypeId ?? allVehicles[0].vehicleTypeId;
+        if (targetTypeId) {
+          setSelectedVehicleTypeId(targetTypeId);
         }
 
         // Check active session
-        const userPlates = vehRes.data.map((v: any) => v.licensePlate);
+        const userPlates = allVehicles.map((v: any) => v.licensePlate);
         try {
           const sessRes = await api.get<any>('/parking-sessions/active');
           if (sessRes.success && sessRes.data) {
@@ -465,7 +472,7 @@ export default function DriverDashboard() {
                       <div
                         key={slot.id}
                         className={`p-4 border rounded-xl transition-all flex flex-col justify-between h-32 ${statusClass}`}
-                        onClick={() => isClickable && router.push(`/dashboard/driver/booking?slot=${slot.code}`)}
+                        onClick={() => isClickable && router.push(`/dashboard/driver/booking?slot=${slot.code}&vehicleTypeId=${selectedVehicleTypeId}`)}
                         title={`${slot.code} — ${statusLabel}`}
                       >
                         <div className="flex items-center justify-between">

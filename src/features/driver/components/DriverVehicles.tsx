@@ -5,10 +5,8 @@ import { createPortal } from 'react-dom';
 import { useAuth } from '@/features/auth';
 import { api } from '@/lib/api/client';
 import { 
-  Car, 
   Plus, 
   Trash2, 
-  Edit3, 
   CheckCircle, 
   AlertCircle, 
   X, 
@@ -40,6 +38,30 @@ export default function DriverVehicles() {
   const [isLoading, setIsLoading] = useState(true);
   const [mounted, setMounted] = useState(false);
   useEffect(() => { setMounted(true); }, []);
+
+  // Default vehicle state (persisted in localStorage)
+  const [defaultVehicleId, setDefaultVehicleId] = useState<number | null>(null);
+
+  // Load default vehicle from localStorage after mount
+  useEffect(() => {
+    if (!user?.id) return;
+    const stored = localStorage.getItem(`default_vehicle_${user.id}`);
+    if (stored) setDefaultVehicleId(Number(stored));
+  }, [user]);
+
+  const handleSetDefault = (vehicleId: number) => {
+    if (!user?.id) return;
+    if (defaultVehicleId === vehicleId) {
+      // Toggle off
+      localStorage.removeItem(`default_vehicle_${user.id}`);
+      setDefaultVehicleId(null);
+      showToast('Default vehicle cleared.', 'info');
+    } else {
+      localStorage.setItem(`default_vehicle_${user.id}`, String(vehicleId));
+      setDefaultVehicleId(vehicleId);
+      showToast('Default vehicle updated!', 'success');
+    }
+  };
 
   // Add Vehicle Modal
   const [showAddModal, setShowAddModal] = useState(false);
@@ -134,11 +156,23 @@ export default function DriverVehicles() {
     try {
       await api.delete(`/vehicles/${deleteVehicleId}`);
       showToast('Vehicle removed successfully.', 'info');
+      // Clear default if the deleted vehicle was the default
+      if (deleteVehicleId === defaultVehicleId && user?.id) {
+        localStorage.removeItem(`default_vehicle_${user.id}`);
+        setDefaultVehicleId(null);
+      }
       setDeleteVehicleId(null);
       fetchData();
     } catch (err: any) {
       console.error('Error deleting vehicle:', err);
-      showToast('Failed to remove vehicle. It may have an active session.', 'error');
+      // Surface the actual API error message when available
+      const apiMsg = err?.data?.message || err?.message || '';
+      showToast(
+        apiMsg
+          ? `Failed to remove vehicle: ${apiMsg}`
+          : 'Failed to remove vehicle. It may have an active booking or session.',
+        'error'
+      );
     } finally {
       setIsDeleting(false);
     }
@@ -212,42 +246,83 @@ export default function DriverVehicles() {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {vehicles.map((vehicle) => (
-            <div key={vehicle.id} className="bg-white border border-[#e2e8f0] rounded-2xl p-6 shadow-sm hover:shadow-md transition-all">
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex items-center gap-4">
-                  <div className="w-14 h-14 bg-slate-50 border border-[#e2e8f0] rounded-2xl flex items-center justify-center text-2xl shrink-0">
-                    {getTypeIcon(vehicle.vehicleTypeName)}
+          {vehicles.map((vehicle) => {
+            const isDefault = defaultVehicleId === vehicle.id;
+            return (
+              <div
+                key={vehicle.id}
+                className={`bg-white border rounded-2xl p-6 shadow-sm hover:shadow-md transition-all ${
+                  isDefault ? 'border-emerald-400 ring-1 ring-emerald-400/30' : 'border-[#e2e8f0]'
+                }`}
+              >
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex items-center gap-4">
+                    <div className="w-14 h-14 bg-slate-50 border border-[#e2e8f0] rounded-2xl flex items-center justify-center text-2xl shrink-0 relative">
+                      {getTypeIcon(vehicle.vehicleTypeName)}
+                      {isDefault && (
+                        <span className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-emerald-500 text-white rounded-full flex items-center justify-center text-[10px] font-bold leading-none">
+                          ✓
+                        </span>
+                      )}
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-extrabold text-[#1B2A41] text-lg font-mono tracking-wide">
+                          {vehicle.licensePlate}
+                        </h3>
+                        {isDefault && (
+                          <span className="text-[9px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded-full uppercase tracking-wide">
+                            Default
+                          </span>
+                        )}
+                      </div>
+                      <span className="inline-block mt-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200/50 px-2 py-0.5 rounded-full uppercase tracking-wide">
+                        {vehicle.vehicleTypeName || 'Vehicle'}
+                      </span>
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="font-extrabold text-[#1B2A41] text-lg font-mono tracking-wide">
-                      {vehicle.licensePlate}
-                    </h3>
-                    <span className="inline-block mt-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200/50 px-2 py-0.5 rounded-full uppercase tracking-wide">
-                      {vehicle.vehicleTypeName || 'Vehicle'}
-                    </span>
+                  <div className="flex items-center gap-1.5">
+                    {/* Set as Default button - replaces the star icon */}
+                    <button
+                      onClick={() => handleSetDefault(vehicle.id)}
+                      title={isDefault ? 'Clear default vehicle' : 'Set as default vehicle'}
+                      className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[10px] font-bold transition-all border ${
+                        isDefault
+                          ? 'text-emerald-700 bg-emerald-50 border-emerald-200 hover:bg-emerald-100'
+                          : 'text-slate-400 bg-white border-slate-200 hover:text-emerald-600 hover:border-emerald-300 hover:bg-emerald-50'
+                      }`}
+                    >
+                      {isDefault ? (
+                        <>
+                          <span className="text-emerald-500">&#10003;</span>
+                          Default
+                        </>
+                      ) : (
+                        'Set as Default'
+                      )}
+                    </button>
+                    <button
+                      onClick={() => setDeleteVehicleId(vehicle.id)}
+                      className="p-2 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-all"
+                      title="Remove vehicle"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
                   </div>
                 </div>
-                <button
-                  onClick={() => setDeleteVehicleId(vehicle.id)}
-                  className="p-2 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-all"
-                  title="Remove vehicle"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
-              </div>
 
-              <div className="mt-5 pt-4 border-t border-slate-100 flex items-center gap-2 text-xs text-slate-500">
-                <CheckCircle className="w-4 h-4 text-emerald-500" />
-                <span className="font-medium">Verified · Gate recognition active</span>
-                {vehicle.registeredAt && (
-                  <span className="ml-auto text-slate-300 font-mono">
-                    Since {new Date(vehicle.registeredAt).toLocaleDateString()}
-                  </span>
-                )}
+                <div className="mt-5 pt-4 border-t border-slate-100 flex items-center gap-2 text-xs text-slate-500">
+                  <CheckCircle className="w-4 h-4 text-emerald-500" />
+                  <span className="font-medium">Verified · Gate recognition active</span>
+                  {vehicle.registeredAt && (
+                    <span className="ml-auto text-slate-300 font-mono">
+                      Since {new Date(vehicle.registeredAt).toLocaleDateString()}
+                    </span>
+                  )}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
 
           {/* Add new vehicle card */}
           <button

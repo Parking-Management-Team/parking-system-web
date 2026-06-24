@@ -1,8 +1,10 @@
+import type { IncidentCode } from '@/features/incident/types';
+
 export interface IncidentType {
   id: number;
-  incidentCode: string;
+  incidentCode: IncidentCode;
   incidentName: string;
-  description?: string;
+  description?: string | null;
   defaultPenaltyFee?: number | null;
 }
 
@@ -18,8 +20,8 @@ export interface UpdateIncidentTypeRequest {
 }
 
 export interface IncidentTypeApiResponse<T> {
-  success: boolean;
-  data: T;
+  success?: boolean;
+  data?: T | null;
   message?: string | null;
   errorCode?: string | null;
   errors?: Record<string, string[]> | null;

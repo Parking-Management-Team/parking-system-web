@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useAuth } from '@/features/auth';
 import { api, apiClient } from '@/lib/api/client';
 import { Building, BaseResponse, PagedResult } from '@/lib/types/building.types';
-import { Floor, FloorResponse, Zone, ZoneResponse, Slot, ParkingSlotDto, ParkingSessionDto, FloorSlotSummary, StatusCounts } from '../types';
+import { Floor, FloorResponse, Zone, ZoneResponse, Slot, ParkingSlotDto, ParkingSessionDto, FloorSlotSummary } from '../types';
 import { SlotActionModal } from './SlotActionModal';
 
 function mapFloorSlotSummary(data: any[]): FloorSlotSummary[] {
@@ -200,7 +200,17 @@ export function SlotManagementDashboard() {
               const session = activeSess.find(s => s.slotId === item.id);
               
               let assignedVehicle = undefined;
-              if (session) {
+              if (item.subscription) {
+                assignedVehicle = {
+                  plate: item.subscription.licensePlate || item.occupiedLicensePlate || 'Subscription Vehicle',
+                  model: 'Monthly Subscription',
+                  ownerName: item.subscription.accountName || `Driver #${item.subscription.accountId}`,
+                  memberId: `SUB-${item.subscription.subscriptionId}`,
+                  startDate: item.subscription.activatedAt || undefined,
+                  endDate: item.subscription.expiredAt || undefined,
+                  notes: `Status: ${item.subscription.status}. Price: ${item.subscription.monthlyPrice?.toLocaleString()} VND`
+                };
+              } else if (session) {
                 assignedVehicle = {
                   plate: session.licensePlateIn,
                   model: 'Registered Vehicle',
@@ -210,9 +220,26 @@ export function SlotManagementDashboard() {
                   endDate: session.checkOutTime || undefined,
                   notes: session.bookingId ? `Booking #${session.bookingId}` : 'Check-in via staff'
                 };
+              } else if (item.occupiedLicensePlate) {
+                assignedVehicle = {
+                  plate: item.occupiedLicensePlate,
+                  model: 'Occupied Vehicle',
+                  ownerName: 'Visitor / Unknown',
+                  memberId: 'WALK-IN',
+                  notes: 'Active session not found in list.'
+                };
               }
 
-              const mapStatus = (statusVal: number): Slot['status'] => {
+              const mapStatus = (statusVal: number | string): Slot['status'] => {
+                if (typeof statusVal === 'string') {
+                  switch (statusVal.toLowerCase()) {
+                    case 'available': return 'AVAILABLE';
+                    case 'occupied': return 'OCCUPIED';
+                    case 'blocked': return 'BLOCKED';
+                    case 'maintenance': return 'MAINTENANCE';
+                    default: return 'AVAILABLE';
+                  }
+                }
                 switch (statusVal) {
                   case 0: return 'AVAILABLE';
                   case 1: return 'OCCUPIED';
@@ -275,7 +302,17 @@ export function SlotManagementDashboard() {
             return res.data.map(item => {
               const session = activeSess.find(s => s.slotId === item.id);
               let assignedVehicle = undefined;
-              if (session) {
+              if (item.subscription) {
+                assignedVehicle = {
+                  plate: item.subscription.licensePlate || item.occupiedLicensePlate || 'Subscription Vehicle',
+                  model: 'Monthly Subscription',
+                  ownerName: item.subscription.accountName || `Driver #${item.subscription.accountId}`,
+                  memberId: `SUB-${item.subscription.subscriptionId}`,
+                  startDate: item.subscription.activatedAt || undefined,
+                  endDate: item.subscription.expiredAt || undefined,
+                  notes: `Status: ${item.subscription.status}. Price: ${item.subscription.monthlyPrice?.toLocaleString()} VND`
+                };
+              } else if (session) {
                 assignedVehicle = {
                   plate: session.licensePlateIn,
                   model: 'Registered Vehicle',
@@ -285,8 +322,26 @@ export function SlotManagementDashboard() {
                   endDate: session.checkOutTime || undefined,
                   notes: session.bookingId ? `Booking #${session.bookingId}` : 'Check-in via staff'
                 };
+              } else if (item.occupiedLicensePlate) {
+                assignedVehicle = {
+                  plate: item.occupiedLicensePlate,
+                  model: 'Occupied Vehicle',
+                  ownerName: 'Visitor / Unknown',
+                  memberId: 'WALK-IN',
+                  notes: 'Active session not found in list.'
+                };
               }
-              const mapStatus = (statusVal: number): Slot['status'] => {
+
+              const mapStatus = (statusVal: number | string): Slot['status'] => {
+                if (typeof statusVal === 'string') {
+                  switch (statusVal.toLowerCase()) {
+                    case 'available': return 'AVAILABLE';
+                    case 'occupied': return 'OCCUPIED';
+                    case 'blocked': return 'BLOCKED';
+                    case 'maintenance': return 'MAINTENANCE';
+                    default: return 'AVAILABLE';
+                  }
+                }
                 switch (statusVal) {
                   case 0: return 'AVAILABLE';
                   case 1: return 'OCCUPIED';

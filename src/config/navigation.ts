@@ -38,6 +38,11 @@ export const ROLE_NAVIGATION: Record<string, NavigationItem[]> = {
       icon: 'payments',
     },
     {
+      label: 'Monthly Subscriptions',
+      href: '/dashboard/manager/subscriptions',
+      icon: 'card_membership',
+    },
+    {
       label: 'Incident Tracking',
       href: '/dashboard/manager/incidents',
       icon: 'report_problem',

@@ -33,7 +33,19 @@ interface SlotDto {
   zoneId: number;
   code: string;
   name?: string;
-  status: number; // 0=AVAILABLE, 1=MAINTENANCE, 2=OCCUPIED, 3=BLOCKED
+  status: number | string; // 0=AVAILABLE, 1=MAINTENANCE, 2=OCCUPIED, 3=BLOCKED or "Available", "Occupied", "Blocked", "Maintenance"
+  occupiedLicensePlate?: string | null;
+  subscription?: {
+    subscriptionId: number;
+    accountId: number;
+    accountName: string;
+    vehicleId: number;
+    licensePlate: string;
+    status: string;
+    monthlyPrice: number;
+    activatedAt?: string | null;
+    expiredAt?: string | null;
+  } | null;
 }
 
 interface SessionDto {
@@ -54,10 +66,20 @@ interface SlotView {
   status: 'AVAILABLE' | 'OCCUPIED' | 'MAINTENANCE' | 'BLOCKED';
   licensePlate?: string;
   checkInTime?: string;
+  subscriptionInfo?: SlotDto['subscription'];
 }
 
-function mapStatus(n: number): SlotView['status'] {
-  switch (n) {
+function mapStatus(statusVal: number | string): SlotView['status'] {
+  if (typeof statusVal === 'string') {
+    switch (statusVal.toLowerCase()) {
+      case 'available': return 'AVAILABLE';
+      case 'occupied': return 'OCCUPIED';
+      case 'blocked': return 'BLOCKED';
+      case 'maintenance': return 'MAINTENANCE';
+      default: return 'AVAILABLE';
+    }
+  }
+  switch (statusVal) {
     case 0: return 'AVAILABLE';
     case 1: return 'MAINTENANCE';
     case 2: return 'OCCUPIED';
@@ -142,8 +164,9 @@ export default function SlotMonitoring() {
                   zoneId: zone.id,
                   zoneName: zone.name,
                   status: mapStatus(item.status),
-                  licensePlate: session?.licensePlateIn,
-                  checkInTime: session?.checkInTime,
+                  licensePlate: session?.licensePlateIn || item.subscription?.licensePlate || item.occupiedLicensePlate || undefined,
+                  checkInTime: session?.checkInTime || item.subscription?.activatedAt || undefined,
+                  subscriptionInfo: item.subscription || undefined,
                 });
               });
             }
@@ -353,12 +376,15 @@ export default function SlotMonitoring() {
                       {/* Occupied: show plate + check-in */}
                       {slot.status === 'OCCUPIED' && slot.licensePlate ? (
                         <>
-                          <span className="text-[9px] font-black tracking-widest leading-tight truncate opacity-90">
+                          <span className="text-[9px] font-black tracking-widest leading-tight truncate opacity-90 flex items-center justify-center gap-0.5">
+                            {slot.subscriptionInfo && (
+                              <span className="material-symbols-outlined text-[10px] text-emerald-450" title="Monthly Subscriber">card_membership</span>
+                            )}
                             {slot.licensePlate}
                           </span>
                           {slot.checkInTime && (
                             <span className="text-[8px] opacity-70 font-bold">
-                              IN {formatTime(slot.checkInTime)}
+                              {slot.subscriptionInfo ? 'SUB ' : 'IN '}{formatTime(slot.checkInTime)}
                             </span>
                           )}
                         </>

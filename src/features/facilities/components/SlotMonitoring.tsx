@@ -33,7 +33,19 @@ interface SlotDto {
   zoneId: number;
   code: string;
   name?: string;
-  status: number; // 0=AVAILABLE, 1=MAINTENANCE, 2=OCCUPIED, 3=BLOCKED
+  status: number | string; // 0=AVAILABLE, 1=MAINTENANCE, 2=OCCUPIED, 3=BLOCKED or "Available", "Occupied", "Blocked", "Maintenance"
+  occupiedLicensePlate?: string | null;
+  subscription?: {
+    subscriptionId: number;
+    accountId: number;
+    accountName: string;
+    vehicleId: number;
+    licensePlate: string;
+    status: string;
+    monthlyPrice: number;
+    activatedAt?: string | null;
+    expiredAt?: string | null;
+  } | null;
 }
 
 interface SessionDto {
@@ -54,10 +66,20 @@ interface SlotView {
   status: 'AVAILABLE' | 'OCCUPIED' | 'MAINTENANCE' | 'BLOCKED';
   licensePlate?: string;
   checkInTime?: string;
+  subscriptionInfo?: SlotDto['subscription'];
 }
 
-function mapStatus(n: number): SlotView['status'] {
-  switch (n) {
+function mapStatus(statusVal: number | string): SlotView['status'] {
+  if (typeof statusVal === 'string') {
+    switch (statusVal.toLowerCase()) {
+      case 'available': return 'AVAILABLE';
+      case 'occupied': return 'OCCUPIED';
+      case 'blocked': return 'BLOCKED';
+      case 'maintenance': return 'MAINTENANCE';
+      default: return 'AVAILABLE';
+    }
+  }
+  switch (statusVal) {
     case 0: return 'AVAILABLE';
     case 1: return 'OCCUPIED';
     case 2: return 'BLOCKED';
@@ -142,8 +164,9 @@ export default function SlotMonitoring() {
                   zoneId: zone.id,
                   zoneName: zone.name,
                   status: mapStatus(item.status),
-                  licensePlate: session?.licensePlateIn,
-                  checkInTime: session?.checkInTime,
+                  licensePlate: session?.licensePlateIn || item.subscription?.licensePlate || item.occupiedLicensePlate || undefined,
+                  checkInTime: session?.checkInTime || item.subscription?.activatedAt || undefined,
+                  subscriptionInfo: item.subscription || undefined,
                 });
               });
             }
@@ -177,6 +200,8 @@ export default function SlotMonitoring() {
   const totalSlots     = slots.length;
   const availableSlots = slots.filter(s => s.status === 'AVAILABLE').length;
   const occupiedSlots  = slots.filter(s => s.status === 'OCCUPIED').length;
+  const blockedSlots     = slots.filter(s => s.status === 'BLOCKED').length;
+  const maintenanceSlots = slots.filter(s => s.status === 'MAINTENANCE').length;
   const pct = totalSlots > 0 ? Math.round((occupiedSlots / totalSlots) * 100) : 0;
 
   // ─── Slot card colors ────────────────────────────────────────────
@@ -268,12 +293,14 @@ export default function SlotMonitoring() {
 
       {/* ── Capacity Summary ──────────────────────────────────── */}
       {selectedFloorId && (
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
           {[
             { label: 'Total Slots', value: totalSlots, color: 'text-slate-700' },
             { label: 'Available',   value: availableSlots, color: 'text-[#006d43]' },
             { label: 'Occupied',    value: occupiedSlots,  color: 'text-[#263143]' },
-            { label: 'Utilization', value: `${pct}%`,      color: pct >= 90 ? 'text-red-600' : pct >= 75 ? 'text-amber-600' : 'text-[#006d43]' },
+            { label: 'Blocked',     value: blockedSlots,   color: 'text-[#ba1a1a]' },
+            { label: 'Maintenance', value: maintenanceSlots, color: 'text-amber-600' },
+            { label: 'Utilization', value: `${pct}%`,      color: pct >= 90 ? 'text-red-650' : pct >= 75 ? 'text-amber-650' : 'text-[#006d43]' },
           ].map(stat => (
             <div key={stat.label} className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 text-center">
               <p className={`text-2xl font-black ${stat.color}`}>{stat.value}</p>
@@ -349,12 +376,15 @@ export default function SlotMonitoring() {
                       {/* Occupied: show plate + check-in */}
                       {slot.status === 'OCCUPIED' && slot.licensePlate ? (
                         <>
-                          <span className="text-[9px] font-black tracking-widest leading-tight truncate opacity-90">
+                          <span className="text-[9px] font-black tracking-widest leading-tight truncate opacity-90 flex items-center justify-center gap-0.5">
+                            {slot.subscriptionInfo && (
+                              <span className="material-symbols-outlined text-[10px] text-emerald-450" title="Monthly Subscriber">card_membership</span>
+                            )}
                             {slot.licensePlate}
                           </span>
                           {slot.checkInTime && (
                             <span className="text-[8px] opacity-70 font-bold">
-                              IN {formatTime(slot.checkInTime)}
+                              {slot.subscriptionInfo ? 'SUB ' : 'IN '}{formatTime(slot.checkInTime)}
                             </span>
                           )}
                         </>

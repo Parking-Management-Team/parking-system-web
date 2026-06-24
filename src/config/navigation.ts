@@ -37,6 +37,21 @@ export const ROLE_NAVIGATION: Record<string, NavigationItem[]> = {
       href: '/dashboard/manager/pricing',
       icon: 'payments',
     },
+    {
+      label: 'Monthly Subscriptions',
+      href: '/dashboard/manager/subscriptions',
+      icon: 'card_membership',
+    },
+    {
+      label: 'Incident Tracking',
+      href: '/dashboard/manager/incidents',
+      icon: 'report_problem',
+    },
+    {
+      label: 'Blacklist Control',
+      href: '/dashboard/manager/blacklist',
+      icon: 'block',
+    },
     // Các menu chân trang (Footer items)
     {
       label: 'My Profile',
@@ -98,14 +113,14 @@ export const ROLE_NAVIGATION: Record<string, NavigationItem[]> = {
       label: "Card Management",
       href: "/dashboard/staff/cards",
       icon: "credit_card",
+    },
+    {
+      label: 'Blacklist Control',
+      href: '/dashboard/staff/blacklist',
+      icon: 'block',
     }
   ],
   ADMIN: [
-    {
-      label: 'Admin Dashboard',
-      href: '/dashboard/admin',
-      icon: 'dashboard',
-    },
     {
       label: 'User Management',
       href: '/dashboard/admin/users',
@@ -117,24 +132,19 @@ export const ROLE_NAVIGATION: Record<string, NavigationItem[]> = {
       icon: 'location_city',
     },
     {
-      label: 'Role & Permission',
-      href: '/dashboard/admin/roles',
-      icon: 'security',
+      label: 'Incident Tracking',
+      href: '/dashboard/admin/incidents',
+      icon: 'report_problem',
     },
     {
-      label: 'Parking Analytics',
-      href: '/dashboard/admin/analytics',
-      icon: 'analytics',
+      label: 'Blacklist Control',
+      href: '/dashboard/admin/blacklist',
+      icon: 'block',
     },
     {
-      label: 'Device Monitoring',
-      href: '/dashboard/admin/devices',
-      icon: 'router',
-    },
-    {
-      label: 'System Settings',
-      href: '/dashboard/admin/settings',
-      icon: 'settings',
+      label: 'System Audit Logs',
+      href: '/dashboard/admin/audit-logs',
+      icon: 'history',
     },
     {
       label: 'My Profile',

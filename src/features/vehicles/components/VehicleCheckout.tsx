@@ -1,8 +1,9 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { api, ApiError } from '@/lib/api/client';
 import { useAuth } from '@/features/auth';
+import { blacklistService } from '@/features/blacklist/services/blacklist.service';
 
 type PaymentMethod = 'ONLINE_BANKING' | 'CASH';
 type PaymentStatus = 'IDLE' | 'PENDING' | 'PAID' | 'FAILED';
@@ -153,6 +154,54 @@ export default function VehicleCheckout() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [apiSuccess, setApiSuccess] = useState(false);
 
+  // Blacklist state
+  const [blacklist, setBlacklist] = useState<any[]>([]);
+
+  useEffect(() => {
+    const loadBlacklist = async () => {
+      try {
+        const res = await blacklistService.getAll(1, 9999);
+        if (res && res.items) {
+          setBlacklist(res.items);
+        }
+      } catch (err) {
+        console.error('Failed to load blacklist:', err);
+      }
+    };
+    loadBlacklist();
+  }, []);
+
+  const isPlateBlacklisted = useMemo(() => {
+    if (!session) return false;
+    const cleanPlate = session.licensePlateIn.replace(/[^A-Z0-9]/g, '');
+    return blacklist.some(
+      (item) => item.licensePlate?.toUpperCase().replace(/[^A-Z0-9]/g, '') === cleanPlate
+    );
+  }, [blacklist, session]);
+
+  const isCardBlacklisted = useMemo(() => {
+    if (!session || !session.cardCode) return false;
+    const cleanCard = session.cardCode.replace(/[^A-Z0-9]/g, '');
+    return blacklist.some(
+      (item) => item.cardCode?.toUpperCase().replace(/[^A-Z0-9]/g, '') === cleanCard
+    );
+  }, [blacklist, session]);
+
+  const blacklistReason = useMemo(() => {
+    if (!session) return null;
+    if (isPlateBlacklisted) {
+      const cleanPlate = session.licensePlateIn.replace(/[^A-Z0-9]/g, '');
+      const match = blacklist.find((item) => item.licensePlate?.toUpperCase().replace(/[^A-Z0-9]/g, '') === cleanPlate);
+      return `Phương tiện ${session.licensePlateIn} nằm trong danh sách đen: "${match?.reason}"`;
+    }
+    if (isCardBlacklisted && session.cardCode) {
+      const cleanCard = session.cardCode.replace(/[^A-Z0-9]/g, '');
+      const match = blacklist.find((item) => item.cardCode?.toUpperCase().replace(/[^A-Z0-9]/g, '') === cleanCard);
+      return `Thẻ ${session.cardCode} nằm trong danh sách đen: "${match?.reason}"`;
+    }
+    return null;
+  }, [blacklist, isPlateBlacklisted, isCardBlacklisted, session]);
+
   // Payment UI state
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('ONLINE_BANKING');
   const [paymentStatus, setPaymentStatus] = useState<PaymentStatus>('IDLE');
@@ -299,6 +348,11 @@ export default function VehicleCheckout() {
     if (!session) return;
     if (!isPlateMatched) {
       showToast('Biển số xe ra thực tế không khớp với hệ thống!', 'error');
+      return;
+    }
+
+    if (isPlateBlacklisted || isCardBlacklisted) {
+      showToast(`Không thể hoàn tất gửi xe. Lý do: ${blacklistReason}`, 'error');
       return;
     }
 
@@ -672,6 +726,16 @@ export default function VehicleCheckout() {
                   </div>
                 </div>
 
+                {blacklistReason && (
+                  <div className="p-4 bg-rose-50 border border-rose-200 rounded-xl flex items-start gap-3 my-2 animate-fadeIn">
+                    <span className="material-symbols-outlined text-rose-600 shrink-0">block</span>
+                    <div>
+                      <h4 className="font-bold text-rose-800 text-sm">Checkout bị chặn (Blacklist)</h4>
+                      <p className="text-rose-700 text-xs mt-0.5">{blacklistReason}</p>
+                    </div>
+                  </div>
+                )}
+
                 {/* SESSION INFO */}
                 <div className="grid grid-cols-2 gap-x-4 gap-y-3 bg-slate-50/40 p-4 rounded-xl border border-slate-100/80 text-xs text-slate-600">
                   <div>
@@ -735,15 +799,17 @@ export default function VehicleCheckout() {
                     <button
                       type="button"
                       onClick={handleStartCheckout}
-                      disabled={!isPlateMatched || isProcessing}
+                      disabled={!isPlateMatched || isProcessing || isPlateBlacklisted || isCardBlacklisted}
                       className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5 shadow-sm"
                     >
                       {isProcessing ? (
                         <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
                       ) : (
-                        <span className="material-symbols-outlined text-base">lock</span>
+                        <span className="material-symbols-outlined text-base">
+                          {isPlateBlacklisted || isCardBlacklisted ? 'block' : 'lock'}
+                        </span>
                       )}
-                      Bắt đầu Checkout & Khóa phí
+                      {isPlateBlacklisted || isCardBlacklisted ? 'Bị chặn - Entity Blacklisted' : 'Bắt đầu Checkout & Khóa phí'}
                     </button>
                   )}
                 </div>

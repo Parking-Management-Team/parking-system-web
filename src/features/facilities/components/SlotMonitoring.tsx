@@ -59,9 +59,9 @@ interface SlotView {
 function mapStatus(n: number): SlotView['status'] {
   switch (n) {
     case 0: return 'AVAILABLE';
-    case 1: return 'MAINTENANCE';
-    case 2: return 'OCCUPIED';
-    case 3: return 'BLOCKED';
+    case 1: return 'OCCUPIED';
+    case 2: return 'BLOCKED';
+    case 3: return 'MAINTENANCE';
     default: return 'AVAILABLE';
   }
 }

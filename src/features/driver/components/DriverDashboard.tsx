@@ -450,28 +450,42 @@ export default function DriverDashboard() {
                   <p className="text-xs text-slate-400">No slot data available. Please check back later.</p>
                 </div>
               ) : (
-                <div className="grid grid-cols-4 sm:grid-cols-8 md:grid-cols-10 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                   {mapSlots.map((slot) => {
                     const statusKey = getSlotStatus(slot.status);
                     const isClickable = statusKey === 'available';
+                    const statusLabel = statusKey.charAt(0).toUpperCase() + statusKey.slice(1);
 
-                    let statusClass = 'border-[#00a86b] text-emerald-700 hover:bg-emerald-50/10 hover:scale-[1.05] cursor-pointer';
-                    let statusText = 'Available';
-
+                    let statusClass = 'border-[#00a86b] bg-emerald-50/10 hover:border-emerald-500 hover:scale-[1.03] cursor-pointer text-emerald-700';
                     if (!isClickable) {
-                      statusClass = 'border-slate-200 text-slate-400 bg-slate-50/50 cursor-not-allowed';
-                      statusText = 'Unavailable';
+                      statusClass = 'border-[#e2e8f0] bg-slate-50/30 cursor-not-allowed text-slate-400';
                     }
 
                     return (
                       <div
                         key={slot.id}
-                        className={`p-3 border-2 ${statusClass} rounded-xl shadow-sm transition-all font-bold flex flex-col items-center justify-center`}
+                        className={`p-4 border rounded-xl transition-all flex flex-col justify-between h-32 ${statusClass}`}
                         onClick={() => isClickable && router.push(`/dashboard/driver/booking?slot=${slot.code}`)}
-                        title={`${slot.code} — ${statusText}`}
+                        title={`${slot.code} — ${statusLabel}`}
                       >
-                        <span className="text-[11px] font-extrabold leading-tight">{slot.code}</span>
-                        <span className="text-[8px] opacity-75 font-normal mt-0.5">{statusText}</span>
+                        <div className="flex items-center justify-between">
+                          <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md ${
+                            isClickable ? 'bg-[#00a86b] text-white' : 'bg-slate-200 text-slate-600'
+                          }`}>
+                            {slot.code}
+                          </span>
+                          <span className="text-xs text-slate-400 font-bold">
+                            {selectedVehicleTypeId === 2 ? 'Car Slot' : 'Motorbike Slot'}
+                          </span>
+                        </div>
+                        <div className="text-left">
+                          <h3 className={`text-sm font-bold mt-2 ${isClickable ? 'text-slate-800' : 'text-slate-500'}`}>
+                            {slot.name || `Slot ${slot.code}`}
+                          </h3>
+                          <p className="text-xs text-slate-400 mt-0.5 truncate">
+                            {isClickable ? 'Available · Click to book' : `Status: ${statusLabel}`}
+                          </p>
+                        </div>
                       </div>
                     );
                   })}

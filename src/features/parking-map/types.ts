@@ -5,7 +5,19 @@ export interface ParkingSlotDto {
   vehicleTypeId: number;
   code: string;
   name?: string;
-  status: number;
+  status: number | string;
+  occupiedLicensePlate?: string | null;
+  subscription?: {
+    subscriptionId: number;
+    accountId: number;
+    accountName: string;
+    vehicleId: number;
+    licensePlate: string;
+    status: string;
+    monthlyPrice: number;
+    activatedAt?: string | null;
+    expiredAt?: string | null;
+  } | null;
 }
 
 export interface ParkingSessionDto {
@@ -107,6 +119,7 @@ export interface StatusCounts {
   Available: number;
   Occupied: number;
   Blocked: number;
+  Maintenance?: number;
 }
 
 export interface VehicleTypeSlotSummary {

@@ -76,9 +76,17 @@ export function useIncidents() {
     }
   };
 
-  const updateIncidentStatus = async (id: number, status: IncidentStatus): Promise<boolean> => {
+  const updateIncidentStatus = async (id: number, status: IncidentStatus, description?: string): Promise<boolean> => {
     try {
-      const success = await incidentService.updateStatus(id, { request: { status: String(status) } });
+      let statusNum = 0;
+      if (status === 'Processing' || status === 1) statusNum = 1;
+      else if (status === 'Resolved' || status === 2) statusNum = 2;
+      else if (status === 'Cancelled' || status === 3) statusNum = 3;
+
+      const success = await incidentService.updateStatus(id, {
+        status: statusNum,
+        description
+      });
       if (success) {
         await fetchIncidents();
         return true;

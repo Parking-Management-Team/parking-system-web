@@ -66,6 +66,9 @@ type MonthlySubscriptionDto = {
   expiredAt?: string | null;
 };
 
+const ENABLE_BOOKING_CHECKIN_API = false;
+const ENABLE_MONTHLY_CHECKIN_API = false;
+
 export type CheckinParkingZone = {
   id: number;
   code: string;
@@ -119,6 +122,11 @@ const getApiErrorMessage = (error: unknown): string => {
     if (typeof body.title === 'string' && body.title.trim()) return body.title;
   }
   return error instanceof Error ? error.message : 'Request failed.';
+};
+
+const getOptionalApiWarning = (featureName: string, error: unknown): string => {
+  const status = error instanceof ApiError ? `HTTP ${error.status}` : getApiErrorMessage(error);
+  return `${featureName} optional API is not ready (${status}). Using empty list.`;
 };
 
 const getResponseData = <T>(response: BaseResponse<T> | T): T => {
@@ -307,6 +315,13 @@ export const fetchAllSlots = async (): Promise<CheckinParkingSlot[]> => {
 };
 
 export const fetchActiveBookings = async (): Promise<CheckinBooking[]> => {
+  // TODO: Booking API integration pending. Set ENABLE_BOOKING_CHECKIN_API to
+  // true and update the endpoint/mapper here when BE is ready.
+  if (!ENABLE_BOOKING_CHECKIN_API) {
+    console.warn('Booking check-in optional API is disabled. Using empty list.');
+    return [];
+  }
+
   try {
     const response = await api.get<BaseResponse<BookingDto[]> | BookingDto[]>('/bookings/active');
     const data = getResponseData(response);
@@ -323,11 +338,19 @@ export const fetchActiveBookings = async (): Promise<CheckinBooking[]> => {
       buildingName: String(b.buildingName ?? ''),
     }));
   } catch (error) {
-    throw new Error(getApiErrorMessage(error));
+    console.warn(getOptionalApiWarning('Booking check-in', error));
+    return [];
   }
 };
 
 export const fetchActiveMonthlySubscriptions = async (): Promise<CheckinMonthlySubscription[]> => {
+  // TODO: Monthly Subscription API integration pending. Set
+  // ENABLE_MONTHLY_CHECKIN_API to true and update the endpoint/mapper here when BE is ready.
+  if (!ENABLE_MONTHLY_CHECKIN_API) {
+    console.warn('Monthly subscription check-in optional API is disabled. Using empty list.');
+    return [];
+  }
+
   try {
     const response = await api.get<BaseResponse<PagedResult<MonthlySubscriptionDto>>>(
       '/monthly-subscriptions?page=1&pageSize=1000&status=ACTIVE'
@@ -347,7 +370,8 @@ export const fetchActiveMonthlySubscriptions = async (): Promise<CheckinMonthlyS
       validTo: String(s.expiredAt ?? ''),
     }));
   } catch (error) {
-    throw new Error(getApiErrorMessage(error));
+    console.warn(getOptionalApiWarning('Monthly subscription check-in', error));
+    return [];
   }
 };
 

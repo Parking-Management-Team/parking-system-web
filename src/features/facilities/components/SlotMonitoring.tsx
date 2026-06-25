@@ -81,9 +81,9 @@ function mapStatus(statusVal: number | string): SlotView['status'] {
   }
   switch (statusVal) {
     case 0: return 'AVAILABLE';
-    case 1: return 'MAINTENANCE';
-    case 2: return 'OCCUPIED';
-    case 3: return 'BLOCKED';
+    case 1: return 'OCCUPIED';
+    case 2: return 'BLOCKED';
+    case 3: return 'MAINTENANCE';
     default: return 'AVAILABLE';
   }
 }

@@ -61,6 +61,7 @@ export default function DriverBooking() {
   const [selectedVehicle, setSelectedVehicle] = useState<string>('');
   const [selectedBuilding, setSelectedBuilding] = useState<string>('');
   const [selectedFloor, setSelectedFloor] = useState<string>('');
+  const [selectedSlotId, setSelectedSlotId] = useState<number | null>(null);
   const [selectedSlotCode, setSelectedSlotCode] = useState<string>('');
   const [bookingDate, setBookingDate] = useState<string>('');
   const [startTime, setStartTime] = useState<string>('');
@@ -309,7 +310,7 @@ export default function DriverBooking() {
 
   const handleBookingSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (selectedVehicleTypeId !== 1 && !selectedSlotCode) {
+    if (selectedVehicleTypeId !== 1 && !selectedSlotId) {
       showToast("Please select a parking slot!", "error");
       return;
     }
@@ -320,20 +321,8 @@ export default function DriverBooking() {
 
     // Validate times in the frontend
     const now = new Date();
-    now.setSeconds(0, 0); // Truncate seconds & milliseconds to match backend minute-level precision
+    now.setSeconds(0, 0);
     const selectedStart = new Date(`${bookingDate}T${startTime}:00+07:00`);
-
-    // Overnight booking check
-    let endDateTimeString = `${bookingDate}T${endTime}:00+07:00`;
-    if (endTime < startTime) {
-      const startDateObj = new Date(`${bookingDate}T00:00:00+07:00`);
-      const endDateObj = new Date(startDateObj.getTime() + 24 * 60 * 60 * 1000);
-      const nextYear = endDateObj.getFullYear();
-      const nextMonth = String(endDateObj.getMonth() + 1).padStart(2, '0');
-      const nextDay = String(endDateObj.getDate()).padStart(2, '0');
-      endDateTimeString = `${nextYear}-${nextMonth}-${nextDay}T${endTime}:00+07:00`;
-    }
-    const selectedEnd = new Date(endDateTimeString);
 
     // Check if start time is at least 15 minutes from now
     const diffStartMinutes = (selectedStart.getTime() - now.getTime()) / (1000 * 60);
@@ -342,26 +331,21 @@ export default function DriverBooking() {
       return;
     }
 
-    // Check if end time is at least 4 hours after start time
-    const diffEndHours = (selectedEnd.getTime() - selectedStart.getTime()) / (1000 * 60 * 60);
-    if (diffEndHours < 3.99) {
-      showToast("Thời gian kết thúc phải cách thời gian bắt đầu tối thiểu 4 tiếng!", "error");
-      return;
-    }
-
     setIsLoading(true);
     try {
       const checkinTime = selectedStart.toISOString();
-      const checkoutTime = selectedEnd.toISOString();
-      const payload = {
+      const payload: Record<string, any> = {
         accountId: user.id,
         licensePlate: selectedVehicle,
         buildingId: parseInt(selectedBuilding),
         plannedCheckinTime: checkinTime,
-        plannedCheckoutTime: checkoutTime
       };
 
-      // Create Booking reservation
+      // Only send slotId for Car bookings
+      if (selectedVehicleTypeId !== 1 && selectedSlotId) {
+        payload.slotId = selectedSlotId;
+      }
+
       const res = await api.post<any>('/bookings', payload);
 
       if (res.success && res.data) {
@@ -488,7 +472,8 @@ export default function DriverBooking() {
                   key={b.id}
                   onClick={() => {
                     setSelectedBuilding(b.id.toString());
-                    setSelectedSlotCode(''); // Reset selected slot
+                    setSelectedSlotId(null);
+                    setSelectedSlotCode('');
                   }}
                   className={`p-4 border rounded-xl cursor-pointer transition-all flex flex-col justify-between h-32 ${selectedBuilding === b.id.toString()
                     ? 'border-[#00a86b] bg-emerald-50/10'
@@ -544,6 +529,7 @@ export default function DriverBooking() {
                       type="button"
                       onClick={() => {
                         setSelectedFloor(f.id.toString());
+                        setSelectedSlotId(null);
                         setSelectedSlotCode('');
                       }}
                       className={`px-4 py-2 text-xs font-bold rounded-lg border transition-all whitespace-nowrap shrink-0 ${selectedFloor === f.id.toString()
@@ -583,7 +569,10 @@ export default function DriverBooking() {
                           key={slot.id}
                           type="button"
                           disabled={isOccupied}
-                          onClick={() => setSelectedSlotCode(slot.code)}
+                          onClick={() => {
+                            setSelectedSlotId(slot.id);
+                            setSelectedSlotCode(slot.code);
+                          }}
                           className={`p-3 border-2 rounded-xl text-center font-bold transition-all relative ${statusClass}`}
                         >
                           <span className="block text-sm">{slot.code}</span>
@@ -699,7 +688,7 @@ export default function DriverBooking() {
 
             <button
               type="submit"
-              disabled={isLoading || (selectedVehicleTypeId !== 1 && !selectedSlotCode)}
+              disabled={isLoading || (selectedVehicleTypeId !== 1 && !selectedSlotId)}
               className="w-full py-4 rounded-xl bg-[#00a86b] text-white font-bold text-sm shadow-md shadow-emerald-500/10 hover:bg-[#00905b] disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
             >
               {isLoading ? (

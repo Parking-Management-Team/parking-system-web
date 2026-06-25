@@ -16,7 +16,9 @@ import {
   ChevronLeft,
   ChevronRight,
   RefreshCw,
-  Info
+  Info,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 
 interface BuildingItem {
@@ -24,6 +26,8 @@ interface BuildingItem {
   name: string;
   code: string;
 }
+
+const FAILED_STATUSES = ['CANCELLED', 'EXPIRED', 'NOSHOW'];
 
 export default function BookingWorkspace() {
   const {
@@ -35,22 +39,19 @@ export default function BookingWorkspace() {
     cancelBooking,
   } = useBookings();
 
-  // Filters State
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [selectedBuildingId, setSelectedBuildingId] = useState<number | 'ALL'>('ALL');
   const [buildings, setBuildings] = useState<BuildingItem[]>([]);
-  
-  // Pagination
+  const [hideFailed, setHideFailed] = useState(true);
+
   const [currentPage, setCurrentPage] = useState(1);
   const ITEMS_PER_PAGE = 8;
 
-  // Selected Booking for Actions
   const [activeActionId, setActiveActionId] = useState<number | null>(null);
   const [actionType, setActionType] = useState<'confirm' | 'cancel' | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
 
-  // Load buildings
   useEffect(() => {
     api.get<BaseResponse<PagedResult<BuildingItem>>>('/Buildings/paged?pageIndex=1&pageSize=100')
       .then(res => {
@@ -63,8 +64,6 @@ export default function BookingWorkspace() {
 
   const triggerFetch = useCallback(() => {
     fetchBookings({
-      page: 1,
-      pageSize: 100,
       status: statusFilter,
       buildingId: selectedBuildingId === 'ALL' ? undefined : selectedBuildingId,
       licensePlate: searchTerm || undefined
@@ -75,27 +74,31 @@ export default function BookingWorkspace() {
     triggerFetch();
   }, [triggerFetch]);
 
-  // Compute metrics from current visible/active bookings
-  const metrics = useMemo(() => {
-    return bookings.reduce(
-      (acc, curr) => {
-        const status = (curr.bookingStatus || '').toUpperCase();
-        if (status === 'PENDING') acc.pending++;
-        else if (status === 'CONFIRMED') acc.confirmed++;
-        else if (status === 'CHECKEDIN') acc.checkedIn++;
-        acc.total++;
-        return acc;
-      },
-      { total: 0, pending: 0, confirmed: 0, checkedIn: 0 }
-    );
+  const allMetrics = useMemo(() => {
+    const m = { total: 0, pending: 0, confirmed: 0, checkedIn: 0, cancelled: 0, expired: 0, noShow: 0 };
+    bookings.forEach(b => {
+      const s = (b.bookingStatus || '').toUpperCase();
+      m.total++;
+      if (s === 'PENDING') m.pending++;
+      else if (s === 'CONFIRMED') m.confirmed++;
+      else if (s === 'CHECKEDIN') m.checkedIn++;
+      else if (s === 'CANCELLED') m.cancelled++;
+      else if (s === 'EXPIRED') m.expired++;
+      else if (s === 'NOSHOW') m.noShow++;
+    });
+    return m;
   }, [bookings]);
 
-  // Pagination filtering on already-fetched items
-  const totalPages = Math.max(1, Math.ceil(bookings.length / ITEMS_PER_PAGE));
+  const filteredBookings = useMemo(() => {
+    if (!hideFailed) return bookings;
+    return bookings.filter(b => !FAILED_STATUSES.includes((b.bookingStatus || '').toUpperCase()));
+  }, [bookings, hideFailed]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredBookings.length / ITEMS_PER_PAGE));
   const paginatedBookings = useMemo(() => {
     const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-    return bookings.slice(startIndex, startIndex + ITEMS_PER_PAGE);
-  }, [bookings, currentPage]);
+    return filteredBookings.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+  }, [filteredBookings, currentPage]);
 
   const handleAction = async () => {
     if (!activeActionId || !actionType) return;
@@ -134,9 +137,40 @@ export default function BookingWorkspace() {
     }
   };
 
+  const getStatusStyle = (status: string) => {
+    switch (status) {
+      case 'CONFIRMED':
+        return 'bg-emerald-50 text-emerald-700';
+      case 'PENDING':
+        return 'bg-amber-50 text-amber-700';
+      case 'CHECKEDIN':
+        return 'bg-blue-50 text-blue-700';
+      case 'CANCELLED':
+        return 'bg-rose-50 text-rose-700';
+      case 'EXPIRED':
+        return 'bg-orange-50 text-orange-700';
+      case 'NOSHOW':
+        return 'bg-slate-100 text-slate-600';
+      default:
+        return 'bg-slate-50 text-slate-500';
+    }
+  };
+
+  const getDotStyle = (status: string) => {
+    switch (status) {
+      case 'CONFIRMED': return 'bg-emerald-600';
+      case 'PENDING': return 'bg-amber-600';
+      case 'CHECKEDIN': return 'bg-blue-600';
+      case 'CANCELLED': return 'bg-rose-600';
+      case 'EXPIRED': return 'bg-orange-600';
+      case 'NOSHOW': return 'bg-slate-500';
+      default: return 'bg-slate-400';
+    }
+  };
+
   return (
     <div className="p-8 max-w-[1400px] mx-auto space-y-8">
-      {/* HEADER SECTION */}
+      {/* HEADER */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-black text-slate-800 tracking-tight">Bookings Management</h1>
@@ -155,56 +189,56 @@ export default function BookingWorkspace() {
       </div>
 
       {/* METRICS ROW */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <div className="bg-white border border-slate-100 p-5 rounded-2xl shadow-sm flex flex-col justify-between hover:shadow-md transition-all">
-          <div>
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total Active Bookings</span>
-            <h3 className="text-3xl font-black text-slate-800 mt-2">{metrics.total}</h3>
-          </div>
-          <div className="mt-4 flex items-center gap-1.5 text-xs text-slate-400">
-            <Calendar className="w-3.5 h-3.5 text-emerald-500" />
-            <span>Currently registered</span>
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+        <div className="bg-white border border-slate-100 p-5 rounded-2xl shadow-sm hover:shadow-md transition-all">
+          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total</span>
+          <h3 className="text-3xl font-black text-slate-800 mt-2">{allMetrics.total}</h3>
+          <div className="mt-3 flex items-center gap-1.5 text-xs text-slate-400">
+            <Calendar className="w-3.5 h-3.5 text-slate-500" />
+            <span>All bookings</span>
           </div>
         </div>
 
-        <div className="bg-white border border-slate-100 p-5 rounded-2xl shadow-sm flex flex-col justify-between hover:shadow-md transition-all">
-          <div>
-            <span className="text-[10px] font-bold text-amber-600 uppercase tracking-wider bg-amber-50 px-2 py-0.5 rounded-full">Pending Confirm</span>
-            <h3 className="text-3xl font-black text-amber-600 mt-2">{metrics.pending}</h3>
-          </div>
-          <div className="mt-4 flex items-center gap-1.5 text-xs text-slate-400">
+        <div className="bg-white border border-slate-100 p-5 rounded-2xl shadow-sm hover:shadow-md transition-all">
+          <span className="text-[10px] font-bold text-amber-600 uppercase tracking-wider bg-amber-50 px-2 py-0.5 rounded-full">Pending</span>
+          <h3 className="text-3xl font-black text-amber-600 mt-2">{allMetrics.pending}</h3>
+          <div className="mt-3 flex items-center gap-1.5 text-xs text-slate-400">
             <Clock className="w-3.5 h-3.5 text-amber-500" />
-            <span>Awaiting manual check-in</span>
+            <span>Awaiting payment</span>
           </div>
         </div>
 
-        <div className="bg-white border border-slate-100 p-5 rounded-2xl shadow-sm flex flex-col justify-between hover:shadow-md transition-all">
-          <div>
-            <span className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider bg-emerald-50 px-2 py-0.5 rounded-full">Confirmed Bookings</span>
-            <h3 className="text-3xl font-black text-emerald-600 mt-2">{metrics.confirmed}</h3>
-          </div>
-          <div className="mt-4 flex items-center gap-1.5 text-xs text-slate-400">
+        <div className="bg-white border border-slate-100 p-5 rounded-2xl shadow-sm hover:shadow-md transition-all">
+          <span className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider bg-emerald-50 px-2 py-0.5 rounded-full">Confirmed</span>
+          <h3 className="text-3xl font-black text-emerald-600 mt-2">{allMetrics.confirmed}</h3>
+          <div className="mt-3 flex items-center gap-1.5 text-xs text-slate-400">
             <CheckCircle className="w-3.5 h-3.5 text-emerald-500" />
-            <span>Guaranteed spaces</span>
+            <span>Paid & ready</span>
           </div>
         </div>
 
-        <div className="bg-white border border-slate-100 p-5 rounded-2xl shadow-sm flex flex-col justify-between hover:shadow-md transition-all">
-          <div>
-            <span className="text-[10px] font-bold text-blue-600 uppercase tracking-wider bg-blue-50 px-2 py-0.5 rounded-full">Checked In</span>
-            <h3 className="text-3xl font-black text-blue-600 mt-2">{metrics.checkedIn}</h3>
-          </div>
-          <div className="mt-4 flex items-center gap-1.5 text-xs text-slate-400">
+        <div className="bg-white border border-slate-100 p-5 rounded-2xl shadow-sm hover:shadow-md transition-all">
+          <span className="text-[10px] font-bold text-blue-600 uppercase tracking-wider bg-blue-50 px-2 py-0.5 rounded-full">Checked In</span>
+          <h3 className="text-3xl font-black text-blue-600 mt-2">{allMetrics.checkedIn}</h3>
+          <div className="mt-3 flex items-center gap-1.5 text-xs text-slate-400">
             <Car className="w-3.5 h-3.5 text-blue-500" />
             <span>Active in slots</span>
           </div>
         </div>
+
+        <div className="bg-white border border-slate-100 p-5 rounded-2xl shadow-sm hover:shadow-md transition-all">
+          <span className="text-[10px] font-bold text-rose-600 uppercase tracking-wider bg-rose-50 px-2 py-0.5 rounded-full">Failed</span>
+          <h3 className="text-3xl font-black text-rose-600 mt-2">{allMetrics.cancelled + allMetrics.expired + allMetrics.noShow}</h3>
+          <div className="mt-3 flex items-center gap-1.5 text-xs text-slate-400">
+            <XCircle className="w-3.5 h-3.5 text-rose-500" />
+            <span>Cancelled / Expired / NoShow</span>
+          </div>
+        </div>
       </div>
 
-      {/* FILTER & SEARCH */}
+      {/* FILTERS */}
       <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm space-y-4">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          {/* License Plate Search */}
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
           <div className="relative">
             <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
             <input
@@ -216,7 +250,6 @@ export default function BookingWorkspace() {
             />
           </div>
 
-          {/* Building Filter */}
           <div className="relative">
             <select
               value={selectedBuildingId}
@@ -237,7 +270,6 @@ export default function BookingWorkspace() {
             </div>
           </div>
 
-          {/* Status Filter */}
           <div className="relative">
             <select
               value={statusFilter}
@@ -250,20 +282,32 @@ export default function BookingWorkspace() {
               <option value="CHECKEDIN">Checked In</option>
               <option value="CANCELLED">Cancelled</option>
               <option value="EXPIRED">Expired</option>
+              <option value="NOSHOW">No Show</option>
             </select>
             <div className="absolute right-4 top-4 pointer-events-none text-slate-400">
               <Filter className="w-3.5 h-3.5" />
             </div>
           </div>
 
-          {/* Tips Info Block */}
+          <button
+            onClick={() => { setHideFailed(!hideFailed); setCurrentPage(1); }}
+            className={`flex items-center justify-center gap-2 px-4 py-3 text-xs font-bold rounded-xl border transition-all ${
+              hideFailed
+                ? 'bg-slate-50 border-slate-200 text-slate-500 hover:bg-slate-100'
+                : 'bg-rose-50 border-rose-200 text-rose-600 hover:bg-rose-100'
+            }`}
+          >
+            {hideFailed ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+            {hideFailed ? 'Showing Active Only' : 'Showing All'}
+          </button>
+
           <div className="bg-slate-50 border border-slate-100 rounded-xl px-4 py-2.5 flex items-center gap-2 text-[10px] text-slate-500 leading-normal">
             <Info className="w-4 h-4 text-[#006d43] shrink-0" />
-            <span>Confirm pre-bookings for VIP drivers or during exceptions. Checked-in vehicles can be managed via Gate workspace.</span>
+            <span>Toggle to hide failed bookings (Cancelled, Expired, NoShow).</span>
           </div>
         </div>
 
-        {/* BOOKINGS TABLE */}
+        {/* TABLE */}
         <div className="overflow-x-auto border border-slate-50 rounded-xl">
           {isLoading ? (
             <div className="py-20 flex flex-col items-center gap-3">
@@ -288,10 +332,12 @@ export default function BookingWorkspace() {
             <table className="w-full text-left border-collapse">
               <thead className="bg-slate-50 border-b border-slate-100 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
                 <tr>
-                  <th className="px-6 py-4">Booking Code</th>
+                  <th className="px-6 py-4">Booking ID</th>
+                  <th className="px-6 py-4">Customer</th>
                   <th className="px-6 py-4">Vehicle Plate</th>
                   <th className="px-6 py-4">Type</th>
-                  <th className="px-6 py-4">Facility / Building</th>
+                  <th className="px-6 py-4">Building</th>
+                  <th className="px-6 py-4">Slot</th>
                   <th className="px-6 py-4">Check-in Expected</th>
                   <th className="px-6 py-4">Deposit</th>
                   <th className="px-6 py-4">Status</th>
@@ -303,40 +349,36 @@ export default function BookingWorkspace() {
                   const status = (booking.bookingStatus || '').toUpperCase();
                   const isPending = status === 'PENDING';
                   const isConfirmed = status === 'CONFIRMED';
-                  
+
                   return (
                     <tr key={booking.id} className="hover:bg-slate-50/50 transition-colors">
                       <td className="px-6 py-4 font-mono font-bold text-slate-800">
-                        #{booking.code}
+                        #{booking.id}
+                      </td>
+                      <td className="px-6 py-4 text-slate-600">
+                        {booking.accountName || `#${booking.accountId}`}
                       </td>
                       <td className="px-6 py-4 font-mono font-bold text-slate-700">
                         {booking.licensePlate}
                       </td>
                       <td className="px-6 py-4 text-slate-500">
-                        {booking.vehicleType}
+                        {booking.vehicleTypeName || '—'}
                       </td>
                       <td className="px-6 py-4 font-semibold text-slate-700">
-                        {booking.buildingName}
+                        {booking.buildingName || '—'}
+                      </td>
+                      <td className="px-6 py-4 font-mono text-slate-600">
+                        {booking.slotCode || <span className="text-slate-300 italic">Auto</span>}
                       </td>
                       <td className="px-6 py-4 text-slate-500">
                         {formatDate(booking.plannedCheckinTime)}
                       </td>
                       <td className="px-6 py-4 font-bold text-slate-700">
-                        {booking.depositAmount.toLocaleString()} đ
+                        {booking.depositAmount?.toLocaleString()} đ
                       </td>
                       <td className="px-6 py-4">
-                        <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold capitalize ${
-                          status === 'CONFIRMED'
-                            ? 'bg-emerald-50 text-emerald-700'
-                            : status === 'PENDING'
-                            ? 'bg-amber-50 text-amber-700'
-                            : status === 'CHECKEDIN'
-                            ? 'bg-blue-50 text-blue-700'
-                            : 'bg-rose-50 text-rose-700'
-                        }`}>
-                          <span className={`w-1 h-1 rounded-full ${
-                            status === 'CONFIRMED' ? 'bg-emerald-600' : status === 'PENDING' ? 'bg-amber-600' : status === 'CHECKEDIN' ? 'bg-blue-600' : 'bg-rose-600'
-                          }`} />
+                        <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold capitalize ${getStatusStyle(status)}`}>
+                          <span className={`w-1 h-1 rounded-full ${getDotStyle(status)}`} />
                           {booking.bookingStatus}
                         </span>
                       </td>
@@ -377,11 +419,11 @@ export default function BookingWorkspace() {
           )}
         </div>
 
-        {/* PAGINATION BAR */}
-        {!isLoading && bookings.length > 0 && (
+        {/* PAGINATION */}
+        {!isLoading && filteredBookings.length > 0 && (
           <div className="p-4 bg-slate-50 border-t border-slate-100 flex items-center justify-between text-xs rounded-xl">
             <span className="text-slate-400">
-              Showing {Math.min((currentPage - 1) * ITEMS_PER_PAGE + 1, bookings.length)}–{Math.min(currentPage * ITEMS_PER_PAGE, bookings.length)} of {bookings.length}
+              Showing {Math.min((currentPage - 1) * ITEMS_PER_PAGE + 1, filteredBookings.length)}–{Math.min(currentPage * ITEMS_PER_PAGE, filteredBookings.length)} of {filteredBookings.length}
             </span>
             <div className="flex gap-1">
               <button
@@ -412,7 +454,7 @@ export default function BookingWorkspace() {
         )}
       </div>
 
-      {/* CONFIRMATION DIALOG MODAL */}
+      {/* ACTION MODAL */}
       {activeActionId && actionType && (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
           <div className="bg-white w-full max-w-sm rounded-2xl shadow-xl overflow-hidden border border-slate-100">

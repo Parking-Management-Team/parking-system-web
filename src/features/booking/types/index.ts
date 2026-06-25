@@ -1,23 +1,27 @@
 export interface Booking {
   id: number;
-  code?: string | null;
+  accountId: number;
+  accountName?: string | null;
+  vehicleId?: number | null;
   licensePlate: string;
-  vehiclePlate?: string | null;
-  vehicleType?: string | null;
-  buildingId?: number | null;
+  vehicleTypeId?: number | null;
+  vehicleTypeName?: string | null;
+  buildingId: number;
   buildingName?: string | null;
   plannedCheckinTime: string;
-  plannedCheckoutTime: string;
   depositAmount: number;
   bookingStatus: string;
-  depositPaid?: boolean | null;
-  isWithinGrace?: boolean | null;
+  paymentDeadline?: string | null;
+  checkinGraceUntil?: string | null;
+  confirmedAt?: string | null;
+  cancelledAt?: string | null;
+  cancelReason?: string | null;
   createdAt: string;
+  slotId?: number | null;
+  slotCode?: string | null;
 }
 
 export interface BookingFilter {
-  page: number;
-  pageSize: number;
   status?: string;
   buildingId?: number;
   licensePlate?: string;

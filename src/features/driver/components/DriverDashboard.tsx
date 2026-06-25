@@ -446,7 +446,17 @@ export default function DriverDashboard() {
             </div>
 
             <div className="bg-[#f8f9ff] border border-[#e2e8f0] rounded-2xl p-6">
-              {isLoadingMap ? (
+              {selectedVehicleTypeId === 1 ? (
+                <div className="p-6 bg-emerald-50/50 border border-emerald-100 rounded-xl text-center space-y-3">
+                  <div className="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto">
+                    <Clock className="w-6 h-6" />
+                  </div>
+                  <p className="text-sm font-bold text-slate-700">Đăng ký đỗ xe máy theo khung giờ</p>
+                  <p className="text-xs text-slate-500 max-w-md mx-auto leading-relaxed">
+                    Xe máy được đỗ tại khu vực đỗ xe máy chung (Motorbike Zone) tại Tầng 1. Hệ thống không yêu cầu chọn vị trí ô đỗ cụ thể. Bạn chỉ cần chọn thời gian gửi dự kiến ở phần Tóm tắt đặt chỗ.
+                  </p>
+                </div>
+              ) : isLoadingMap ? (
                 <div className="flex flex-col items-center justify-center py-12 gap-3">
                   <Loader2 className="w-8 h-8 text-[#006d43] animate-spin" />
                   <p className="text-xs text-slate-400">Loading real-time slot data...</p>
@@ -500,10 +510,12 @@ export default function DriverDashboard() {
               )}
             </div>
 
-            <div className="mt-4 p-4 bg-emerald-50 border border-emerald-100 rounded-xl flex items-center gap-3 text-emerald-800">
-              <Info className="w-5 h-5 shrink-0 text-emerald-600" />
-              <p className="text-xs font-semibold">Tip: Click on an available (green) slot to start booking immediately.</p>
-            </div>
+            {selectedVehicleTypeId !== 1 && (
+              <div className="mt-4 p-4 bg-emerald-50 border border-emerald-100 rounded-xl flex items-center gap-3 text-emerald-800">
+                <Info className="w-5 h-5 shrink-0 text-emerald-600" />
+                <p className="text-xs font-semibold">Tip: Click on an available (green) slot to start booking immediately.</p>
+              </div>
+            )}
           </section>
 
         </div>

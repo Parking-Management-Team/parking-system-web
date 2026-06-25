@@ -11,4 +11,3 @@
 // Components
 export { default as StaffOverview }     from './components/StaffOverview';
 export { default as IncidentHandling }  from './components/IncidentHandling';
-export { default as ShiftReports }      from './components/ShiftReports';

@@ -1,12 +1,12 @@
 'use client';
 
 import React from 'react';
-import { ShiftReports } from '@/features/staff';
 
-/**
- * Shift Reports Page - Trang báo cáo doanh thu ca, lịch sử hoạt động và kết thúc ca trực.
- * Render giao diện Shift Reports & Logs của features/staff.
- */
 export default function ShiftReportsPage() {
-  return <ShiftReports />;
+  return (
+    <div className="p-8">
+      <h1 className="text-2xl font-bold text-slate-800">Shift Reports</h1>
+      <p className="text-slate-500 text-sm mt-1">Coming soon...</p>
+    </div>
+  );
 }

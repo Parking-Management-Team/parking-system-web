@@ -196,14 +196,9 @@ export const ROLE_NAVIGATION: Record<string, NavigationItem[]> = {
       icon: 'directions_car',
     },
     {
-      label: 'Feedback & Reports',
+      label: 'Incident Report',
       href: '/dashboard/driver/reports',
       icon: 'chat_bubble',
-    },
-    {
-      label: 'Help Center',
-      href: '/dashboard/driver/help',
-      icon: 'help',
     },
     {
       label: 'My Profile',

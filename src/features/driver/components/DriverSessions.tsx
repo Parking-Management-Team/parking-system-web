@@ -217,6 +217,30 @@ export default function DriverSessions() {
     }
     setIsSavingModify(true);
     try {
+      const formatLocalVNTime = (date: Date): string => {
+        const parts = new Intl.DateTimeFormat('en-US', {
+          timeZone: 'Asia/Ho_Chi_Minh',
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+          hour12: false,
+        }).formatToParts(date);
+
+        const y = parts.find(p => p.type === 'year')?.value;
+        const m = parts.find(p => p.type === 'month')?.value;
+        const d = parts.find(p => p.type === 'day')?.value;
+        let hr = parts.find(p => p.type === 'hour')?.value ?? '00';
+        const min = parts.find(p => p.type === 'minute')?.value ?? '00';
+        const sec = parts.find(p => p.type === 'second')?.value ?? '00';
+
+        if (hr === '24') hr = '00';
+
+        return `${y}-${m}-${d}T${hr}:${min}:${sec}Z`;
+      };
+
       const checkinDate = new Date(`${newCheckinDate}T${newCheckinTime}:00`);
       
       // Tính toán khoảng thời gian đỗ xe ban đầu, tối thiểu là 4 tiếng
@@ -227,8 +251,8 @@ export default function DriverSessions() {
       const checkoutDate = new Date(checkinDate.getTime() + durationMs);
 
       await api.put(`/bookings/${modifyingBooking.id}`, {
-        plannedCheckinTime: checkinDate.toISOString(),
-        plannedCheckoutTime: checkoutDate.toISOString()
+        plannedCheckinTime: formatLocalVNTime(checkinDate),
+        plannedCheckoutTime: formatLocalVNTime(checkoutDate)
       });
       showToast('Booking updated successfully!', 'success');
       setShowModifyModal(false);

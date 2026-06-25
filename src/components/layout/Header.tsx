@@ -113,7 +113,7 @@ export default function Header() {
       'check-out': 'Vehicle Check-out',
       monitoring: 'Slot Monitoring',
       incident: 'Incident Handling',
-      reports: 'Shift Reports',
+      reports: pathname?.includes('/driver/') ? 'Incident Report' : 'Shift Reports',
       cards: 'Card Management',
       users: 'User Management',
       roles: 'Role & Permission',
@@ -138,7 +138,7 @@ export default function Header() {
       'check-out': 'Check-out Workspace',
       monitoring: 'Monitoring Panel',
       incident: 'Incident Panel',
-      reports: 'Shift Log',
+      reports: pathname?.includes('/driver/') ? 'Report Submission' : 'Shift Log',
       cards: 'Card Directory',
       users: 'System Users',
       roles: 'Roles & Permissions',
@@ -243,8 +243,15 @@ export default function Header() {
             <span className="material-symbols-outlined text-[20px]">notifications</span>
             <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-red-600 rounded-full"></span>
           </button>
-          {/* Nút trợ giúp nhanh */}
-          <button className="p-2 hover:bg-slate-100 rounded-full transition-colors hidden sm:block" title="Help">
+        {/* Nút trợ giúp nhanh - navigates to Help Center based on user role */}
+          <button
+            onClick={() => {
+              const role = pathname?.split('/')[2] || 'driver';
+              router.push(`/dashboard/${role}/help`);
+            }}
+            className="p-2 hover:bg-slate-100 rounded-full transition-colors hidden sm:block"
+            title="Help Center"
+          >
             <span className="material-symbols-outlined text-[20px]">help_outline</span>
           </button>
         </div>

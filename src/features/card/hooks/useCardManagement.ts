@@ -68,6 +68,26 @@ export function useCardManagement() {
     void fetchCards();
   }, [fetchCards]);
 
+  useEffect(() => {
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === 'visible') {
+        void fetchCards();
+      }
+    };
+
+    const refreshOnFocus = () => {
+      void fetchCards();
+    };
+
+    document.addEventListener('visibilitychange', refreshWhenVisible);
+    window.addEventListener('focus', refreshOnFocus);
+
+    return () => {
+      document.removeEventListener('visibilitychange', refreshWhenVisible);
+      window.removeEventListener('focus', refreshOnFocus);
+    };
+  }, [fetchCards]);
+
   const filteredCards = useMemo(() => {
     const search = searchCode.trim().toUpperCase();
 

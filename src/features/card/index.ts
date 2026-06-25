@@ -9,6 +9,7 @@
 
 // Components
 export { default as CardManager } from './components/CardManager';
+export { default as ManagerCardWorkspace } from './components/ManagerCardWorkspace';
 
 export { useCardManagement } from './hooks/useCardManagement';
 export type {

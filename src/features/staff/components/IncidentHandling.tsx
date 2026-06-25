@@ -1,224 +1,683 @@
 'use client';
 
-import React, { useState } from 'react';
-import { useIncidentTypes } from '@/features/incident-type';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useIncidents } from '@/features/incident';
-import type { Incident, IncidentStatus } from '@/features/incident';
+import type {
+  BlacklistTargetType,
+  Incident,
+  IncidentSessionOption,
+  IncidentStatus,
+} from '@/features/incident';
 
-const STATUS_CONFIG: Record<IncidentStatus, { label: string; color: string; bg: string }> = {
-  Open: { label: 'Open', color: 'text-red-700', bg: 'bg-red-100' },
-  Processing: { label: 'Processing', color: 'text-amber-700', bg: 'bg-amber-100' },
-  Resolved: { label: 'Resolved', color: 'text-emerald-700', bg: 'bg-emerald-100' },
-  Cancelled: { label: 'Cancelled', color: 'text-slate-500', bg: 'bg-slate-100' },
+const STATUS_CONFIG: Record<
+  IncidentStatus,
+  { label: string; badge: string; icon: string }
+> = {
+  OPEN: {
+    label: 'Open',
+    badge: 'border-orange-200 bg-orange-50 text-orange-700',
+    icon: 'report_problem',
+  },
+  PROCESSING: {
+    label: 'Processing',
+    badge: 'border-blue-200 bg-blue-50 text-blue-700',
+    icon: 'pending',
+  },
+  RESOLVED: {
+    label: 'Resolved',
+    badge: 'border-emerald-200 bg-emerald-50 text-emerald-700',
+    icon: 'task_alt',
+  },
+  CANCELLED: {
+    label: 'Cancelled',
+    badge: 'border-slate-200 bg-slate-100 text-slate-500',
+    icon: 'cancel',
+  },
+};
+
+const formatCurrency = (value?: number | null) =>
+  new Intl.NumberFormat('vi-VN', {
+    style: 'currency',
+    currency: 'VND',
+    maximumFractionDigits: 0,
+  }).format(value ?? 0);
+
+const formatDateTime = (value?: string | null) => {
+  if (!value) return '—';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '—';
+  return new Intl.DateTimeFormat('vi-VN', {
+    dateStyle: 'short',
+    timeStyle: 'short',
+  }).format(date);
+};
+
+const getAllowedNextStatuses = (status: IncidentStatus): IncidentStatus[] => {
+  if (status === 'OPEN') return ['PROCESSING', 'RESOLVED', 'CANCELLED'];
+  if (status === 'PROCESSING') return ['RESOLVED', 'CANCELLED'];
+  return [];
+};
+
+const findIncidentSession = (
+  incident: Incident | null,
+  sessions: IncidentSessionOption[]
+) => {
+  if (!incident) return null;
+  return sessions.find((session) => session.sessionId === incident.sessionId) ?? null;
 };
 
 export default function IncidentHandling() {
-  const { incidentTypes, loading: loadingIncidentTypes } = useIncidentTypes();
   const {
     incidents,
-    loading: loadingIncidents,
+    filteredIncidents,
+    incidentTypes,
+    activeSessions,
+    isLoading,
+    isSubmitting,
+    error,
+    filters,
+    setFilters,
+    refresh,
+    createIncident,
     updateIncidentStatus,
+    createBlacklist,
   } = useIncidents();
 
+  const [selectedSessionId, setSelectedSessionId] = useState('');
+  const [selectedIncidentTypeId, setSelectedIncidentTypeId] = useState('');
+  const [description, setDescription] = useState('');
+  const [penaltyFee, setPenaltyFee] = useState('');
+  const [feedback, setFeedback] = useState<{
+    tone: 'success' | 'error' | 'warning';
+    message: string;
+  } | null>(null);
   const [selectedIncident, setSelectedIncident] = useState<Incident | null>(null);
-  const [notes, setNotes] = useState('');
+  const [statusNote, setStatusNote] = useState('');
+  const [blacklistIncident, setBlacklistIncident] = useState<Incident | null>(null);
+  const [blacklistTarget, setBlacklistTarget] =
+    useState<BlacklistTargetType>('VEHICLE');
+  const [blacklistReason, setBlacklistReason] = useState('');
 
-  const handleStatusChange = async (id: number, status: IncidentStatus) => {
-    const success = await updateIncidentStatus(id, status, notes);
-    if (success) {
-      setSelectedIncident(null);
-      setNotes('');
+  const selectedIncidentType = incidentTypes.find(
+    (type) => type.id === Number(selectedIncidentTypeId)
+  );
+
+  const selectedBlacklistSession = findIncidentSession(
+    blacklistIncident,
+    activeSessions
+  );
+
+  const blacklistVehicleId =
+    blacklistIncident?.vehicleId ?? selectedBlacklistSession?.vehicleId ?? null;
+  const blacklistCardId =
+    blacklistIncident?.cardId ?? selectedBlacklistSession?.cardId ?? null;
+
+  const statusCounts = useMemo(
+    () =>
+      incidents.reduce(
+        (counts, incident) => ({
+          ...counts,
+          [incident.status]: counts[incident.status] + 1,
+        }),
+        { OPEN: 0, PROCESSING: 0, RESOLVED: 0, CANCELLED: 0 } as Record<
+          IncidentStatus,
+          number
+        >
+      ),
+    [incidents]
+  );
+
+  useEffect(() => {
+    if (selectedIncidentType?.defaultPenaltyFee != null) {
+      setPenaltyFee(String(selectedIncidentType.defaultPenaltyFee));
+    }
+  }, [selectedIncidentType]);
+
+  const handleCreateIncident = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setFeedback(null);
+
+    const sessionId = Number(selectedSessionId);
+    const incidentTypeId = Number(selectedIncidentTypeId);
+    const fee = penaltyFee.trim() ? Number(penaltyFee) : null;
+    const trimmedDescription = description.trim();
+
+    if (!sessionId) {
+      setFeedback({ tone: 'error', message: 'Please select an active parking session.' });
+      return;
+    }
+
+    if (!incidentTypeId) {
+      setFeedback({ tone: 'error', message: 'Please select an incident type.' });
+      return;
+    }
+
+    if (trimmedDescription.length > 100) {
+      setFeedback({
+        tone: 'error',
+        message: 'Description must be 100 characters or less because BE currently limits this field.',
+      });
+      return;
+    }
+
+    if (fee != null && (Number.isNaN(fee) || fee < 0)) {
+      setFeedback({ tone: 'error', message: 'Penalty fee must not be negative.' });
+      return;
+    }
+
+    const result = await createIncident({
+      sessionId,
+      incidentTypeId,
+      description: trimmedDescription || undefined,
+      penaltyFee: fee,
+    });
+
+    setFeedback({
+      tone: result.success ? 'success' : 'error',
+      message: result.message,
+    });
+
+    if (result.success) {
+      setSelectedSessionId('');
+      setSelectedIncidentTypeId('');
+      setDescription('');
+      setPenaltyFee('');
     }
   };
 
-  const formatTime = (dateStr: string) => {
-    const date = new Date(dateStr);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffMins = Math.floor(diffMs / 60000);
-    if (diffMins < 1) return 'Just now';
-    if (diffMins < 60) return `${diffMins}m ago`;
-    const diffHours = Math.floor(diffMins / 60);
-    if (diffHours < 24) return `${diffHours}h ago`;
-    return `${Math.floor(diffHours / 24)}d ago`;
+  const handleStatusChange = async (
+    incident: Incident,
+    nextStatus: IncidentStatus
+  ) => {
+    const result = await updateIncidentStatus(
+      incident.id,
+      nextStatus,
+      statusNote || undefined
+    );
+
+    setFeedback({
+      tone: result.success ? 'success' : 'error',
+      message: result.message,
+    });
+
+    if (result.success) {
+      setSelectedIncident(null);
+      setStatusNote('');
+    }
   };
 
-  const activeIncidents = incidents.filter((i) => i.status !== 'Resolved' && i.status !== 'Cancelled');
+  const openBlacklistModal = (incident: Incident) => {
+    setBlacklistIncident(incident);
+    setBlacklistTarget('VEHICLE');
+    setBlacklistReason(
+      incident.licensePlate
+        ? `Incident #${incident.id} - ${incident.licensePlate}`
+        : `Incident #${incident.id}`
+    );
+  };
+
+  const handleCreateBlacklist = async (event: React.FormEvent) => {
+    event.preventDefault();
+
+    if (!blacklistIncident) return;
+
+    const reason = blacklistReason.trim();
+    if (!reason) {
+      setFeedback({ tone: 'error', message: 'Blacklist reason is required.' });
+      return;
+    }
+
+    const includeVehicle =
+      blacklistTarget === 'VEHICLE' || blacklistTarget === 'BOTH';
+    const includeCard = blacklistTarget === 'CARD' || blacklistTarget === 'BOTH';
+
+    if (includeVehicle && !blacklistVehicleId) {
+      setFeedback({
+        tone: 'error',
+        message: 'This incident does not have a vehicleId to blacklist.',
+      });
+      return;
+    }
+
+    if (includeCard && !blacklistCardId) {
+      setFeedback({
+        tone: 'error',
+        message: 'This incident does not have a cardId to blacklist.',
+      });
+      return;
+    }
+
+    const result = await createBlacklist({
+      vehicleId: includeVehicle ? blacklistVehicleId : null,
+      cardId: includeCard ? blacklistCardId : null,
+      incidentId: blacklistIncident.id,
+      reason,
+    });
+
+    setFeedback({
+      tone: result.success ? 'success' : 'error',
+      message: result.message,
+    });
+
+    if (result.success) {
+      setBlacklistIncident(null);
+      setBlacklistReason('');
+    }
+  };
+
+  const feedbackClassName =
+    feedback?.tone === 'success'
+      ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+      : feedback?.tone === 'warning'
+        ? 'border-amber-200 bg-amber-50 text-amber-700'
+        : 'border-red-200 bg-red-50 text-red-700';
 
   return (
     <div className="p-8 space-y-8">
-      <div>
-        <h1 className="text-2xl font-bold text-slate-800">Incident Handling Center</h1>
-        <p className="text-slate-500 text-sm mt-1">Resolve parking discrepancies, issue fines for lost tickets, and record incident logs.</p>
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-800">Incident Handling</h1>
+          <p className="mt-1 max-w-3xl text-sm text-slate-500">
+            Handle lost tickets, wrong license plates, overtime parking, wrong area
+            parking, and unpaid vehicles.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => void refresh()}
+          className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-3 text-xs font-bold text-white transition hover:bg-slate-700"
+        >
+          <span className="material-symbols-outlined text-base">refresh</span>
+          Refresh
+        </button>
       </div>
 
-      <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
-        <h3 className="text-sm font-bold text-slate-600 mb-3">Available Incident Types</h3>
-        {loadingIncidentTypes ? (
-          <p className="text-xs text-slate-400">Loading incident types...</p>
-        ) : (
-          <div className="flex flex-wrap gap-2">
-            {incidentTypes.map((type) => (
-              <span key={type.id} className="px-3 py-1 bg-slate-100 text-slate-600 rounded-full text-xs font-medium">
-                {type.incidentName}
-                {type.defaultPenaltyFee != null && (
-                  <span className="text-red-500 ml-1">({type.defaultPenaltyFee.toLocaleString()} VND)</span>
-                )}
-              </span>
-            ))}
-            {incidentTypes.length === 0 && (
-              <p className="text-xs text-slate-400">No incident types configured</p>
-            )}
-          </div>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
+        <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
+          <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Total</p>
+          <p className="mt-2 text-3xl font-black text-slate-800">{incidents.length}</p>
+        </div>
+        {(['OPEN', 'PROCESSING', 'RESOLVED', 'CANCELLED'] as IncidentStatus[]).map(
+          (status) => (
+            <div key={status} className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
+              <p className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                {STATUS_CONFIG[status].label}
+              </p>
+              <p className="mt-2 text-3xl font-black text-slate-800">
+                {statusCounts[status]}
+              </p>
+            </div>
+          )
         )}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm lg:col-span-2 space-y-6">
-          <h3 className="text-lg font-bold text-slate-800 pb-4 border-b border-slate-100 font-sans">Active Incidents</h3>
+      {(feedback || error) && (
+        <div
+          className={`flex items-start justify-between gap-4 rounded-xl border px-4 py-3 text-sm font-bold ${
+            feedback ? feedbackClassName : 'border-red-200 bg-red-50 text-red-700'
+          }`}
+        >
+          <p>{feedback?.message ?? error}</p>
+          {feedback && (
+            <button type="button" onClick={() => setFeedback(null)}>
+              <span className="material-symbols-outlined text-lg">close</span>
+            </button>
+          )}
+        </div>
+      )}
 
-          {loadingIncidents ? (
-            <div className="text-center py-8 text-slate-400">
-              <span className="material-symbols-outlined text-4xl animate-spin">progress_activity</span>
-              <p className="text-sm mt-2">Loading incidents...</p>
+      <div className="grid grid-cols-1 gap-8 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.4fr)]">
+        <form
+          onSubmit={handleCreateIncident}
+          className="space-y-5 rounded-2xl border border-slate-100 bg-white p-6 shadow-sm"
+        >
+          <div>
+            <h2 className="text-lg font-bold text-slate-800">Create Incident</h2>
+            <p className="mt-1 text-xs text-slate-500">
+              Create a record only. This does not checkout, release card, or relocate vehicle.
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-xs font-bold uppercase text-slate-500">
+              Active Parking Session
+            </label>
+            <select
+              value={selectedSessionId}
+              onChange={(event) => setSelectedSessionId(event.target.value)}
+              className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            >
+              <option value="">Select session</option>
+              {activeSessions.map((session) => (
+                <option key={session.sessionId} value={session.sessionId}>
+                  {session.licensePlate} · {session.cardCode ?? 'No card code'} ·{' '}
+                  {session.sessionCode ?? `SS-${session.sessionId}`}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-xs font-bold uppercase text-slate-500">
+              Incident Type
+            </label>
+            <select
+              value={selectedIncidentTypeId}
+              onChange={(event) => setSelectedIncidentTypeId(event.target.value)}
+              disabled={incidentTypes.length === 0}
+              className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 disabled:text-slate-400"
+            >
+              <option value="">
+                {incidentTypes.length === 0
+                  ? 'No incident types from BE'
+                  : 'Select incident type'}
+              </option>
+              {incidentTypes.map((type) => (
+                <option key={type.id} value={type.id}>
+                  {type.incidentName} ({type.incidentCode || 'NO_CODE'})
+                </option>
+              ))}
+            </select>
+            {incidentTypes.length === 0 && (
+              <p className="text-xs font-semibold text-amber-600">
+                BE endpoint exists but currently returns no incident types. Ask BE to seed/create
+                incident types before creating incidents.
+              </p>
+            )}
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-xs font-bold uppercase text-slate-500">
+              Penalty Fee
+            </label>
+            <input
+              type="number"
+              min={0}
+              value={penaltyFee}
+              onChange={(event) => setPenaltyFee(event.target.value)}
+              placeholder="0"
+              className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 font-mono text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            />
+            {selectedIncidentType?.defaultPenaltyFee != null && (
+              <p className="text-xs text-slate-400">
+                Default: {formatCurrency(selectedIncidentType.defaultPenaltyFee)}
+              </p>
+            )}
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-xs font-bold uppercase text-slate-500">
+              Description
+            </label>
+            <textarea
+              value={description}
+              onChange={(event) => setDescription(event.target.value)}
+              rows={4}
+              maxLength={100}
+              placeholder="Describe the incident. Max 100 characters by current BE DTO."
+              className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            />
+            <p className="text-right text-xs text-slate-400">{description.length}/100</p>
+          </div>
+
+          <button
+            type="submit"
+            disabled={isSubmitting || incidentTypes.length === 0}
+            className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-500 py-4 text-sm font-bold text-white shadow-lg shadow-emerald-500/20 transition hover:bg-emerald-600 disabled:bg-slate-300 disabled:shadow-none"
+          >
+            <span className="material-symbols-outlined text-base">add_circle</span>
+            {isSubmitting ? 'Creating...' : 'Create Incident'}
+          </button>
+        </form>
+
+        <div className="space-y-5 rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <h2 className="text-lg font-bold text-slate-800">Incident List</h2>
+              <p className="mt-1 text-xs text-slate-500">
+                Search and update status for existing incidents.
+              </p>
             </div>
-          ) : activeIncidents.length === 0 ? (
-            <div className="text-center py-8 text-slate-400">
-              <span className="material-symbols-outlined text-4xl">check_circle</span>
-              <p className="text-sm mt-2">No active incidents</p>
+          </div>
+
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
+            <input
+              type="search"
+              value={filters.search}
+              onChange={(event) =>
+                setFilters((current) => ({ ...current, search: event.target.value }))
+              }
+              placeholder="Plate, card, session, type..."
+              className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 md:col-span-2"
+            />
+            <select
+              value={filters.status}
+              onChange={(event) =>
+                setFilters((current) => ({
+                  ...current,
+                  status: event.target.value as 'ALL' | IncidentStatus,
+                }))
+              }
+              className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-700"
+            >
+              <option value="ALL">All statuses</option>
+              <option value="OPEN">OPEN</option>
+              <option value="PROCESSING">PROCESSING</option>
+              <option value="RESOLVED">RESOLVED</option>
+              <option value="CANCELLED">CANCELLED</option>
+            </select>
+            <input
+              type="date"
+              value={filters.createdDate}
+              onChange={(event) =>
+                setFilters((current) => ({
+                  ...current,
+                  createdDate: event.target.value,
+                }))
+              }
+              className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-700"
+            />
+          </div>
+
+          {isLoading ? (
+            <div className="py-14 text-center text-slate-400">
+              <span className="material-symbols-outlined animate-spin text-4xl">
+                progress_activity
+              </span>
+              <p className="mt-2 text-sm">Loading incidents...</p>
+            </div>
+          ) : filteredIncidents.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-slate-200 py-14 text-center text-slate-400">
+              <span className="material-symbols-outlined text-4xl">gpp_maybe</span>
+              <p className="mt-2 text-sm">No incidents found.</p>
             </div>
           ) : (
             <div className="space-y-3">
-              {activeIncidents.map((incident) => {
+              {filteredIncidents.map((incident) => {
                 const config = STATUS_CONFIG[incident.status];
+                const nextStatuses = getAllowedNextStatuses(incident.status);
+                const isSelected = selectedIncident?.id === incident.id;
+
                 return (
-                  <div
+                  <article
                     key={incident.id}
-                    onClick={() => setSelectedIncident(incident)}
-                    className={`p-4 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-4 cursor-pointer hover:shadow-sm transition-all ${
-                      selectedIncident?.id === incident.id ? 'border-emerald-500 bg-emerald-50/10' : 'border-slate-100 bg-white'
+                    className={`rounded-xl border p-4 transition ${
+                      isSelected
+                        ? 'border-emerald-300 bg-emerald-50/30'
+                        : 'border-slate-200 bg-white hover:border-emerald-200'
                     }`}
                   >
-                    <div className="flex items-center gap-3">
-                      <span className={`material-symbols-outlined p-2 rounded-lg text-lg ${
-                        incident.status === 'Resolved' ? 'bg-emerald-50 text-emerald-500' : 'bg-red-50 text-red-500'
-                      }`}>
-                        {incident.status === 'Resolved' ? 'check_circle' : 'report_problem'}
-                      </span>
-                      <div>
-                        <div className="text-sm font-bold text-slate-700 flex items-center gap-2">
-                          #{incident.id}
-                          <span className={`text-[9px] px-2 py-0.5 rounded-full font-bold ${config.bg} ${config.color}`}>
+                    <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+                      <div className="min-w-0 space-y-2">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="font-mono text-sm font-black text-slate-800">
+                            #{incident.id}
+                          </span>
+                          <span className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-bold ${config.badge}`}>
+                            <span className="material-symbols-outlined text-sm">{config.icon}</span>
                             {config.label}
                           </span>
+                          <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-bold text-slate-600">
+                            {incident.incidentName}
+                          </span>
                         </div>
-                        <p className="text-xs text-slate-500 mt-1">
-                          Type: <span className="font-semibold text-slate-600">{incident.incidentName}</span> | Plate: <span className="font-mono font-bold">{incident.licensePlate}</span>
-                        </p>
+                        <div className="grid grid-cols-1 gap-x-6 gap-y-1 text-xs font-semibold text-slate-600 md:grid-cols-2">
+                          <p>Plate: <span className="font-mono font-black text-slate-800">{incident.licensePlate ?? '—'}</span></p>
+                          <p>Card: <span className="font-mono font-black text-slate-800">{incident.cardCode ?? '—'}</span></p>
+                          <p>Session: <span className="font-mono font-black text-slate-800">{incident.sessionCode ?? `#${incident.sessionId}`}</span></p>
+                          <p>Penalty: <span className="font-black text-red-600">{formatCurrency(incident.penaltyFee)}</span></p>
+                          <p>Created: {formatDateTime(incident.createdAt)}</p>
+                          <p>Resolved: {formatDateTime(incident.resolvedAt)}</p>
+                        </div>
+                        {incident.description && (
+                          <p className="rounded-lg bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-600">
+                            {incident.description}
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="flex flex-wrap gap-2 xl:justify-end">
+                        <button
+                          type="button"
+                          onClick={() => setSelectedIncident(isSelected ? null : incident)}
+                          className="rounded-lg bg-slate-100 px-3 py-2 text-xs font-bold text-slate-600 hover:bg-slate-200"
+                        >
+                          {isSelected ? 'Close Actions' : 'Actions'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => openBlacklistModal(incident)}
+                          className="rounded-lg bg-red-50 px-3 py-2 text-xs font-bold text-red-700 hover:bg-red-100"
+                        >
+                          Blacklist
+                        </button>
                       </div>
                     </div>
-                    <span className="text-[10px] text-slate-400 self-end sm:self-center font-medium">{formatTime(incident.createdAt)}</span>
-                  </div>
+
+                    {isSelected && (
+                      <div className="mt-4 space-y-3 border-t border-slate-100 pt-4">
+                        <textarea
+                          value={statusNote}
+                          onChange={(event) => setStatusNote(event.target.value)}
+                          rows={2}
+                          placeholder="Optional status note / resolution proof"
+                          className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                        />
+                        {nextStatuses.length > 0 ? (
+                          <div className="flex flex-wrap gap-2">
+                            {nextStatuses.map((status) => (
+                              <button
+                                key={status}
+                                type="button"
+                                disabled={isSubmitting}
+                                onClick={() => void handleStatusChange(incident, status)}
+                                className={`rounded-lg border px-3 py-2 text-xs font-bold ${STATUS_CONFIG[status].badge}`}
+                              >
+                                Move to {STATUS_CONFIG[status].label}
+                              </button>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-xs font-bold text-slate-400">
+                            Final status. No more status actions available.
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </article>
                 );
               })}
             </div>
           )}
         </div>
-
-        <div className="space-y-6">
-          {selectedIncident ? (
-            <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-6 animate-fadeIn">
-              <div>
-                <h3 className="text-base font-bold text-slate-800">Incident #{selectedIncident.id}</h3>
-                <p className="text-xs text-slate-400 mt-1">Review discrepancy details and verify checklist.</p>
-              </div>
-
-              <div className="space-y-3 text-xs text-slate-600 bg-slate-50 p-4 rounded-xl border border-slate-100">
-                <div className="flex justify-between">
-                  <span>Incident Type:</span>
-                  <span className="font-bold text-slate-700">{selectedIncident.incidentName}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>License Plate:</span>
-                  <span className="font-mono font-bold text-slate-700">{selectedIncident.licensePlate}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Session ID:</span>
-                  <span className="font-mono font-bold text-slate-700">#{selectedIncident.sessionId}</span>
-                </div>
-                {selectedIncident.description && (
-                  <div className="flex justify-between">
-                    <span>Description:</span>
-                    <span className="font-bold text-slate-700 text-right max-w-[60%]">{selectedIncident.description}</span>
-                  </div>
-                )}
-                <div className="flex justify-between border-t border-slate-200/60 pt-2 mt-2">
-                  <span className="font-bold text-red-500">Penalty Fee:</span>
-                  <span className="font-bold text-red-500">{selectedIncident.penaltyFee.toLocaleString()} VND</span>
-                </div>
-              </div>
-
-              {selectedIncident.status === 'Open' || selectedIncident.status === 'Processing' ? (
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-slate-500 uppercase">Operational Notes / Reason</label>
-                    <textarea
-                      placeholder="Enter resolution notes or proof verified (e.g. driver license checked)..."
-                      value={notes}
-                      onChange={(e) => setNotes(e.target.value)}
-                      rows={3}
-                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 text-xs font-semibold text-slate-700"
-                    />
-                  </div>
-
-                  <div className="flex gap-2">
-                    {selectedIncident.status === 'Open' && (
-                      <button
-                        onClick={() => handleStatusChange(selectedIncident.id, 'Processing')}
-                        className="flex-1 py-3 bg-amber-500 text-white rounded-xl text-xs font-bold hover:bg-amber-600 transition-all flex items-center justify-center gap-2"
-                      >
-                        <span className="material-symbols-outlined text-sm">pending</span>
-                        Processing
-                      </button>
-                    )}
-                    <button
-                      onClick={() => handleStatusChange(selectedIncident.id, 'Resolved')}
-                      className="flex-1 py-3 bg-emerald-500 text-white rounded-xl text-xs font-bold hover:bg-emerald-600 transition-all flex items-center justify-center gap-2"
-                    >
-                      <span className="material-symbols-outlined text-sm">task_alt</span>
-                      Resolve
-                    </button>
-                    <button
-                      onClick={() => handleStatusChange(selectedIncident.id, 'Cancelled')}
-                      className="py-3 px-4 bg-slate-200 text-slate-600 rounded-xl text-xs font-bold hover:bg-slate-300 transition-all"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <div className={`p-4 rounded-xl border text-center text-xs font-bold flex items-center justify-center gap-1.5 ${
-                  selectedIncident.status === 'Resolved'
-                    ? 'bg-emerald-50 border-emerald-100 text-emerald-800'
-                    : 'bg-slate-50 border-slate-100 text-slate-500'
-                }`}>
-                  <span className="material-symbols-outlined text-sm">
-                    {selectedIncident.status === 'Resolved' ? 'check_circle' : 'cancel'}
-                  </span>
-                  {selectedIncident.status === 'Resolved'
-                    ? 'This incident has been fully resolved.'
-                    : 'This incident has been cancelled.'}
-                </div>
-              )}
-            </div>
-          ) : (
-            <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm text-center py-12 text-slate-400">
-              <span className="material-symbols-outlined text-4xl">gpp_maybe</span>
-              <p className="text-sm mt-2">Select an incident from the list to view resolution workflow.</p>
-            </div>
-          )}
-        </div>
       </div>
+
+      {blacklistIncident && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-sm">
+          <form
+            onSubmit={handleCreateBlacklist}
+            className="w-full max-w-lg space-y-5 rounded-2xl border border-slate-100 bg-white p-6 shadow-2xl"
+          >
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h2 className="text-xl font-bold text-slate-800">
+                  Create Blacklist Record
+                </h2>
+                <p className="mt-1 text-xs text-slate-500">
+                  Incident #{blacklistIncident.id} · {blacklistIncident.licensePlate ?? 'No plate'}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setBlacklistIncident(null)}
+                className="rounded-lg bg-slate-100 p-2 text-slate-500 hover:bg-slate-200"
+              >
+                <span className="material-symbols-outlined text-lg">close</span>
+              </button>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-xs font-bold uppercase text-slate-500">Target</label>
+              <div className="grid grid-cols-3 gap-2">
+                {(['VEHICLE', 'CARD', 'BOTH'] as BlacklistTargetType[]).map((target) => {
+                  const disabled =
+                    (target === 'VEHICLE' && !blacklistVehicleId) ||
+                    (target === 'CARD' && !blacklistCardId) ||
+                    (target === 'BOTH' && (!blacklistVehicleId || !blacklistCardId));
+
+                  return (
+                    <button
+                      key={target}
+                      type="button"
+                      disabled={disabled}
+                      onClick={() => setBlacklistTarget(target)}
+                      className={`rounded-xl border px-3 py-3 text-xs font-bold ${
+                        blacklistTarget === target
+                          ? 'border-red-300 bg-red-50 text-red-700'
+                          : 'border-slate-200 bg-slate-50 text-slate-600'
+                      } disabled:cursor-not-allowed disabled:opacity-40`}
+                    >
+                      {target}
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="text-xs text-slate-400">
+                vehicleId: {blacklistVehicleId ?? '—'} · cardId: {blacklistCardId ?? '—'}
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-xs font-bold uppercase text-slate-500">Reason</label>
+              <textarea
+                value={blacklistReason}
+                onChange={(event) => setBlacklistReason(event.target.value)}
+                rows={3}
+                maxLength={100}
+                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-red-500"
+              />
+              <p className="text-right text-xs text-slate-400">{blacklistReason.length}/100</p>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => setBlacklistIncident(null)}
+                className="flex-1 rounded-xl bg-slate-100 py-3 text-sm font-bold text-slate-600 hover:bg-slate-200"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="flex-1 rounded-xl bg-red-500 py-3 text-sm font-bold text-white hover:bg-red-600 disabled:bg-slate-300"
+              >
+                {isSubmitting ? 'Creating...' : 'Create Blacklist Record'}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
     </div>
   );
 }

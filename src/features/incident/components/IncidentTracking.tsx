@@ -64,20 +64,20 @@ export default function IncidentTracking({ role }: IncidentTrackingProps) {
 
   // Stats derivation
   const totalCount = incidents.length;
-  const openCount = incidents.filter(i => i.status === 'Open' || i.status === 0).length;
-  const processingCount = incidents.filter(i => i.status === 'Processing' || i.status === 1).length;
-  const resolvedCount = incidents.filter(i => i.status === 'Resolved' || i.status === 2).length;
+  const openCount = incidents.filter(i => i.status === 'OPEN' || (i.status as any) === 0).length;
+  const processingCount = incidents.filter(i => i.status === 'PROCESSING' || (i.status as any) === 1).length;
+  const resolvedCount = incidents.filter(i => i.status === 'RESOLVED' || (i.status as any) === 2).length;
   
   const totalPenaltiesCollected = incidents
-    .filter(i => i.status === 'Resolved' || i.status === 2)
+    .filter(i => i.status === 'RESOLVED' || (i.status as any) === 2)
     .reduce((sum, i) => sum + (i.penaltyFee || 0), 0);
 
   // Normalize backend status representation to UI status string
   const getNormalizedStatus = (status: any): 'Open' | 'Processing' | 'Resolved' | 'Cancelled' => {
-    if (status === 0 || status === 'Open') return 'Open';
-    if (status === 1 || status === 'Processing') return 'Processing';
-    if (status === 2 || status === 'Resolved') return 'Resolved';
-    if (status === 3 || status === 'Cancelled') return 'Cancelled';
+    if (status === 0 || status === 'Open' || status === 'OPEN') return 'Open';
+    if (status === 1 || status === 'Processing' || status === 'PROCESSING') return 'Processing';
+    if (status === 2 || status === 'Resolved' || status === 'RESOLVED') return 'Resolved';
+    if (status === 3 || status === 'Cancelled' || status === 'CANCELLED') return 'Cancelled';
     return 'Open';
   };
 
@@ -116,8 +116,14 @@ export default function IncidentTracking({ role }: IncidentTrackingProps) {
     if (!selectedIncident) return;
     setIsUpdating(true);
     try {
-      const success = await updateIncidentStatus(selectedIncident.id, status, notes);
-      if (success) {
+      const apiStatus = 
+        status === 'Processing'
+          ? 'PROCESSING'
+          : status === 'Resolved'
+            ? 'RESOLVED'
+            : 'CANCELLED';
+      const success = await updateIncidentStatus(selectedIncident.id, apiStatus, notes);
+      if (success.success) {
         // Also update description & fee if changed
         if (editedFee !== selectedIncident.penaltyFee || notes !== selectedIncident.description) {
           await incidentService.update(selectedIncident.id, {
@@ -129,7 +135,7 @@ export default function IncidentTracking({ role }: IncidentTrackingProps) {
         setSelectedIncident(null);
         fetchIncidents();
       } else {
-        showToast('Failed to update incident. Please try again.', 'error');
+        showToast(success.message || 'Failed to update incident. Please try again.', 'error');
       }
     } catch (err) {
       console.error(err);
@@ -375,11 +381,11 @@ export default function IncidentTracking({ role }: IncidentTrackingProps) {
                       <td className="px-6 py-4">
                         <span className="font-bold text-slate-800">{inc.incidentName || `Type #${inc.incidentTypeId}`}</span>
                       </td>
-                      <td className="px-6 py-4 max-w-[200px] truncate" title={inc.description}>
+                      <td className="px-6 py-4 max-w-[200px] truncate" title={inc.description || undefined}>
                         {inc.description || 'No description provided'}
                       </td>
                       <td className="px-6 py-4 font-mono font-bold text-red-500">
-                        {inc.penaltyFee > 0 ? `${inc.penaltyFee.toLocaleString()} VND` : '0 VND'}
+                        {(inc.penaltyFee ?? 0) > 0 ? `${(inc.penaltyFee ?? 0).toLocaleString()} VND` : '0 VND'}
                       </td>
                       <td className="px-6 py-4 text-slate-400">
                         {new Date(inc.createdAt).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}

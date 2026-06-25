@@ -23,54 +23,10 @@ type CardDto = {
   createdAt?: string | null;
 };
 
-const CARD_STATUS_OVERRIDES_KEY = 'nexpark_card_status_overrides';
-
-type CardStatusOverride = {
-  cardStatus: ParkingCard['cardStatus'];
-  vehiclePlate?: string | null;
-  currentSessionId?: number | null;
-};
-
-const getLocalCardStatusOverrides = (): Record<string, CardStatusOverride> => {
-  if (typeof window === 'undefined') return {};
-
-  try {
-    const raw = localStorage.getItem(CARD_STATUS_OVERRIDES_KEY);
-    return raw ? JSON.parse(raw) : {};
-  } catch {
-    return {};
-  }
-};
-
-export const setLocalCardStatusOverride = (
-  cardCode: string,
-  override: CardStatusOverride
-) => {
-  if (typeof window === 'undefined') return;
-
-  const normalizedCardCode = cardCode.trim().toUpperCase();
-  if (!normalizedCardCode) return;
-
-  const current = getLocalCardStatusOverrides();
-
-  localStorage.setItem(
-    CARD_STATUS_OVERRIDES_KEY,
-    JSON.stringify({
-      ...current,
-      [normalizedCardCode]: override,
-    })
-  );
-};
-
-export const clearLocalCardStatusOverride = (cardCode: string) => {
-  if (typeof window === 'undefined') return;
-
-  const normalizedCardCode = cardCode.trim().toUpperCase();
-  const current = getLocalCardStatusOverrides();
-
-  delete current[normalizedCardCode];
-
-  localStorage.setItem(CARD_STATUS_OVERRIDES_KEY, JSON.stringify(current));
+type ActiveParkingSessionDto = {
+  id?: number | null;
+  cardId?: number | null;
+  licensePlateIn?: string | null;
 };
 
 const mapCardType = (value: unknown): ParkingCard['cardType'] => {
@@ -114,6 +70,47 @@ const mapCardDto = (card: CardDto): ParkingCard => ({
   validTo: null,
   createdAt: String(card.createdAt ?? new Date().toISOString()),
 });
+
+const enrichCardsWithActiveSessions = (
+  cards: ParkingCard[],
+  activeSessions: ActiveParkingSessionDto[]
+): ParkingCard[] => {
+  const activeSessionByCardId = new Map<number, ActiveParkingSessionDto>();
+
+  activeSessions.forEach((session) => {
+    const cardId = Number(session.cardId ?? 0);
+    if (cardId > 0) {
+      activeSessionByCardId.set(cardId, session);
+    }
+  });
+
+  return cards.map((card) => {
+    const activeSession = activeSessionByCardId.get(card.id);
+    if (!activeSession) return card;
+
+    const shouldShowActive =
+      card.cardStatus !== 'LOST' && card.cardStatus !== 'BLOCKED';
+
+    return {
+      ...card,
+      cardStatus: shouldShowActive ? 'ACTIVE' : card.cardStatus,
+      currentSessionId: Number(activeSession.id ?? 0) || card.currentSessionId,
+      vehiclePlate: activeSession.licensePlateIn
+        ? String(activeSession.licensePlateIn)
+        : card.vehiclePlate,
+    };
+  });
+};
+
+const fetchActiveParkingSessionsForCards = async (): Promise<
+  ActiveParkingSessionDto[]
+> => {
+  const response = await api.get<
+    BaseResponse<ActiveParkingSessionDto[]> | ActiveParkingSessionDto[]
+  >('/parking-sessions/active');
+
+  return Array.isArray(response) ? response : getResponseData(response);
+};
 
 const getApiErrorMessage = (error: unknown): string => {
   if (error instanceof ApiError && error.data && typeof error.data === 'object') {
@@ -173,19 +170,9 @@ export const fetchCards = async (): Promise<ParkingCard[]> => {
     const data = Array.isArray(response) ? response : getResponseData(response);
 
     const cards = data.map(mapCardDto);
-    const overrides = getLocalCardStatusOverrides();
+    const activeSessions = await fetchActiveParkingSessionsForCards();
 
-    return cards.map((card) => {
-      const override = overrides[card.cardCode.toUpperCase()];
-      if (!override) return card;
-
-      return {
-        ...card,
-        cardStatus: override.cardStatus,
-        vehiclePlate: override.vehiclePlate ?? card.vehiclePlate,
-        currentSessionId: override.currentSessionId ?? card.currentSessionId,
-      };
-    });
+    return enrichCardsWithActiveSessions(cards, activeSessions);
   } catch (error) {
     throw new Error(getApiErrorMessage(error));
   }

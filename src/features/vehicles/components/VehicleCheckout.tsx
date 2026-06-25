@@ -1,1130 +1,696 @@
 'use client';
 
-import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { api, ApiError } from '@/lib/api/client';
-import { useAuth } from '@/features/auth';
-import { blacklistService } from '@/features/blacklist/services/blacklist.service';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  completeCheckout,
+  createCheckoutPayment,
+  fetchCheckoutActiveSessions,
+  startCheckout,
+  type CheckoutPayment,
+  type CheckoutPaymentMethod,
+  type CheckoutSession,
+} from '@/features/vehicles/services/vehicle-checkout.service';
 
-type PaymentMethod = 'ONLINE_BANKING' | 'CASH';
-type PaymentStatus = 'IDLE' | 'PENDING' | 'PAID' | 'FAILED';
-
-interface ParkingSessionDto {
-  id: number;
-  vehicleId: number;
-  buildingId: number;
-  cardId: number;
-  zoneId?: number;
-  slotId?: number;
-  bookingId?: number;
-  bookingCode?: string;
-  monthlySubscriptionId?: number;
-  inStaffId?: number;
-  outStaffId?: number;
-  checkInTime: string;
-  checkOutTime?: string | null;
-  licensePlateIn: string;
-  licensePlateOut?: string | null;
-  sessionStatus: string;
-  cardCode?: string;
-  zoneCode?: string;
-  slotCode?: string;
-}
-
-interface IncidentDto {
-  id: number;
-  sessionId: number;
-  licensePlate?: string;
-  incidentTypeId: number;
-  incidentName: string;
-  description?: string;
-  penaltyFee?: number;
-  status: number; // 0 = Open
-}
-
-/*
-  Hàm format tiền theo kiểu Việt Nam.
-  Ví dụ: 20000 -> 20.000 đ
-*/
-const formatCurrency = (amount: number) => {
-  return `${amount.toLocaleString('vi-VN')} đ`;
+type Feedback = {
+  tone: 'success' | 'error' | 'warning';
+  message: string;
 };
 
-/*
-  Hàm format hiển thị thời gian.
-*/
-const formatDateTime = (dateStr?: string | null) => {
-  if (!dateStr) return 'N/A';
-  const d = new Date(dateStr);
-  return d.toLocaleString('vi-VN', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    hour12: false
-  });
+type PlateConfirmation = 'WAITING' | 'MATCHED' | 'MISMATCH';
+
+const STAFF_ID = 2;
+
+const formatCurrency = (amount?: number | null) =>
+  new Intl.NumberFormat('vi-VN', {
+    style: 'currency',
+    currency: 'VND',
+    maximumFractionDigits: 0,
+  }).format(amount ?? 0);
+
+const formatDateTime = (value?: string | null) => {
+  if (!value) return '—';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '—';
+  return new Intl.DateTimeFormat('vi-VN', {
+    dateStyle: 'short',
+    timeStyle: 'short',
+  }).format(date);
 };
 
-/*
-  Hàm tính phí gửi xe ở Frontend khớp với cấu hình Pricing Policy ở Backend.
-*/
-function calculateSegmentFee(start: Date, end: Date, isCar: boolean) {
-  const totalMinutes = (end.getTime() - start.getTime()) / (1000 * 60);
-  if (totalMinutes <= 0) return 0;
-  
-  const startHour = start.getHours();
-  const isDay = startHour >= 6 && startHour < 22; // Day window: 6h - 22h
-  
-  if (isCar) {
-    if (isDay) {
-      if (totalMinutes <= 60) return 20000;
-      const over = totalMinutes - 60;
-      const blocks = Math.ceil(over / 15);
-      return 20000 + blocks * 5000;
-    } else {
-      if (totalMinutes <= 60) return 40000;
-      const over = totalMinutes - 60;
-      const blocks = Math.ceil(over / 30);
-      return 40000 + blocks * 10000;
-    }
-  } else {
-    // Motorcycle
-    if (isDay) {
-      if (totalMinutes <= 60) return 5000;
-      const over = totalMinutes - 60;
-      const blocks = Math.ceil(over / 15);
-      return 5000 + blocks * 2000;
-    } else {
-      if (totalMinutes <= 60) return 10000;
-      const over = totalMinutes - 60;
-      const blocks = Math.ceil(over / 30);
-      return 10000 + blocks * 5000;
-    }
-  }
-}
+const getDurationLabel = (checkInTime?: string | null, checkoutTime?: string | null) => {
+  if (!checkInTime) return '—';
+  const start = new Date(checkInTime).getTime();
+  const end = checkoutTime ? new Date(checkoutTime).getTime() : Date.now();
 
-function calculateExactFee(checkInStr: string, checkOutStr: string, isCar: boolean) {
-  const checkIn = new Date(checkInStr);
-  const checkOut = new Date(checkOutStr);
-  if (checkOut <= checkIn) return 0;
-  
-  let current = new Date(checkIn);
-  let totalFee = 0;
-  
-  while (current < checkOut) {
-    const nextTransition = new Date(current);
-    nextTransition.setSeconds(0, 0);
-    
-    const curHour = current.getHours();
-    if (curHour >= 6 && curHour < 22) {
-      nextTransition.setHours(22, 0, 0, 0);
-    } else {
-      if (curHour >= 22) {
-        nextTransition.setDate(nextTransition.getDate() + 1);
-      }
-      nextTransition.setHours(6, 0, 0, 0);
-    }
-    
-    const segEnd = nextTransition < checkOut ? nextTransition : checkOut;
-    totalFee += calculateSegmentFee(current, segEnd, isCar);
-    current = segEnd;
-  }
-  return totalFee;
-}
+  if (Number.isNaN(start) || Number.isNaN(end) || end <= start) return '—';
+
+  const minutes = Math.floor((end - start) / 60000);
+  const hours = Math.floor(minutes / 60);
+  const remainingMinutes = minutes % 60;
+
+  if (hours <= 0) return `${remainingMinutes} min`;
+  return `${hours}h ${remainingMinutes}m`;
+};
+
+const normalizeCode = (value: string) => value.trim().toUpperCase();
 
 export default function VehicleCheckout() {
-  const { user, showToast } = useAuth();
-  
-  // Search state
-  const [searchTerm, setSearchTerm] = useState('');
-  const [activeSessions, setActiveSessions] = useState<ParkingSessionDto[]>([]);
-  const [isLoadingList, setIsLoadingList] = useState(false);
-  const [errorMsg, setErrorMsg] = useState('');
-
-  // Selected session state
-  const [session, setSession] = useState<ParkingSessionDto | null>(null);
-  const [vehicleTypeName, setVehicleTypeName] = useState('');
-  const [depositAmount, setDepositAmount] = useState(0);
-  const [plannedCheckoutTime, setPlannedCheckoutTime] = useState<string | null>(null);
-  const [incidents, setIncidents] = useState<IncidentDto[]>([]);
-
-  // Verification state
+  const [sessions, setSessions] = useState<CheckoutSession[]>([]);
+  const [selectedSessionId, setSelectedSessionId] = useState<number | null>(null);
+  const [sessionSearch, setSessionSearch] = useState('');
+  const [manualCardCode, setManualCardCode] = useState('');
+  const [plateConfirmation, setPlateConfirmation] =
+    useState<PlateConfirmation>('WAITING');
   const [actualExitPlate, setActualExitPlate] = useState('');
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [apiSuccess, setApiSuccess] = useState(false);
+  const [actualCardCode, setActualCardCode] = useState('');
+  const [checkoutTime, setCheckoutTime] = useState('');
+  const [paymentMethod, setPaymentMethod] =
+    useState<CheckoutPaymentMethod>('CASH');
+  const [payment, setPayment] = useState<CheckoutPayment | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [feedback, setFeedback] = useState<Feedback | null>(null);
+  const cardCodeInputRef = useRef<HTMLInputElement | null>(null);
 
-  // Blacklist state
-  const [blacklist, setBlacklist] = useState<any[]>([]);
+  const selectedSession = sessions.find((session) => session.id === selectedSessionId) ?? null;
 
-  useEffect(() => {
-    const loadBlacklist = async () => {
-      try {
-        const res = await blacklistService.getAll(1, 9999);
-        if (res && res.items) {
-          setBlacklist(res.items);
-        }
-      } catch (err) {
-        console.error('Failed to load blacklist:', err);
-      }
-    };
-    loadBlacklist();
-  }, []);
+  const filteredSessions = useMemo(() => {
+    const search = normalizeCode(sessionSearch);
+    if (!search) return sessions;
 
-  const isPlateBlacklisted = useMemo(() => {
-    if (!session) return false;
-    const cleanPlate = session.licensePlateIn.replace(/[^A-Z0-9]/g, '');
-    return blacklist.some(
-      (item) => item.licensePlate?.toUpperCase().replace(/[^A-Z0-9]/g, '') === cleanPlate
+    return sessions.filter((session) =>
+      [
+        session.sessionCode,
+        session.licensePlate,
+        session.cardCode,
+        session.vehicleType,
+        session.customerType,
+      ].some((value) => normalizeCode(String(value ?? '')).includes(search))
     );
-  }, [blacklist, session]);
+  }, [sessionSearch, sessions]);
 
-  const isCardBlacklisted = useMemo(() => {
-    if (!session || !session.cardCode) return false;
-    const cleanCard = session.cardCode.replace(/[^A-Z0-9]/g, '');
-    return blacklist.some(
-      (item) => item.cardCode?.toUpperCase().replace(/[^A-Z0-9]/g, '') === cleanCard
-    );
-  }, [blacklist, session]);
+  const expectedCardCode = selectedSession?.cardCode ?? '';
+  const canVerifyCard = Boolean(expectedCardCode);
+  const isCardMatched =
+    Boolean(selectedSession) &&
+    canVerifyCard &&
+    normalizeCode(actualCardCode) === normalizeCode(expectedCardCode);
 
-  const blacklistReason = useMemo(() => {
-    if (!session) return null;
-    if (isPlateBlacklisted) {
-      const cleanPlate = session.licensePlateIn.replace(/[^A-Z0-9]/g, '');
-      const match = blacklist.find((item) => item.licensePlate?.toUpperCase().replace(/[^A-Z0-9]/g, '') === cleanPlate);
-      return `Phương tiện ${session.licensePlateIn} nằm trong danh sách đen: "${match?.reason}"`;
-    }
-    if (isCardBlacklisted && session.cardCode) {
-      const cleanCard = session.cardCode.replace(/[^A-Z0-9]/g, '');
-      const match = blacklist.find((item) => item.cardCode?.toUpperCase().replace(/[^A-Z0-9]/g, '') === cleanCard);
-      return `Thẻ ${session.cardCode} nằm trong danh sách đen: "${match?.reason}"`;
-    }
-    return null;
-  }, [blacklist, isPlateBlacklisted, isCardBlacklisted, session]);
+  const amountDue = payment?.amount ?? null;
+  const paymentStatus = payment?.paymentStatus ?? 'IDLE';
+  const canStartCheckout =
+    Boolean(selectedSession) &&
+    plateConfirmation === 'MATCHED' &&
+    isCardMatched &&
+    !checkoutTime;
+  const canCreatePayment =
+    Boolean(selectedSession) && Boolean(checkoutTime) && paymentStatus !== 'PAID';
+  const canCompleteCheckout =
+    Boolean(selectedSession) &&
+    Boolean(checkoutTime) &&
+    (amountDue === 0 || paymentStatus === 'PAID');
 
-  // Payment UI state
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('ONLINE_BANKING');
-  const [paymentStatus, setPaymentStatus] = useState<PaymentStatus>('IDLE');
-  const [vnpayUrl, setVnpayUrl] = useState('');
-  const [vnpayOrderCode, setVnpayOrderCode] = useState<number | null>(null);
-  const [paymentAttempt, setPaymentAttempt] = useState(1);
+  const loadActiveSessions = useCallback(async () => {
+    setIsLoading(true);
+    setFeedback(null);
 
-  // Live timer for checkout calculation (if checkout has not started)
-  const [liveCheckoutTime, setLiveCheckoutTime] = useState<string>('');
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
-
-  // Fetch active sessions list on mount
-  useEffect(() => {
-    fetchActiveSessions();
-    return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
-    };
-  }, []);
-
-  // Update live checkout time every second when session is loaded but checkoutTime is not locked
-  useEffect(() => {
-    if (session && !session.checkOutTime) {
-      setLiveCheckoutTime(new Date().toISOString());
-      timerRef.current = setInterval(() => {
-        setLiveCheckoutTime(new Date().toISOString());
-      }, 1000);
-    } else {
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-        timerRef.current = null;
-      }
-      if (session?.checkOutTime) {
-        setLiveCheckoutTime(session.checkOutTime);
-      }
-    }
-    return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
-    };
-  }, [session]);
-
-  const fetchActiveSessions = async () => {
-    setIsLoadingList(true);
     try {
-      const res = await api.get<any>('/parking-sessions/active');
-      if (res.success && res.data) {
-        setActiveSessions(res.data);
-      }
-    } catch (err) {
-      console.error('Error fetching active sessions:', err);
+      const data = await fetchCheckoutActiveSessions();
+      setSessions(data);
+    } catch (error) {
+      setFeedback({
+        tone: 'error',
+        message: error instanceof Error ? error.message : 'Could not load active sessions.',
+      });
     } finally {
-      setIsLoadingList(false);
+      setIsLoading(false);
     }
+  }, []);
+
+  useEffect(() => {
+    void loadActiveSessions();
+  }, [loadActiveSessions]);
+
+  useEffect(() => {
+    cardCodeInputRef.current?.focus();
+  }, []);
+
+  const handleSelectSession = (session: CheckoutSession) => {
+    setSelectedSessionId(session.id);
+    setActualExitPlate('');
+    setActualCardCode(session.cardCode?.startsWith('#') ? '' : session.cardCode ?? '');
+    setPlateConfirmation('WAITING');
+    setCheckoutTime('');
+    setPayment(null);
+    setFeedback(null);
   };
 
-  const handleSelectSession = async (selected: ParkingSessionDto) => {
-    setErrorMsg('');
-    setSession(selected);
-    setActualExitPlate(selected.licensePlateIn);
-    setPaymentStatus(selected.checkOutTime ? 'PENDING' : 'IDLE');
-    setVnpayUrl('');
-    setVnpayOrderCode(null);
-    setPaymentAttempt(1);
-    setApiSuccess(false);
-
-    try {
-      // 1. Fetch vehicle details to get type name
-      const vehRes = await api.get<any>(`/vehicles/${selected.vehicleId}`);
-      if (vehRes.success && vehRes.data) {
-        setVehicleTypeName(vehRes.data.vehicleTypeName || 'Car');
-      }
-
-      // 2. Fetch booking details if available
-      if (selected.bookingId) {
-        const bookRes = await api.get<any>(`/bookings/${selected.bookingId}`);
-        if (bookRes.success && bookRes.data) {
-          setDepositAmount(bookRes.data.depositAmount || 0);
-          setPlannedCheckoutTime(bookRes.data.plannedCheckoutTime || null);
-        }
-      } else {
-        setDepositAmount(0);
-        setPlannedCheckoutTime(null);
-      }
-
-      // 3. Fetch incidents for this session
-      const incRes = await api.get<any>(`/incident/session/${selected.id}`);
-      if (incRes.success && incRes.data) {
-        setIncidents(incRes.data);
-      } else {
-        setIncidents([]);
-      }
-
-    } catch (err) {
-      console.error('Error fetching session extra info:', err);
-    }
+  const resetForNextVehicle = () => {
+    setSelectedSessionId(null);
+    setManualCardCode('');
+    setActualExitPlate('');
+    setActualCardCode('');
+    setPlateConfirmation('WAITING');
+    setCheckoutTime('');
+    setPayment(null);
+    window.setTimeout(() => cardCodeInputRef.current?.focus(), 0);
   };
 
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!searchTerm.trim()) return;
+  const handleManualCardLookup = (event: React.FormEvent) => {
+    event.preventDefault();
 
-    const matched = activeSessions.find(s => 
-      s.licensePlateIn.toUpperCase() === searchTerm.toUpperCase() ||
-      s.cardCode?.toUpperCase() === searchTerm.toUpperCase() ||
-      s.bookingCode?.toUpperCase() === searchTerm.toUpperCase()
-    );
+    const card = normalizeCode(manualCardCode);
 
-    if (matched) {
-      handleSelectSession(matched);
-    } else {
-      setErrorMsg(`Không tìm thấy lượt đỗ xe hoạt động nào khớp với từ khóa "${searchTerm}".`);
-      setSession(null);
+    if (!card) {
+      setFeedback({
+        tone: 'error',
+        message: 'Please enter card code.',
+      });
+      return;
     }
+
+    const matchedSessions = sessions.filter((session) => {
+      const sessionCard = normalizeCode(session.cardCode ?? '');
+      return sessionCard === card;
+    });
+
+    if (matchedSessions.length === 0) {
+      setSelectedSessionId(null);
+      setActualExitPlate('');
+      setActualCardCode(manualCardCode.toUpperCase());
+      setPlateConfirmation('WAITING');
+      setCheckoutTime('');
+      setPayment(null);
+      setFeedback({
+        tone: 'error',
+        message: 'No active session found for this card code.',
+      });
+      return;
+    }
+
+    if (matchedSessions.length > 1) {
+      setFeedback({
+        tone: 'warning',
+        message:
+          'More than one active session matched this card. Data is invalid; please select the exact session manually.',
+      });
+      setSessionSearch(card);
+      return;
+    }
+
+    const matchedSession = matchedSessions[0];
+    handleSelectSession(matchedSession);
+    setActualCardCode(manualCardCode.toUpperCase());
+    setFeedback({
+      tone: 'success',
+      message: `Found active session ${matchedSession.sessionCode}. Please confirm vehicle plate before checkout.`,
+    });
   };
-
-  // Pricing calculations
-  const isCar = vehicleTypeName.toUpperCase().includes('CAR') || !!session?.slotCode;
-  
-  const currentCheckoutTime = session?.checkOutTime || liveCheckoutTime;
-  const parkingDurationMinutes = session && currentCheckoutTime 
-    ? Math.max(0, Math.round((new Date(currentCheckoutTime).getTime() - new Date(session.checkInTime).getTime()) / (1000 * 60)))
-    : 0;
-
-  const parkingFee = session && currentCheckoutTime
-    ? calculateExactFee(session.checkInTime, currentCheckoutTime, isCar)
-    : 0;
-
-  const isOvertime = plannedCheckoutTime && currentCheckoutTime
-    ? new Date(currentCheckoutTime) > new Date(plannedCheckoutTime)
-    : false;
-
-  const bookingOvertimePenalty = isOvertime ? 50000 : 0;
-
-  const openIncidents = incidents.filter(i => i.status === 0);
-  const totalIncidentPenalty = openIncidents.reduce((sum, inc) => sum + (inc.penaltyFee || 0), 0);
-
-  // Breakdown summary
-  const finalFeeAfterDeposit = Math.max(0, parkingFee - depositAmount);
-  const totalAmountDue = finalFeeAfterDeposit + totalIncidentPenalty + bookingOvertimePenalty;
-
-  const isPlateMatched = session !== null && 
-    actualExitPlate.trim().toUpperCase() === session.licensePlateIn.toUpperCase();
 
   const handleStartCheckout = async () => {
-    if (!session) return;
-    if (!isPlateMatched) {
-      showToast('Biển số xe ra thực tế không khớp với hệ thống!', 'error');
+    if (!selectedSession) return;
+
+    if (plateConfirmation !== 'MATCHED' || !isCardMatched) {
+      setFeedback({
+        tone: 'error',
+        message: 'Staff must confirm plate matched and card must match before starting checkout.',
+      });
       return;
     }
 
-    if (isPlateBlacklisted || isCardBlacklisted) {
-      showToast(`Không thể hoàn tất gửi xe. Lý do: ${blacklistReason}`, 'error');
-      return;
-    }
+    const lockedCheckoutTime = new Date().toISOString();
+    setIsSubmitting(true);
+    setFeedback(null);
 
-    setIsProcessing(true);
-    setErrorMsg('');
     try {
-      const nowStr = new Date().toISOString();
-      const patchRes = await api.patch<any>(`/parking-sessions/${session.id}/checkout/start`, {
-        checkOutTime: nowStr,
-        licensePlateOut: actualExitPlate,
-        outStaffId: user?.id
+      await startCheckout(selectedSession.id, {
+        checkOutTime: lockedCheckoutTime,
+        licensePlateOut: selectedSession.licensePlate,
+        outStaffId: STAFF_ID,
       });
-
-      if (patchRes.success && patchRes.data) {
-        // Cập nhật lại session trong state với checkoutTime mới khóa
-        setSession(patchRes.data);
-        setPaymentStatus(totalAmountDue > 0 ? 'PENDING' : 'IDLE');
-        showToast('Đã bắt đầu checkout & khóa phí thành công.', 'success');
-        fetchActiveSessions();
-      }
-    } catch (err) {
-      console.error(err);
-      if (err instanceof ApiError && err.data) {
-        setErrorMsg((err.data as any).message || 'Lỗi khi bắt đầu checkout.');
-      } else {
-        setErrorMsg('Lỗi kết nối máy chủ.');
-      }
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
-  const handleRollbackCheckout = async () => {
-    if (!session) return;
-    setIsProcessing(true);
-    setErrorMsg('');
-    try {
-      const rollbackRes = await api.patch<any>(`/parking-sessions/${session.id}/checkout/rollback`);
-      if (rollbackRes.success && rollbackRes.data) {
-        setSession(rollbackRes.data);
-        setPaymentStatus('IDLE');
-        setVnpayUrl('');
-        setVnpayOrderCode(null);
-        showToast('Đã hủy bỏ checkout, mở khóa phí thành công.', 'info');
-        fetchActiveSessions();
-      }
-    } catch (err) {
-      console.error(err);
-      if (err instanceof ApiError && err.data) {
-        setErrorMsg((err.data as any).message || 'Lỗi khi hủy bỏ checkout.');
-      } else {
-        setErrorMsg('Lỗi kết nối máy chủ.');
-      }
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
-  const handleCreatePaymentOnline = async () => {
-    if (!session) return;
-    setIsProcessing(true);
-    setErrorMsg('');
-    try {
-      const res = await api.post<any>('/payments', {
-        sessionId: session.id,
-        paymentMethod: 'ONLINE_BANKING'
+      setCheckoutTime(lockedCheckoutTime);
+      setFeedback({
+        tone: 'success',
+        message: 'Checkout time locked. Fee will not keep increasing while payment is pending.',
       });
-
-      if (res.success && res.data) {
-        setVnpayUrl(res.data.paymentUrl || '');
-        setVnpayOrderCode(res.data.orderCode || null);
-        setPaymentStatus('PENDING');
-        showToast('Đã tạo liên kết thanh toán trực tuyến thành công.', 'success');
-      }
-    } catch (err) {
-      console.error(err);
-      if (err instanceof ApiError && err.data) {
-        setErrorMsg((err.data as any).message || 'Lỗi khi tạo giao dịch thanh toán.');
-      } else {
-        setErrorMsg('Lỗi kết nối máy chủ.');
-      }
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
-  const handleVerifyOnlinePayment = async () => {
-    if (!session) return;
-    setIsProcessing(true);
-    setErrorMsg('');
-    try {
-      const res = await api.get<any>(`/parking-sessions/${session.id}`);
-      if (res.success && res.data) {
-        if (res.data.sessionStatus.toUpperCase() === 'COMPLETED') {
-          setPaymentStatus('PAID');
-          setApiSuccess(true);
-          showToast('Xác nhận thanh toán online thành công!', 'success');
-          
-          setTimeout(() => {
-            handleResetForm();
-          }, 3000);
-        } else {
-          showToast('Khách hàng chưa hoàn tất thanh toán VNPay.', 'info');
-        }
-      }
-    } catch (err) {
-      console.error(err);
-      showToast('Có lỗi xảy ra khi xác thực thanh toán.', 'error');
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
-  const handleCompleteCashPayment = async () => {
-    if (!session) return;
-    setIsProcessing(true);
-    setErrorMsg('');
-    try {
-      const res = await api.post<any>('/payments', {
-        sessionId: session.id,
-        paymentMethod: 'CASH'
+    } catch (error) {
+      setFeedback({
+        tone: 'error',
+        message: error instanceof Error ? error.message : 'Could not start checkout.',
       });
-
-      if (res.success) {
-        setPaymentStatus('PAID');
-        setApiSuccess(true);
-        showToast('Thanh toán tiền mặt thành công!', 'success');
-        
-        setTimeout(() => {
-          handleResetForm();
-        }, 3000);
-      }
-    } catch (err) {
-      console.error(err);
-      if (err instanceof ApiError && err.data) {
-        setErrorMsg((err.data as any).message || 'Thanh toán thất bại.');
-      } else {
-        setErrorMsg('Lỗi kết nối máy chủ.');
-      }
     } finally {
-      setIsProcessing(false);
+      setIsSubmitting(false);
     }
   };
 
-  const handleCompleteZeroAmount = async () => {
-    if (!session) return;
-    setIsProcessing(true);
-    setErrorMsg('');
+  const handleCreatePayment = async () => {
+    if (!selectedSession || !checkoutTime) return;
+
+    setIsSubmitting(true);
+    setFeedback(null);
+
     try {
-      const res = await api.patch<any>(`/parking-sessions/${session.id}/complete`);
-      if (res.success) {
-        setPaymentStatus('PAID');
-        setApiSuccess(true);
-        showToast('Hoàn tất checkout thành công (0đ)!', 'success');
-        
-        setTimeout(() => {
-          handleResetForm();
-        }, 3000);
-      }
-    } catch (err) {
-      console.error(err);
-      if (err instanceof ApiError && err.data) {
-        setErrorMsg((err.data as any).message || 'Không thể hoàn tất checkout.');
-      } else {
-        setErrorMsg('Lỗi kết nối máy chủ.');
-      }
+      const nextPayment = await createCheckoutPayment(selectedSession, paymentMethod);
+      setPayment(nextPayment);
+      setFeedback({
+        tone: nextPayment.paymentStatus === 'PAID' ? 'success' : 'warning',
+        message:
+          nextPayment.paymentStatus === 'PAID'
+            ? 'Payment is PAID. You can complete checkout.'
+            : 'Payment was created. Complete checkout is enabled only when payment is PAID or amount due is 0.',
+      });
+    } catch (error) {
+      setFeedback({
+        tone: 'error',
+        message: error instanceof Error ? error.message : 'Could not create payment.',
+      });
     } finally {
-      setIsProcessing(false);
+      setIsSubmitting(false);
     }
   };
 
-  const handleSimulatePaymentFailed = () => {
-    setPaymentStatus('FAILED');
-    showToast('Giả lập giao dịch thất bại.', 'info');
+  const handleCompleteCheckout = async () => {
+    if (!selectedSession || !canCompleteCheckout) return;
+
+    setIsSubmitting(true);
+    setFeedback(null);
+
+    try {
+      await completeCheckout(selectedSession.id);
+      await loadActiveSessions();
+      resetForNextVehicle();
+      setFeedback({
+        tone: 'success',
+        message: 'Checkout completed. Ready for next vehicle.',
+      });
+    } catch (error) {
+      setFeedback({
+        tone: 'error',
+        message: error instanceof Error ? error.message : 'Could not complete checkout.',
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  const handleRetryPayment = () => {
-    setPaymentAttempt(prev => prev + 1);
-    setPaymentStatus('PENDING');
-    setVnpayUrl('');
-    setVnpayOrderCode(null);
-  };
-
-  const handleResetForm = () => {
-    setSession(null);
-    setSearchTerm('');
-    setActualExitPlate('');
-    setVnpayUrl('');
-    setVnpayOrderCode(null);
-    setPaymentStatus('IDLE');
-    setPaymentAttempt(1);
-    setApiSuccess(false);
-    setErrorMsg('');
-    fetchActiveSessions();
-  };
-
-  // Helper mapping customer types
-  const getCustomerTypeLabel = (s: ParkingSessionDto) => {
-    if (s.monthlySubscriptionId) return 'MONTHLY';
-    if (s.bookingId) return 'BOOKING';
-    return 'WALK_IN';
-  };
-
-  const getCustomerBadgeClass = (s: ParkingSessionDto) => {
-    if (s.monthlySubscriptionId) return 'bg-purple-50 text-purple-700 border-purple-100';
-    if (s.bookingId) return 'bg-blue-50 text-blue-700 border-blue-100';
-    return 'bg-slate-50 text-slate-700 border-slate-100';
-  };
+  const feedbackClassName =
+    feedback?.tone === 'success'
+      ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+      : feedback?.tone === 'warning'
+        ? 'border-amber-200 bg-amber-50 text-amber-700'
+        : 'border-red-200 bg-red-50 text-red-700';
 
   return (
-    <div className="p-8 max-w-7xl mx-auto space-y-8">
-      {/* HEADER SECTION */}
-      <section className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+    <div className="space-y-3 p-4">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <h1 className="text-2xl font-black text-slate-800 tracking-tight">Cổng Hoàn Tất Gửi Xe (Vehicle Check-out)</h1>
-          <p className="text-slate-500 text-sm mt-1">
-            Xác minh thông tin phương tiện ra, khóa phí đỗ xe, đối chiếu cọc đặt chỗ, tính phạt lố giờ và xử lý thanh toán.
+          <h1 className="text-xl font-bold text-slate-800">Vehicle Check-out Portal</h1>
+          <p className="mt-0.5 max-w-3xl text-xs text-slate-500">
+            Enter card code → confirm plate → lock fee → payment → complete.
           </p>
         </div>
         <button
-          onClick={fetchActiveSessions}
-          className="px-4 py-2 border border-slate-200 hover:bg-slate-50 text-slate-600 rounded-xl text-sm font-semibold transition-colors flex items-center gap-1.5 shrink-0"
+          type="button"
+          onClick={() => void loadActiveSessions()}
+          className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-3 py-2 text-xs font-bold text-white hover:bg-slate-700"
         >
           <span className="material-symbols-outlined text-base">refresh</span>
-          Tải lại danh sách
+          Refresh
         </button>
-      </section>
+      </div>
 
-      {/* ERROR MESSAGE ALERT */}
-      {errorMsg && (
-        <div className="p-4 bg-rose-50 border border-rose-100 text-rose-700 rounded-2xl flex items-start gap-3 text-sm font-semibold animate-fadeIn">
-          <span className="material-symbols-outlined text-rose-600 shrink-0">error</span>
-          <div className="flex-1">
-            <p>{errorMsg}</p>
-          </div>
-          <button onClick={() => setErrorMsg('')} className="text-rose-400 hover:text-rose-600 transition-colors">
-            <span className="material-symbols-outlined text-sm">close</span>
+      {feedback && (
+        <div className={`flex items-start justify-between gap-4 rounded-xl border px-3 py-2 text-xs font-bold ${feedbackClassName}`}>
+          <p>{feedback.message}</p>
+          <button type="button" onClick={() => setFeedback(null)}>
+            <span className="material-symbols-outlined text-base">close</span>
           </button>
         </div>
       )}
 
-      {/* MAIN LAYOUT */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        
-        {/* LEFT COLUMN: ACTIVE SESSIONS SIDEBAR */}
-        <div className="lg:col-span-4 bg-white border border-slate-200/80 rounded-2xl p-6 shadow-sm space-y-4">
-          <h2 className="text-base font-bold text-slate-800 flex items-center gap-2">
-            <span className="material-symbols-outlined text-emerald-600">local_parking</span>
-            Xe đang trong bãi ({activeSessions.length})
-          </h2>
-          
-          <form onSubmit={handleSearch} className="flex gap-2">
-            <input
-              type="text"
-              placeholder="Biển số, Vé hoặc Thẻ..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="flex-1 px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm font-bold text-slate-700"
-            />
+      <form
+        onSubmit={handleManualCardLookup}
+        className="rounded-2xl border border-emerald-100 bg-white p-4 shadow-sm"
+      >
+        <div className="flex flex-col gap-3 xl:flex-row xl:items-end">
+          <div className="min-w-[220px] flex-1">
+            <div className="flex items-center gap-2">
+              <span className="material-symbols-outlined text-emerald-600">
+                contactless
+              </span>
+              <h2 className="text-base font-bold text-slate-800">Quick Manual Card Tap</h2>
+            </div>
+            <p className="mt-1 text-xs font-semibold text-slate-500">
+              Enter the physical card code to find the active session.
+            </p>
+          </div>
+
+          <div className="grid flex-[2] grid-cols-1 gap-3 md:grid-cols-[minmax(0,1fr)_auto]">
+            <div className="space-y-1">
+              <label className="text-xs font-bold uppercase text-slate-500">
+                Manual Card Code
+              </label>
+              <input
+                ref={cardCodeInputRef}
+                type="text"
+                value={manualCardCode}
+                onChange={(event) => setManualCardCode(event.target.value.toUpperCase())}
+                placeholder="Example: CARD002"
+                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 font-mono text-xl font-black uppercase tracking-wider text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              />
+            </div>
+
             <button
               type="submit"
-              className="px-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-xs transition-colors flex items-center justify-center"
+              disabled={isLoading || sessions.length === 0}
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-500 px-5 py-3 text-sm font-bold text-white shadow-lg shadow-emerald-500/20 hover:bg-emerald-600 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:shadow-none md:self-end"
             >
-              Tìm
+              <span className="material-symbols-outlined text-base">manage_search</span>
+              Find Active Session
             </button>
-          </form>
-
-          <div className="h-[450px] overflow-y-auto space-y-2 pr-1 scrollbar-thin">
-            {isLoadingList ? (
-              <div className="flex flex-col items-center justify-center h-48 text-slate-400 text-sm">
-                <div className="w-6 h-6 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin mb-2" />
-                <span>Đang tải danh sách...</span>
-              </div>
-            ) : activeSessions.length === 0 ? (
-              <div className="text-center py-12 text-slate-400 text-xs italic">
-                Không có phương tiện nào đang ở trong bãi.
-              </div>
-            ) : (
-              activeSessions.map((s) => {
-                const isSelected = session?.id === s.id;
-                const custType = getCustomerTypeLabel(s);
-                return (
-                  <div
-                    key={s.id}
-                    onClick={() => handleSelectSession(s)}
-                    className={`p-3 border rounded-xl cursor-pointer transition-all flex items-center justify-between ${
-                      isSelected
-                        ? 'border-emerald-600 bg-emerald-50/20 shadow-sm'
-                        : 'border-slate-100 hover:border-slate-300 bg-slate-50/20'
-                    }`}
-                  >
-                    <div className="space-y-1">
-                      <p className="text-sm font-black text-slate-700">{s.licensePlateIn}</p>
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-[10px] font-mono text-slate-400 font-bold bg-slate-100 px-1.5 py-0.5 rounded">
-                          {s.cardCode || 'N/A'}
-                        </span>
-                        {s.slotCode && (
-                          <span className="text-[10px] text-emerald-600 font-bold bg-emerald-50 px-1.5 py-0.5 rounded">
-                            {s.slotCode}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                    <div className="text-right space-y-1">
-                      <span className={`text-[9px] font-extrabold uppercase border px-2 py-0.5 rounded-full ${getCustomerBadgeClass(s)}`}>
-                        {custType}
-                      </span>
-                      <p className="text-[10px] text-slate-400 font-semibold">
-                        {new Date(s.checkInTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
-                      </p>
-                    </div>
-                  </div>
-                );
-              })
-            )}
           </div>
         </div>
 
-        {/* MIDDLE/RIGHT COLUMN: WORK AREA */}
-        <div className="lg:col-span-8 space-y-6">
-          {session ? (
-            <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
-              
-              {/* VERIFICATION & TIME SECTION */}
-              <div className="md:col-span-7 bg-white border border-slate-200/80 rounded-2xl p-6 shadow-sm space-y-6">
-                <div className="border-b border-slate-100 pb-4">
-                  <h3 className="text-base font-black text-slate-800 flex items-center gap-2">
-                    <span className="material-symbols-outlined text-emerald-600 font-bold">verified</span>
-                    Xác minh thông tin phương tiện ra
-                  </h3>
-                </div>
+      </form>
 
-                {/* MANUAL VEHICLE COMPARISON */}
-                <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 space-y-4">
-                  <p className="text-xs text-slate-500 leading-normal font-semibold">
-                    * Nhân viên so sánh biển số thực tế ở camera chụp xe ra với biển số lúc xe vào.
-                  </p>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Biển số lúc vào</label>
-                      <div className="px-4 py-3 bg-white border border-slate-200 rounded-xl font-mono font-black text-slate-700">
-                        {session.licensePlateIn}
-                      </div>
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Biển số xe ra thực tế</label>
-                      <input
-                        type="text"
-                        value={actualExitPlate}
-                        disabled={!!session.checkOutTime}
-                        onChange={(e) => setActualExitPlate(e.target.value.toUpperCase())}
-                        className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 font-mono font-black text-slate-700 disabled:opacity-60"
-                      />
-                    </div>
-                  </div>
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(240px,0.58fr)_minmax(0,1.25fr)_minmax(320px,0.78fr)]">
+        <section className="space-y-3 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
+          <div>
+            <h2 className="text-base font-bold text-slate-800">Manual Review</h2>
+            <p className="mt-0.5 text-xs text-slate-500">Backup list only.</p>
+          </div>
 
-                  <div
-                    className={`p-3 rounded-xl text-xs font-bold flex items-center gap-2 border ${
-                      isPlateMatched
-                        ? 'bg-emerald-50/50 text-emerald-700 border-emerald-100'
-                        : 'bg-rose-50/50 text-rose-600 border-rose-100'
-                    }`}
-                  >
-                    <span className="material-symbols-outlined text-base">
-                      {isPlateMatched ? 'check_circle' : 'error'}
-                    </span>
-                    {isPlateMatched
-                      ? 'Trùng khớp! Cho phép bắt đầu hoàn tất gửi xe.'
-                      : 'Biển số không trùng khớp! Hãy xác minh lại trước khi tiếp tục.'}
-                  </div>
-                </div>
+          <input
+            type="search"
+            value={sessionSearch}
+            onChange={(event) => setSessionSearch(event.target.value)}
+            placeholder="Filter plate/card..."
+            className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+          />
 
-                {blacklistReason && (
-                  <div className="p-4 bg-rose-50 border border-rose-200 rounded-xl flex items-start gap-3 my-2 animate-fadeIn">
-                    <span className="material-symbols-outlined text-rose-600 shrink-0">block</span>
-                    <div>
-                      <h4 className="font-bold text-rose-800 text-sm">Checkout bị chặn (Blacklist)</h4>
-                      <p className="text-rose-700 text-xs mt-0.5">{blacklistReason}</p>
-                    </div>
-                  </div>
-                )}
-
-                {/* SESSION INFO */}
-                <div className="grid grid-cols-2 gap-x-4 gap-y-3 bg-slate-50/40 p-4 rounded-xl border border-slate-100/80 text-xs text-slate-600">
-                  <div>
-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">ID Lượt Gửi</span>
-                    <p className="font-bold text-slate-700 mt-0.5">PS-{session.id.toString().padStart(6, '0')}</p>
-                  </div>
-                  <div>
-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Loại Xe</span>
-                    <p className="font-bold text-slate-700 mt-0.5">{vehicleTypeName || 'N/A'}</p>
-                  </div>
-                  <div>
-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Mã thẻ</span>
-                    <p className="font-bold text-slate-700 mt-0.5">{session.cardCode || 'N/A'}</p>
-                  </div>
-                  <div>
-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Vị trí</span>
-                    <p className="font-bold text-slate-700 mt-0.5">{session.slotCode || session.zoneCode || 'Khu xe máy'}</p>
-                  </div>
-                  <div className="col-span-2 border-t border-slate-100 pt-2 grid grid-cols-2 gap-4">
-                    <div>
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block font-semibold">Thời gian vào</span>
-                      <p className="font-semibold text-slate-700 mt-0.5 text-[11px]">{formatDateTime(session.checkInTime)}</p>
-                    </div>
-                    <div>
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block font-semibold">Thời gian đỗ</span>
-                      <p className="font-semibold text-slate-700 mt-0.5 text-[11px]">
-                        {Math.floor(parkingDurationMinutes / 60)} giờ {parkingDurationMinutes % 60} phút
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* LOCK CHECKOUT TIME ACTION */}
-                <div className="p-4 bg-blue-50/50 rounded-xl border border-blue-100 space-y-3">
-                  <div className="flex gap-2">
-                    <span className="material-symbols-outlined text-blue-600 shrink-0">alarm_on</span>
-                    <div className="space-y-1">
-                      <h4 className="text-xs font-bold text-blue-800">Khóa thời gian checkout & tính phí</h4>
-                      <p className="text-[10px] text-blue-700 leading-normal">
-                        Bắt đầu checkout sẽ lưu thời điểm xe ra và khóa tổng số tiền cần thanh toán. 
-                        Sau khi khóa, phí đỗ xe sẽ không tăng thêm nữa trong quá trình đợi tài xế thanh toán.
-                      </p>
-                    </div>
-                  </div>
-
-                  {session.checkOutTime ? (
-                    <div className="flex items-center justify-between bg-white px-4 py-3 rounded-xl border border-blue-100/60">
-                      <div>
-                        <span className="text-[9px] font-bold text-slate-400 block uppercase">Thời điểm checkout đã khóa</span>
-                        <span className="text-xs font-black text-slate-700">{formatDateTime(session.checkOutTime)}</span>
-                      </div>
-                      <button
-                        onClick={handleRollbackCheckout}
-                        disabled={isProcessing || paymentStatus === 'PAID'}
-                        className="px-3 py-1.5 border border-amber-200 hover:bg-amber-50 text-amber-700 rounded-lg text-[10px] font-bold transition-all disabled:opacity-50"
-                      >
-                        Mở khóa (Rollback)
-                      </button>
-                    </div>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={handleStartCheckout}
-                      disabled={!isPlateMatched || isProcessing || isPlateBlacklisted || isCardBlacklisted}
-                      className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5 shadow-sm"
-                    >
-                      {isProcessing ? (
-                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                      ) : (
-                        <span className="material-symbols-outlined text-base">
-                          {isPlateBlacklisted || isCardBlacklisted ? 'block' : 'lock'}
-                        </span>
-                      )}
-                      {isPlateBlacklisted || isCardBlacklisted ? 'Bị chặn - Entity Blacklisted' : 'Bắt đầu Checkout & Khóa phí'}
-                    </button>
-                  )}
-                </div>
-
-                {/* INCIDENTS LIST IN WORK AREA */}
-                {incidents.length > 0 && (
-                  <div className="space-y-2.5">
-                    <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wide">Danh sách sự cố ghi nhận ({incidents.length})</h4>
-                    <div className="space-y-1.5">
-                      {incidents.map((i) => (
-                        <div key={i.id} className="p-3 bg-rose-50/30 border border-rose-100/50 rounded-xl flex items-center justify-between text-xs">
-                          <div>
-                            <p className="font-bold text-slate-700">{i.incidentName}</p>
-                            {i.description && <p className="text-[10px] text-slate-400 mt-0.5">{i.description}</p>}
-                          </div>
-                          <div className="text-right space-y-1">
-                            <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${i.status === 0 ? 'bg-rose-100 text-rose-700' : 'bg-slate-100 text-slate-500'}`}>
-                              {i.status === 0 ? 'Đang mở (Chưa phạt)' : 'Đã xử lý'}
-                            </span>
-                            {i.penaltyFee && <p className="font-bold text-rose-600 mt-0.5">{formatCurrency(i.penaltyFee)}</p>}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-              </div>
-
-              {/* PAYMENT SECTION */}
-              <div className="md:col-span-5 flex flex-col justify-between bg-white border border-slate-200/80 rounded-2xl p-6 shadow-sm relative overflow-hidden min-h-[550px]">
-                <div className="space-y-6">
-                  <div className="border-b border-slate-100 pb-4">
-                    <h3 className="text-base font-black text-slate-800 flex items-center gap-2">
-                      <span className="material-symbols-outlined text-emerald-600 font-bold">receipt_long</span>
-                      Hóa đơn thanh toán
-                    </h3>
-                  </div>
-
-                  {/* ALERTS: OVERTIME BANNERS */}
-                  {isOvertime && (
-                    <div className="p-3 bg-amber-50 border border-amber-100 text-amber-800 text-[11px] rounded-xl flex gap-2 font-semibold">
-                      <span className="material-symbols-outlined text-amber-600 shrink-0 text-base">warning</span>
-                      <span>
-                        Xe đỗ quá giờ đặt chỗ! Phí phạt dịch vụ quá hạn 50.000đ được áp dụng.
-                      </span>
-                    </div>
-                  )}
-
-                  {/* FEE BREAKDOWN */}
-                  <div className="space-y-3.5 text-xs text-slate-600">
-                    <div className="flex justify-between">
-                      <span className="font-medium text-slate-400">Phí gửi xe gốc:</span>
-                      <span className="font-bold text-slate-700">{formatCurrency(parkingFee)}</span>
-                    </div>
-
-                    {session.bookingId && (
-                      <div className="flex justify-between">
-                        <span className="font-medium text-slate-400">Khấu trừ tiền cọc:</span>
-                        <span className="font-bold text-rose-500">- {formatCurrency(depositAmount)}</span>
-                      </div>
-                    )}
-
-                    {session.bookingId && (
-                      <div className="flex justify-between border-t border-slate-100 pt-2.5">
-                        <span className="font-medium text-slate-400">Phí sau khấu trừ:</span>
-                        <span className="font-bold text-slate-700">{formatCurrency(finalFeeAfterDeposit)}</span>
-                      </div>
-                    )}
-
-                    {bookingOvertimePenalty > 0 && (
-                      <div className="flex justify-between">
-                        <span className="font-medium text-slate-400">Phạt quá giờ đặt chỗ:</span>
-                        <span className="font-bold text-amber-600">+ {formatCurrency(bookingOvertimePenalty)}</span>
-                      </div>
-                    )}
-
-                    {totalIncidentPenalty > 0 && (
-                      <div className="flex justify-between">
-                        <span className="font-medium text-slate-400">Phí phạt sự cố (Open):</span>
-                        <span className="font-bold text-rose-600">+ {formatCurrency(totalIncidentPenalty)}</span>
-                      </div>
-                    )}
-
-                    <div className="pt-3 border-t border-slate-100 flex justify-between items-center text-sm font-bold">
-                      <span className="text-slate-500">Cần thanh toán:</span>
-                      <span className="text-lg font-black text-emerald-600">
-                        {formatCurrency(totalAmountDue)}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* DETAILS AUDIT BOX */}
-                  <div className="p-3 bg-slate-50 rounded-xl border border-slate-100 space-y-1.5 text-[10px] text-slate-500 font-semibold">
-                    <div className="flex justify-between">
-                      <span>Loại khách hàng</span>
-                      <span className="font-bold uppercase">{getCustomerTypeLabel(session)}</span>
-                    </div>
-                    {plannedCheckoutTime && (
-                      <div className="flex justify-between">
-                        <span>Giờ ra dự kiến</span>
-                        <span className="font-bold text-slate-600">{new Date(plannedCheckoutTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}</span>
-                      </div>
-                    )}
-                    <div className="flex justify-between">
-                      <span>Lượt tạo giao dịch</span>
-                      <span className="font-bold">Giao dịch #{paymentAttempt}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Trạng thái hóa đơn</span>
-                      <span
-                        className={`font-bold ${
-                          paymentStatus === 'PAID'
-                            ? 'text-emerald-600'
-                            : paymentStatus === 'FAILED'
-                            ? 'text-rose-500'
-                            : paymentStatus === 'PENDING'
-                            ? 'text-amber-500'
-                            : 'text-slate-500'
-                        }`}
-                      >
-                        {paymentStatus}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* PAYMENT METHOD SELECTOR (ONLY DISPLAY WHEN LOCK SUCCESS & AMOUNT > 0) */}
-                  {session.checkOutTime && totalAmountDue > 0 && paymentStatus !== 'PAID' && (
-                    <div className="space-y-2">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Phương thức thanh toán</label>
-                      <div className="grid grid-cols-2 gap-2">
-                        {[
-                          { id: 'ONLINE_BANKING', label: 'Cổng VNPay', icon: 'qr_code_2' },
-                          { id: 'CASH', label: 'Tiền mặt (Cash)', icon: 'payments' },
-                        ].map((m) => (
-                          <button
-                            key={m.id}
-                            type="button"
-                            disabled={vnpayUrl !== '' && paymentMethod === 'ONLINE_BANKING'}
-                            onClick={() => setPaymentMethod(m.id as PaymentMethod)}
-                            className={`py-2 px-1 border rounded-xl flex flex-col items-center gap-1 transition-all ${
-                              paymentMethod === m.id
-                                ? 'border-emerald-600 bg-emerald-50/20 text-emerald-600 font-bold'
-                                : 'border-slate-200 bg-white text-slate-500 hover:border-slate-300'
-                            } disabled:opacity-50`}
-                          >
-                            <span className="material-symbols-outlined text-lg">{m.icon}</span>
-                            <span className="text-[9px]">{m.label}</span>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* VNPAY QR CODE / REDIRECT LINK (IF GENERATED) */}
-                  {vnpayUrl && paymentMethod === 'ONLINE_BANKING' && paymentStatus !== 'PAID' && (
-                    <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 flex flex-col items-center justify-center gap-3 animate-fadeIn">
-                      <div className="bg-white p-2 rounded-xl border border-slate-200">
-                        {/* QR Code generator using free API from QRServer */}
-                        <img
-                          src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(vnpayUrl)}`}
-                          alt="VNPay QR Code"
-                          className="w-36 h-36"
-                        />
-                      </div>
-                      <p className="text-[10px] text-slate-500 font-bold text-center">
-                        Quét mã QR để chuyển khoản. Mã giao dịch VNPay: <span className="font-mono text-slate-700">{vnpayOrderCode}</span>
-                      </p>
-                      <a
-                        href={vnpayUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[10px] font-bold transition-all flex items-center gap-1.5"
-                      >
-                        <span className="material-symbols-outlined text-xs">open_in_new</span>
-                        Mở cổng thanh toán VNPay
-                      </a>
-                    </div>
-                  )}
-
-                </div>
-
-                {/* FOOTER ACTIONS */}
-                <div className="mt-8 space-y-3">
-                  {/* CASE 1: NOT LOCKED YET */}
-                  {!session.checkOutTime && (
-                    <div className="text-center py-4 text-xs text-slate-400 italic">
-                      Vui lòng bắt đầu checkout & khóa phí đỗ xe trước.
-                    </div>
-                  )}
-
-                  {/* CASE 2: LOCKED, AMOUNT DUE = 0 */}
-                  {session.checkOutTime && totalAmountDue === 0 && paymentStatus !== 'PAID' && (
-                    <button
-                      type="button"
-                      onClick={handleCompleteZeroAmount}
-                      disabled={isProcessing}
-                      className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-1.5 shadow"
-                    >
-                      {isProcessing ? (
-                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                      ) : (
-                        <span className="material-symbols-outlined text-base">check_circle</span>
-                      )}
-                      Hoàn tất Checkout (Miễn phí)
-                    </button>
-                  )}
-
-                  {/* CASE 3: LOCKED, AMOUNT DUE > 0, FAILED PAYMENT */}
-                  {session.checkOutTime && totalAmountDue > 0 && paymentStatus === 'FAILED' && (
-                    <button
-                      type="button"
-                      onClick={handleRetryPayment}
-                      className="w-full py-3.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-1.5 shadow"
-                    >
-                      <span className="material-symbols-outlined text-base">replay</span>
-                      Tạo lại giao dịch thanh toán mới
-                    </button>
-                  )}
-
-                  {/* CASE 4: LOCKED, AMOUNT DUE > 0, IDLE/PENDING */}
-                  {session.checkOutTime && totalAmountDue > 0 && (paymentStatus === 'IDLE' || paymentStatus === 'PENDING') && (
-                    <>
-                      {paymentMethod === 'ONLINE_BANKING' ? (
-                        vnpayUrl ? (
-                          <div className="flex gap-2">
-                            <button
-                              type="button"
-                              onClick={handleVerifyOnlinePayment}
-                              disabled={isProcessing}
-                              className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-1 shadow-sm"
-                            >
-                              {isProcessing ? (
-                                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                              ) : (
-                                <span className="material-symbols-outlined text-base">task_alt</span>
-                              )}
-                              Xác nhận đã thanh toán
-                            </button>
-                            <button
-                              type="button"
-                              onClick={handleSimulatePaymentFailed}
-                              disabled={isProcessing}
-                              className="px-3 bg-white border border-rose-200 text-rose-500 hover:bg-rose-50 rounded-xl text-[10px] font-bold transition-all"
-                            >
-                              Giả lập Lỗi
-                            </button>
-                          </div>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={handleCreatePaymentOnline}
-                            disabled={isProcessing}
-                            className="w-full py-3.5 bg-[#006d43] hover:bg-[#005c38] text-white rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-1.5 shadow"
-                          >
-                            {isProcessing ? (
-                              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                            ) : (
-                              <span className="material-symbols-outlined text-base">qr_code_scanner</span>
-                            )}
-                            Tạo Link VNPay & QR Code
-                          </button>
-                        )
-                      ) : (
-                        // CASH METHOD
-                        <button
-                          type="button"
-                          onClick={handleCompleteCashPayment}
-                          disabled={isProcessing}
-                          className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-1.5 shadow"
-                        >
-                          {isProcessing ? (
-                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                          ) : (
-                            <span className="material-symbols-outlined text-base">payments</span>
-                          )}
-                          Xác nhận thu Tiền mặt & Hoàn tất
-                        </button>
-                      )}
-                    </>
-                  )}
-                </div>
-
-                {/* SUCCESS OVERLAY */}
-                {apiSuccess && (
-                  <div className="absolute inset-0 bg-emerald-600 flex flex-col items-center justify-center text-white font-sans transition-opacity duration-300 animate-fadeIn z-20">
-                    <span className="material-symbols-outlined text-5xl text-white">check_circle</span>
-                    <p className="font-black text-base mt-3">ĐÃ THANH TOÁN & CHECKOUT XONG!</p>
-                    <p className="text-xs text-white/80 mt-1">Lượt gửi xe đã hoàn tất. Xe có thể rời bãi.</p>
-                    <button
-                      onClick={handleResetForm}
-                      className="mt-6 px-4 py-2 bg-white/20 hover:bg-white/30 text-white border border-white/20 rounded-lg text-xs font-bold transition-all"
-                    >
-                      Tiếp tục lượt xe khác
-                    </button>
-                  </div>
-                )}
-
-              </div>
-
+          {isLoading ? (
+            <div className="py-10 text-center text-slate-400">
+              <span className="material-symbols-outlined animate-spin text-3xl">
+                progress_activity
+              </span>
+              <p className="mt-2 text-sm">Loading active sessions...</p>
+            </div>
+          ) : filteredSessions.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-slate-200 py-10 text-center text-slate-400">
+              <span className="material-symbols-outlined text-3xl">directions_car_off</span>
+              <p className="mt-2 text-xs">No active sessions.</p>
             </div>
           ) : (
-            /* EMPTY/UNSELECTED STATE */
-            <div className="p-16 border-2 border-dashed border-slate-200 rounded-2xl text-center text-slate-400 bg-white shadow-xs">
-              <span className="material-symbols-outlined text-5xl text-slate-300">search_check</span>
-              <p className="text-sm font-bold text-slate-500 mt-3">Chọn hoặc tìm kiếm lượt đỗ xe</p>
-              <p className="text-xs text-slate-400 mt-1 max-w-sm mx-auto">
-                Hãy chọn một phương tiện trong danh sách đang ở trong bãi ở thanh bên trái hoặc nhập mã thẻ/biển số vào ô tìm kiếm để xử lý checkout.
-              </p>
+            <div className="max-h-[420px] space-y-2 overflow-y-auto pr-1">
+              {filteredSessions.map((session) => {
+                const isSelected = session.id === selectedSessionId;
+
+                return (
+                  <button
+                    key={session.id}
+                    type="button"
+                    onClick={() => handleSelectSession(session)}
+                    className={`w-full rounded-xl border p-3 text-left transition ${
+                      isSelected
+                        ? 'border-emerald-300 bg-emerald-50 shadow-sm'
+                        : 'border-slate-200 bg-white hover:border-emerald-200 hover:shadow-sm'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="font-mono text-sm font-black text-slate-800">
+                          {session.licensePlate}
+                        </p>
+                        <p className="mt-1 text-xs font-bold text-slate-500">
+                          {session.cardCode ?? 'No card code'}
+                        </p>
+                      </div>
+                      <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[9px] font-bold text-emerald-700">
+                        ACTIVE
+                      </span>
+                    </div>
+
+                    <div className="mt-2 grid grid-cols-1 gap-0.5 text-[11px] font-semibold text-slate-600">
+                      <p>Customer: {session.customerType}</p>
+                      <p>Check-in: {formatDateTime(session.checkInTime)}</p>
+                    </div>
+                  </button>
+                );
+              })}
             </div>
           )}
-        </div>
+        </section>
 
+        <section className="space-y-3 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
+          <div>
+            <h2 className="text-base font-bold text-slate-800">Current Vehicle To Exit</h2>
+          </div>
+
+          {selectedSession ? (
+            <div className="space-y-3">
+              <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-4">
+                <p className="text-xs font-bold uppercase tracking-wider text-emerald-700">
+                  License Plate
+                </p>
+                <p className="mt-1 break-all font-mono text-4xl font-black tracking-wider text-slate-900">
+                  {selectedSession.licensePlate}
+                </p>
+                <div className="mt-3 grid grid-cols-1 gap-2 text-xs font-bold text-slate-700 sm:grid-cols-2">
+                  <p>Card: <span className="font-mono text-slate-900">{selectedSession.cardCode ?? 'Not returned by BE'}</span></p>
+                  <p>Vehicle: <span className="text-slate-900">{selectedSession.vehicleType}</span></p>
+                  <p>Customer: <span className="text-slate-900">{selectedSession.customerType}</span></p>
+                  <p>Check-in: <span className="text-slate-900">{formatDateTime(selectedSession.checkInTime)}</span></p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div className={`rounded-xl border px-4 py-3 text-sm font-bold ${
+                  plateConfirmation === 'MATCHED'
+                    ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                    : plateConfirmation === 'MISMATCH'
+                      ? 'border-red-200 bg-red-50 text-red-700'
+                      : 'border-amber-200 bg-amber-50 text-amber-700'
+                }`}>
+                  <span className="material-symbols-outlined mr-2 align-middle text-base">
+                    {plateConfirmation === 'MATCHED'
+                      ? 'check_circle'
+                      : plateConfirmation === 'MISMATCH'
+                        ? 'error'
+                        : 'visibility'}
+                  </span>
+                  {plateConfirmation === 'MATCHED'
+                    ? 'Plate matched'
+                    : plateConfirmation === 'MISMATCH'
+                      ? 'Plate mismatch - incident review required'
+                      : 'Waiting for staff confirmation'}
+                </div>
+                <div className={`rounded-xl border px-4 py-3 text-sm font-bold ${isCardMatched ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-red-200 bg-red-50 text-red-700'}`}>
+                  <span className="material-symbols-outlined mr-2 align-middle text-base">
+                    {isCardMatched ? 'check_circle' : 'error'}
+                  </span>
+                  {isCardMatched ? 'Card matched' : 'Card not matched'}
+                </div>
+              </div>
+
+              {!checkoutTime && (
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <button
+                    type="button"
+                    disabled={isSubmitting}
+                    onClick={() => {
+                      setPlateConfirmation('MATCHED');
+                      setActualExitPlate(selectedSession.licensePlate);
+                      setFeedback({
+                        tone: 'success',
+                        message: 'Plate confirmed. You can start checkout and lock fee.',
+                      });
+                    }}
+                    className="rounded-xl bg-emerald-500 px-4 py-3 text-sm font-bold text-white shadow-lg shadow-emerald-500/20 hover:bg-emerald-600 disabled:bg-slate-300"
+                  >
+                    Plate Matched - Continue
+                  </button>
+                  <button
+                    type="button"
+                    disabled={isSubmitting}
+                    onClick={() => {
+                      setPlateConfirmation('MISMATCH');
+                      setFeedback({
+                        tone: 'warning',
+                        message:
+                          'Plate mismatch selected. Normal checkout is blocked. TODO: route this case to Incident Handling.',
+                      });
+                    }}
+                    className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700 hover:bg-red-100 disabled:bg-slate-100"
+                  >
+                    Plate Mismatch - Need Incident Review
+                  </button>
+                </div>
+              )}
+
+              <details className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                <summary className="cursor-pointer text-xs font-bold uppercase text-slate-500">
+                  Optional plate note
+                </summary>
+                <input
+                  type="text"
+                  value={actualExitPlate}
+                  onChange={(event) => setActualExitPlate(event.target.value.toUpperCase())}
+                  disabled={Boolean(checkoutTime)}
+                  placeholder="Only use this for manual note/review"
+                  className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 font-mono font-black text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 disabled:text-slate-400"
+                />
+              </details>
+
+              <div className="grid grid-cols-1 gap-2 rounded-xl border border-slate-100 bg-slate-50 p-3 text-xs font-semibold text-slate-600 sm:grid-cols-2">
+                <p>Duration: <span className="font-black text-slate-800">{getDurationLabel(selectedSession.checkInTime, checkoutTime)}</span></p>
+                <p>Zone / Slot: <span className="font-black text-slate-800">{selectedSession.zoneCode ?? '—'} / {selectedSession.slotCode ?? '—'}</span></p>
+              </div>
+
+              <div className="rounded-xl border border-blue-100 bg-blue-50 p-3">
+                <div className="flex items-start gap-3">
+                  <span className="material-symbols-outlined text-blue-700">lock_clock</span>
+                  <div>
+                    <p className="text-sm font-black text-blue-900">Checkout Time Lock</p>
+                    <p className="mt-1 text-xs font-semibold text-blue-700">
+                      Lock checkout time before payment.
+                    </p>
+                  </div>
+                </div>
+
+                {checkoutTime ? (
+                  <div className="mt-2 rounded-xl bg-white px-3 py-2 text-sm font-bold text-slate-700">
+                    Locked at {formatDateTime(checkoutTime)}
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    disabled={!canStartCheckout || isSubmitting}
+                    onClick={() => void handleStartCheckout()}
+                    className="mt-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+                  >
+                    Start Checkout / Lock Fee
+                  </button>
+                )}
+              </div>
+
+              <details className="rounded-xl border border-slate-200 bg-white p-3">
+                <summary className="cursor-pointer text-xs font-bold uppercase text-slate-400">
+                  Developer Info
+                </summary>
+                <div className="mt-3 grid grid-cols-1 gap-2 text-xs font-semibold text-slate-500 sm:grid-cols-2">
+                  <p>Session: {selectedSession.sessionCode}</p>
+                  <p>Vehicle ID: {selectedSession.vehicleId ?? '—'}</p>
+                  <p>Card ID: {selectedSession.cardId ?? '—'}</p>
+                  <p>Building ID: {selectedSession.buildingId ?? '—'}</p>
+                  <p>Zone ID: {selectedSession.zoneId ?? '—'}</p>
+                  <p>Slot ID: {selectedSession.slotId ?? '—'}</p>
+                  <p>Booking ID: {selectedSession.bookingId ?? '—'}</p>
+                  <p>Monthly ID: {selectedSession.monthlySubscriptionId ?? '—'}</p>
+                </div>
+              </details>
+            </div>
+          ) : (
+            <div className="rounded-2xl border border-dashed border-slate-200 py-12 text-center text-slate-400">
+              <span className="material-symbols-outlined text-3xl">fact_check</span>
+              <p className="mt-2 text-sm">Enter card code to load vehicle.</p>
+            </div>
+          )}
+        </section>
+
+        <section className="space-y-3 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
+          <div>
+            <h2 className="text-base font-bold text-slate-800">Fee & Payment</h2>
+          </div>
+
+          {selectedSession ? (
+            <>
+              <div className="space-y-3 rounded-xl border border-slate-100 bg-slate-50 p-3 text-sm">
+                <div className="flex items-center justify-between gap-4">
+                  <span className="font-bold text-slate-600">Amount due</span>
+                  <span className="text-2xl font-black text-emerald-600">
+                    {amountDue == null ? '—' : formatCurrency(amountDue)}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between gap-4">
+                  <span className="text-slate-500">Payment status</span>
+                  <span className="font-black text-slate-800">{paymentStatus}</span>
+                </div>
+                <div className="flex items-center justify-between gap-4">
+                  <span className="text-slate-500">Checkout time</span>
+                  <span className="text-right font-bold text-slate-800">{formatDateTime(checkoutTime)}</span>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-xs font-bold uppercase text-slate-500">
+                  Payment Method
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  {(['CASH', 'ONLINE_BANKING'] as CheckoutPaymentMethod[]).map((method) => (
+                    <button
+                      key={method}
+                      type="button"
+                      disabled={!checkoutTime || paymentStatus === 'PAID'}
+                      onClick={() => setPaymentMethod(method)}
+                      className={`rounded-xl border px-3 py-2.5 text-xs font-bold transition ${
+                        paymentMethod === method
+                          ? 'border-emerald-300 bg-emerald-50 text-emerald-700'
+                          : 'border-slate-200 bg-slate-50 text-slate-600'
+                      } disabled:cursor-not-allowed disabled:opacity-60`}
+                    >
+                      {method === 'CASH' ? 'Cash' : 'Online Banking'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {payment?.paymentUrl && (
+                <a
+                  href={payment.paymentUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="block rounded-xl border border-blue-200 bg-blue-50 px-4 py-2.5 text-center text-sm font-bold text-blue-700 hover:bg-blue-100"
+                >
+                  Open online banking payment URL
+                </a>
+              )}
+
+              <div className="space-y-3">
+                <button
+                  type="button"
+                  disabled={!canCreatePayment || isSubmitting}
+                  onClick={() => void handleCreatePayment()}
+                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-amber-500 py-3 text-sm font-bold text-white hover:bg-amber-600 disabled:cursor-not-allowed disabled:bg-slate-300"
+                >
+                  <span className="material-symbols-outlined text-base">payments</span>
+                  {paymentStatus === 'FAILED' ? 'Retry With New Payment' : 'Create Checkout Payment'}
+                </button>
+
+                <button
+                  type="button"
+                  disabled={!canCompleteCheckout || isSubmitting}
+                  onClick={() => void handleCompleteCheckout()}
+                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-500 py-3 text-sm font-bold text-white shadow-lg shadow-emerald-500/20 hover:bg-emerald-600 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:shadow-none"
+                >
+                  <span className="material-symbols-outlined text-base">exit_to_app</span>
+                  Complete Checkout
+                </button>
+
+                {checkoutTime && paymentStatus !== 'PAID' && (
+                  <p className="text-xs font-semibold text-slate-400">
+                    Waiting for BE payment status.
+                  </p>
+                )}
+              </div>
+            </>
+          ) : (
+            <div className="rounded-2xl border border-dashed border-slate-200 py-12 text-center text-slate-400">
+              <span className="material-symbols-outlined text-3xl">payments</span>
+              <p className="mt-2 text-sm">Payment appears after card match.</p>
+            </div>
+          )}
+        </section>
       </div>
-
     </div>
   );
 }

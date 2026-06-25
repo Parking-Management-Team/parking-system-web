@@ -2,10 +2,7 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import mockData from '@/features/vehicles/components/mocks/vehicle-checkin.mock.json';
-import {
-  fetchCards as fetchCardsFromApi,
-  setLocalCardStatusOverride,
-} from '@/features/card/services/card.service';
+import { fetchCards as fetchCardsFromApi } from '@/features/card/services/card.service';
 import {
   checkInVehicle,
   fetchActiveParkingSessions,
@@ -15,7 +12,14 @@ import {
 type VehicleType = 'CAR' | 'MOTORCYCLE';
 type CustomerType = 'WALK_IN' | 'BOOKING' | 'MONTHLY';
 type CardType = 'NORMAL' | 'MONTHLY';
-type CardStatus = 'AVAILABLE' | 'ASSIGNED' | 'LOST' | 'INACTIVE';
+type CardStatus =
+  | 'AVAILABLE'
+  | 'ACTIVE'
+  | 'ASSIGNED'
+  | 'LOST'
+  | 'BLOCKED'
+  | 'INACTIVE'
+  | 'UNKNOWN';
 type ZoneAccessType = 'GENERAL' | 'MONTHLY';
 type ZoneStatus = 'ACTIVE' | 'MAINTENANCE' | 'LOCKED';
 type SlotStatus = 'AVAILABLE' | 'OCCUPIED' | 'MAINTENANCE' | 'LOCKED';
@@ -130,11 +134,15 @@ const getCardStatusClassName = (status: CardStatus) => {
   switch (status) {
     case 'AVAILABLE':
       return 'text-emerald-700';
+    case 'ACTIVE':
     case 'ASSIGNED':
       return 'text-blue-700';
     case 'LOST':
       return 'text-red-700';
+    case 'BLOCKED':
+      return 'text-slate-700';
     case 'INACTIVE':
+    case 'UNKNOWN':
       return 'text-slate-500';
   }
 };
@@ -173,20 +181,17 @@ export default function VehicleCheckin() {
 
   const fetchAvailableCards = async () => {
     const apiCards = await fetchCardsFromApi();
-    const availableCards: ParkingCard[] = apiCards
-      .filter(
-        (card) =>
-          card.cardStatus === 'AVAILABLE' && card.cardType === 'PARKING_CARD'
-      )
+    const parkingCards: ParkingCard[] = apiCards
+      .filter((card) => card.cardType === 'PARKING_CARD')
       .map((card) => ({
         id: card.id,
         code: card.cardCode,
         type: 'NORMAL',
-        status: 'AVAILABLE',
-        vehiclePlate: null,
+        status: card.cardStatus,
+        vehiclePlate: card.vehiclePlate,
         monthlySubscriptionId: null,
       }));
-    setCards(availableCards);
+    setCards(parkingCards);
   };
 
   const fetchActiveSessions = async () => {
@@ -374,14 +379,10 @@ export default function VehicleCheckin() {
   }, [blacklist, isPlateBlacklisted, isCardBlacklisted, formattedPlate, normalizedCardCode]);
 
   // FE chỉ validate các field bắt buộc; business rules do BE xử lý.
- const canCheckin = 
- isLicensePlateValid && 
- Boolean(selectedCard) && 
- Boolean(vehicleType) && 
- bookingCode.trim().length > 0 &&
- !isPlateBlacklisted &&
- !isCardBlacklisted;
- Boolean(selectedBooking);
+  const canCheckin =
+    isLicensePlateValid &&
+    selectedCard?.status === 'AVAILABLE' &&
+    Boolean(vehicleType);
 
   useEffect(() => {
     if (!selectedBooking) {
@@ -410,8 +411,7 @@ export default function VehicleCheckin() {
 
   /* ==========================================================
      HANDLE CHECK-IN
-     Tạo Parking Session giả lập.
-     Sau này đổi phần này thành POST API.
+     Gọi API BE thật để tạo Parking Session.
   ========================================================== */
 
 const handleCheckin = async (e: React.FormEvent) => {
@@ -440,57 +440,7 @@ const handleCheckin = async (e: React.FormEvent) => {
     setTimeout(() => setIsCheckedIn(false), 3000);
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Check-in failed.';
-
-    const shouldUseMockFallback =
-      message.includes('No available GENERAL slot') ||
-      message.includes('No available') ||
-      message.includes('slot');
-
-    if (!shouldUseMockFallback) {
-      alert(message);
-      setIsSubmitting(false);
-      return;
-    }
-
-    const mockSessionId = Date.now();
-
-    const mockSession: ParkingSession = {
-      id: mockSessionId,
-      sessionCode: `MOCK-${mockSessionId}`,
-      licensePlate: formattedPlate,
-      vehicleType,
-      customerType,
-      cardId: selectedCard.id,
-      cardCode: selectedCard.code,
-      zoneId: selectedZoneId,
-      zoneName:
-        zones.find((zone) => zone.id === selectedZoneId)?.name ??
-        'Mock General Zone',
-      actualSlotId: null,
-      actualSlotCode: null,
-      checkInTime: new Date().toISOString(),
-      status: 'ACTIVE',
-    };
-
-    setSessions((current) => [mockSession, ...current]);
-
-    setLocalCardStatusOverride(selectedCard.code, {
-      cardStatus: 'ASSIGNED',
-      vehiclePlate: formattedPlate,
-      currentSessionId: mockSessionId,
-    });
-
-    setCards((current) =>
-      current.filter((card) => card.code !== selectedCard.code)
-    );
-
-    setCardCode('');
-    setIsCheckedIn(true);
-    setTimeout(() => setIsCheckedIn(false), 3000);
-
-    alert(
-      'BE does not have an available GENERAL slot, so FE created a mock check-in session for demo.'
-    );
+    alert(message);
   } finally {
     setIsSubmitting(false);
   }
@@ -762,6 +712,12 @@ const handleCheckin = async (e: React.FormEvent) => {
                   {cardCode.trim() && !selectedCard && (
                     <p className="text-xs font-bold text-red-600">
                       Card code not found.
+                    </p>
+                  )}
+
+                  {selectedCard && selectedCard.status !== 'AVAILABLE' && (
+                    <p className="text-xs font-bold text-amber-600">
+                      This card is {selectedCard.status}. Only AVAILABLE cards can be used for check-in.
                     </p>
                   )}
                 </div>

@@ -48,6 +48,26 @@ export const ROLE_NAVIGATION: Record<string, NavigationItem[]> = {
       icon: 'report_problem',
     },
     {
+      label: 'Bookings Management',
+      href: '/dashboard/manager/bookings',
+      icon: 'calendar_month',
+    },
+    {
+      label: 'Parking Sessions',
+      href: '/dashboard/manager/parking-sessions',
+      icon: 'history',
+    },
+    {
+      label: 'Payments & Transactions',
+      href: '/dashboard/manager/payments',
+      icon: 'payments',
+    },
+    {
+      label: 'Card Management',
+      href: '/dashboard/manager/cards',
+      icon: 'credit_card',
+    },
+    {
       label: 'Blacklist Control',
       href: '/dashboard/manager/blacklist',
       icon: 'block',

@@ -32,6 +32,7 @@ export default function PricingWorkspace() {
     handleOpenAddIncidentType,
     handleOpenEditIncidentType,
     handleDeleteIncidentType,
+    handleDeactivatePolicy,
     vehicleTypes
   } = pricing;
 
@@ -242,6 +243,19 @@ export default function PricingWorkspace() {
                                   title={coverage.isValid && overlap.isValid ? "Activate policy" : "Requires 24h coverage and no overlaps to activate"}
                                 >
                                   Activate
+                                </button>
+                              )}
+                              {isActive && (
+                                <button
+                                  onClick={() => {
+                                    if (confirm(`Set policy "${policy.policyName}" to Inactive?`)) {
+                                      handleDeactivatePolicy(policy);
+                                    }
+                                  }}
+                                  className="px-3 py-1.5 bg-red-50 hover:bg-red-600 text-red-600 hover:text-white font-bold text-xs rounded-xl transition-all border border-red-200 hover:border-red-600"
+                                  title="Deactivate this policy"
+                                >
+                                  Set Inactive
                                 </button>
                               )}
                               <button 

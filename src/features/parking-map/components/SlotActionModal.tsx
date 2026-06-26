@@ -101,7 +101,7 @@ export function SlotActionModal({
         showToastMessage('Vehicle found successfully!');
       } else {
         // Create vehicle on-the-fly if not found
-        const typeId = slot.slotType === 'EV Charging' ? 3 : 1;
+        const typeId = slot.vehicleTypeId;
         const newVehicleRes = await api.post<BaseResponse<VehicleDto>>('/vehicles', {
           vehicleTypeId: typeId,
           licensePlate: vehicleSearchQuery.toUpperCase(),
@@ -178,7 +178,7 @@ export function SlotActionModal({
       await api.put(`/ParkingSlots/${slot.id}`, {
         code: slot.slotCode,
         name: slot.slotName || `Slot ${slot.slotCode}`,
-        vehicleTypeId: slot.slotType === 'EV Charging' ? 3 : 1,
+        vehicleTypeId: slot.vehicleTypeId,
         status: 1 // Occupied
       });
 
@@ -243,7 +243,7 @@ export function SlotActionModal({
       await api.put(`/ParkingSlots/${slot.id}`, {
         code: slot.slotCode,
         name: slot.slotName || `Slot ${slot.slotCode}`,
-        vehicleTypeId: slot.slotType === 'EV Charging' ? 3 : 1,
+        vehicleTypeId: slot.vehicleTypeId,
         status: statusVal
       });
 

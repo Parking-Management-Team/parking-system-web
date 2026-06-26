@@ -10,15 +10,12 @@ import {
   Building as BuildingIcon,
   Filter,
   CheckCircle,
-  XCircle,
   Clock,
   Car,
   ChevronLeft,
   ChevronRight,
   RefreshCw,
-  Info,
-  Eye,
-  EyeOff
+  Info
 } from 'lucide-react';
 
 interface BuildingItem {
@@ -33,27 +30,21 @@ export default function BookingWorkspace() {
     isLoading,
     error,
     fetchBookings,
-    confirmBooking,
     cancelBooking,
   } = useBookings();
 
-  // Filters State
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [selectedBuildingId, setSelectedBuildingId] = useState<number | 'ALL'>('ALL');
   const [buildings, setBuildings] = useState<BuildingItem[]>([]);
   const [showActiveOnly, setShowActiveOnly] = useState(false);
-  
-  // Pagination
+
   const [currentPage, setCurrentPage] = useState(1);
   const ITEMS_PER_PAGE = 8;
 
-  // Selected Booking for Actions
   const [activeActionId, setActiveActionId] = useState<number | null>(null);
-  const [actionType, setActionType] = useState<'confirm' | 'cancel' | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
 
-  // Load buildings
   useEffect(() => {
     api.get<BaseResponse<PagedResult<BuildingItem>>>('/Buildings/paged?pageIndex=1&pageSize=100')
       .then(res => {
@@ -78,7 +69,6 @@ export default function BookingWorkspace() {
     triggerFetch();
   }, [triggerFetch]);
 
-  // Compute metrics from current visible/active bookings
   const metrics = useMemo(() => {
     return bookings.reduce(
       (acc, curr) => {
@@ -93,40 +83,27 @@ export default function BookingWorkspace() {
     );
   }, [bookings]);
 
-  // Filter active only bookings
   const activeStatuses = ['PENDING', 'CONFIRMED', 'CHECKEDIN'];
   const visibleBookings = useMemo(() => {
     if (!showActiveOnly) return bookings;
     return bookings.filter(b => activeStatuses.includes((b.bookingStatus || '').toUpperCase()));
   }, [bookings, showActiveOnly]);
 
-  // Pagination filtering on already-fetched items
   const totalPages = Math.max(1, Math.ceil(visibleBookings.length / ITEMS_PER_PAGE));
   const paginatedBookings = useMemo(() => {
     const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
     return visibleBookings.slice(startIndex, startIndex + ITEMS_PER_PAGE);
   }, [visibleBookings, currentPage]);
 
-  const handleAction = async () => {
-    if (!activeActionId || !actionType) return;
+  const handleCancel = async () => {
+    if (!activeActionId) return;
     setActionLoading(true);
-    let success = false;
-    if (actionType === 'confirm') {
-      success = await confirmBooking(activeActionId);
-    } else {
-      success = await cancelBooking(activeActionId);
-    }
+    const success = await cancelBooking(activeActionId);
     setActionLoading(false);
     if (success) {
       setActiveActionId(null);
-      setActionType(null);
       triggerFetch();
     }
-  };
-
-  const openActionModal = (id: number, type: 'confirm' | 'cancel') => {
-    setActiveActionId(id);
-    setActionType(type);
   };
 
   const formatDate = (raw: string) => {
@@ -146,12 +123,12 @@ export default function BookingWorkspace() {
 
   return (
     <div className="p-8 max-w-[1400px] mx-auto space-y-8">
-      {/* HEADER SECTION */}
+      {/* HEADER */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-black text-slate-800 tracking-tight">Bookings Management</h1>
           <p className="text-sm text-slate-400 mt-1">
-            Monitor incoming pre-booked slot reservations, confirm client payments, or cancel sessions.
+            Monitor incoming pre-booked slot reservations, or cancel bookings when needed.
           </p>
         </div>
         <button
@@ -164,11 +141,11 @@ export default function BookingWorkspace() {
         </button>
       </div>
 
-      {/* METRICS ROW */}
+      {/* METRICS */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <div className="bg-white border border-slate-100 p-5 rounded-2xl shadow-sm flex flex-col justify-between hover:shadow-md transition-all">
           <div>
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total Active Bookings</span>
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total Bookings</span>
             <h3 className="text-3xl font-black text-slate-800 mt-2">{metrics.total}</h3>
           </div>
           <div className="mt-4 flex items-center gap-1.5 text-xs text-slate-400">
@@ -179,23 +156,23 @@ export default function BookingWorkspace() {
 
         <div className="bg-white border border-slate-100 p-5 rounded-2xl shadow-sm flex flex-col justify-between hover:shadow-md transition-all">
           <div>
-            <span className="text-[10px] font-bold text-amber-600 uppercase tracking-wider bg-amber-50 px-2 py-0.5 rounded-full">Pending Confirm</span>
+            <span className="text-[10px] font-bold text-amber-600 uppercase tracking-wider bg-amber-50 px-2 py-0.5 rounded-full">Pending</span>
             <h3 className="text-3xl font-black text-amber-600 mt-2">{metrics.pending}</h3>
           </div>
           <div className="mt-4 flex items-center gap-1.5 text-xs text-slate-400">
             <Clock className="w-3.5 h-3.5 text-amber-500" />
-            <span>Awaiting manual check-in</span>
+            <span>Awaiting deposit payment</span>
           </div>
         </div>
 
         <div className="bg-white border border-slate-100 p-5 rounded-2xl shadow-sm flex flex-col justify-between hover:shadow-md transition-all">
           <div>
-            <span className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider bg-emerald-50 px-2 py-0.5 rounded-full">Confirmed Bookings</span>
+            <span className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider bg-emerald-50 px-2 py-0.5 rounded-full">Confirmed</span>
             <h3 className="text-3xl font-black text-emerald-600 mt-2">{metrics.confirmed}</h3>
           </div>
           <div className="mt-4 flex items-center gap-1.5 text-xs text-slate-400">
             <CheckCircle className="w-3.5 h-3.5 text-emerald-500" />
-            <span>Guaranteed spaces</span>
+            <span>Deposit paid, slot reserved</span>
           </div>
         </div>
 
@@ -206,15 +183,14 @@ export default function BookingWorkspace() {
           </div>
           <div className="mt-4 flex items-center gap-1.5 text-xs text-slate-400">
             <Car className="w-3.5 h-3.5 text-blue-500" />
-            <span>Active in slots</span>
+            <span>Vehicle arrived</span>
           </div>
         </div>
       </div>
 
-      {/* FILTER & SEARCH */}
+      {/* FILTERS */}
       <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-          {/* License Plate Search */}
           <div className="relative">
             <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
             <input
@@ -226,7 +202,6 @@ export default function BookingWorkspace() {
             />
           </div>
 
-          {/* Building Filter */}
           <div className="relative">
             <select
               value={selectedBuildingId}
@@ -247,7 +222,6 @@ export default function BookingWorkspace() {
             </div>
           </div>
 
-          {/* Status Filter */}
           <div className="relative">
             <select
               value={statusFilter}
@@ -266,7 +240,6 @@ export default function BookingWorkspace() {
             </div>
           </div>
 
-          {/* Show Active Only Toggle */}
           <label className="flex items-center gap-3 px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl cursor-pointer hover:bg-slate-100 transition-all select-none">
             <div className="relative">
               <input
@@ -282,14 +255,13 @@ export default function BookingWorkspace() {
             <span className="text-xs font-semibold text-slate-600">Show Active Only</span>
           </label>
 
-          {/* Tips Info Block */}
           <div className="bg-slate-50 border border-slate-100 rounded-xl px-4 py-2.5 flex items-center gap-2 text-[10px] text-slate-500 leading-normal">
             <Info className="w-4 h-4 text-[#006d43] shrink-0" />
-            <span>Confirm pre-bookings for VIP drivers or during exceptions. Checked-in vehicles can be managed via Gate workspace.</span>
+            <span>Booking auto-confirms when deposit is paid via VNPay. Cancel if needed.</span>
           </div>
         </div>
 
-        {/* BOOKINGS TABLE */}
+        {/* TABLE */}
         <div className="overflow-x-auto border border-slate-50 rounded-xl">
           {isLoading ? (
             <div className="py-20 flex flex-col items-center gap-3">
@@ -314,11 +286,13 @@ export default function BookingWorkspace() {
             <table className="w-full text-left border-collapse">
               <thead className="bg-slate-50 border-b border-slate-100 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
                 <tr>
-                  <th className="px-6 py-4">Booking Code</th>
+                  <th className="px-6 py-4">Code</th>
+                  <th className="px-6 py-4">Customer</th>
                   <th className="px-6 py-4">Vehicle Plate</th>
                   <th className="px-6 py-4">Type</th>
-                  <th className="px-6 py-4">Facility / Building</th>
-                  <th className="px-6 py-4">Check-in Expected</th>
+                  <th className="px-6 py-4">Building</th>
+                  <th className="px-6 py-4">Slot</th>
+                  <th className="px-6 py-4">Check-in Time</th>
                   <th className="px-6 py-4">Deposit</th>
                   <th className="px-6 py-4">Status</th>
                   <th className="px-6 py-4 text-center">Actions</th>
@@ -329,11 +303,15 @@ export default function BookingWorkspace() {
                   const status = (booking.bookingStatus || '').toUpperCase();
                   const isPending = status === 'PENDING';
                   const isConfirmed = status === 'CONFIRMED';
-                  
+                  const canCancel = isPending || isConfirmed;
+
                   return (
                     <tr key={booking.id} className="hover:bg-slate-50/50 transition-colors">
                       <td className="px-6 py-4 font-mono font-bold text-slate-800">
-                        #{booking.code}
+                        #{booking.code || booking.id}
+                      </td>
+                      <td className="px-6 py-4 font-semibold text-slate-700">
+                        {booking.accountName || '—'}
                       </td>
                       <td className="px-6 py-4 font-mono font-bold text-slate-700">
                         {booking.licensePlate}
@@ -343,6 +321,9 @@ export default function BookingWorkspace() {
                       </td>
                       <td className="px-6 py-4 font-semibold text-slate-700">
                         {booking.buildingName}
+                      </td>
+                      <td className="px-6 py-4 font-mono text-slate-600">
+                        {booking.slotCode || '—'}
                       </td>
                       <td className="px-6 py-4 text-slate-500">
                         {formatDate(booking.plannedCheckinTime)}
@@ -366,32 +347,15 @@ export default function BookingWorkspace() {
                           {booking.bookingStatus}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-center flex items-center justify-center gap-2">
-                        {isPending && (
-                          <>
-                            <button
-                              onClick={() => openActionModal(booking.id, 'confirm')}
-                              className="px-3 py-1.5 bg-[#006d43] hover:bg-[#005c38] text-white font-bold text-[10px] rounded-lg transition-colors shadow-sm"
-                            >
-                              Confirm
-                            </button>
-                            <button
-                              onClick={() => openActionModal(booking.id, 'cancel')}
-                              className="px-3 py-1.5 border border-rose-200 hover:bg-rose-50 text-rose-600 font-bold text-[10px] rounded-lg transition-colors"
-                            >
-                              Cancel
-                            </button>
-                          </>
-                        )}
-                        {!isPending && isConfirmed && (
+                      <td className="px-6 py-4 text-center">
+                        {canCancel ? (
                           <button
-                            onClick={() => openActionModal(booking.id, 'cancel')}
+                            onClick={() => setActiveActionId(booking.id)}
                             className="px-3 py-1.5 border border-rose-200 hover:bg-rose-50 text-rose-600 font-bold text-[10px] rounded-lg transition-colors"
                           >
                             Cancel
                           </button>
-                        )}
-                        {!isPending && !isConfirmed && (
+                        ) : (
                           <span className="text-slate-400 text-[10px] italic">No actions</span>
                         )}
                       </td>
@@ -403,7 +367,7 @@ export default function BookingWorkspace() {
           )}
         </div>
 
-        {/* PAGINATION BAR */}
+        {/* PAGINATION */}
         {!isLoading && visibleBookings.length > 0 && (
           <div className="p-4 bg-slate-50 border-t border-slate-100 flex items-center justify-between text-xs rounded-xl">
             <span className="text-slate-400">
@@ -438,39 +402,31 @@ export default function BookingWorkspace() {
         )}
       </div>
 
-      {/* CONFIRMATION DIALOG MODAL */}
-      {activeActionId && actionType && (
+      {/* CANCEL MODAL */}
+      {activeActionId && (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
           <div className="bg-white w-full max-w-sm rounded-2xl shadow-xl overflow-hidden border border-slate-100">
             <div className="px-6 py-5 border-b border-slate-100">
-              <h3 className="font-bold text-slate-800">
-                {actionType === 'confirm' ? 'Confirm Reservation?' : 'Cancel Booking?'}
-              </h3>
+              <h3 className="font-bold text-slate-800">Cancel Booking?</h3>
               <p className="text-xs text-slate-400 mt-1">
-                {actionType === 'confirm'
-                  ? 'This will transition the booking status to Confirmed, preparing the slot allocation.'
-                  : 'This will cancel the booking. Releasing any allocated slot. This cannot be undone.'}
+                This will cancel the booking and release any allocated slot. This cannot be undone.
               </p>
             </div>
             <div className="p-6 flex gap-3">
               <button
-                onClick={() => { setActiveActionId(null); setActionType(null); }}
+                onClick={() => setActiveActionId(null)}
                 disabled={actionLoading}
                 className="flex-1 py-2.5 border border-slate-200 hover:bg-slate-50 text-slate-600 text-xs font-bold rounded-xl transition-all"
               >
                 Back
               </button>
               <button
-                onClick={handleAction}
+                onClick={handleCancel}
                 disabled={actionLoading}
-                className={`flex-1 py-2.5 text-white text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 ${
-                  actionType === 'confirm' ? 'bg-[#006d43] hover:bg-[#005c38]' : 'bg-rose-600 hover:bg-rose-700'
-                } disabled:opacity-50`}
+                className="flex-1 py-2.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 disabled:opacity-50"
               >
                 {actionLoading ? (
                   <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                ) : actionType === 'confirm' ? (
-                  'Yes, Confirm'
                 ) : (
                   'Yes, Cancel'
                 )}

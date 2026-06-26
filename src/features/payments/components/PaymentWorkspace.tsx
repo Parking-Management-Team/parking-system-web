@@ -3,22 +3,20 @@
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { usePayments } from '../hooks/usePayments';
 import {
-  Calendar,
   Search,
   Filter,
   CheckCircle,
-  Clock,
-  XCircle,
   ChevronLeft,
   ChevronRight,
   RefreshCw,
-  Info,
   DollarSign,
   Briefcase,
   Layers,
   FileText,
   Printer,
-  X
+  X,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 
 export default function PaymentWorkspace() {
@@ -27,7 +25,6 @@ export default function PaymentWorkspace() {
     totalCount,
     totalPages,
     pageIndex,
-    pageSize,
     isLoading,
     error,
     fetchPayments,
@@ -40,6 +37,7 @@ export default function PaymentWorkspace() {
   const [methodFilter, setMethodFilter] = useState('ALL');
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
+  const [showActiveOnly, setShowActiveOnly] = useState(false);
   
   // Custom lookups
   const [lookupType, setLookupType] = useState<'advanced' | 'session' | 'account'>('advanced');
@@ -94,15 +92,20 @@ export default function PaymentWorkspace() {
   }, [payments]);
 
   // Client-side text filter on payments table for advanced search
+  const activeStatuses = ['SUCCESS', 'COMPLETED', 'PENDING'];
   const filteredPayments = useMemo(() => {
-    if (!searchTerm) return payments;
+    let result = payments;
+    if (showActiveOnly) {
+      result = result.filter(p => activeStatuses.includes((p.status || '').toUpperCase()));
+    }
+    if (!searchTerm) return result;
     const searchVal = searchTerm.toLowerCase().trim();
-    return payments.filter(p => 
+    return result.filter(p => 
       (p.referenceCode || '').toLowerCase().includes(searchVal) ||
       (p.licensePlate || '').toLowerCase().includes(searchVal) ||
       (p.fullName || '').toLowerCase().includes(searchVal)
     );
-  }, [payments, searchTerm]);
+  }, [payments, searchTerm, showActiveOnly]);
 
   const formatDate = (raw: string) => {
     if (!raw) return '—';
@@ -215,7 +218,7 @@ export default function PaymentWorkspace() {
       {/* FILTERS CARD */}
       <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm space-y-4">
         {lookupType === 'advanced' ? (
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
             {/* Search */}
             <div className="relative">
               <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
@@ -263,6 +266,22 @@ export default function PaymentWorkspace() {
                 className="w-full px-4 py-3 bg-slate-50 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-600 text-xs font-semibold rounded-xl text-slate-600"
               />
             </div>
+
+            {/* Show Active Only Toggle */}
+            <label className="flex items-center gap-3 px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl cursor-pointer hover:bg-slate-100 transition-all select-none">
+              <div className="relative">
+                <input
+                  type="checkbox"
+                  checked={showActiveOnly}
+                  onChange={() => setShowActiveOnly(!showActiveOnly)}
+                  className="sr-only"
+                />
+                <div className={`w-9 h-5 rounded-full transition-colors ${showActiveOnly ? 'bg-[#006d43]' : 'bg-slate-300'}`}>
+                  <div className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow-sm transition-transform ${showActiveOnly ? 'translate-x-4' : 'translate-x-0'}`} />
+                </div>
+              </div>
+              <span className="text-xs font-semibold text-slate-600">Show Active Only</span>
+            </label>
           </div>
         ) : (
           <div className="flex gap-4 max-w-lg">

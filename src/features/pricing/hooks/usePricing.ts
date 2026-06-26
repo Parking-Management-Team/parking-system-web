@@ -138,17 +138,20 @@ interface WindowApiResponse {
   incrementPrice: number;
   windowCap: number | null;
   gracePeriodMinutes: number;
+  createdAt?: string;
 }
 
 interface PolicyApiResponse {
   pricingPolicyId?: number;
   id?: number;
   vehicleTypeId: number;
+  vehicleTypeName?: string;
   policyName: string;
   effectiveStart: string;
   effectiveEnd: string | null;
   pricingPolicyStatus: string;
   pricingWindows: WindowApiResponse[];
+  createdAt?: string;
 }
 
   // Fetch pricing policies on component mount
@@ -160,6 +163,7 @@ interface PolicyApiResponse {
           const mappedPolicies: StandardTariff[] = response.data.map((policy: PolicyApiResponse) => ({
             pricingPolicyId: policy.pricingPolicyId ?? policy.id ?? 0,
             vehicleTypeId: policy.vehicleTypeId,
+            vehicleTypeName: policy.vehicleTypeName,
             policyName: policy.policyName,
             effectiveStart: policy.effectiveStart,
             effectiveEnd: policy.effectiveEnd,
@@ -175,8 +179,10 @@ interface PolicyApiResponse {
               incrementBlockMinutes: win.incrementBlockMinutes,
               incrementPrice: win.incrementPrice,
               windowCap: win.windowCap,
-              gracePeriodMinutes: win.gracePeriodMinutes
-            }))
+              gracePeriodMinutes: win.gracePeriodMinutes,
+              createdAt: win.createdAt || ''
+            })),
+            createdAt: policy.createdAt || ''
           }));
           setTariffs(mappedPolicies);
         }
@@ -499,8 +505,8 @@ interface PolicyApiResponse {
 
     const requestBody = {
       windowName: targetWindow.windowName,
-      startTime: formTariffStartTime + (formTariffStartTime.length === 5 ? ':00' : ''),
-      endTime: formTariffEndTime + (formTariffEndTime.length === 5 ? ':00' : ''),
+      startTime: formTariffStartTime.length === 5 ? `${formTariffStartTime}:00` : formTariffStartTime,
+      endTime: formTariffEndTime.length === 5 ? `${formTariffEndTime}:00` : formTariffEndTime,
       baseDurationMinutes: parseFloat(formTariffInitialDuration) * 60,
       basePrice: formTariffBasePrice,
       incrementBlockMinutes: parseFloat(formTariffIncrement) * 60,
@@ -940,12 +946,12 @@ interface PolicyApiResponse {
     const requestBody = {
       vehicleTypeId: newVehicleTypeId,
       policyName: newPolicyName,
-      effectiveStart: `${newEffectiveStart}T00:00:00.000Z`,
-      effectiveEnd: newEffectiveEnd ? `${newEffectiveEnd}T00:00:00.000Z` : null,
+      effectiveStart: `${newEffectiveStart}T00:00:00Z`,
+      effectiveEnd: newEffectiveEnd ? `${newEffectiveEnd}T23:59:59Z` : null,
       pricingWindows: newWindows.map(w => ({
         windowName: w.windowName,
-        startTime: w.startTime + (w.startTime.length === 5 ? ':00' : ''),
-        endTime: w.endTime + (w.endTime.length === 5 ? ':00' : ''),
+        startTime: w.startTime.length === 5 ? `${w.startTime}:00` : w.startTime,
+        endTime: w.endTime.length === 5 ? `${w.endTime}:00` : w.endTime,
         baseDurationMinutes: w.baseDurationMinutes,
         basePrice: w.basePrice,
         incrementBlockMinutes: w.incrementBlockMinutes,
@@ -1048,20 +1054,23 @@ interface PolicyApiResponse {
       const isActive = editPolicyTarget.pricingPolicyStatus?.toLowerCase() === 'active';
       const requestBody: {
         policyName: string;
-        pricingPolicyStatus: string | null;
         effectiveStart?: string;
-        effectiveEnd: string | null;
+        effectiveEnd?: string | null;
       } = {
         policyName: editPolicyName.trim(),
-        pricingPolicyStatus: null,
-        effectiveEnd: editEffectiveEnd ? `${editEffectiveEnd}T00:00:00.000Z` : null
       };
 
       if (!isActive) {
         if (!editEffectiveStart) {
           throw new Error('Please select the effective start date.');
         }
-        requestBody.effectiveStart = `${editEffectiveStart}T00:00:00.000Z`;
+        requestBody.effectiveStart = `${editEffectiveStart}T00:00:00Z`;
+      }
+
+      if (editEffectiveEnd) {
+        requestBody.effectiveEnd = `${editEffectiveEnd}T23:59:59Z`;
+      } else {
+        requestBody.effectiveEnd = null;
       }
 
       const res = await api.put<{ success: boolean }>(`/pricing-policies/${editPolicyTarget.pricingPolicyId}`, requestBody);
@@ -1132,8 +1141,8 @@ interface PolicyApiResponse {
 
     const newWinReq = {
       windowName: formAddWindowName,
-      startTime: formAddWindowStartTime + (formAddWindowStartTime.length === 5 ? ':00' : ''),
-      endTime: formAddWindowEndTime + (formAddWindowEndTime.length === 5 ? ':00' : ''),
+      startTime: formAddWindowStartTime.length === 5 ? `${formAddWindowStartTime}:00` : formAddWindowStartTime,
+      endTime: formAddWindowEndTime.length === 5 ? `${formAddWindowEndTime}:00` : formAddWindowEndTime,
       baseDurationMinutes: parseFloat(formAddWindowInitialDuration) * 60,
       basePrice: formAddWindowBasePrice,
       incrementBlockMinutes: parseFloat(formAddWindowIncrement) * 60,

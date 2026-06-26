@@ -16,29 +16,38 @@ export function useBookings() {
     setIsLoading(true);
     setError(null);
     try {
-      // Fetch active bookings
-      const res = await api.get<BaseResponse<any[]> | any[]>('/bookings/active');
+      const res = await api.get<BaseResponse<any[]> | any[]>('/bookings');
       const rawItems = Array.isArray(res) ? res : res.data || [];
 
-      // Map raw response to Booking type
       const mappedBookings: Booking[] = rawItems.map((item: any) => ({
         id: item.id,
         code: item.code || `BK-${item.id}`,
-        licensePlate: item.vehiclePlate || item.licensePlate || '',
+        accountId: item.accountId,
+        accountName: item.accountName || 'Customer',
+        vehicleId: item.vehicleId,
+        licensePlate: item.licensePlate || item.vehiclePlate || '',
         vehiclePlate: item.vehiclePlate || item.licensePlate || '',
-        vehicleType: item.vehicleType || (item.vehicleTypeId === 1 ? 'Motorbike' : 'Car'),
+        vehicleType: item.vehicleTypeName || item.vehicleType || (item.vehicleTypeId === 1 ? 'Car' : 'Motorcycle'),
+        vehicleTypeId: item.vehicleTypeId,
+        vehicleTypeName: item.vehicleTypeName,
         buildingId: item.buildingId,
         buildingName: item.buildingName || 'Facility',
         plannedCheckinTime: item.plannedCheckinTime || item.createdAt || '',
         plannedCheckoutTime: item.plannedCheckoutTime || '',
-        depositAmount: item.depositAmount || 20000,
-        bookingStatus: item.status || item.bookingStatus || 'Pending',
-        depositPaid: item.depositPaid ?? true,
-        isWithinGrace: item.isWithinGrace,
+        depositAmount: item.depositAmount || 0,
+        bookingStatus: item.bookingStatus || item.status || 'Pending',
+        depositPaid: item.depositPaid ?? (item.bookingStatus === 'Confirmed'),
+        paymentDeadline: item.paymentDeadline || null,
+        checkinGraceUntil: item.checkinGraceUntil || null,
+        confirmedAt: item.confirmedAt || null,
+        cancelledAt: item.cancelledAt || null,
+        cancelReason: item.cancelReason || null,
+        isWithinGrace: item.isWithinGrace ?? null,
+        slotId: item.slotId || null,
+        slotCode: item.slotCode || null,
         createdAt: item.createdAt || '',
       }));
 
-      // Filter locally based on parameters
       let filtered = mappedBookings;
       if (filters) {
         if (filters.status && filters.status !== 'ALL') {
@@ -61,26 +70,6 @@ export function useBookings() {
       setIsLoading(false);
     }
   }, []);
-
-  const confirmBooking = useCallback(async (id: number): Promise<boolean> => {
-    setIsLoading(true);
-    try {
-      const res = await api.post<BaseResponse<any>>(`/bookings/${id}/confirm`, {});
-      if (res.success || (res as any).data) {
-        showToast('Booking confirmed successfully!', 'success');
-        return true;
-      } else {
-        showToast(res.message || 'Failed to confirm booking.', 'error');
-        return false;
-      }
-    } catch (err: any) {
-      const errMsg = err?.data?.message || err?.message || 'Error confirming booking.';
-      showToast(errMsg, 'error');
-      return false;
-    } finally {
-      setIsLoading(false);
-    }
-  }, [showToast]);
 
   const cancelBooking = useCallback(async (id: number): Promise<boolean> => {
     setIsLoading(true);
@@ -107,7 +96,6 @@ export function useBookings() {
     isLoading,
     error,
     fetchBookings,
-    confirmBooking,
     cancelBooking,
   };
 }

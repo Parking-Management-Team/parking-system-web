@@ -5,17 +5,14 @@ import { useParkingSessions } from '../hooks/useParkingSessions';
 import { api } from '@/lib/api/client';
 import { BaseResponse, PagedResult } from '@/lib/types/building.types';
 import {
-  Calendar,
   Search,
   Building as BuildingIcon,
   Filter,
   CheckCircle,
   Clock,
-  Car,
   ChevronLeft,
   ChevronRight,
   RefreshCw,
-  Info,
   CreditCard,
   User,
   Hash,
@@ -34,7 +31,6 @@ export default function ParkingSessionWorkspace() {
     totalCount,
     totalPages,
     pageIndex,
-    pageSize,
     isLoading,
     error,
     fetchSessions,

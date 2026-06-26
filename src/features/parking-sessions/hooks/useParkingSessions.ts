@@ -2,7 +2,6 @@
 
 import { useState, useCallback } from 'react';
 import { api } from '@/lib/api/client';
-import { BaseResponse } from '@/lib/types/building.types';
 import { ParkingSession, SessionFilter } from '../types';
 
 export function useParkingSessions() {

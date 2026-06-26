@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useIncidents } from '@/features/incident/hooks/useIncidents';
 import { useIncidentTypes } from '@/features/incident-type/hooks/useIncidentTypes';
 import { incidentService } from '@/features/incident/services/incident.service';
@@ -8,7 +8,6 @@ import { useAuth } from '@/features/auth';
 import {
   Search,
   Filter,
-  Calendar,
   Clock,
   Car,
   AlertTriangle,
@@ -21,8 +20,7 @@ import {
   ChevronLeft,
   ChevronRight,
   RefreshCw,
-  SlidersHorizontal,
-  DollarSign
+  SlidersHorizontal
 } from 'lucide-react';
 
 interface IncidentTrackingProps {
@@ -44,7 +42,6 @@ export default function IncidentTracking({ role }: IncidentTrackingProps) {
     loading: loadingIncidents,
     fetchIncidents,
     updateIncidentStatus,
-    updateIncident
   } = useIncidents();
 
   // Search & Filter States

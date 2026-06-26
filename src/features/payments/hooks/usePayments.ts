@@ -2,7 +2,6 @@
 
 import { useState, useCallback } from 'react';
 import { api } from '@/lib/api/client';
-import { BaseResponse } from '@/lib/types/building.types';
 import { PaymentTransaction, PaymentFilter } from '../types';
 
 export function usePayments() {

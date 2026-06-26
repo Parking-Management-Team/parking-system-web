@@ -9,7 +9,6 @@ import {
   Search,
   Plus,
   Trash2,
-  Lock,
   Car,
   CreditCard,
   AlertOctagon,
@@ -51,7 +50,6 @@ export default function BlacklistManagement({ role }: BlacklistManagementProps) 
   const [licensePlate, setLicensePlate] = useState('');
   const [cardCode, setCardCode] = useState('');
   const [reason, setReason] = useState('');
-  const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [mounted, setMounted] = useState(false);
 
@@ -92,7 +90,6 @@ export default function BlacklistManagement({ role }: BlacklistManagementProps) 
     setLicensePlate('');
     setCardCode('');
     setReason('');
-    setFormError(null);
     setIsAddModalOpen(true);
   };
 
@@ -104,15 +101,14 @@ export default function BlacklistManagement({ role }: BlacklistManagementProps) 
 
   const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setFormError(null);
 
     // Validations
     if (!reason.trim()) {
-      setFormError('Reason is required.');
+      showToast?.('Reason is required.', 'error');
       return;
     }
     if (reason.length > 100) {
-      setFormError('Reason must be at most 100 characters.');
+      showToast?.('Reason must be at most 100 characters.', 'error');
       return;
     }
 
@@ -122,13 +118,13 @@ export default function BlacklistManagement({ role }: BlacklistManagementProps) 
 
     if (blockType === 'vehicle') {
       if (!licensePlate.trim()) {
-        setFormError('License plate number is required.');
+        showToast?.('License plate number is required.', 'error');
         return;
       }
       requestData.licensePlate = licensePlate.trim().toUpperCase();
     } else {
       if (!cardCode.trim()) {
-        setFormError('Card RFID Code is required.');
+        showToast?.('Card RFID Code is required.', 'error');
         return;
       }
       requestData.cardCode = cardCode.trim().toUpperCase();
@@ -140,7 +136,7 @@ export default function BlacklistManagement({ role }: BlacklistManagementProps) 
       showToast?.('Successfully added to blacklist', 'success');
       setIsAddModalOpen(false);
     } catch (err: any) {
-      setFormError(err?.message || 'An error occurred while adding to the blacklist.');
+      showToast?.(err?.message || 'An error occurred while adding to the blacklist.', 'error');
     } finally {
       setSubmitting(false);
     }
@@ -455,14 +451,6 @@ export default function BlacklistManagement({ role }: BlacklistManagementProps) 
                   className="w-full px-4 py-2.5 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-600 text-xs font-semibold rounded-xl bg-white text-slate-700"
                 />
               </div>
-
-              {/* Error messages */}
-              {formError && (
-                <div className="p-3 bg-rose-50 border border-rose-100 rounded-xl flex items-start gap-2.5 text-[11px] text-rose-700 font-semibold leading-relaxed">
-                  <AlertTriangle className="w-4 h-4 shrink-0 text-rose-500 mt-0.5" />
-                  <div>{formError}</div>
-                </div>
-              )}
 
               {/* Form Buttons */}
               <div className="flex gap-2 pt-2">

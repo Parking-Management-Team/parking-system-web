@@ -1,6 +1,8 @@
 'use client';
 
 import React, { useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { useAuth } from '@/features/auth/context/AuthContext';
 import { fetchCards as fetchCardsFromApi } from '@/features/card/services/card.service';
 import {
   checkInVehicle,
@@ -86,6 +88,7 @@ const getCardStatusClassName = (status: CardStatus) => {
 };
 
 export default function VehicleCheckin() {
+  const { showToast } = useAuth();
   const [cards, setCards] = useState<ParkingCard[]>([]);
   const [zones, setZones] = useState<CheckinParkingZone[]>([]);
   const [slots, setSlots] = useState<CheckinParkingSlot[]>([]);
@@ -106,6 +109,7 @@ export default function VehicleCheckin() {
   const [cardCode, setCardCode] = useState('');
   const [selectedZoneId, setSelectedZoneId] = useState<number | null>(1);
   const [isCheckedIn, setIsCheckedIn] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
   const [sessionSearch, setSessionSearch] = useState('');
   const [activeView, setActiveView] = useState<'CHECKIN' | 'SESSIONS'>('CHECKIN');
 
@@ -118,6 +122,10 @@ export default function VehicleCheckin() {
   const [selectedSlotBySessionId, setSelectedSlotBySessionId] = useState<
     Record<number, number>
   >({});
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   const fetchAvailableCards = async () => {
     const apiCards = await fetchCardsFromApi();
@@ -380,7 +388,7 @@ export default function VehicleCheckin() {
 
   const handleApplyMonthlyInfo = () => {
     if (!selectedMonthlySubscription) {
-      alert('Monthly subscription not found.');
+      showToast('Monthly subscription not found.', 'error');
       return;
     }
 
@@ -397,7 +405,7 @@ const handleCheckin = async (e: React.FormEvent) => {
   e.preventDefault();
 
   if (!canCheckin || !selectedCard) {
-    alert('License plate, vehicle type and an available card are required.');
+    showToast('License plate, vehicle type and an available card are required.', 'error');
     return;
   }
 
@@ -419,7 +427,7 @@ const handleCheckin = async (e: React.FormEvent) => {
     setTimeout(() => setIsCheckedIn(false), 3000);
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Check-in failed.';
-    alert(message);
+    showToast(message, 'error');
   } finally {
     setIsSubmitting(false);
   }
@@ -435,24 +443,24 @@ const handleCheckin = async (e: React.FormEvent) => {
     const selectedSlotId = selectedSlotBySessionId[session.id];
 
     if (!selectedSlotId) {
-      alert('Please select actual slot.');
+      showToast('Please select actual slot.', 'error');
       return;
     }
 
     const selectedSlot = slots.find((slot) => slot.id === selectedSlotId);
 
     if (!selectedSlot) {
-      alert('Slot not found.');
+      showToast('Slot not found.', 'error');
       return;
     }
 
     if (selectedSlot.status !== 'AVAILABLE') {
-      alert('This slot is not available.');
+      showToast('This slot is not available.', 'error');
       return;
     }
 
     if (selectedSlot.zoneId !== session.zoneId) {
-      alert('Slot must belong to the recommended GENERAL zone.');
+      showToast('Slot must belong to the recommended GENERAL zone.', 'error');
       return;
     }
 
@@ -488,7 +496,7 @@ const handleCheckin = async (e: React.FormEvent) => {
       )
     );
 
-    alert('Actual slot confirmed successfully.');
+    showToast('Actual slot confirmed successfully.', 'success');
   };
 
   /* ==========================================================
@@ -1053,31 +1061,34 @@ const handleCheckin = async (e: React.FormEvent) => {
       </div>
       )}
 
-      {isCheckedIn && (
-        <div className="fixed inset-0 z-[100] bg-emerald-500 flex flex-col items-center justify-center px-6 text-center text-white">
-          <div className="w-28 h-28 rounded-full bg-white/20 flex items-center justify-center shadow-2xl shadow-emerald-900/20">
-            <span className="material-symbols-outlined text-7xl">
-              check_circle
-            </span>
-          </div>
-          <h2 className="text-4xl md:text-5xl font-black mt-8">
-            Check-in Successful!
-          </h2>
-          <p className="text-lg text-white/85 mt-3">
-            Parking session has been created for
-          </p>
-          <p className="font-mono text-3xl md:text-4xl font-black tracking-wider mt-2">
-            {formattedPlate}
-          </p>
-          <button
-            type="button"
-            onClick={() => setIsCheckedIn(false)}
-            className="mt-10 px-8 py-3 rounded-xl bg-white text-emerald-700 font-bold hover:bg-emerald-50 transition-colors"
-          >
-            Continue
-          </button>
-        </div>
-      )}
+      {isMounted &&
+        isCheckedIn &&
+        createPortal(
+          <div className="fixed inset-0 z-[100000] bg-emerald-500 flex flex-col items-center justify-center px-6 text-center text-white">
+            <div className="w-28 h-28 rounded-full bg-white/20 flex items-center justify-center shadow-2xl shadow-emerald-900/20">
+              <span className="material-symbols-outlined text-7xl">
+                check_circle
+              </span>
+            </div>
+            <h2 className="text-4xl md:text-5xl font-black mt-8">
+              Check-in Successful!
+            </h2>
+            <p className="text-lg text-white/85 mt-3">
+              Parking session has been created for
+            </p>
+            <p className="font-mono text-3xl md:text-4xl font-black tracking-wider mt-2">
+              {formattedPlate}
+            </p>
+            <button
+              type="button"
+              onClick={() => setIsCheckedIn(false)}
+              className="mt-10 px-8 py-3 rounded-xl bg-white text-emerald-700 font-bold hover:bg-emerald-50 transition-colors"
+            >
+              Continue
+            </button>
+          </div>,
+          document.body
+        )}
     </div>
   );
 }

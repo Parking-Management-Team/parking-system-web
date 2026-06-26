@@ -237,7 +237,7 @@ export default function AddWindowModal({ pricing }: AddWindowModalProps) {
           <button 
             type="button"
             onClick={handleCloseAddWindow}
-            className="px-4.5 py-2 border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 font-bold text-xs rounded-xl transition-all"
+            className="px-5 py-2 border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 font-bold text-xs rounded-xl transition-all"
           >
             Cancel
           </button>

@@ -104,6 +104,7 @@ export interface Slot {
   buildingId: number;
   slotType: 'Standard' | 'EV Charging';
   status: 'AVAILABLE' | 'OCCUPIED' | 'BLOCKED' | 'MAINTENANCE';
+  vehicleTypeId: number;
   assignedVehicle?: {
     plate: string;
     model: string;

@@ -534,32 +534,45 @@ interface PolicyApiResponse {
     }
   };
 
+  const handleDeactivatePolicy = async (policy: StandardTariff) => {
+    const matchingVehicle = vehicleTypes.find(v => v.id === policy.vehicleTypeId);
+    const vehicleName = matchingVehicle ? matchingVehicle.name : (policy.vehicleTypeId === 1 ? 'Motorbike' : 'Car');
+    try {
+      const res = await api.post<{ success: boolean }>(`/pricing-policies/${policy.pricingPolicyId}/deactivate`, {});
+      if (res) {
+        await fetchPolicies();
+        triggerToast(`Policy "${policy.policyName}" (${vehicleName}) set to Inactive successfully!`, 'success');
+      } else {
+        triggerToast(`Failed to deactivate ${vehicleName} policy.`, 'error');
+      }
+    } catch (error) {
+      console.error('Failed to deactivate policy:', error);
+      const errorMsg = extractErrorMessage(error);
+      triggerToast(errorMsg, 'error');
+    }
+  };
+
   const handleToggleTariffStatus = async (id: string) => {
     const [policyIdStr] = id.split('-');
     const policyId = parseInt(policyIdStr);
     const policy = tariffs.find(p => p.pricingPolicyId === policyId);
     if (!policy) return;
 
-    const nextStatus = policy.pricingPolicyStatus === 'Active' ? 'Inactive' : 'Active';
-    const matchingVehicle = vehicleTypes.find(v => v.id === policy.vehicleTypeId);
-    const vehicleName = matchingVehicle ? matchingVehicle.name : (policy.vehicleTypeId === 1 ? 'Motorbike' : 'Car');
-
-    if (nextStatus === 'Active') {
+    if (policy.pricingPolicyStatus === 'Active') {
+      await handleDeactivatePolicy(policy);
+    } else {
       try {
         const res = await api.post<{ success: boolean }>(`/pricing-policies/${policyId}/activate`, {});
         if (res) {
           await fetchPolicies();
-          triggerToast(`${vehicleName} Policy status updated to Active!`, 'success');
+          triggerToast(`Policy activated successfully!`, 'success');
         } else {
-          triggerToast(`Failed to activate ${vehicleName} Policy.`, 'error');
+          triggerToast(`Failed to activate policy.`, 'error');
         }
       } catch (error) {
-        console.error('Failed to activate policy:', error);
         const errorMsg = extractErrorMessage(error);
         triggerToast(errorMsg, 'error');
       }
-    } else {
-      triggerToast(`To deactivate this policy, please activate another policy for the same vehicle type.`, 'error');
     }
   };
 
@@ -1319,6 +1332,7 @@ interface PolicyApiResponse {
     handleCloseEditTariff,
     handleSaveTariff,
     handleToggleTariffStatus,
+    handleDeactivatePolicy,
     handleDeleteTariff,
 
     // S1 Handlers

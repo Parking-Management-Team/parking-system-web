@@ -259,6 +259,7 @@ export function SlotManagementDashboard() {
                 buildingId: selectedBuildingId || 0,
                 slotType: zone.vehicleType === 'EV Charging' ? 'EV Charging' as const : 'Standard' as const,
                 status: mapStatus(item.status),
+                vehicleTypeId: item.vehicleTypeId,
                 assignedVehicle
               };
             });
@@ -360,6 +361,7 @@ export function SlotManagementDashboard() {
                 buildingId: selectedBuildingId || 0,
                 slotType: zone.vehicleType === 'EV Charging' ? 'EV Charging' as const : 'Standard' as const,
                 status: mapStatus(item.status),
+                vehicleTypeId: item.vehicleTypeId,
                 assignedVehicle
               };
             });
@@ -516,13 +518,13 @@ export function SlotManagementDashboard() {
 
       {/* ===== TOAST NOTIFICATION ===== */}
       {toast && (
-        <div className={`fixed top-6 right-6 z-[100] flex items-center gap-3 text-white px-5 py-3 rounded-xl shadow-lg transition-all duration-300 transform scale-100 animate-in fade-in slide-in-from-top-4 ${
-          toast.type === 'error' ? 'bg-red-605 shadow-red-600/20' : 'bg-[#006d43] shadow-[#006d43]/20'
+        <div className={`fixed top-6 right-6 z-[100] flex items-center gap-3.5 text-white px-6 py-4 rounded-2xl shadow-xl transition-all duration-300 transform scale-100 border border-white/10 animate-in fade-in slide-in-from-top-4 ${
+          toast.type === 'error' ? 'bg-[#ba1a1a] shadow-red-600/30' : 'bg-[#006d43] shadow-[#006d43]/30'
         }`}>
-          <span className="material-symbols-outlined text-lg">
+          <span className="material-symbols-outlined text-xl">
             {toast.type === 'error' ? 'error' : 'check_circle'}
           </span>
-          <span className="text-sm font-semibold">{toast.message}</span>
+          <span className="text-base font-bold tracking-wide">{toast.message}</span>
         </div>
       )}
 

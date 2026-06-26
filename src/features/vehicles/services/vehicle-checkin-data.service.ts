@@ -33,6 +33,18 @@ type ZoneDto = {
   status?: number | string | null;
 };
 
+type SlotSubscriptionDto = {
+  subscriptionId?: number | null;
+  accountId?: number | null;
+  accountName?: string | null;
+  vehicleId?: number | null;
+  licensePlate?: string | null;
+  status?: string | null;
+  monthlyPrice?: number | null;
+  activatedAt?: string | null;
+  expiredAt?: string | null;
+};
+
 type SlotDto = {
   id?: number | null;
   code?: string | null;
@@ -40,7 +52,9 @@ type SlotDto = {
   vehicleTypeId?: number | null;
   accessType?: number | string | null;
   status?: number | string | null;
-  assignedVehiclePlate?: string | null;
+  // Backend field names (correct)
+  occupiedLicensePlate?: string | null;
+  subscription?: SlotSubscriptionDto | null;
 };
 
 type BookingDto = {
@@ -85,7 +99,7 @@ export type CheckinParkingSlot = {
   zoneId: number;
   vehicleType: 'CAR' | 'MOTORCYCLE';
   accessType: 'GENERAL' | 'MONTHLY';
-  status: 'AVAILABLE' | 'OCCUPIED' | 'MAINTENANCE' | 'LOCKED';
+  status: 'AVAILABLE' | 'OCCUPIED' | 'BLOCKED' | 'MAINTENANCE';
   assignedVehiclePlate: string | null;
 };
 
@@ -132,7 +146,8 @@ const getResponseData = <T>(response: BaseResponse<T> | T): T => {
 };
 
 const mapVehicleType = (id?: number | null): 'CAR' | 'MOTORCYCLE' => {
-  if (id === 1) return 'MOTORCYCLE';
+  // vehicleTypeId: 1=Standard(Car), 3=EV Charging(Car), 4=Motorbike
+  if (id === 4) return 'MOTORCYCLE';
   return 'CAR';
 };
 
@@ -149,10 +164,11 @@ const mapZoneStatus = (value?: number | string | null): 'ACTIVE' | 'MAINTENANCE'
 };
 
 const mapSlotStatus = (value?: number | string | null): CheckinParkingSlot['status'] => {
+  // Backend: 0=Available, 1=Occupied, 2=Blocked, 3=Maintenance
   const s = String(value ?? '').trim().toUpperCase();
   if (s === '1' || s === 'OCCUPIED') return 'OCCUPIED';
-  if (s === '2' || s === 'MAINTENANCE') return 'MAINTENANCE';
-  if (s === '3' || s === 'LOCKED') return 'LOCKED';
+  if (s === '2' || s === 'BLOCKED') return 'BLOCKED';
+  if (s === '3' || s === 'MAINTENANCE') return 'MAINTENANCE';
   return 'AVAILABLE';
 };
 
@@ -280,6 +296,11 @@ export const fetchAllSlots = async (): Promise<CheckinParkingSlot[]> => {
               const slots = Array.isArray(slotsData) ? slotsData : [];
 
               for (const slot of slots) {
+                // Resolve plate: subscription takes priority, then occupiedLicensePlate
+                const assignedPlate =
+                  slot.subscription?.licensePlate ??
+                  slot.occupiedLicensePlate ??
+                  null;
                 allSlots.push({
                   id: Number(slot.id ?? 0),
                   code: String(slot.code ?? ''),
@@ -287,7 +308,7 @@ export const fetchAllSlots = async (): Promise<CheckinParkingSlot[]> => {
                   vehicleType: mapVehicleType(slot.vehicleTypeId),
                   accessType: mapAccessType(slot.accessType),
                   status: mapSlotStatus(slot.status),
-                  assignedVehiclePlate: slot.assignedVehiclePlate ?? null,
+                  assignedVehiclePlate: assignedPlate,
                 });
               }
             } catch {

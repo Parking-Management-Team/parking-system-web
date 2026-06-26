@@ -204,9 +204,7 @@ export default function PricingWorkspace() {
                     return (
                       <div 
                         key={policy.pricingPolicyId || index} 
-                        className={`bg-white border rounded-2xl p-6 shadow-sm transition-all hover:shadow-md flex flex-col justify-between ${
-                          isActive ? 'border-[#006d43] ring-2 ring-emerald-500/10' : 'border-slate-200'
-                        }`}
+                        className="bg-white border border-[#d8e3fb] p-6 rounded-xl flex flex-col justify-between shadow-[0_1px_2px_0_rgba(0,0,0,0.05)] transition-all"
                       >
                         {/* Policy Card Header */}
                         <div>
@@ -221,16 +219,16 @@ export default function PricingWorkspace() {
                                   {vehicleTypeName}
                                 </span>
                                 
-                                <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                                <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border ${
                                   isActive 
-                                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' 
-                                    : 'bg-slate-50 text-slate-400 border border-slate-200'
+                                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200/50' 
+                                    : 'bg-slate-50 text-slate-400 border-slate-200'
                                 }`}>
-                                  <span className={`w-1 h-1 rounded-full ${isActive ? 'bg-emerald-500' : 'bg-slate-400'}`}></span>
+                                  <span className={`w-1.5 h-1.5 rounded-full ${isActive ? 'bg-[#006d43]' : 'bg-slate-400'}`}></span>
                                   {isActive ? 'Active' : 'Draft'}
                                 </span>
                               </div>
-                              <h5 className="text-slate-800 text-base font-bold mt-1.5">{policy.policyName}</h5>
+                              <h5 className="text-[#111c2d] text-base font-bold mt-1.5">{policy.policyName}</h5>
                             </div>
 
                             {/* Card Actions */}
@@ -239,7 +237,7 @@ export default function PricingWorkspace() {
                                 <button 
                                   onClick={() => handleOpenActivateDialog(policy)}
                                   disabled={!coverage.isValid || !overlap.isValid}
-                                  className="px-3 py-1.5 bg-[#006d43]/10 hover:bg-[#006d43] text-[#006d43] hover:text-white font-bold text-xs rounded-xl disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                                  className="px-3 py-1.5 bg-[#006d43]/10 hover:bg-[#006d43] text-[#006d43] hover:text-white font-bold text-xs rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                                   title={coverage.isValid && overlap.isValid ? "Activate policy" : "Requires 24h coverage and no overlaps to activate"}
                                 >
                                   Activate
@@ -252,7 +250,7 @@ export default function PricingWorkspace() {
                                       handleDeactivatePolicy(policy);
                                     }
                                   }}
-                                  className="px-3 py-1.5 bg-red-50 hover:bg-red-600 text-red-600 hover:text-white font-bold text-xs rounded-xl transition-all border border-red-200 hover:border-red-600"
+                                  className="px-3 py-1.5 bg-red-50 hover:bg-red-650 text-red-650 hover:text-white font-bold text-xs rounded-lg transition-all border border-red-200 hover:border-red-600"
                                   title="Deactivate this policy"
                                 >
                                   Set Inactive
@@ -260,13 +258,13 @@ export default function PricingWorkspace() {
                               )}
                               <button 
                                 onClick={() => handleOpenAddWindow(policy.pricingPolicyId)}
-                                className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold text-xs rounded-xl transition-all"
+                                className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-650 font-bold text-xs rounded-lg transition-all"
                               >
                                 + Add Window
                               </button>
                               <button 
                                 onClick={() => handleOpenEditPolicy(policy)}
-                                className="h-8 w-8 rounded-lg flex items-center justify-center bg-slate-100 hover:bg-[#006d43]/10 text-slate-600 hover:text-[#006d43] transition-colors"
+                                className="h-8 w-8 rounded-lg flex items-center justify-center bg-slate-100 hover:bg-[#006d43]/10 text-slate-655 hover:text-[#006d43] transition-colors"
                                 title="Edit Policy Details"
                               >
                                 <span className="material-symbols-outlined text-[16px]">edit</span>
@@ -275,23 +273,26 @@ export default function PricingWorkspace() {
                           </div>
 
                           {/* Effective Dates info */}
-                          <div className="mt-4 flex items-center gap-2.5 bg-slate-50 border border-slate-100 px-3.5 py-2 rounded-xl text-slate-500 font-semibold text-xs">
+                          <div className="mt-4 flex items-center gap-2 bg-slate-50 border border-slate-100 p-3 rounded-lg text-slate-500 font-semibold text-xs">
                             <span className="material-symbols-outlined text-[14px]">calendar_today</span>
                             <span>
-                              Effective start: {new Date(policy.effectiveStart).toLocaleDateString('en-US')}
+                              Effective start: <strong className="text-slate-700">{new Date(policy.effectiveStart).toLocaleDateString('en-US')}</strong>
                               {policy.effectiveEnd ? ` - ${new Date(policy.effectiveEnd).toLocaleDateString('en-US')}` : ' (Indefinite)'}
                             </span>
                           </div>
 
                           {/* Visual mini-timeline */}
-                          <div className="mt-5 space-y-1.5">
-                            <div className="flex justify-between items-center text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                          <div className="mt-5 space-y-2">
+                            <div className="flex justify-between items-center text-[10px] font-bold text-slate-400 uppercase tracking-wider pl-1">
                               <span>24h Timeline</span>
-                              <span className={coverage.isValid && overlap.isValid ? 'text-emerald-600' : 'text-amber-600'}>
+                              <span className={`inline-flex items-center gap-1 font-bold ${coverage.isValid && overlap.isValid ? 'text-emerald-600' : 'text-amber-600'}`}>
+                                <span className="material-symbols-outlined text-[14px]">
+                                  {coverage.isValid && overlap.isValid ? 'check_circle' : 'pending'}
+                                </span>
                                 {coverage.isValid && overlap.isValid ? 'Complete' : 'Incomplete / Overlaps'}
                               </span>
                             </div>
-                            <div className="h-6 w-full bg-slate-100 rounded-xl overflow-hidden relative border border-slate-200 flex items-center">
+                            <div className="h-6 w-full bg-slate-100 rounded-lg overflow-hidden relative border border-slate-200 flex items-center">
                               {segments.map((seg, idx) => {
                                 const isNight = isNightSlot(seg.name, policy.pricingWindows?.[seg.originalIndex]?.startTime || '');
                                 return (
@@ -301,15 +302,15 @@ export default function PricingWorkspace() {
                                       left: `${seg.startPercent}%`,
                                       width: `${seg.widthPercent}%`
                                     }}
-                                    className={`absolute h-full border-r flex items-center px-1.5 text-white overflow-hidden cursor-pointer transition-colors ${
+                                    className={`absolute h-full border-r border-white/20 flex items-center px-2 text-white overflow-hidden cursor-pointer transition-colors ${
                                       isNight 
-                                        ? 'bg-indigo-900/95 border-indigo-950/20 hover:bg-indigo-900' 
-                                        : 'bg-amber-600/95 border-amber-700/20 hover:bg-amber-600'
+                                        ? 'bg-indigo-900 border-indigo-950/20 hover:bg-indigo-950' 
+                                        : 'bg-amber-600 border-amber-700/20 hover:bg-amber-700'
                                     }`}
                                     title={`${seg.name}: ${(policy.pricingWindows?.[seg.originalIndex]?.startTime || '').substring(0, 5)} - ${(policy.pricingWindows?.[seg.originalIndex]?.endTime || '').substring(0, 5)}`}
                                   >
-                                    <span className="text-[8px] font-black truncate flex items-center gap-0.5">
-                                      <span className="material-symbols-outlined text-[8px]">
+                                    <span className="text-[8px] font-black truncate flex items-center gap-1">
+                                      <span className="material-symbols-outlined text-[10px] shrink-0">
                                         {isNight ? 'dark_mode' : 'light_mode'}
                                       </span>
                                       {seg.name}
@@ -322,13 +323,13 @@ export default function PricingWorkspace() {
                               )}
                             </div>
                             {(policy.pricingWindows || []).length > 0 && (
-                              <div className="flex gap-2 text-[8px] font-bold text-slate-400 uppercase tracking-wider justify-start pl-1">
+                              <div className="flex gap-2 text-[8px] font-bold text-slate-500 uppercase tracking-wider justify-start pl-1">
                                 <div className="flex items-center gap-1">
-                                  <span className="h-2.5 w-2.5 rounded bg-amber-600"></span>
+                                  <span className="h-2.5 w-2.5 rounded bg-gradient-to-r from-amber-500 to-orange-500"></span>
                                   <span>Day</span>
                                 </div>
                                 <div className="flex items-center gap-1">
-                                  <span className="h-2.5 w-2.5 rounded bg-indigo-900"></span>
+                                  <span className="h-2.5 w-2.5 rounded bg-gradient-to-r from-indigo-950 to-slate-800"></span>
                                   <span>Night</span>
                                 </div>
                               </div>
@@ -336,10 +337,11 @@ export default function PricingWorkspace() {
                           </div>
 
                           {/* Pricing windows list */}
-                          <div className="mt-5 space-y-2.5">
-                            <h6 className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Pricing Windows</h6>
-                            <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+                          <div className="mt-6 space-y-2">
+                            <h6 className="text-[10px] font-black uppercase text-slate-400 tracking-wider pl-1">Pricing Windows</h6>
+                            <div className="divide-y divide-slate-100 max-h-64 overflow-y-auto pr-1">
                               {(policy.pricingWindows || []).map((win, idx) => {
+                                const isNightWin = isNightSlot(win.windowName, win.startTime);
                                 // Prepare data format to pass to editing modal
                                 const tariffRowRepresentation = {
                                   id: `${policy.pricingPolicyId}-${win.pricingWindowId}`,
@@ -365,39 +367,42 @@ export default function PricingWorkspace() {
                                 return (
                                   <div 
                                     key={win.pricingWindowId || idx} 
-                                    className="bg-slate-50/50 hover:bg-slate-50 border border-slate-200/60 rounded-xl p-3 flex items-center justify-between gap-4 transition-colors"
+                                    className="py-3 flex items-center justify-between gap-4 transition-colors"
                                   >
-                                    <div className="space-y-1 min-w-0">
-                                      <div className="flex items-center gap-1.5">
-                                        <span className="text-xs font-black text-slate-800 truncate">{win.windowName}</span>
-                                        <span className="text-[10px] font-black text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">
-                                          {win.startTime.substring(0, 5)} - {win.endTime.substring(0, 5)}
+                                    <div className="space-y-1.5 min-w-0">
+                                      <div className="flex items-center gap-2 flex-wrap">
+                                        <span className={`material-symbols-outlined text-[16px] shrink-0 ${isNightWin ? 'text-indigo-500' : 'text-amber-500'}`}>
+                                          {isNightWin ? 'dark_mode' : 'light_mode'}
+                                        </span>
+                                        <span className="text-xs font-bold text-slate-800 truncate">{win.windowName}</span>
+                                        <span className="text-[10px] font-semibold text-slate-400">
+                                          ({win.startTime.substring(0, 5)} - {win.endTime.substring(0, 5)})
                                         </span>
                                       </div>
                                       
                                       <div className="flex items-center gap-3 text-[10px] font-semibold text-slate-500 flex-wrap">
                                         <span>
-                                          Base Rate ({win.baseDurationMinutes / 60}h): <strong>{win.basePrice.toLocaleString('en-US')} VND</strong>
+                                          Base ({win.baseDurationMinutes / 60}h): <strong className="text-slate-700">{win.basePrice.toLocaleString('en-US')} đ</strong>
                                         </span>
-                                        <span>•</span>
+                                        <span className="text-slate-300">•</span>
                                         <span>
-                                          Incremental ({win.incrementBlockMinutes >= 60 ? `${win.incrementBlockMinutes / 60}h` : `${win.incrementBlockMinutes}m`}): <strong>{win.incrementPrice.toLocaleString('en-US')} VND</strong>
+                                          Inc ({win.incrementBlockMinutes >= 60 ? `${win.incrementBlockMinutes / 60}h` : `${win.incrementBlockMinutes}m`}): <strong className="text-slate-700">{win.incrementPrice.toLocaleString('en-US')} đ</strong>
                                         </span>
                                         {win.windowCap && (
                                           <>
-                                            <span>•</span>
+                                            <span className="text-slate-300">•</span>
                                             <span>
-                                              Cap: <strong className="text-emerald-600">{win.windowCap.toLocaleString('en-US')} VND</strong>
+                                              Cap: <strong className="text-emerald-700">{win.windowCap.toLocaleString('en-US')} đ</strong>
                                             </span>
                                           </>
                                         )}
                                       </div>
                                     </div>
 
-                                    <div className="flex gap-1.5 shrink-0">
+                                    <div className="flex gap-1 shrink-0">
                                       <button 
                                         onClick={() => handleOpenEditTariff(tariffRowRepresentation)}
-                                        className="h-8 w-8 rounded-lg flex items-center justify-center bg-white border border-slate-200 hover:border-emerald-500 hover:text-emerald-600 text-slate-400 transition-colors shadow-sm"
+                                        className="h-8 w-8 rounded-lg flex items-center justify-center hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition-colors"
                                         title="Edit Window"
                                       >
                                         <span className="material-symbols-outlined text-[16px]">edit</span>
@@ -408,7 +413,7 @@ export default function PricingWorkspace() {
                                             handleDeleteTariff(tariffRowRepresentation.id);
                                           }
                                         }}
-                                        className="h-8 w-8 rounded-lg flex items-center justify-center bg-white border border-slate-200 hover:border-red-500 hover:text-red-600 text-slate-400 transition-colors shadow-sm"
+                                        className="h-8 w-8 rounded-lg flex items-center justify-center hover:bg-slate-100 text-slate-400 hover:text-red-600 transition-colors"
                                         title="Delete Window"
                                       >
                                         <span className="material-symbols-outlined text-[16px]">delete</span>

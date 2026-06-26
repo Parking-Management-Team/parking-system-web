@@ -238,7 +238,7 @@ export default function DriverSessions() {
 
         if (hr === '24') hr = '00';
 
-        return `${y}-${m}-${d}T${hr}:${min}:${sec}Z`;
+        return `${y}-${m}-${d}T${hr}:${min}:${sec}+07:00`;
       };
 
       const checkinDate = new Date(`${newCheckinDate}T${newCheckinTime}:00`);

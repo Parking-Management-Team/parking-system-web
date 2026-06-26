@@ -16,7 +16,9 @@ import {
   ChevronLeft,
   ChevronRight,
   RefreshCw,
-  Info
+  Info,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 
 interface BuildingItem {
@@ -40,6 +42,7 @@ export default function BookingWorkspace() {
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [selectedBuildingId, setSelectedBuildingId] = useState<number | 'ALL'>('ALL');
   const [buildings, setBuildings] = useState<BuildingItem[]>([]);
+  const [showActiveOnly, setShowActiveOnly] = useState(false);
   
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
@@ -90,12 +93,19 @@ export default function BookingWorkspace() {
     );
   }, [bookings]);
 
+  // Filter active only bookings
+  const activeStatuses = ['PENDING', 'CONFIRMED', 'CHECKEDIN'];
+  const visibleBookings = useMemo(() => {
+    if (!showActiveOnly) return bookings;
+    return bookings.filter(b => activeStatuses.includes((b.bookingStatus || '').toUpperCase()));
+  }, [bookings, showActiveOnly]);
+
   // Pagination filtering on already-fetched items
-  const totalPages = Math.max(1, Math.ceil(bookings.length / ITEMS_PER_PAGE));
+  const totalPages = Math.max(1, Math.ceil(visibleBookings.length / ITEMS_PER_PAGE));
   const paginatedBookings = useMemo(() => {
     const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-    return bookings.slice(startIndex, startIndex + ITEMS_PER_PAGE);
-  }, [bookings, currentPage]);
+    return visibleBookings.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+  }, [visibleBookings, currentPage]);
 
   const handleAction = async () => {
     if (!activeActionId || !actionType) return;
@@ -203,7 +213,7 @@ export default function BookingWorkspace() {
 
       {/* FILTER & SEARCH */}
       <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm space-y-4">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
           {/* License Plate Search */}
           <div className="relative">
             <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
@@ -255,6 +265,22 @@ export default function BookingWorkspace() {
               <Filter className="w-3.5 h-3.5" />
             </div>
           </div>
+
+          {/* Show Active Only Toggle */}
+          <label className="flex items-center gap-3 px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl cursor-pointer hover:bg-slate-100 transition-all select-none">
+            <div className="relative">
+              <input
+                type="checkbox"
+                checked={showActiveOnly}
+                onChange={() => { setShowActiveOnly(!showActiveOnly); setCurrentPage(1); }}
+                className="sr-only"
+              />
+              <div className={`w-9 h-5 rounded-full transition-colors ${showActiveOnly ? 'bg-[#006d43]' : 'bg-slate-300'}`}>
+                <div className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow-sm transition-transform ${showActiveOnly ? 'translate-x-4' : 'translate-x-0'}`} />
+              </div>
+            </div>
+            <span className="text-xs font-semibold text-slate-600">Show Active Only</span>
+          </label>
 
           {/* Tips Info Block */}
           <div className="bg-slate-50 border border-slate-100 rounded-xl px-4 py-2.5 flex items-center gap-2 text-[10px] text-slate-500 leading-normal">
@@ -378,10 +404,10 @@ export default function BookingWorkspace() {
         </div>
 
         {/* PAGINATION BAR */}
-        {!isLoading && bookings.length > 0 && (
+        {!isLoading && visibleBookings.length > 0 && (
           <div className="p-4 bg-slate-50 border-t border-slate-100 flex items-center justify-between text-xs rounded-xl">
             <span className="text-slate-400">
-              Showing {Math.min((currentPage - 1) * ITEMS_PER_PAGE + 1, bookings.length)}–{Math.min(currentPage * ITEMS_PER_PAGE, bookings.length)} of {bookings.length}
+              Showing {Math.min((currentPage - 1) * ITEMS_PER_PAGE + 1, visibleBookings.length)}–{Math.min(currentPage * ITEMS_PER_PAGE, visibleBookings.length)} of {visibleBookings.length}
             </span>
             <div className="flex gap-1">
               <button

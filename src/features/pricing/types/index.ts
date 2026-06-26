@@ -14,16 +14,19 @@ export interface PricingWindow {
   incrementPrice: number;
   windowCap: number | null;
   gracePeriodMinutes: number;
+  createdAt: string;
 }
 
 export interface StandardTariff {
   pricingPolicyId: number;
   vehicleTypeId: number;
+  vehicleTypeName?: string;
   policyName: string;
-  effectiveStart: string; // "YYYY-MM-DD"
+  effectiveStart: string; // "YYYY-MM-DDTHH:mm:ssZ"
   effectiveEnd: string | null;
   pricingPolicyStatus: 'Active' | 'Inactive';
   pricingWindows: PricingWindow[];
+  createdAt: string;
 }
 
 export interface TariffRowDetails {
@@ -81,8 +84,8 @@ export interface IncidentType {
 // Request body để tạo 1 khung giờ trong chính sách mới
 export interface CreatePricingWindowRequest {
   windowName: string;               // Tên khung giờ (vd: "Day Shift")
-  startTime: string;                // Định dạng "HH:mm" (vd: "06:00")
-  endTime: string;                  // Định dạng "HH:mm" (vd: "18:00")
+  startTime: string;                // Định dạng "HH:mm:ss" (vd: "06:00:00")
+  endTime: string;                  // Định dạng "HH:mm:ss" (vd: "18:00:00")
   baseDurationMinutes: number;      // Thời lượng block đầu (phút)
   basePrice: number;                // Đơn giá block đầu (VNĐ)
   incrementBlockMinutes: number;    // Thời lượng mỗi block tiếp theo (phút)
@@ -101,17 +104,18 @@ export interface CreatePricingPolicyRequest {
 }
 
 // Request body để cập nhật khung giờ (PUT /api/pricing-policies/windows/{id})
+// Tất cả fields đều Optional - chỉ gửi field nào muốn thay đổi
 export interface UpdatePricingWindowRequest {
-  windowName: string;
-  startTime: string;
-  endTime: string;
-  baseDurationMinutes: number;
-  basePrice: number;
-  incrementBlockMinutes: number;
-  incrementPrice: number;
-  windowCap: number | null;
-  removeWindowCap: boolean;         // true = xóa bỏ giá trần trên server
-  gracePeriodMinutes: number;
+  windowName?: string;
+  startTime?: string;
+  endTime?: string;
+  baseDurationMinutes?: number;
+  basePrice?: number;
+  incrementBlockMinutes?: number;
+  incrementPrice?: number;
+  windowCap?: number | null;
+  removeWindowCap?: boolean;         // true = xóa bỏ giá trần trên server
+  gracePeriodMinutes?: number;
 }
 
 export interface VehicleType {

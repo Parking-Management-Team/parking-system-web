@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useMemo, useState } from 'react';
+import { useAuth } from '@/features/auth/context/AuthContext';
 import { useIncidents } from '@/features/incident';
 import type {
   BlacklistTargetType,
@@ -67,6 +68,7 @@ const findIncidentSession = (
 };
 
 export default function IncidentHandling() {
+  const { showToast } = useAuth();
   const {
     incidents,
     filteredIncidents,
@@ -87,10 +89,6 @@ export default function IncidentHandling() {
   const [selectedIncidentTypeId, setSelectedIncidentTypeId] = useState('');
   const [description, setDescription] = useState('');
   const [penaltyFee, setPenaltyFee] = useState('');
-  const [feedback, setFeedback] = useState<{
-    tone: 'success' | 'error' | 'warning';
-    message: string;
-  } | null>(null);
   const [selectedIncident, setSelectedIncident] = useState<Incident | null>(null);
   const [statusNote, setStatusNote] = useState('');
   const [blacklistIncident, setBlacklistIncident] = useState<Incident | null>(null);
@@ -133,9 +131,14 @@ export default function IncidentHandling() {
     }
   }, [selectedIncidentType]);
 
+  useEffect(() => {
+    if (error) {
+      showToast(error, 'error');
+    }
+  }, [error, showToast]);
+
   const handleCreateIncident = async (event: React.FormEvent) => {
     event.preventDefault();
-    setFeedback(null);
 
     const sessionId = Number(selectedSessionId);
     const incidentTypeId = Number(selectedIncidentTypeId);
@@ -143,25 +146,25 @@ export default function IncidentHandling() {
     const trimmedDescription = description.trim();
 
     if (!sessionId) {
-      setFeedback({ tone: 'error', message: 'Please select an active parking session.' });
+      showToast('Please select an active parking session.', 'error');
       return;
     }
 
     if (!incidentTypeId) {
-      setFeedback({ tone: 'error', message: 'Please select an incident type.' });
+      showToast('Please select an incident type.', 'error');
       return;
     }
 
     if (trimmedDescription.length > 100) {
-      setFeedback({
-        tone: 'error',
-        message: 'Description must be 100 characters or less because BE currently limits this field.',
-      });
+      showToast(
+        'Description must be 100 characters or less because BE currently limits this field.',
+        'error'
+      );
       return;
     }
 
     if (fee != null && (Number.isNaN(fee) || fee < 0)) {
-      setFeedback({ tone: 'error', message: 'Penalty fee must not be negative.' });
+      showToast('Penalty fee must not be negative.', 'error');
       return;
     }
 
@@ -172,10 +175,7 @@ export default function IncidentHandling() {
       penaltyFee: fee,
     });
 
-    setFeedback({
-      tone: result.success ? 'success' : 'error',
-      message: result.message,
-    });
+    showToast(result.message, result.success ? 'success' : 'error');
 
     if (result.success) {
       setSelectedSessionId('');
@@ -195,10 +195,7 @@ export default function IncidentHandling() {
       statusNote || undefined
     );
 
-    setFeedback({
-      tone: result.success ? 'success' : 'error',
-      message: result.message,
-    });
+    showToast(result.message, result.success ? 'success' : 'error');
 
     if (result.success) {
       setSelectedIncident(null);
@@ -223,7 +220,7 @@ export default function IncidentHandling() {
 
     const reason = blacklistReason.trim();
     if (!reason) {
-      setFeedback({ tone: 'error', message: 'Blacklist reason is required.' });
+      showToast('Blacklist reason is required.', 'error');
       return;
     }
 
@@ -232,18 +229,12 @@ export default function IncidentHandling() {
     const includeCard = blacklistTarget === 'CARD' || blacklistTarget === 'BOTH';
 
     if (includeVehicle && !blacklistVehicleId) {
-      setFeedback({
-        tone: 'error',
-        message: 'This incident does not have a vehicleId to blacklist.',
-      });
+      showToast('This incident does not have a vehicleId to blacklist.', 'error');
       return;
     }
 
     if (includeCard && !blacklistCardId) {
-      setFeedback({
-        tone: 'error',
-        message: 'This incident does not have a cardId to blacklist.',
-      });
+      showToast('This incident does not have a cardId to blacklist.', 'error');
       return;
     }
 
@@ -254,23 +245,13 @@ export default function IncidentHandling() {
       reason,
     });
 
-    setFeedback({
-      tone: result.success ? 'success' : 'error',
-      message: result.message,
-    });
+    showToast(result.message, result.success ? 'success' : 'error');
 
     if (result.success) {
       setBlacklistIncident(null);
       setBlacklistReason('');
     }
   };
-
-  const feedbackClassName =
-    feedback?.tone === 'success'
-      ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
-      : feedback?.tone === 'warning'
-        ? 'border-amber-200 bg-amber-50 text-amber-700'
-        : 'border-red-200 bg-red-50 text-red-700';
 
   return (
     <div className="p-8 space-y-8">
@@ -310,21 +291,6 @@ export default function IncidentHandling() {
           )
         )}
       </div>
-
-      {(feedback || error) && (
-        <div
-          className={`flex items-start justify-between gap-4 rounded-xl border px-4 py-3 text-sm font-bold ${
-            feedback ? feedbackClassName : 'border-red-200 bg-red-50 text-red-700'
-          }`}
-        >
-          <p>{feedback?.message ?? error}</p>
-          {feedback && (
-            <button type="button" onClick={() => setFeedback(null)}>
-              <span className="material-symbols-outlined text-lg">close</span>
-            </button>
-          )}
-        </div>
-      )}
 
       <div className="grid grid-cols-1 gap-8 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.4fr)]">
         <form

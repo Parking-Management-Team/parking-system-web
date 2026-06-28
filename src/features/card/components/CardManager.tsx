@@ -1,6 +1,8 @@
 'use client';
 
-import { FormEvent, useMemo, useState } from 'react';
+import { FormEvent, useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { useAuth } from '@/features/auth/context/AuthContext';
 import { useCardManagement } from '@/features/card/hooks/useCardManagement';
 import type {
   CardOperationResult,
@@ -100,6 +102,7 @@ const StatusToggle = ({
 );
 
 export default function CardManager() {
+  const { showToast } = useAuth();
   const {
     cards,
     filteredCards,
@@ -111,7 +114,6 @@ export default function CardManager() {
     setStatusFilter,
     isLoading,
     loadError,
-    fetchCards,
     createCard,
     updateCardStatus,
     markCardLost,
@@ -119,10 +121,14 @@ export default function CardManager() {
 
   const [modalMode, setModalMode] = useState<ModalMode>(null);
   const [expandedCardId, setExpandedCardId] = useState<number | null>(null);
-  const [feedback, setFeedback] = useState<CardOperationResult | null>(null);
+  const [isMounted, setIsMounted] = useState(false);
 
   const [newCardCode, setNewCardCode] = useState('');
   const [newCardType, setNewCardType] = useState<CreatableCardType>('PARKING_CARD');
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   const statusCounts = useMemo(
     () =>
@@ -143,9 +149,22 @@ export default function CardManager() {
   };
 
   const showResult = (operationResult: CardOperationResult) => {
-    setFeedback(operationResult);
+    showToast(
+      operationResult.message,
+      operationResult.tone === 'warning'
+        ? 'info'
+        : operationResult.tone === 'error'
+          ? 'error'
+          : 'success'
+    );
     if (operationResult.success) closeModal();
   };
+
+  useEffect(() => {
+    if (loadError) {
+      showToast(loadError, 'error');
+    }
+  }, [loadError, showToast]);
 
   const handleCreateCard = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -165,13 +184,6 @@ export default function CardManager() {
   ) => {
     showResult(await updateCardStatus(cardId, status));
   };
-
-  const feedbackClass =
-    feedback?.tone === 'warning'
-      ? 'bg-amber-50 text-amber-800 border-amber-200'
-      : feedback?.tone === 'error'
-        ? 'bg-red-50 text-red-700 border-red-200'
-        : 'bg-emerald-50 text-emerald-700 border-emerald-200';
 
   return (
     <div className="p-8 space-y-8">
@@ -208,44 +220,6 @@ export default function CardManager() {
           </div>
         ))}
       </div>
-
-      {feedback && (
-        <div
-          role="status"
-          className={`border rounded-xl px-4 py-3 flex items-start justify-between gap-4 ${feedbackClass}`}
-        >
-          <div className="flex items-start gap-3">
-            <span className="material-symbols-outlined text-xl">
-              {feedback.tone === 'warning'
-                ? 'warning'
-                : feedback.tone === 'error'
-                  ? 'error'
-                  : 'check_circle'}
-            </span>
-            <p className="text-sm font-bold">{feedback.message}</p>
-          </div>
-          <button
-            type="button"
-            onClick={() => setFeedback(null)}
-            aria-label="Dismiss message"
-          >
-            <span className="material-symbols-outlined text-lg">close</span>
-          </button>
-        </div>
-      )}
-
-      {loadError && (
-        <div className="flex items-center justify-between gap-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-red-700">
-          <p className="text-sm font-bold">{loadError}</p>
-          <button
-            type="button"
-            onClick={() => void fetchCards()}
-            className="rounded-lg bg-red-100 px-3 py-2 text-xs font-bold hover:bg-red-200"
-          >
-            Retry
-          </button>
-        </div>
-      )}
 
       <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-5">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -451,66 +425,69 @@ export default function CardManager() {
         </p>
       </div>
 
-      {modalMode && (
-        <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-2xl shadow-2xl border border-slate-100 p-6">
-            <div className="flex items-start justify-between gap-4 mb-6">
-              <div>
-                <h2 className="text-xl font-bold text-slate-800">
-                  Create Card
-                </h2>
-                <p className="text-sm text-slate-500 mt-1">
-                  New cards start with AVAILABLE status.
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={closeModal}
-                className="text-slate-400 hover:text-slate-600"
-                aria-label="Close modal"
-              >
-                <span className="material-symbols-outlined">close</span>
-              </button>
-            </div>
-
-            <form onSubmit={handleCreateCard} className="space-y-5">
+      {isMounted &&
+        modalMode &&
+        createPortal(
+          <div className="fixed inset-0 z-[100000] bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="bg-white w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-2xl shadow-2xl border border-slate-100 p-6">
+              <div className="flex items-start justify-between gap-4 mb-6">
                 <div>
-                  <label className="text-xs font-bold text-slate-500 uppercase">
-                    Card Code <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={newCardCode}
-                    onChange={(event) => setNewCardCode(event.target.value)}
-                    placeholder="CARD-000006"
-                    className="w-full mt-2 px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 font-mono font-bold uppercase"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs font-bold text-slate-500 uppercase">
-                    Card Type
-                  </label>
-                  <select
-                    value={newCardType}
-                    onChange={(event) =>
-                      setNewCardType(event.target.value as CreatableCardType)
-                    }
-                    className="w-full mt-2 px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl"
-                  >
-                    <option value="PARKING_CARD">PARKING_CARD</option>
-                    <option value="MONTHLY">MONTHLY</option>
-                  </select>
+                  <h2 className="text-xl font-bold text-slate-800">
+                    Create Card
+                  </h2>
+                  <p className="text-sm text-slate-500 mt-1">
+                    New cards start with AVAILABLE status.
+                  </p>
                 </div>
                 <button
-                  type="submit"
-                  className="w-full py-3 bg-emerald-500 text-white rounded-xl font-bold hover:bg-emerald-600"
+                  type="button"
+                  onClick={closeModal}
+                  className="text-slate-400 hover:text-slate-600"
+                  aria-label="Close modal"
                 >
-                  Create Available Card
+                  <span className="material-symbols-outlined">close</span>
                 </button>
-            </form>
-          </div>
-        </div>
-      )}
+              </div>
+
+              <form onSubmit={handleCreateCard} className="space-y-5">
+                  <div>
+                    <label className="text-xs font-bold text-slate-500 uppercase">
+                      Card Code <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={newCardCode}
+                      onChange={(event) => setNewCardCode(event.target.value)}
+                      placeholder="CARD-000006"
+                      className="w-full mt-2 px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 font-mono font-bold uppercase"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-bold text-slate-500 uppercase">
+                      Card Type
+                    </label>
+                    <select
+                      value={newCardType}
+                      onChange={(event) =>
+                        setNewCardType(event.target.value as CreatableCardType)
+                      }
+                      className="w-full mt-2 px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl"
+                    >
+                      <option value="PARKING_CARD">PARKING_CARD</option>
+                      <option value="MONTHLY">MONTHLY</option>
+                    </select>
+                  </div>
+                  <button
+                    type="submit"
+                    className="w-full py-3 bg-emerald-500 text-white rounded-xl font-bold hover:bg-emerald-600"
+                  >
+                    Create Available Card
+                  </button>
+              </form>
+            </div>
+          </div>,
+          document.body
+        )}
     </div>
   );
 }

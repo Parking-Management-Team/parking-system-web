@@ -10,11 +10,7 @@ import {
   type CheckoutPaymentMethod,
   type CheckoutSession,
 } from '@/features/vehicles/services/vehicle-checkout.service';
-
-type Feedback = {
-  tone: 'success' | 'error' | 'warning';
-  message: string;
-};
+import { useAuth } from '@/features/auth/context/AuthContext';
 
 type PlateConfirmation = 'WAITING' | 'MATCHED' | 'MISMATCH';
 
@@ -55,6 +51,7 @@ const getDurationLabel = (checkInTime?: string | null, checkoutTime?: string | n
 const normalizeCode = (value: string) => value.trim().toUpperCase();
 
 export default function VehicleCheckout() {
+  const { showToast } = useAuth();
   const [sessions, setSessions] = useState<CheckoutSession[]>([]);
   const [selectedSessionId, setSelectedSessionId] = useState<number | null>(null);
   const [sessionSearch, setSessionSearch] = useState('');
@@ -69,8 +66,14 @@ export default function VehicleCheckout() {
   const [payment, setPayment] = useState<CheckoutPayment | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [feedback, setFeedback] = useState<Feedback | null>(null);
   const cardCodeInputRef = useRef<HTMLInputElement | null>(null);
+
+  const notify = useCallback(
+    (message: string, tone: 'success' | 'error' | 'warning' = 'success') => {
+      showToast(message, tone === 'warning' ? 'info' : tone);
+    },
+    [showToast]
+  );
 
   const selectedSession = sessions.find((session) => session.id === selectedSessionId) ?? null;
 
@@ -112,20 +115,16 @@ export default function VehicleCheckout() {
 
   const loadActiveSessions = useCallback(async () => {
     setIsLoading(true);
-    setFeedback(null);
 
     try {
       const data = await fetchCheckoutActiveSessions();
       setSessions(data);
     } catch (error) {
-      setFeedback({
-        tone: 'error',
-        message: error instanceof Error ? error.message : 'Could not load active sessions.',
-      });
+      notify(error instanceof Error ? error.message : 'Could not load active sessions.', 'error');
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [notify]);
 
   useEffect(() => {
     void loadActiveSessions();
@@ -142,7 +141,6 @@ export default function VehicleCheckout() {
     setPlateConfirmation('WAITING');
     setCheckoutTime('');
     setPayment(null);
-    setFeedback(null);
   };
 
   const resetForNextVehicle = () => {
@@ -162,10 +160,7 @@ export default function VehicleCheckout() {
     const card = normalizeCode(manualCardCode);
 
     if (!card) {
-      setFeedback({
-        tone: 'error',
-        message: 'Please enter card code.',
-      });
+      notify('Please enter card code.', 'error');
       return;
     }
 
@@ -181,19 +176,15 @@ export default function VehicleCheckout() {
       setPlateConfirmation('WAITING');
       setCheckoutTime('');
       setPayment(null);
-      setFeedback({
-        tone: 'error',
-        message: 'No active session found for this card code.',
-      });
+      notify('No active session found for this card code.', 'error');
       return;
     }
 
     if (matchedSessions.length > 1) {
-      setFeedback({
-        tone: 'warning',
-        message:
-          'More than one active session matched this card. Data is invalid; please select the exact session manually.',
-      });
+      notify(
+        'More than one active session matched this card. Data is invalid; please select the exact session manually.',
+        'warning'
+      );
       setSessionSearch(card);
       return;
     }
@@ -201,26 +192,22 @@ export default function VehicleCheckout() {
     const matchedSession = matchedSessions[0];
     handleSelectSession(matchedSession);
     setActualCardCode(manualCardCode.toUpperCase());
-    setFeedback({
-      tone: 'success',
-      message: `Found active session ${matchedSession.sessionCode}. Please confirm vehicle plate before checkout.`,
-    });
+    notify(
+      `Found active session ${matchedSession.sessionCode}. Please confirm vehicle plate before checkout.`,
+      'success'
+    );
   };
 
   const handleStartCheckout = async () => {
     if (!selectedSession) return;
 
     if (plateConfirmation !== 'MATCHED' || !isCardMatched) {
-      setFeedback({
-        tone: 'error',
-        message: 'Staff must confirm plate matched and card must match before starting checkout.',
-      });
+      notify('Staff must confirm plate matched and card must match before starting checkout.', 'error');
       return;
     }
 
     const lockedCheckoutTime = new Date().toISOString();
     setIsSubmitting(true);
-    setFeedback(null);
 
     try {
       await startCheckout(selectedSession.id, {
@@ -229,15 +216,9 @@ export default function VehicleCheckout() {
         outStaffId: STAFF_ID,
       });
       setCheckoutTime(lockedCheckoutTime);
-      setFeedback({
-        tone: 'success',
-        message: 'Checkout time locked. Fee will not keep increasing while payment is pending.',
-      });
+      notify('Checkout time locked. Fee will not keep increasing while payment is pending.', 'success');
     } catch (error) {
-      setFeedback({
-        tone: 'error',
-        message: error instanceof Error ? error.message : 'Could not start checkout.',
-      });
+      notify(error instanceof Error ? error.message : 'Could not start checkout.', 'error');
     } finally {
       setIsSubmitting(false);
     }
@@ -247,23 +228,18 @@ export default function VehicleCheckout() {
     if (!selectedSession || !checkoutTime) return;
 
     setIsSubmitting(true);
-    setFeedback(null);
 
     try {
       const nextPayment = await createCheckoutPayment(selectedSession, paymentMethod);
       setPayment(nextPayment);
-      setFeedback({
-        tone: nextPayment.paymentStatus === 'PAID' ? 'success' : 'warning',
-        message:
-          nextPayment.paymentStatus === 'PAID'
-            ? 'Payment is PAID. You can complete checkout.'
-            : 'Payment was created. Complete checkout is enabled only when payment is PAID or amount due is 0.',
-      });
+      notify(
+        nextPayment.paymentStatus === 'PAID'
+          ? 'Payment is PAID. You can complete checkout.'
+          : 'Payment was created. Complete checkout is enabled only when payment is PAID or amount due is 0.',
+        nextPayment.paymentStatus === 'PAID' ? 'success' : 'warning'
+      );
     } catch (error) {
-      setFeedback({
-        tone: 'error',
-        message: error instanceof Error ? error.message : 'Could not create payment.',
-      });
+      notify(error instanceof Error ? error.message : 'Could not create payment.', 'error');
     } finally {
       setIsSubmitting(false);
     }
@@ -273,32 +249,18 @@ export default function VehicleCheckout() {
     if (!selectedSession || !canCompleteCheckout) return;
 
     setIsSubmitting(true);
-    setFeedback(null);
 
     try {
       await completeCheckout(selectedSession.id);
       await loadActiveSessions();
       resetForNextVehicle();
-      setFeedback({
-        tone: 'success',
-        message: 'Checkout completed. Ready for next vehicle.',
-      });
+      notify('Checkout completed. Ready for next vehicle.', 'success');
     } catch (error) {
-      setFeedback({
-        tone: 'error',
-        message: error instanceof Error ? error.message : 'Could not complete checkout.',
-      });
+      notify(error instanceof Error ? error.message : 'Could not complete checkout.', 'error');
     } finally {
       setIsSubmitting(false);
     }
   };
-
-  const feedbackClassName =
-    feedback?.tone === 'success'
-      ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
-      : feedback?.tone === 'warning'
-        ? 'border-amber-200 bg-amber-50 text-amber-700'
-        : 'border-red-200 bg-red-50 text-red-700';
 
   return (
     <div className="space-y-3 p-4">
@@ -318,15 +280,6 @@ export default function VehicleCheckout() {
           Refresh
         </button>
       </div>
-
-      {feedback && (
-        <div className={`flex items-start justify-between gap-4 rounded-xl border px-3 py-2 text-xs font-bold ${feedbackClassName}`}>
-          <p>{feedback.message}</p>
-          <button type="button" onClick={() => setFeedback(null)}>
-            <span className="material-symbols-outlined text-base">close</span>
-          </button>
-        </div>
-      )}
 
       <form
         onSubmit={handleManualCardLookup}
@@ -500,10 +453,7 @@ export default function VehicleCheckout() {
                     onClick={() => {
                       setPlateConfirmation('MATCHED');
                       setActualExitPlate(selectedSession.licensePlate);
-                      setFeedback({
-                        tone: 'success',
-                        message: 'Plate confirmed. You can start checkout and lock fee.',
-                      });
+                      notify('Plate confirmed. You can start checkout and lock fee.', 'success');
                     }}
                     className="rounded-xl bg-emerald-500 px-4 py-3 text-sm font-bold text-white shadow-lg shadow-emerald-500/20 hover:bg-emerald-600 disabled:bg-slate-300"
                   >
@@ -514,11 +464,10 @@ export default function VehicleCheckout() {
                     disabled={isSubmitting}
                     onClick={() => {
                       setPlateConfirmation('MISMATCH');
-                      setFeedback({
-                        tone: 'warning',
-                        message:
-                          'Plate mismatch selected. Normal checkout is blocked. TODO: route this case to Incident Handling.',
-                      });
+                      notify(
+                        'Plate mismatch selected. Normal checkout is blocked. TODO: route this case to Incident Handling.',
+                        'warning'
+                      );
                     }}
                     className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700 hover:bg-red-100 disabled:bg-slate-100"
                   >

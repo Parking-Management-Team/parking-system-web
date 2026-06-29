@@ -1,1091 +1,622 @@
 'use client';
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useAuth } from '@/features/auth/context/AuthContext';
-import { fetchCards as fetchCardsFromApi } from '@/features/card/services/card.service';
+import { fetchCards } from '@/features/card/services/card.service';
+import type { ParkingCard } from '@/features/card/types/card';
+import { blacklistService } from '@/features/blacklist/services/blacklist.service';
+import type { BlacklistDto } from '@/features/blacklist/types';
 import {
   checkInVehicle,
   fetchActiveParkingSessions,
-  type VehicleCheckinSession as ParkingSession,
+  fetchCheckinBookings,
+  fetchCheckinBookingsByBuilding,
+  type VehicleCheckinBooking,
+  type VehicleCheckinSession,
 } from '@/features/vehicles/services/vehicle-checkin.service';
-import {
-  fetchAllZones,
-  fetchAllSlots,
-  fetchActiveBookings,
-  fetchActiveMonthlySubscriptions,
-  type CheckinParkingZone,
-  type CheckinParkingSlot,
-  type CheckinBooking,
-  type CheckinMonthlySubscription,
-} from '@/features/vehicles/services/vehicle-checkin-data.service';
 
 type VehicleType = 'CAR' | 'MOTORCYCLE';
-type CustomerType = 'WALK_IN' | 'BOOKING' | 'MONTHLY';
-type CardType = 'NORMAL' | 'MONTHLY';
-type CardStatus =
-  | 'AVAILABLE'
-  | 'ACTIVE'
-  | 'ASSIGNED'
-  | 'LOST'
-  | 'BLOCKED'
-  | 'INACTIVE'
-  | 'UNKNOWN';
-type ParkingSessionStatus = 'ACTIVE' | 'LOST_CARD_REPORTED';
 
-type ParkingCard = {
-  id: number;
-  code: string;
-  type: CardType;
-  status: CardStatus;
-  vehiclePlate: string | null;
-  monthlySubscriptionId: number | null;
+type GateOverlay =
+  | {
+      type: 'success';
+      title: string;
+      message: string;
+      session?: VehicleCheckinSession;
+      vehicleType: VehicleType;
+      cardCode: string;
+      checkInTime: string;
+    }
+  | {
+      type: 'error';
+      title: string;
+      message: string;
+    };
+
+const BUILDING_ID = 1;
+const STAFF_ID = 2;
+
+// TODO(api-confirm): giữ mapping tạm theo yêu cầu test hiện tại.
+// Nếu BE seed VehicleType khác, chỉ cần đổi mapping này.
+const VEHICLE_TYPE_ID_BY_TYPE: Record<VehicleType, number> = {
+  CAR: 1,
+  MOTORCYCLE: 2,
 };
 
-const formatLicensePlate = (plate: string) => plate.trim().toUpperCase();
-const isZoneFull = (zone: CheckinParkingZone) => zone.occupied >= zone.capacity;
-const getSlotsLeft = (zone: CheckinParkingZone) => zone.capacity - zone.occupied;
+const normalizeText = (value: string) => value.trim().toUpperCase();
+const normalizeComparable = (value: string) =>
+  normalizeText(value).replace(/[^A-Z0-9]/g, '');
 
-const getCustomerTypeLabel = (type: CustomerType) => {
-  switch (type) {
-    case 'WALK_IN':
-      return 'Walk-in';
-    case 'BOOKING':
-      return 'Booking';
-    case 'MONTHLY':
-      return 'Monthly';
-  }
+const formatDateTime = (value?: string | null) => {
+  if (!value) return '—';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '—';
+  return new Intl.DateTimeFormat('vi-VN', {
+    dateStyle: 'short',
+    timeStyle: 'medium',
+  }).format(date);
 };
 
-const getVehicleTypeLabel = (type: ParkingSession['vehicleType']) => {
-  if (type === 'UNKNOWN') return 'Unknown';
-  return type === 'CAR' ? 'Car' : 'Motorcycle';
-};
+const formatCurrency = (amount?: number | null) =>
+  new Intl.NumberFormat('vi-VN', {
+    style: 'currency',
+    currency: 'VND',
+    maximumFractionDigits: 0,
+  }).format(amount ?? 0);
 
-const getSessionStatusClassName = (status: ParkingSessionStatus) => {
-  if (status === 'LOST_CARD_REPORTED') {
-    return 'bg-red-50 text-red-700 border-red-200';
-  }
+const isConfirmedBookingForPlate = (
+  booking: VehicleCheckinBooking,
+  formattedPlate: string
+) => {
+  const samePlate =
+    normalizeComparable(booking.licensePlate) === normalizeComparable(formattedPlate);
+  const status = normalizeText(booking.bookingStatus);
+  if (!samePlate || status !== 'CONFIRMED') return false;
 
-  return 'bg-emerald-50 text-emerald-700 border-emerald-200';
-};
-
-const getCardStatusClassName = (status: CardStatus) => {
-  switch (status) {
-    case 'AVAILABLE':
-      return 'text-emerald-700';
-    case 'ACTIVE':
-    case 'ASSIGNED':
-      return 'text-blue-700';
-    case 'LOST':
-      return 'text-red-700';
-    case 'BLOCKED':
-      return 'text-slate-700';
-    case 'INACTIVE':
-    case 'UNKNOWN':
-      return 'text-slate-500';
-  }
+  if (!booking.checkinGraceUntil) return true;
+  const graceUntil = new Date(booking.checkinGraceUntil).getTime();
+  return Number.isNaN(graceUntil) || graceUntil >= Date.now();
 };
 
 export default function VehicleCheckin() {
   const { showToast } = useAuth();
+
   const [cards, setCards] = useState<ParkingCard[]>([]);
-  const [zones, setZones] = useState<CheckinParkingZone[]>([]);
-  const [slots, setSlots] = useState<CheckinParkingSlot[]>([]);
-  const [sessions, setSessions] = useState<ParkingSession[]>([]);
-  const [bookings, setBookings] = useState<CheckinBooking[]>([]);
-  const [monthlySubscriptions, setMonthlySubscriptions] = useState<CheckinMonthlySubscription[]>([]);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
-  /* ==========================================================
-     STATE FORM CHECK-IN
-     Các input Staff nhập trên màn hình
-  ========================================================== */
-
-  const [licensePlate, setLicensePlate] = useState('51A-123.45');
+  const [activeSessions, setActiveSessions] = useState<VehicleCheckinSession[]>([]);
+  const [bookings, setBookings] = useState<VehicleCheckinBooking[]>([]);
+  const [blacklist, setBlacklist] = useState<BlacklistDto[]>([]);
+  const [licensePlate, setLicensePlate] = useState('');
   const [vehicleType, setVehicleType] = useState<VehicleType>('CAR');
-  const isBookingCheckin = true; 
-  const [bookingCode, setBookingCode] = useState('BK-001');
   const [cardCode, setCardCode] = useState('');
-  const [selectedZoneId, setSelectedZoneId] = useState<number | null>(1);
-  const [isCheckedIn, setIsCheckedIn] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [overlay, setOverlay] = useState<GateOverlay | null>(null);
   const [isMounted, setIsMounted] = useState(false);
-  const [sessionSearch, setSessionSearch] = useState('');
-  const [activeView, setActiveView] = useState<'CHECKIN' | 'SESSIONS'>('CHECKIN');
+  const [isSessionsOpen, setIsSessionsOpen] = useState(false);
 
-  /* ==========================================================
-     STATE CONFIRM ACTUAL SLOT
-     Dùng cho ô tô Walk-in/Booking:
-     check-in trước chỉ gợi ý Zone GENERAL, slot thật xác nhận sau.
-  ========================================================== */
+  const formattedPlate = normalizeText(licensePlate);
+  const normalizedCardCode = normalizeText(cardCode);
 
-  const [selectedSlotBySessionId, setSelectedSlotBySessionId] = useState<
-    Record<number, number>
-  >({});
+  const availableCards = useMemo(
+    () =>
+      cards.filter(
+        (card) =>
+          card.cardType === 'PARKING_CARD' &&
+          card.cardStatus === 'AVAILABLE'
+      ),
+    [cards]
+  );
+
+  const selectedCard = useMemo(
+    () =>
+      cards.find(
+        (card) => normalizeText(card.cardCode) === normalizedCardCode
+      ) ?? null,
+    [cards, normalizedCardCode]
+  );
+
+  const matchedBooking = useMemo(
+    () =>
+      bookings.find((booking) =>
+        isConfirmedBookingForPlate(booking, formattedPlate)
+      ) ?? null,
+    [bookings, formattedPlate]
+  );
+
+  const activeSessionCount = activeSessions.length;
+
+  const showGateOverlay = useCallback((nextOverlay: GateOverlay) => {
+    setOverlay(nextOverlay);
+    window.setTimeout(() => {
+      setOverlay((current) => (current === nextOverlay ? null : current));
+    }, 3000);
+  }, []);
+
+  const loadGateData = useCallback(async () => {
+    // Staff check-in cần Cards/Active Sessions/Booking/Blacklist để hỗ trợ vận hành cổng vào.
+    // Booking/Blacklist chỉ là dữ liệu hỗ trợ; nếu endpoint phụ lỗi thì không được làm hỏng check-in chính.
+    const [cardData, sessionData, bookingData, blacklistData] = await Promise.all([
+      fetchCards(),
+      fetchActiveParkingSessions(),
+      fetchCheckinBookingsByBuilding(BUILDING_ID).catch(async (error) => {
+        console.warn(
+          'Booking by building API is not ready; falling back to all bookings.',
+          error
+        );
+        return fetchCheckinBookings().catch((fallbackError) => {
+          console.warn('Booking API is not ready; booking detection is disabled.', fallbackError);
+          return [];
+        });
+      }),
+      blacklistService.getAll(1, 1000).catch((error) => {
+        console.warn('Blacklist API is not ready; blacklist pre-check is disabled.', error);
+        return {
+          items: [],
+          totalCount: 0,
+          totalPages: 0,
+          pageIndex: 1,
+          pageSize: 1000,
+        };
+      }),
+    ]);
+
+    setCards(cardData);
+    setActiveSessions(sessionData);
+    setBookings(bookingData);
+    setBlacklist(blacklistData.items ?? []);
+  }, []);
 
   useEffect(() => {
     setIsMounted(true);
   }, []);
 
-  const fetchAvailableCards = async () => {
-    const apiCards = await fetchCardsFromApi();
-    const parkingCards: ParkingCard[] = apiCards
-      .filter((card) => card.cardType === 'PARKING_CARD')
-      .map((card) => ({
-        id: card.id,
-        code: card.cardCode,
-        type: 'NORMAL',
-        status: card.cardStatus,
-        vehiclePlate: card.vehiclePlate,
-        monthlySubscriptionId: null,
-      }));
-    setCards(parkingCards);
-  };
-
-  const fetchActiveSessions = async () => {
-    setSessions(await fetchActiveParkingSessions());
-  };
-
-  const fetchZones = async () => {
-    try {
-      setZones(await fetchAllZones());
-    } catch (error) {
-      console.error('Failed to load zones:', error);
-    }
-  };
-
-  const fetchSlots = async () => {
-    try {
-      setSlots(await fetchAllSlots());
-    } catch (error) {
-      console.error('Failed to load slots:', error);
-    }
-  };
-
-  const fetchBookings = async () => {
-    try {
-      setBookings(await fetchActiveBookings());
-    } catch (error) {
-      console.error('Failed to load bookings:', error);
-    }
-  };
-
-  const fetchMonthlySubscriptions = async () => {
-    try {
-      setMonthlySubscriptions(await fetchActiveMonthlySubscriptions());
-    } catch (error) {
-      console.error('Failed to load monthly subscriptions:', error);
-    }
-  };
-
   useEffect(() => {
-    Promise.all([
-      fetchAvailableCards(),
-      fetchActiveSessions(),
-      fetchZones(),
-      fetchSlots(),
-      fetchBookings(),
-      fetchMonthlySubscriptions(),
-    ]).catch((error) => {
-      console.error('Failed to load vehicle check-in data:', error);
+    void loadGateData().catch((error) => {
+      const message =
+        error instanceof Error ? error.message : 'Could not load check-in data.';
+      showToast(message, 'error');
     });
-  }, []);
+  }, [loadGateData, showToast]);
 
-  /* ==========================================================
-     FIND SELECTED DATA
-     Tìm các object đang được chọn từ form
-  ========================================================== */
+  const checkBlacklistBeforeSubmit = () => {
+    const plateKey = normalizeComparable(formattedPlate);
+    const cardKey = normalizeComparable(normalizedCardCode);
 
-  // Biển số đã được format
-  const formattedPlate = formatLicensePlate(licensePlate);
-
-  // Tìm card đang được chọn
-  const normalizedCardCode = cardCode.trim().toUpperCase();
-
-  const selectedCard = cards.find(
-    (card) => card.code.toUpperCase() === normalizedCardCode
-  );
-
-  // Customer type is inferred from the scanned card. NORMAL cards can opt into
-  // the booking flow; MONTHLY cards always use their subscription.
-  const customerType: CustomerType =
-    selectedCard?.type === 'MONTHLY'
-      ? 'MONTHLY'
-      : isBookingCheckin
-        ? 'BOOKING'
-        : 'WALK_IN';
-
-  const selectedBooking = bookings.find(
-    (booking) =>
-      formatLicensePlate(booking.vehiclePlate) === formattedPlate &&
-      booking.vehicleType === vehicleType
-  );
-
-  // Tìm monthly subscription theo card hoặc biển số
-  const selectedMonthlySubscription = monthlySubscriptions.find(
-    (subscription) =>
-      subscription.cardCode.toUpperCase() === normalizedCardCode ||
-      subscription.vehiclePlate.toUpperCase() === formattedPlate
-  );
-
-  // Tìm slot tháng đã gán cho xe tháng
-  const assignedMonthlySlot = slots.find(
-    (slot) =>
-      slot.code === selectedMonthlySubscription?.assignedSlotCode &&
-      slot.assignedVehiclePlate?.toUpperCase() === formattedPlate
-  );
-
-  /* ==========================================================
-     FILTER RECOMMENDED ZONES
-     Xe máy: gợi ý Zone còn capacity.
-     Ô tô Walk-in/Booking: chỉ gợi ý Zone GENERAL.
-     Ô tô Monthly: dùng Slot riêng trong Zone MONTHLY.
-  ========================================================== */
-
-  const candidateZones = useMemo(() => {
-    return zones.filter((zone) => {
-      // Chỉ lấy zone đúng loại xe
-      const matchVehicleType = zone.vehicleType === vehicleType;
-
-      // Zone phải đang hoạt động
-      const isActiveZone = zone.status === 'ACTIVE';
-
-      // Monthly car dùng MONTHLY zone, các trường hợp còn lại dùng GENERAL zone
-      const matchAccessType =
-        customerType === 'MONTHLY' && vehicleType === 'CAR'
-          ? zone.accessType === 'MONTHLY'
-          : zone.accessType === 'GENERAL';
-
-      return matchVehicleType && isActiveZone && matchAccessType;
-    });
-  }, [zones, vehicleType, customerType]);
-
-  // Zone còn chỗ
-  const availableZones = useMemo(() => {
-    return candidateZones.filter((zone) => !isZoneFull(zone));
-  }, [candidateZones]);
-
-  const filteredSessions = useMemo(() => {
-    const normalizedSearch = sessionSearch.trim().toUpperCase().replace(/\s/g, '');
-
-    if (!normalizedSearch) return sessions;
-
-    return sessions.filter((session) =>
-      session.licensePlate.toUpperCase().replace(/\s/g, '').includes(normalizedSearch)
+    const plateBlock = blacklist.find(
+      (item) =>
+        item.licensePlate &&
+        normalizeComparable(item.licensePlate) === plateKey
     );
-  }, [sessions, sessionSearch]);
 
-  /* ==========================================================
-     AUTO SELECT FIRST AVAILABLE ZONE
-     Khi đổi loại xe hoặc loại khách thì tự chọn zone còn trống đầu tiên.
-  ========================================================== */
-
-  useEffect(() => {
-    if (availableZones.length > 0) {
-      setSelectedZoneId(availableZones[0].id);
-    } else {
-      setSelectedZoneId(null);
+    if (plateBlock) {
+      return `Vehicle ${formattedPlate} is blacklisted: ${plateBlock.reason}`;
     }
-  }, [availableZones]);
 
-  /* ==========================================================
-     SIMULATE CARD SWIPE
-     Khi Staff nhập đúng Card Code, tự lấy biển số đã gắn với Card.
-     NORMAL card AVAILABLE chưa gắn xe nên vẫn nhập biển số thủ công.
-  ========================================================== */
-
-  useEffect(() => {
-    if (!selectedCard?.vehiclePlate) return;
-
-    setLicensePlate(selectedCard.vehiclePlate);
-
-    const monthlySubscription = monthlySubscriptions.find(
-      (subscription) => subscription.id === selectedCard.monthlySubscriptionId
+    const cardBlock = blacklist.find(
+      (item) =>
+        item.cardCode &&
+        normalizeComparable(item.cardCode) === cardKey
     );
 
-    if (monthlySubscription) {
-  setVehicleType(monthlySubscription.vehicleType);
-}
-  }, [selectedCard]);
-
-  /* ==========================================================
-     VALIDATION LOGIC
-     Các rule giả lập theo FR-003.
-     Sau này BE sẽ validate thật và trả lỗi về FE.
-  ========================================================== */
-
-  // Rule 1: Biển số không được rỗng
-  const isLicensePlateValid = formattedPlate.length > 0;
-
-  // ─── BLACKLIST VALIDATION ──────────────────────────────────────────
-  const [blacklist, setBlacklist] = useState<any[]>([]);
-
-  useEffect(() => {
-    const loadBlacklist = async () => {
-      try {
-        const { blacklistService } = await import('@/features/blacklist/services/blacklist.service');
-        const res = await blacklistService.getAll(1, 9999);
-        if (res && res.items) {
-          setBlacklist(res.items);
-        }
-      } catch (err) {
-        console.error('Failed to load blacklist:', err);
-      }
-    };
-    loadBlacklist();
-  }, []);
-
-  const isPlateBlacklisted = useMemo(() => {
-    if (!formattedPlate) return false;
-    const cleanPlate = formattedPlate.replace(/[^A-Z0-9]/g, '');
-    return blacklist.some(
-      (item) => item.licensePlate?.toUpperCase().replace(/[^A-Z0-9]/g, '') === cleanPlate
-    );
-  }, [blacklist, formattedPlate]);
-
-  const isCardBlacklisted = useMemo(() => {
-    if (!normalizedCardCode) return false;
-    const cleanCard = normalizedCardCode.replace(/[^A-Z0-9]/g, '');
-    return blacklist.some(
-      (item) => item.cardCode?.toUpperCase().replace(/[^A-Z0-9]/g, '') === cleanCard
-    );
-  }, [blacklist, normalizedCardCode]);
-
-  const blacklistReason = useMemo(() => {
-    if (isPlateBlacklisted) {
-      const cleanPlate = formattedPlate.replace(/[^A-Z0-9]/g, '');
-      const match = blacklist.find((item) => item.licensePlate?.toUpperCase().replace(/[^A-Z0-9]/g, '') === cleanPlate);
-      return `Vehicle ${formattedPlate} is blacklisted: "${match?.reason}"`;
+    if (cardBlock) {
+      return `Card ${normalizedCardCode} is blacklisted: ${cardBlock.reason}`;
     }
-    if (isCardBlacklisted) {
-      const cleanCard = normalizedCardCode.replace(/[^A-Z0-9]/g, '');
-      const match = blacklist.find((item) => item.cardCode?.toUpperCase().replace(/[^A-Z0-9]/g, '') === cleanCard);
-      return `Card ${normalizedCardCode} is blacklisted: "${match?.reason}"`;
-    }
+
     return null;
-  }, [blacklist, isPlateBlacklisted, isCardBlacklisted, formattedPlate, normalizedCardCode]);
-
-  // FE chỉ validate các field bắt buộc; business rules do BE xử lý.
-  const canCheckin =
-    isLicensePlateValid &&
-    selectedCard?.status === 'AVAILABLE' &&
-    Boolean(vehicleType);
-
-  useEffect(() => {
-    if (!selectedBooking) {
-      setBookingCode('');
-      return;
-    }
-
-    setBookingCode(selectedBooking.code);
-    setVehicleType(selectedBooking.vehicleType);
-  }, [selectedBooking]);
-
-  /* ==========================================================
-     APPLY MONTHLY CARD INFO
-     Nút này dùng để giả lập lấy thông tin từ Card MONTHLY.
-  ========================================================== */
-
-  const handleApplyMonthlyInfo = () => {
-    if (!selectedMonthlySubscription) {
-      showToast('Monthly subscription not found.', 'error');
-      return;
-    }
-
-    setLicensePlate(selectedMonthlySubscription.vehiclePlate);
-    setVehicleType(selectedMonthlySubscription.vehicleType);
   };
 
-  /* ==========================================================
-     HANDLE CHECK-IN
-     Gọi API BE thật để tạo Parking Session.
-  ========================================================== */
+  const handleConfirmCheckin = async (event: React.FormEvent) => {
+    event.preventDefault();
 
-const handleCheckin = async (e: React.FormEvent) => {
-  e.preventDefault();
-
-  if (!canCheckin || !selectedCard) {
-    showToast('License plate, vehicle type and an available card are required.', 'error');
-    return;
-  }
-
-  setIsSubmitting(true);
-
-  try {
-    await checkInVehicle({
-      licensePlate: formattedPlate,
-      vehicleTypeId: vehicleType === 'CAR' ? 2 : 1,
-      cardCode: selectedCard.code,
-      buildingId: 1,
-      staffId: 2,
-    });
-
-    await Promise.all([fetchActiveSessions(), fetchAvailableCards()]);
-
-    setCardCode('');
-    setIsCheckedIn(true);
-    setTimeout(() => setIsCheckedIn(false), 3000);
-  } catch (error) {
-    const message = error instanceof Error ? error.message : 'Check-in failed.';
-    showToast(message, 'error');
-  } finally {
-    setIsSubmitting(false);
-  }
-};
-
-  /* ==========================================================
-     HANDLE CONFIRM ACTUAL SLOT
-     Dành cho ô tô Walk-in/Booking.
-     Sau khi xe đậu thật, Staff ghi nhận slot thực tế.
-  ========================================================== */
-
-  const handleConfirmActualSlot = (session: ParkingSession) => {
-    const selectedSlotId = selectedSlotBySessionId[session.id];
-
-    if (!selectedSlotId) {
-      showToast('Please select actual slot.', 'error');
+    if (!formattedPlate) {
+      showGateOverlay({
+        type: 'error',
+        title: 'Missing license plate',
+        message: 'Please enter the vehicle license plate before check-in.',
+      });
       return;
     }
 
-    const selectedSlot = slots.find((slot) => slot.id === selectedSlotId);
-
-    if (!selectedSlot) {
-      showToast('Slot not found.', 'error');
+    if (!normalizedCardCode) {
+      showGateOverlay({
+        type: 'error',
+        title: 'Missing card code',
+        message: 'Please enter or scan a parking card code.',
+      });
       return;
     }
 
-    if (selectedSlot.status !== 'AVAILABLE') {
-      showToast('This slot is not available.', 'error');
+    const blacklistReason = checkBlacklistBeforeSubmit();
+    if (blacklistReason) {
+      showGateOverlay({
+        type: 'error',
+        title: 'Check-in blocked',
+        message: blacklistReason,
+      });
       return;
     }
 
-    if (selectedSlot.zoneId !== session.zoneId) {
-      showToast('Slot must belong to the recommended GENERAL zone.', 'error');
+    if (!selectedCard) {
+      showGateOverlay({
+        type: 'error',
+        title: 'Card not found',
+        message: `Card ${normalizedCardCode} does not exist in Card Management.`,
+      });
       return;
     }
 
-    /*
-      TODO API:
-      PUT /api/parking-sessions/{sessionId}/confirm-slot
+    if (selectedCard.cardStatus !== 'AVAILABLE') {
+      showGateOverlay({
+        type: 'error',
+        title: 'Card is not available',
+        message: `Card ${normalizedCardCode} is currently ${selectedCard.cardStatus}. Please use another available card.`,
+      });
+      return;
+    }
 
-      body:
-      {
-        slotId: selectedSlotId
-      }
-    */
+    setIsSubmitting(true);
 
-    // Cập nhật session có slot thực tế
-    setSessions((prev) =>
-      prev.map((item) =>
-        item.id === session.id
-          ? {
-              ...item,
-              actualSlotId: selectedSlot.id,
-              actualSlotCode: selectedSlot.code,
-            }
-          : item
-      )
-    );
+    try {
+      const session = await checkInVehicle({
+        licensePlate: formattedPlate,
+        vehicleTypeId: VEHICLE_TYPE_ID_BY_TYPE[vehicleType],
+        cardCode: normalizedCardCode,
+        buildingId: BUILDING_ID,
+        staffId: STAFF_ID,
+        ...(matchedBooking ? { bookingId: matchedBooking.id } : {}),
+      });
 
-    // Cập nhật slot sang OCCUPIED
-    setSlots((prev) =>
-      prev.map((slot) =>
-        slot.id === selectedSlot.id
-          ? { ...slot, status: 'OCCUPIED', assignedVehiclePlate: session.licensePlate }
-          : slot
-      )
-    );
+      await loadGateData();
+      setCardCode('');
 
-    showToast('Actual slot confirmed successfully.', 'success');
+      showGateOverlay({
+        type: 'success',
+        title: 'Check-in successful',
+        message: matchedBooking
+          ? `Booking ${matchedBooking.bookingCode} was converted to a parking session.`
+          : 'Walk-in parking session was created.',
+        session,
+        vehicleType,
+        cardCode: normalizedCardCode,
+        checkInTime: session.checkInTime || new Date().toISOString(),
+      });
+    } catch (error) {
+      showGateOverlay({
+        type: 'error',
+        title: 'Check-in failed',
+        message:
+          error instanceof Error
+            ? error.message
+            : 'This vehicle cannot be checked in. Please verify the information.',
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
-
-  /* ==========================================================
-     HANDLE LOST CARD
-     Xử lý trường hợp mất thẻ/card.
-  ========================================================== */
-
-  const handleLostCard = (session: ParkingSession) => {
-    const confirmed = confirm(
-      `Confirm lost card for session ${session.sessionCode}?`
-    );
-
-    if (!confirmed) return;
-
-    /*
-      TODO API:
-      PUT /api/parking-sessions/{sessionId}/lost-card
-
-      BE nên:
-      - tạo incident record
-      - mark card LOST
-      - giữ session ACTIVE để còn checkout xử lý ngoại lệ
-    */
-
-    // Đổi session sang trạng thái đã báo mất thẻ
-    setSessions((prev) =>
-      prev.map((item) =>
-        item.id === session.id ? { ...item, status: 'LOST_CARD_REPORTED' } : item
-      )
-    );
-
-    // Đổi card sang LOST
-    setCards((prev) =>
-      prev.map((card) =>
-        card.id === session.cardId ? { ...card, status: 'LOST' } : card
-      )
-    );
-  };
-
-  /* ==========================================================
-     GET AVAILABLE SLOTS FOR SESSION
-     Lấy danh sách slot trống trong zone đã gợi ý.
-  ========================================================== */
-
-  const getAvailableSlotsForSession = (session: ParkingSession) => {
-    return slots.filter(
-      (slot) =>
-        slot.zoneId === session.zoneId &&
-        slot.vehicleType === 'CAR' &&
-        slot.accessType === 'GENERAL' &&
-        slot.status === 'AVAILABLE'
-    );
-  };
-
-  /* ==========================================================
-     UI RENDER
-     Giao diện chính
-  ========================================================== */
 
   return (
-    <div className="p-8 space-y-8">
-      {/* HEADER */}
-      <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-800">
-            Vehicle Check-in Portal
-          </h1>
-          <p className="text-slate-500 text-sm mt-1">
-            Scan a card to identify the customer and complete vehicle check-in.
-          </p>
-        </div>
+    <div className="min-h-[calc(100vh-76px)] bg-slate-50 p-4">
+      <div className="mx-auto flex min-h-[calc(100vh-108px)] max-w-7xl flex-col gap-3">
+        <div className="flex shrink-0 items-center justify-between gap-3">
+          <div>
+            <p className="text-xs font-black uppercase tracking-[0.24em] text-emerald-600">
+              Staff Gate In
+            </p>
+            <h1 className="text-2xl font-black text-slate-900">
+              Vehicle Check-in
+            </h1>
+          </div>
 
-        <nav className="inline-flex w-fit rounded-xl border border-slate-200 bg-white p-1 shadow-sm" aria-label="Check-in sections">
           <button
             type="button"
-            onClick={() => setActiveView('CHECKIN')}
-            className={`flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-bold transition-all ${
-              activeView === 'CHECKIN'
-                ? 'bg-slate-900 text-white shadow-sm'
-                : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800'
-            }`}
+            onClick={() => setIsSessionsOpen(true)}
+            className="inline-flex items-center gap-2 rounded-2xl bg-white px-4 py-3 text-sm font-black text-slate-700 shadow-sm ring-1 ring-slate-200 hover:bg-slate-50"
           >
-            <span className="material-symbols-outlined text-lg">login</span>
-            Check-in
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveView('SESSIONS')}
-            className={`flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-bold transition-all ${
-              activeView === 'SESSIONS'
-                ? 'bg-slate-900 text-white shadow-sm'
-                : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800'
-            }`}
-          >
-            <span className="material-symbols-outlined text-lg">history</span>
-            Parking sessions
-            <span className={`rounded-md px-1.5 py-0.5 text-[10px] ${activeView === 'SESSIONS' ? 'bg-white/15' : 'bg-slate-100'}`}>
-              {sessions.length}
+            <span className="material-symbols-outlined text-lg">local_parking</span>
+            Active sessions
+            <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-xs text-emerald-700">
+              {activeSessionCount}
             </span>
           </button>
-        </nav>
-      </div>
+        </div>
 
-      {/* MAIN CONTENT */}
-      {activeView === 'CHECKIN' && (
-      <div className="grid grid-cols-1 xl:grid-cols-5 gap-8">
-        {/* LEFT SIDE */}
-        <div className="xl:col-span-3 space-y-8">
-          {/* CHECK-IN FORM */}
-          <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-6">
-            <div className="flex flex-col gap-4 border-b border-slate-100 pb-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="grid min-h-0 flex-1 gap-4 xl:grid-cols-[minmax(360px,0.88fr)_minmax(420px,1.12fr)]">
+          <form
+            onSubmit={handleConfirmCheckin}
+            className="min-h-0 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm"
+          >
+            <div className="mb-4 flex items-start justify-between gap-3">
               <div>
-                <h3 className="text-lg font-bold text-slate-800">
-                  Check-in Registration
-                </h3>
-                <p className="text-sm text-slate-500 mt-1">
-                  Customer type loads automatically from the selected card.
+                <h2 className="text-base font-black text-slate-900">
+                  Check-in information
+                </h2>
+                <p className="mt-1 text-xs font-semibold text-slate-500">
+                  Enter plate, vehicle type and parking card.
+                </p>
+              </div>
+              <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-black text-emerald-700">
+                Gate ready
+              </span>
+            </div>
+
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs font-black uppercase tracking-wider text-slate-500">
+                  License plate
+                </label>
+                <input
+                  value={licensePlate}
+                  onChange={(event) => setLicensePlate(event.target.value.toUpperCase())}
+                  placeholder="Example: 51A-123.45"
+                  className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 font-mono text-2xl font-black uppercase tracking-wider text-slate-900 outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-black uppercase tracking-wider text-slate-500">
+                  Vehicle type
+                </label>
+                <div className="mt-2 grid grid-cols-2 gap-3">
+                  {(['CAR', 'MOTORCYCLE'] as VehicleType[]).map((type) => (
+                    <button
+                      key={type}
+                      type="button"
+                      onClick={() => setVehicleType(type)}
+                      className={`rounded-2xl border px-4 py-3 text-sm font-black transition ${
+                        vehicleType === type
+                          ? 'border-emerald-500 bg-emerald-50 text-emerald-700'
+                          : 'border-slate-200 bg-white text-slate-500 hover:bg-slate-50'
+                      }`}
+                    >
+                      <span className="material-symbols-outlined mr-2 align-middle text-lg">
+                        {type === 'CAR' ? 'directions_car' : 'two_wheeler'}
+                      </span>
+                      {type === 'CAR' ? 'Car' : 'Motorcycle'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="text-xs font-black uppercase tracking-wider text-slate-500">
+                  Parking card code
+                </label>
+                <input
+                  value={cardCode}
+                  onChange={(event) => setCardCode(event.target.value.toUpperCase())}
+                  placeholder="Example: CARD-001"
+                  list="available-checkin-cards"
+                  className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 font-mono text-xl font-black uppercase text-slate-900 outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100"
+                />
+                <datalist id="available-checkin-cards">
+                  {availableCards.map((card) => (
+                    <option key={card.id} value={card.cardCode} />
+                  ))}
+                </datalist>
+                <p className="mt-2 text-xs font-semibold text-slate-400">
+                  Available parking cards: {availableCards.length}
                 </p>
               </div>
 
-            </div>
-
-            <form onSubmit={handleCheckin} className="space-y-6">
-              {/* FORM GRID */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                {/* LICENSE PLATE */}
-                <div className="space-y-2">
-                  <label className="text-xs font-bold text-slate-500 uppercase">
-                    License Plate
-                  </label>
-                  <input
-                    type="text"
-                    value={licensePlate}
-                    onChange={(e) => setLicensePlate(e.target.value)}
-                    placeholder="Example: 51A-123.45"
-                    className={`w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 font-mono text-lg font-bold uppercase tracking-wider ${
-                      isPlateBlacklisted
-                        ? 'border-red-300 bg-red-50/30 text-red-900 focus:ring-red-500'
-                        : 'bg-slate-50 border-slate-200 focus:ring-emerald-500 text-slate-700'
-                    }`}
-                  />
-                </div>
-
-                {/* VEHICLE TYPE */}
-                <div className="space-y-2">
-                  <label className="text-xs font-bold text-slate-500 uppercase">
-                    Vehicle Type
-                  </label>
-                  <select
-                    value={vehicleType}
-                    onChange={(e) => setVehicleType(e.target.value as VehicleType)}
-                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 font-semibold text-slate-700"
-                  >
-                    <option value="CAR">Car</option>
-                    <option value="MOTORCYCLE">Motorcycle</option>
-                  </select>
-                </div>
-
-                {/* CARD CODE */}
-                <div className="space-y-2 sm:col-span-2">
-                  <label className="text-xs font-bold text-slate-500 uppercase">
-                    Card Code
-                  </label>
-                  <div className="relative">
-                    <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
-                      contactless
-                    </span>
-                   <input 
-                   type="text" 
-                   value={cardCode} 
-                   onChange={(e) => setCardCode(e.target.value.toUpperCase())} 
-                   placeholder="Enter card code, EX:CARD12" 
-                   className={`w-full pl-12 pr-4 py-3 border rounded-xl focus:outline-none focus:ring-2 font-mono font-bold uppercase ${
-                     isCardBlacklisted
-                       ? 'border-red-300 bg-red-50/30 text-red-900 focus:ring-red-500'
-                       : 'bg-slate-50 border-slate-200 focus:ring-emerald-500 text-slate-700'
-                   }`} />
-                  </div>
-
-                  <p className="text-xs text-slate-400">
-                    Staff must enter the exact physical card code. Only AVAILABLE cards from the server are accepted.
-                  </p>
-
-                  {selectedCard && (
-                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs font-bold">
-                      <span className={getCardStatusClassName(selectedCard.status)}>
-                        {selectedCard.type} · {selectedCard.status}
-                      </span>
-                      <span className="rounded-md bg-slate-100 px-2 py-1 text-slate-600">
-                        {getCustomerTypeLabel(customerType)}
-                      </span>
-                      {selectedCard.vehiclePlate && (
-                        <span className="text-emerald-600">
-                          Plate loaded: {selectedCard.vehiclePlate}
-                        </span>
-                      )}
-                    </div>
-                  )}
-
-                  {cardCode.trim() && !selectedCard && (
-                    <p className="text-xs font-bold text-red-600">
-                      Card code not found.
+              <div className="rounded-2xl border border-emerald-100 bg-emerald-50/70 p-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-black uppercase tracking-wider text-emerald-700">
+                      Entry type
                     </p>
-                  )}
-
-                  {selectedCard && selectedCard.status !== 'AVAILABLE' && (
-                    <p className="text-xs font-bold text-amber-600">
-                      This card is {selectedCard.status}. Only AVAILABLE cards can be used for check-in.
-                    </p>
-                  )}
+                    {formattedPlate ? (
+                      matchedBooking ? (
+                        <p className="mt-1 text-sm font-bold text-slate-800">
+                          Booking matched{' '}
+                          <span className="font-mono text-emerald-700">
+                            {matchedBooking.bookingCode}
+                          </span>
+                        </p>
+                      ) : (
+                        <p className="mt-1 text-sm font-bold text-slate-500">
+                          Walk-in vehicle
+                        </p>
+                      )
+                    ) : (
+                      <p className="mt-1 text-sm font-bold text-slate-500">
+                        Enter a plate to identify entry type.
+                      </p>
+                    )}
+                  </div>
+                  <span className="material-symbols-outlined text-3xl text-emerald-600">
+                    confirmation_number
+                  </span>
                 </div>
 
-                {/* BOOKING CODE */}
-                {customerType === 'BOOKING' && (
-                  <div className="space-y-2 sm:col-span-2">
-                    <label className="text-xs font-bold text-slate-500 uppercase">
-                      Booking Code
-                    </label>
-
-                    <input
-                      type="text"
-                      value={bookingCode}
-                      readOnly
-                      placeholder="No booking code"
-                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-mono font-bold uppercase text-slate-700"
-                    />
-                  </div>
-                )}
-
-                {/* MONTHLY INFO BUTTON */}
-                {customerType === 'MONTHLY' && (
-                  <div className="space-y-2 sm:col-span-2">
-                    <label className="text-xs font-bold text-slate-500 uppercase">
-                      Monthly Subscription
-                    </label>
-
-                    <button
-                      type="button"
-                      onClick={handleApplyMonthlyInfo}
-                      className="w-full px-4 py-3 bg-indigo-50 text-indigo-700 rounded-xl font-bold hover:bg-indigo-100"
-                    >
-                      Load Monthly Vehicle From Selected Card
-                    </button>
-                  </div>
-                )}
-
-                {/* MONTHLY CAR SLOT */}
-                {customerType === 'MONTHLY' && vehicleType === 'CAR' && (
-                  <div className="space-y-2 sm:col-span-2">
-                    <label className="text-xs font-bold text-slate-500 uppercase">
-                      Assigned Monthly Slot
-                    </label>
-
-                    <div className="px-4 py-3 bg-indigo-50 border border-indigo-100 rounded-xl text-indigo-700 font-bold">
-                      {assignedMonthlySlot
-                        ? `${assignedMonthlySlot.code} - Monthly Zone`
-                        : 'No assigned monthly slot found'}
-                    </div>
+                {matchedBooking && (
+                  <div className="mt-2 grid grid-cols-2 gap-2 text-xs font-bold text-slate-600">
+                    <span>Deposit: {formatCurrency(matchedBooking.depositAmount)}</span>
+                    <span>Grace: {formatDateTime(matchedBooking.checkinGraceUntil)}</span>
+                    <span>Building: {matchedBooking.buildingName || BUILDING_ID}</span>
+                    <span>Type: {matchedBooking.vehicleTypeName}</span>
                   </div>
                 )}
               </div>
 
-              {blacklistReason && (
-                <div className="p-4 bg-red-50 border border-red-200 rounded-xl flex items-start gap-3 my-4">
-                  <span className="material-symbols-outlined text-red-600 shrink-0">block</span>
-                  <div>
-                    <h4 className="font-bold text-red-800 text-sm">Check-in Blocked (Blacklisted)</h4>
-                    <p className="text-red-700 text-xs mt-0.5">{blacklistReason}</p>
-                  </div>
-                </div>
-              )}
-
-              {/* SUBMIT BUTTON */}
               <button
                 type="submit"
-                disabled={!canCheckin || isSubmitting}
-                className="w-full py-4 bg-emerald-500 text-white rounded-xl font-bold shadow-lg shadow-emerald-500/20 hover:bg-emerald-600 transition-all flex items-center justify-center gap-2 disabled:bg-slate-300 disabled:shadow-none"
+                disabled={isSubmitting}
+                className="flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-600 py-3.5 text-base font-black text-white shadow-lg shadow-emerald-600/20 transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-300"
               >
-                <span className="material-symbols-outlined">login</span>
+                <span className="material-symbols-outlined">
+                  {isSubmitting ? 'progress_activity' : 'login'}
+                </span>
                 {isSubmitting ? 'Checking in...' : 'Confirm Check-in'}
               </button>
-            </form>
-          </div>
-        </div>
-
-        {/* RIGHT SIDE */}
-        <div className="xl:col-span-2 space-y-8">
-          {/* CAMERA PREVIEW */}
-          <div className="bg-slate-900 h-[240px] rounded-2xl overflow-hidden relative border border-slate-800 flex items-center justify-center">
-            <div className="absolute top-4 left-4 bg-black/60 px-3 py-1 rounded-full text-[10px] font-bold text-emerald-400">
-              MANUAL INPUT SIMULATION
             </div>
+          </form>
 
-            <div className="text-center -translate-y-5">
-              <span className="material-symbols-outlined text-5xl text-slate-700">
-                directions_car
-              </span>
-              <p className="text-slate-400 text-xs mt-2">
-                Camera / RFID preview
+          <div className="overflow-hidden rounded-3xl border border-slate-900 bg-slate-950 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-white/10 px-5 py-3">
+              <div className="flex items-center gap-2">
+                <span className="h-3 w-3 rounded-full bg-red-500" />
+                <span className="h-3 w-3 rounded-full bg-amber-400" />
+                <span className="h-3 w-3 rounded-full bg-emerald-500" />
+              </div>
+              <p className="font-mono text-xs font-bold text-emerald-400">
+                CAMERA DEMO · GATE-IN-01
               </p>
             </div>
 
-            <div className="absolute inset-x-4 bottom-4 border border-emerald-500/40 bg-emerald-500/5 rounded-xl px-4 py-3 text-emerald-400 font-mono">
-              <div className="flex justify-between items-center text-xs">
-                <span>PLATE</span>
-                <span className="font-bold text-base">
-                  {formattedPlate || 'NO PLATE'}
-                </span>
+            <div className="relative min-h-[520px] bg-[radial-gradient(circle_at_top,_#1e3a2f,_#020617_55%)]">
+              <div className="absolute right-5 top-5 rounded-full border border-emerald-400/40 bg-emerald-400/10 px-3 py-1 font-mono text-xs font-black text-emerald-300">
+                CAMERA READY
               </div>
 
-              <div className="flex justify-between items-center text-xs mt-1">
-                <span>CARD</span>
-                <span className="font-bold">{cardCode}</span>
-              </div>
-            </div>
-          </div>
-
-          {/* ZONE AVAILABILITY */}
-          <div className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
-            <div className="flex items-start justify-between gap-4 border-b border-slate-100 px-6 py-5">
-              <div>
-                <h3 className="text-lg font-bold text-slate-800">Open zones</h3>
-                <p className="mt-1 text-xs leading-5 text-slate-500">
-                  Live availability for {getVehicleTypeLabel(vehicleType).toLowerCase()} check-in.
+              <div className="absolute inset-x-10 top-20 h-44 rounded-[2rem] border-4 border-dashed border-emerald-400/40" />
+              <div className="absolute inset-x-16 bottom-36 rounded-3xl border border-white/10 bg-black/50 p-5 text-center">
+                <p className="text-xs font-black uppercase tracking-[0.35em] text-slate-400">
+                  Detected plate
+                </p>
+                <p className="mt-3 font-mono text-4xl font-black tracking-widest text-white">
+                  {formattedPlate || '---'}
                 </p>
               </div>
-              <span className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-50 px-2.5 py-1.5 text-[10px] font-black uppercase tracking-wider text-emerald-700">
-                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" />
-                Live
-              </span>
-            </div>
 
-            <div className="space-y-3 p-4">
-              {availableZones.map((zone) => {
-                const spacesLeft = getSlotsLeft(zone);
-                const availabilityPercent = Math.round((spacesLeft / zone.capacity) * 100);
-                const isNearlyFull = availabilityPercent <= 20;
-                const isSelected = zone.id === selectedZoneId;
-
-                return (
-                  <button
-                    key={zone.id}
-                    type="button"
-                    onClick={() => setSelectedZoneId(zone.id)}
-                    aria-pressed={isSelected}
-                    className={`group w-full rounded-xl border p-4 text-left transition-all focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 ${
-                      isSelected
-                        ? 'border-emerald-300 bg-emerald-50/70 shadow-sm shadow-emerald-900/5'
-                        : 'border-slate-200 bg-white hover:border-emerald-200 hover:bg-slate-50/70'
-                    }`}
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className={`h-2 w-2 shrink-0 rounded-full ${isNearlyFull ? 'bg-amber-500' : 'bg-emerald-500'}`} />
-                          <p className="truncate text-sm font-bold text-slate-800">{zone.name}</p>
-                        </div>
-                        <p className="mt-1 pl-4 text-[11px] text-slate-500">
-                          {zone.buildingName} · {zone.floorName}
-                        </p>
-                      </div>
-
-                      <div className="shrink-0 text-right">
-                        <p className={`text-xl font-black tabular-nums ${isNearlyFull ? 'text-amber-600' : 'text-emerald-600'}`}>
-                          {spacesLeft}
-                        </p>
-                        <p className="text-[9px] font-bold uppercase tracking-wider text-slate-400">spaces open</p>
-                      </div>
-                    </div>
-
-                    <div className="mt-4 flex items-center gap-3">
-                      <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-200/80">
-                        <div
-                          className={`h-full rounded-full transition-all duration-500 ${isNearlyFull ? 'bg-amber-500' : 'bg-emerald-500'}`}
-                          style={{ width: `${availabilityPercent}%` }}
-                        />
-                      </div>
-                      <span className="w-9 text-right text-[10px] font-bold tabular-nums text-slate-500">
-                        {availabilityPercent}%
-                      </span>
-                    </div>
-
-                    {isSelected && (
-                      <div className="mt-3 flex items-center gap-1.5 border-t border-emerald-200/70 pt-3 text-[10px] font-bold text-emerald-700">
-                        <span className="material-symbols-outlined text-sm">check_circle</span>
-                        Recommended for this check-in
-                      </div>
-                    )}
-                  </button>
-                );
-              })}
-
-              {availableZones.length === 0 && (
-                <div className="px-4 py-8 text-center">
-                  <span className="material-symbols-outlined text-3xl text-slate-300">block</span>
-                  <p className="mt-2 text-sm font-semibold text-slate-600">No open zone available</p>
-                  <p className="mt-1 text-xs text-slate-400">Try another vehicle type or contact the floor operator.</p>
+              <div className="absolute bottom-6 left-5 right-5 grid grid-cols-3 gap-3 text-xs font-black">
+                <div className="rounded-2xl bg-white/10 p-3 text-slate-300">
+                  Vehicle
+                  <p className="mt-1 text-white">{vehicleType}</p>
                 </div>
-              )}
+                <div className="rounded-2xl bg-white/10 p-3 text-slate-300">
+                  Card
+                  <p className="mt-1 text-white">{normalizedCardCode || '—'}</p>
+                </div>
+                <div className="rounded-2xl bg-white/10 p-3 text-slate-300">
+                  Entry
+                  <p className={`mt-1 w-fit rounded-full px-2 py-0.5 text-[10px] ${
+                    matchedBooking
+                      ? 'bg-amber-300 text-amber-950'
+                      : 'bg-emerald-300 text-emerald-950'
+                  }`}>
+                    {matchedBooking ? 'BOOKING' : 'WALK-IN'}
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
-
         </div>
       </div>
-      )}
-
-      {/* ACTIVE PARKING SESSIONS TABLE */}
-      {activeView === 'SESSIONS' && (
-      <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-5">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-          <div>
-            <h3 className="text-lg font-bold text-slate-800">
-              Active Parking Sessions
-            </h3>
-            <p className="text-sm text-slate-500">
-              Staff can view active sessions, handle lost card and confirm actual
-              slot for car after parking.
-            </p>
-          </div>
-
-          <div className="relative w-full md:w-80">
-            <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
-              search
-            </span>
-            <input
-              type="search"
-              value={sessionSearch}
-              onChange={(e) => setSessionSearch(e.target.value)}
-              placeholder="Search by license plate..."
-              className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 font-medium text-slate-700"
-            />
-          </div>
-        </div>
-
-        <div className="overflow-x-auto rounded-xl border border-slate-100">
-          <table className="w-full text-sm">
-            <thead className="bg-slate-50 text-slate-500 uppercase text-xs">
-              <tr>
-                <th className="px-5 py-4 text-left">Session</th>
-                <th className="px-5 py-4 text-left">Plate</th>
-                <th className="px-5 py-4 text-left">Vehicle</th>
-                <th className="px-5 py-4 text-left">Customer</th>
-                <th className="px-5 py-4 text-left">Card</th>
-                <th className="px-5 py-4 text-left">Zone</th>
-                <th className="px-5 py-4 text-left">Actual Slot</th>
-                <th className="px-5 py-4 text-left">Status</th>
-                <th className="px-5 py-4 text-left">Action</th>
-              </tr>
-            </thead>
-
-            <tbody className="divide-y divide-slate-100">
-              {filteredSessions.map((session) => {
-                const availableSlotsForSession =
-                  getAvailableSlotsForSession(session);
-
-                const needConfirmSlot =
-                  session.vehicleType === 'CAR' &&
-                  session.customerType !== 'MONTHLY' &&
-                  !session.actualSlotId;
-
-                return (
-                  <tr key={session.id} className="hover:bg-slate-50">
-                    <td className="px-5 py-4 font-mono font-bold text-slate-700">
-                      {session.sessionCode}
-                    </td>
-
-                    <td className="px-5 py-4 font-bold text-slate-700">
-                      {session.licensePlate}
-                    </td>
-
-                    <td className="px-5 py-4 text-slate-600">
-                      {getVehicleTypeLabel(session.vehicleType)}
-                    </td>
-
-                    <td className="px-5 py-4 text-slate-600">
-                      {getCustomerTypeLabel(session.customerType)}
-                    </td>
-
-                    <td className="px-5 py-4 font-bold text-slate-700">
-                      {session.cardCode}
-                    </td>
-
-                    <td className="px-5 py-4 text-slate-600">
-                      {session.zoneName}
-                    </td>
-
-                    <td className="px-5 py-4">
-                      {needConfirmSlot ? (
-                        <div className="flex gap-2">
-                          <select
-                            value={selectedSlotBySessionId[session.id] ?? ''}
-                            onChange={(e) =>
-                              setSelectedSlotBySessionId((prev) => ({
-                                ...prev,
-                                [session.id]: Number(e.target.value),
-                              }))
-                            }
-                            className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm"
-                          >
-                            <option value="">Select slot</option>
-
-                            {availableSlotsForSession.map((slot) => (
-                              <option key={slot.id} value={slot.id}>
-                                {slot.code}
-                              </option>
-                            ))}
-                          </select>
-
-                          <button
-                            type="button"
-                            onClick={() => handleConfirmActualSlot(session)}
-                            className="px-3 py-2 bg-blue-50 text-blue-700 rounded-lg font-bold hover:bg-blue-100"
-                          >
-                            Confirm
-                          </button>
-                        </div>
-                      ) : (
-                        <span className="font-bold text-slate-700">
-                          {session.actualSlotCode ?? '-'}
-                        </span>
-                      )}
-                    </td>
-
-                    <td className="px-5 py-4">
-                      <span
-                        className={`px-3 py-1 rounded-full border text-xs font-bold ${getSessionStatusClassName(
-                          session.status
-                        )}`}
-                      >
-                        {session.status}
-                      </span>
-                    </td>
-
-                    <td className="px-5 py-4">
-                      <button
-                        type="button"
-                        onClick={() => handleLostCard(session)}
-                        className="px-3 py-2 bg-red-50 text-red-700 rounded-lg font-bold hover:bg-red-100"
-                      >
-                        Lost Card
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })}
-
-              {filteredSessions.length === 0 && (
-                <tr>
-                  <td
-                    colSpan={9}
-                    className="px-5 py-10 text-center text-slate-400"
-                  >
-                    {sessionSearch.trim()
-                      ? 'No parking session matches this license plate.'
-                      : 'No active parking session.'}
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-      )}
 
       {isMounted &&
-        isCheckedIn &&
+        isSessionsOpen &&
         createPortal(
-          <div className="fixed inset-0 z-[100000] bg-emerald-500 flex flex-col items-center justify-center px-6 text-center text-white">
-            <div className="w-28 h-28 rounded-full bg-white/20 flex items-center justify-center shadow-2xl shadow-emerald-900/20">
+          <div className="fixed inset-0 z-[100000] bg-slate-950/70 p-6 backdrop-blur-sm">
+            <div className="mx-auto flex h-full max-w-5xl flex-col rounded-[2rem] bg-white p-6 shadow-2xl">
+              <div className="flex shrink-0 items-center justify-between gap-4">
+                <div>
+                  <h2 className="text-2xl font-black text-slate-900">
+                    Active parking sessions
+                  </h2>
+                  <p className="text-sm font-semibold text-slate-500">
+                    Vehicles currently inside the parking area.
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => void loadGateData()}
+                    className="rounded-2xl bg-slate-900 px-4 py-3 text-sm font-black text-white hover:bg-slate-700"
+                  >
+                    Refresh
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setIsSessionsOpen(false)}
+                    className="rounded-2xl bg-slate-100 p-3 text-slate-600 hover:bg-slate-200"
+                    aria-label="Close active sessions"
+                  >
+                    <span className="material-symbols-outlined">close</span>
+                  </button>
+                </div>
+              </div>
+
+              <div className="mt-5 min-h-0 flex-1 overflow-y-auto pr-1">
+                {activeSessions.length === 0 ? (
+                  <div className="flex h-full min-h-[300px] flex-col items-center justify-center rounded-3xl border border-dashed border-slate-200 text-center text-slate-400">
+                    <span className="material-symbols-outlined text-5xl">
+                      local_parking
+                    </span>
+                    <p className="mt-3 text-sm font-semibold">No active sessions.</p>
+                  </div>
+                ) : (
+                  <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                    {activeSessions.map((session) => (
+                      <article
+                        key={session.id}
+                        className="rounded-2xl border border-slate-200 bg-slate-50 p-4"
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <p className="font-mono text-xl font-black text-slate-900">
+                              {session.licensePlate}
+                            </p>
+                            <p className="mt-1 text-xs font-bold text-slate-500">
+                              {session.cardCode} · {session.customerType}
+                            </p>
+                          </div>
+                          <span className="rounded-full bg-emerald-100 px-2 py-1 text-[10px] font-black text-emerald-700">
+                            ACTIVE
+                          </span>
+                        </div>
+                        <p className="mt-3 text-xs font-semibold text-slate-500">
+                          In: {formatDateTime(session.checkInTime)}
+                        </p>
+                      </article>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>,
+          document.body
+        )}
+
+      {isMounted &&
+        overlay &&
+        createPortal(
+          <div
+            className={`fixed inset-0 z-[100000] flex flex-col items-center justify-center px-6 text-center text-white ${
+              overlay.type === 'success' ? 'bg-emerald-600' : 'bg-red-600'
+            }`}
+          >
+            <div className="flex h-28 w-28 items-center justify-center rounded-full bg-white/20 shadow-2xl">
               <span className="material-symbols-outlined text-7xl">
-                check_circle
+                {overlay.type === 'success' ? 'check_circle' : 'error'}
               </span>
             </div>
-            <h2 className="text-4xl md:text-5xl font-black mt-8">
-              Check-in Successful!
+            <h2 className="mt-8 text-4xl font-black md:text-5xl">
+              {overlay.title}
             </h2>
-            <p className="text-lg text-white/85 mt-3">
-              Parking session has been created for
+            <p className="mt-3 max-w-3xl text-lg font-bold text-white/90">
+              {overlay.message}
             </p>
-            <p className="font-mono text-3xl md:text-4xl font-black tracking-wider mt-2">
-              {formattedPlate}
-            </p>
-            <button
-              type="button"
-              onClick={() => setIsCheckedIn(false)}
-              className="mt-10 px-8 py-3 rounded-xl bg-white text-emerald-700 font-bold hover:bg-emerald-50 transition-colors"
-            >
-              Continue
-            </button>
+
+            {overlay.type === 'success' && (
+              <div className="mt-8 grid w-full max-w-3xl grid-cols-1 gap-3 rounded-3xl bg-white/15 p-5 text-left md:grid-cols-2">
+                <div>
+                  <p className="text-xs font-black uppercase text-white/60">License plate</p>
+                  <p className="font-mono text-3xl font-black">{overlay.session?.licensePlate ?? formattedPlate}</p>
+                </div>
+                <div>
+                  <p className="text-xs font-black uppercase text-white/60">Card code</p>
+                  <p className="font-mono text-2xl font-black">{overlay.cardCode}</p>
+                </div>
+                <div>
+                  <p className="text-xs font-black uppercase text-white/60">Vehicle type</p>
+                  <p className="text-2xl font-black">{overlay.vehicleType}</p>
+                </div>
+                <div>
+                  <p className="text-xs font-black uppercase text-white/60">Check-in time</p>
+                  <p className="text-2xl font-black">{formatDateTime(overlay.checkInTime)}</p>
+                </div>
+              </div>
+            )}
           </div>,
           document.body
         )}

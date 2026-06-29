@@ -9,6 +9,8 @@ type BaseResponse<T> = {
 
 type ParkingSessionDto = {
   id?: number | null;
+  vehicleId?: number | null;
+  buildingId?: number | null;
   cardId?: number | null;
   zoneId?: number | null;
   slotId?: number | null;
@@ -22,12 +24,26 @@ type ParkingSessionDto = {
   slotCode?: string | null;
 };
 
+type BookingDto = {
+  id?: number | null;
+  licensePlate?: string | null;
+  vehicleTypeId?: number | null;
+  vehicleTypeName?: string | null;
+  buildingId?: number | null;
+  buildingName?: string | null;
+  plannedCheckinTime?: string | null;
+  depositAmount?: number | null;
+  bookingStatus?: string | null;
+  checkinGraceUntil?: string | null;
+};
+
 export type CheckInVehiclePayload = {
   licensePlate: string;
   vehicleTypeId: number;
   cardCode: string;
   buildingId: number;
   staffId: number;
+  bookingId?: number;
 };
 
 export type VehicleCheckinSession = {
@@ -36,6 +52,8 @@ export type VehicleCheckinSession = {
   licensePlate: string;
   vehicleType: 'CAR' | 'MOTORCYCLE' | 'UNKNOWN';
   customerType: 'WALK_IN' | 'BOOKING' | 'MONTHLY';
+  vehicleId: number | null;
+  buildingId: number | null;
   cardId: number;
   cardCode: string;
   zoneId: number | null;
@@ -44,6 +62,20 @@ export type VehicleCheckinSession = {
   actualSlotCode: string | null;
   checkInTime: string;
   status: 'ACTIVE' | 'LOST_CARD_REPORTED';
+};
+
+export type VehicleCheckinBooking = {
+  id: number;
+  bookingCode: string;
+  licensePlate: string;
+  vehicleTypeId: number | null;
+  vehicleTypeName: string;
+  buildingId: number | null;
+  buildingName: string;
+  plannedCheckinTime: string | null;
+  checkinGraceUntil: string | null;
+  depositAmount: number;
+  bookingStatus: string;
 };
 
 const getApiErrorMessage = (error: unknown): string => {
@@ -91,6 +123,8 @@ export const mapActiveParkingSession = (
     : session.bookingId
       ? 'BOOKING'
       : 'WALK_IN',
+  vehicleId: session.vehicleId ?? null,
+  buildingId: session.buildingId ?? null,
   cardId,
   cardCode: String(session.cardCode ?? `#${cardId}`),
   zoneId: session.zoneId ?? null,
@@ -103,6 +137,23 @@ export const mapActiveParkingSession = (
     'LOST_CARD_REPORTED'
       ? 'LOST_CARD_REPORTED'
       : 'ACTIVE',
+  };
+};
+
+const mapBooking = (booking: BookingDto): VehicleCheckinBooking => {
+  const id = Number(booking.id ?? 0);
+  return {
+    id,
+    bookingCode: `BK-${String(id).padStart(4, '0')}`,
+    licensePlate: String(booking.licensePlate ?? ''),
+    vehicleTypeId: booking.vehicleTypeId ?? null,
+    vehicleTypeName: String(booking.vehicleTypeName ?? 'Unknown'),
+    buildingId: booking.buildingId ?? null,
+    buildingName: String(booking.buildingName ?? ''),
+    plannedCheckinTime: booking.plannedCheckinTime ?? null,
+    checkinGraceUntil: booking.checkinGraceUntil ?? null,
+    depositAmount: Number(booking.depositAmount ?? 0),
+    bookingStatus: String(booking.bookingStatus ?? ''),
   };
 };
 
@@ -128,6 +179,28 @@ export const checkInVehicle = async (
       payload
     );
     return mapActiveParkingSession(unwrap(response, 'Vehicle check-in failed.'));
+  } catch (error) {
+    throw new Error(getApiErrorMessage(error));
+  }
+};
+
+export const fetchCheckinBookingsByBuilding = async (
+  buildingId: number
+): Promise<VehicleCheckinBooking[]> => {
+  try {
+    const response = await api.get<BaseResponse<BookingDto[]>>(
+      `/bookings/by-building/${buildingId}`
+    );
+    return unwrap(response, 'Could not load bookings.').map(mapBooking);
+  } catch (error) {
+    throw new Error(getApiErrorMessage(error));
+  }
+};
+
+export const fetchCheckinBookings = async (): Promise<VehicleCheckinBooking[]> => {
+  try {
+    const response = await api.get<BaseResponse<BookingDto[]>>('/bookings');
+    return unwrap(response, 'Could not load bookings.').map(mapBooking);
   } catch (error) {
     throw new Error(getApiErrorMessage(error));
   }

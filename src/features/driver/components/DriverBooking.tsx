@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/features/auth';
 import { api, ApiError } from '@/lib/api/client';
 import {
@@ -51,7 +51,6 @@ interface SlotItem {
 
 export default function DriverBooking() {
   const { user, showToast } = useAuth();
-  const router = useRouter();
   const searchParams = useSearchParams();
 
   // Mounting state for Portal

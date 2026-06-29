@@ -11,6 +11,7 @@
 // Components phục vụ trang Dashboard của Manager
 export { StatCards }           from './components/StatCards';
 export { HourlyTrafficChart }  from './components/HourlyTrafficChart';
+export { OccupancyPieChart }   from './components/OccupancyPieChart';
 export { QuickLinks }          from './components/QuickLinks';
 export { RecentActivity }      from './components/RecentActivity';
 

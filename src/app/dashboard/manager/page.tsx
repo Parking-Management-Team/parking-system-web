@@ -7,6 +7,7 @@ import { FloorResponse, ZoneResponse, ParkingSessionDto } from '@/features/parki
 import {
   StatCards,
   HourlyTrafficChart,
+  OccupancyPieChart,
   QuickLinks,
   RecentActivity,
 } from '@/features/manager';
@@ -255,20 +256,24 @@ export default function ManagerDashboard() {
           {/* ── 4 Stat Cards ── */}
           <StatCards stats={stats} />
 
-          {/* ── Visual Analytics & Activity Columns ── */}
+          {/* ── Visual Analytics Grid (Bar & Pie Charts) ── */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            
-            {/* Left/Center Column: Hourly Analytics & Quick Actions */}
-            <div className="lg:col-span-2 space-y-8">
+            <div className="lg:col-span-2">
               <HourlyTrafficChart chartData={chartData} />
+            </div>
+            <div className="lg:col-span-1">
+              <OccupancyPieChart carCount={stats.carCount} bikeCount={stats.bikeCount} occupiedCount={stats.occupiedCount} />
+            </div>
+          </div>
+
+          {/* ── Actions & Activities Grid ── */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="lg:col-span-2">
               <QuickLinks />
             </div>
-
-            {/* Right Column: Live Checked-in Vehicles Timeline */}
-            <div>
+            <div className="lg:col-span-1">
               <RecentActivity activities={activities} />
             </div>
-
           </div>
         </>
       )}

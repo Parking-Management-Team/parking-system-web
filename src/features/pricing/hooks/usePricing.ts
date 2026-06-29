@@ -423,6 +423,7 @@ interface PolicyApiResponse {
   // --- State cho Modal Thêm khung giờ vào chính sách có sẵn (S5) ---
   const [isAddWindowOpen, setIsAddWindowOpen] = useState(false);
   const [addWindowTargetPolicyId, setAddWindowTargetPolicyId] = useState<number | null>(null);
+  const [isCleaningUp, setIsCleaningUp] = useState(false);
   
   // Form inputs for Add Pricing Window Modal (S5)
   const [formAddWindowName, setFormAddWindowName] = useState('');
@@ -549,6 +550,27 @@ interface PolicyApiResponse {
       console.error('Failed to deactivate policy:', error);
       const errorMsg = extractErrorMessage(error);
       triggerToast(errorMsg, 'error');
+    }
+  };
+
+
+
+  const handleCleanupExpiredPolicies = async () => {
+    setIsCleaningUp(true);
+    try {
+      const res = await api.post<{ success: boolean; message?: string }>('/pricing-policies/cleanup', {});
+      if (res && res.success) {
+        await fetchPolicies();
+        triggerToast('Expired pricing policies cleaned up successfully!', 'success');
+      } else {
+        triggerToast('Failed to clean up expired policies.', 'error');
+      }
+    } catch (error) {
+      console.error('Failed to cleanup policies:', error);
+      const errorMsg = extractErrorMessage(error);
+      triggerToast(errorMsg, 'error');
+    } finally {
+      setIsCleaningUp(false);
     }
   };
 
@@ -1392,7 +1414,11 @@ interface PolicyApiResponse {
     handleOpenEditIncidentType,
     handleCloseIncidentTypeModal,
     handleSaveIncidentType,
-    handleDeleteIncidentType
+    handleDeleteIncidentType,
+
+    // Cleanup Policy
+    isCleaningUp,
+    handleCleanupExpiredPolicies
   };
 
 }

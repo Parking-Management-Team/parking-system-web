@@ -22,12 +22,39 @@ interface LoginResponseDto {
 }
 
 interface BaseResponse<T> {
-  success: boolean;
+  success?: boolean;
+  isSuccess?: boolean;
+  code?: string;
+  errorCode?: string;
   data: T;
   message?: string;
-  errorCode?: string;
   errors?: Record<string, string[]>;
 }
+
+interface OtpResponse<T = null> {
+  isSuccess: boolean;
+  code: string;
+  message: string;
+  data: T;
+}
+
+const extractErrorMessage = (error: unknown, defaultMessage: string): string => {
+  if (error && typeof error === 'object') {
+    if ('name' in error && (error as any).name === 'ApiError' && 'data' in error) {
+      const body = (error as any).data;
+      if (body && typeof body === 'object') {
+        return body.message || body.Message || defaultMessage;
+      }
+    }
+    if ('message' in error && typeof (error as any).message === 'string') {
+      return (error as any).message;
+    }
+  }
+  if (error instanceof Error) {
+    return error.message;
+  }
+  return defaultMessage;
+};
 
 interface AuthContextType {
   user: User | null;                          // Thông tin người dùng hiện tại (null nếu chưa đăng nhập)
@@ -35,8 +62,11 @@ interface AuthContextType {
   isAuthenticated: boolean;                   // Flag kiểm tra nhanh xem đã đăng nhập chưa
   isLoading: boolean;                         // Trạng thái đang tải (đang gọi API, đang hồi phục session...)
   login: (identifier: string, password: string) => Promise<User>; // Hàm đăng nhập thường
-  register: (fullName: string, email: string, phone: string, password: string) => Promise<void>; // Hàm đăng ký
+  sendOtp: (email: string) => Promise<void>; // Hàm gửi mã OTP
+  verifyOtp: (email: string, otp: string) => Promise<string>; // Hàm xác thực mã OTP
+  register: (fullName: string, email: string, phone: string, password: string, verificationToken: string) => Promise<void>; // Hàm đăng ký bằng OTP
   loginWithGoogle: (idToken?: string) => Promise<User>; // Hàm đăng nhập Google
+  verifyGoogleOtp: (idToken: string, otp: string) => Promise<User>; // Hàm xác thực mã OTP đăng ký Google
   logout: () => void;                         // Hàm đăng xuất
   showToast: (message: string, type?: 'success' | 'error' | 'info') => void; // Hàm hiển thị thông báo nhanh
 }
@@ -122,19 +152,70 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   /**
-   * HÀM ĐĂNG KÝ TÀI KHOẢN (MOCK)
-   * Hiện tại Backend chưa có API đăng ký, Frontend đang lưu giả lập trong localStorage
+   * HÀM GỬI MÃ OTP VỀ EMAIL
+   * Gọi POST request đến API `/auth/send-otp` của Backend.
    */
-  const register = React.useCallback(async (fullName: string, email: string, phone: string, password: string): Promise<void> => {
+  const sendOtp = React.useCallback(async (email: string): Promise<void> => {
     setIsLoading(true);
     try {
-      // Giả lập độ trễ mạng 1.5s
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+      const res = await api.post<OtpResponse>('/auth/send-otp', { email });
+      if (!res.isSuccess) {
+        throw new Error(res.message || 'Failed to send OTP code.');
+      }
+    } catch (error) {
+      const errorMsg = extractErrorMessage(error, 'Failed to send OTP code.');
+      throw new Error(errorMsg);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
 
-      // Lưu tài khoản đăng ký tạm thời vào localStorage để phục vụ kiểm thử
-      const registeredUsers = JSON.parse(localStorage.getItem('nexpark_registered_users') || '[]');
-      registeredUsers.push({ fullName, email, phone, password });
-      localStorage.setItem('nexpark_registered_users', JSON.stringify(registeredUsers));
+  /**
+   * HÀM XÁC THỰC MÃ OTP
+   * Gửi mã OTP lên để nhận về verification token tạm thời.
+   */
+  const verifyOtp = React.useCallback(async (email: string, otp: string): Promise<string> => {
+    setIsLoading(true);
+    try {
+      const res = await api.post<OtpResponse<string>>('/auth/verify-otp', { email, otp });
+      if (!res.isSuccess || !res.data) {
+        throw new Error(res.message || 'OTP verification failed.');
+      }
+      return res.data;
+    } catch (error) {
+      const errorMsg = extractErrorMessage(error, 'OTP verification failed.');
+      throw new Error(errorMsg);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  /**
+   * HÀM ĐĂNG KÝ TÀI KHOẢN (VỚI TOKEN XÁC MINH OTP)
+   * Gọi POST request đến API `/auth/register-verified` của Backend.
+   */
+  const register = React.useCallback(async (
+    fullName: string,
+    email: string,
+    phone: string,
+    password: string,
+    verificationToken: string
+  ): Promise<void> => {
+    setIsLoading(true);
+    try {
+      const res = await api.post<OtpResponse>('/auth/register-verified', {
+        fullName,
+        email,
+        phone,
+        password,
+        verificationToken
+      });
+      if (!res.isSuccess) {
+        throw new Error(res.message || 'Registration failed.');
+      }
+    } catch (error) {
+      const errorMsg = extractErrorMessage(error, 'Registration failed.');
+      throw new Error(errorMsg);
     } finally {
       setIsLoading(false);
     }
@@ -162,8 +243,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         idToken: tokenToSend
       });
 
+      const isSuccess = res.success ?? res.isSuccess;
+      const errorCode = res.errorCode ?? res.code;
+
       // 2. Kiểm tra xem Backend đăng nhập Google thành công không
-      if (!res.success || !res.data) {
+      if (!isSuccess || !res.data) {
+        if (errorCode === 'REQUIRE_OTP_VERIFICATION') {
+          const err = new Error(res.message || 'Google signup requires email verification.') as any;
+          err.code = 'REQUIRE_OTP_VERIFICATION';
+          err.email = res.data?.email;
+          err.fullName = res.data?.fullName;
+          throw err;
+        }
         throw new Error(res.message || 'Google login failed');
       }
 
@@ -184,6 +275,46 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(systemUser);
 
       return systemUser;
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  /**
+   * HÀM XÁC THỰC OTP GOOGLE VÀ ĐĂNG KÝ
+   * Gửi Google ID Token và mã OTP lên API `/auth/google-verify-otp` để tạo tài khoản và đăng nhập.
+   */
+  const verifyGoogleOtp = React.useCallback(async (idToken: string, otp: string): Promise<User> => {
+    setIsLoading(true);
+    try {
+      const res = await api.post<BaseResponse<LoginResponseDto>>('/auth/google-verify-otp', {
+        idToken,
+        otp
+      });
+
+      const isSuccess = res.success ?? res.isSuccess;
+
+      if (!isSuccess || !res.data) {
+        throw new Error(res.message || 'Google OTP verification failed');
+      }
+
+      const systemUser: User = {
+        id: res.data.accountId,
+        fullName: res.data.fullName || res.data.username,
+        email: res.data.email || '',
+        role: res.data.roleName ? res.data.roleName.toUpperCase() : '',
+      };
+
+      localStorage.setItem('nexpark_token', res.data.token);
+      localStorage.setItem('nexpark_user', JSON.stringify(systemUser));
+
+      setToken(res.data.token);
+      setUser(systemUser);
+
+      return systemUser;
+    } catch (error) {
+      const errorMsg = extractErrorMessage(error, 'Google OTP verification failed');
+      throw new Error(errorMsg);
     } finally {
       setIsLoading(false);
     }
@@ -219,11 +350,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     isAuthenticated: !!token && !!user, // Đã đăng nhập khi có cả token và thông tin user
     isLoading,
     login,
+    sendOtp,
+    verifyOtp,
     register,
     loginWithGoogle,
+    verifyGoogleOtp,
     logout,
     showToast,
-  }), [user, token, isLoading, login, register, loginWithGoogle, logout, showToast]);
+  }), [user, token, isLoading, login, sendOtp, verifyOtp, register, loginWithGoogle, verifyGoogleOtp, logout, showToast]);
 
   return (
     <AuthContext.Provider value={value}>

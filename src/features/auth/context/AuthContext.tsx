@@ -67,6 +67,7 @@ interface AuthContextType {
   register: (fullName: string, email: string, phone: string, password: string, verificationToken: string) => Promise<void>; // Hàm đăng ký bằng OTP
   loginWithGoogle: (idToken?: string) => Promise<User>; // Hàm đăng nhập Google
   verifyGoogleOtp: (idToken: string, otp: string) => Promise<User>; // Hàm xác thực mã OTP đăng ký Google
+  verifyLoginOtp: (email: string, password: string, otp: string) => Promise<User>; // Hàm xác thực mã OTP đăng nhập thường
   logout: () => void;                         // Hàm đăng xuất
   showToast: (message: string, type?: 'success' | 'error' | 'info') => void; // Hàm hiển thị thông báo nhanh
 }
@@ -124,8 +125,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         password: password
       });
 
+      const isSuccess = res.success ?? res.isSuccess;
+      const errorCode = res.errorCode ?? res.code;
+
       // 2. Kiểm tra xem Backend trả về thành công không
-      if (!res.success || !res.data) {
+      if (!isSuccess || !res.data) {
+        if (errorCode === 'REQUIRE_LOGIN_OTP_VERIFICATION') {
+          const err = new Error(res.message || 'Login requires email verification.') as any;
+          err.code = 'REQUIRE_LOGIN_OTP_VERIFICATION';
+          err.email = res.data?.email;
+          throw err;
+        }
         throw new Error(res.message || 'Login failed');
       }
 
@@ -321,6 +331,47 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   /**
+   * HÀM XÁC THỰC OTP ĐĂNG NHẬP THƯỜNG
+   * Gửi Email, Password, và mã OTP lên API `/auth/login-verify-otp` để hoàn tất đăng nhập.
+   */
+  const verifyLoginOtp = React.useCallback(async (email: string, password: string, otp: string): Promise<User> => {
+    setIsLoading(true);
+    try {
+      const res = await api.post<BaseResponse<LoginResponseDto>>('/auth/login-verify-otp', {
+        email,
+        password,
+        otp
+      });
+
+      const isSuccess = res.success ?? res.isSuccess;
+
+      if (!isSuccess || !res.data) {
+        throw new Error(res.message || 'OTP verification failed');
+      }
+
+      const systemUser: User = {
+        id: res.data.accountId,
+        fullName: res.data.fullName || res.data.username,
+        email: res.data.email || '',
+        role: res.data.roleName ? res.data.roleName.toUpperCase() : '',
+      };
+
+      localStorage.setItem('nexpark_token', res.data.token);
+      localStorage.setItem('nexpark_user', JSON.stringify(systemUser));
+
+      setToken(res.data.token);
+      setUser(systemUser);
+
+      return systemUser;
+    } catch (error) {
+      const errorMsg = extractErrorMessage(error, 'OTP verification failed');
+      throw new Error(errorMsg);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  /**
    * HÀM ĐĂNG XUẤT
    * Xóa sạch các thông tin đăng nhập ở cả Local Storage và State của ứng dụng.
    */
@@ -355,9 +406,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     register,
     loginWithGoogle,
     verifyGoogleOtp,
+    verifyLoginOtp,
     logout,
     showToast,
-  }), [user, token, isLoading, login, sendOtp, verifyOtp, register, loginWithGoogle, verifyGoogleOtp, logout, showToast]);
+  }), [user, token, isLoading, login, sendOtp, verifyOtp, register, loginWithGoogle, verifyGoogleOtp, verifyLoginOtp, logout, showToast]);
 
   return (
     <AuthContext.Provider value={value}>

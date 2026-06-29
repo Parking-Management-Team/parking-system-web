@@ -17,13 +17,11 @@ export default function PricingWorkspace() {
     showToast,
     toastMessage,
     toastType,
-    triggerToast,
     handleOpenEditTariff,
     handleOpenEditMembership,
     handleOpenAddMembership,
     handleOpenAddFee,
     handleOpenEditFee,
-    handleDeleteFee,
     handleOpenCreatePolicy,
     handleOpenActivateDialog,
     handleOpenAddWindow,
@@ -33,8 +31,12 @@ export default function PricingWorkspace() {
     handleOpenEditIncidentType,
     handleDeleteIncidentType,
     handleDeactivatePolicy,
+    isCleaningUp,
+    handleCleanupExpiredPolicies,
     vehicleTypes
   } = pricing;
+
+  const isAdminOrManager = pricing.user?.role === 'ADMIN' || pricing.user?.role === 'MANAGER';
 
   const [showOnlyActive, setShowOnlyActive] = React.useState(false);
 
@@ -158,6 +160,23 @@ export default function PricingWorkspace() {
                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <h4 className="text-base font-bold text-[#111c2d]">Standard Pricing Policies</h4>
                   <div className="flex items-center gap-4 flex-wrap">
+                    {isAdminOrManager && (
+                      <button
+                        onClick={() => {
+                          if (confirm('Are you sure you want to clean up all expired pricing policies?')) {
+                            handleCleanupExpiredPolicies();
+                          }
+                        }}
+                        disabled={isCleaningUp}
+                        className="inline-flex items-center gap-2 px-3.5 py-1.5 bg-white hover:bg-red-50 text-slate-650 hover:text-red-600 border border-slate-200 hover:border-red-200 rounded-xl font-bold text-xs shadow-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                        title="Cleanup Expired Policies"
+                      >
+                        <span className="material-symbols-outlined text-[16px] text-slate-500">
+                          {isCleaningUp ? 'progress_activity' : 'delete_sweep'}
+                        </span>
+                        {isCleaningUp ? 'Cleaning up...' : 'Cleanup Expired Policies'}
+                      </button>
+                    )}
                     <label className="inline-flex items-center gap-2 cursor-pointer group bg-white border border-slate-200 hover:border-slate-300 rounded-xl px-3.5 py-1.5 transition-all shadow-sm">
                       <input 
                         type="checkbox" 
@@ -250,7 +269,7 @@ export default function PricingWorkspace() {
                                       handleDeactivatePolicy(policy);
                                     }
                                   }}
-                                  className="px-3 py-1.5 bg-red-50 hover:bg-red-650 text-red-650 hover:text-white font-bold text-xs rounded-lg transition-all border border-red-200 hover:border-red-600"
+                                  className="px-3 py-1.5 bg-red-50 hover:bg-red-600 text-red-600 hover:text-white font-bold text-xs rounded-lg transition-all border border-red-200 hover:border-red-600"
                                   title="Deactivate this policy"
                                 >
                                   Set Inactive

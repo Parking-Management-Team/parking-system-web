@@ -32,10 +32,11 @@ interface BaseResponse<T> {
 }
 
 interface OtpResponse<T = null> {
-  isSuccess: boolean;
-  code: string;
-  message: string;
-  data: T;
+  success?: boolean;
+  isSuccess?: boolean;
+  code?: string;
+  message?: string;
+  data?: T | null;
 }
 
 const extractErrorMessage = (error: unknown, defaultMessage: string): string => {
@@ -159,7 +160,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setIsLoading(true);
     try {
       const res = await api.post<OtpResponse>('/auth/send-otp', { email });
-      if (!res.isSuccess) {
+      const isSuccess = res.success ?? res.isSuccess;
+      if (!isSuccess) {
         throw new Error(res.message || 'Failed to send OTP code.');
       }
     } catch (error) {
@@ -177,11 +179,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const verifyOtp = React.useCallback(async (email: string, otp: string): Promise<string> => {
     setIsLoading(true);
     try {
-      const res = await api.post<OtpResponse<string>>('/auth/verify-otp', { email, otp });
-      if (!res.isSuccess || !res.data) {
+      const res = await api.post<OtpResponse<any>>('/auth/verify-otp', { email, otp });
+      const isSuccess = res.success ?? res.isSuccess;
+      if (!isSuccess || !res.data) {
         throw new Error(res.message || 'OTP verification failed.');
       }
-      return res.data;
+      const token = typeof res.data === 'string' ? res.data : (res.data.verificationToken || '');
+      return token;
     } catch (error) {
       const errorMsg = extractErrorMessage(error, 'OTP verification failed.');
       throw new Error(errorMsg);
@@ -210,7 +214,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         password,
         verificationToken
       });
-      if (!res.isSuccess) {
+      const isSuccess = res.success ?? res.isSuccess;
+      if (!isSuccess) {
         throw new Error(res.message || 'Registration failed.');
       }
     } catch (error) {

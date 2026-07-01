@@ -60,12 +60,13 @@ type SlotDto = {
 type BookingDto = {
   id?: number | null;
   code?: string | null;
-  vehiclePlate?: string | null;
+  licensePlate?: string | null;
   vehicleType?: string | null;
-  status?: string | null;
-  depositPaid?: boolean | null;
-  isWithinGrace?: boolean | null;
+  vehicleTypeName?: string | null;
+  bookingStatus?: string | null;
+  depositAmount?: number | null;
   buildingName?: string | null;
+  checkinGraceUntil?: string | null;
 };
 
 type MonthlySubscriptionDto = {
@@ -329,18 +330,18 @@ export const fetchAllSlots = async (): Promise<CheckinParkingSlot[]> => {
 
 export const fetchActiveBookings = async (): Promise<CheckinBooking[]> => {
   try {
-    const response = await api.get<BaseResponse<BookingDto[]> | BookingDto[]>('/bookings/active');
+    const response = await api.get<BaseResponse<BookingDto[]> | BookingDto[]>('/bookings?status=Confirmed');
     const data = getResponseData(response);
     const bookings = Array.isArray(data) ? data : [];
 
     return bookings.map((b) => ({
       id: Number(b.id ?? 0),
       code: String(b.code ?? ''),
-      vehiclePlate: String(b.vehiclePlate ?? ''),
-      vehicleType: String(b.vehicleType ?? '').toUpperCase() === 'MOTORCYCLE' ? 'MOTORCYCLE' : 'CAR',
-      status: mapBookingStatus(b.status),
-      depositPaid: Boolean(b.depositPaid),
-      isWithinGrace: Boolean(b.isWithinGrace),
+      vehiclePlate: String(b.licensePlate ?? ''),
+      vehicleType: String(b.vehicleTypeName ?? b.vehicleType ?? '').toUpperCase() === 'MOTORCYCLE' ? 'MOTORCYCLE' : 'CAR',
+      status: mapBookingStatus(b.bookingStatus),
+      depositPaid: Boolean(b.depositAmount && b.depositAmount > 0),
+      isWithinGrace: new Date(b.checkinGraceUntil ?? 0) > new Date(),
       buildingName: String(b.buildingName ?? ''),
     }));
   } catch (error) {

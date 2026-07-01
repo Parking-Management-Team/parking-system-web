@@ -6,6 +6,8 @@ import { useAuth } from '@/features/auth/context/AuthContext';
 import { fetchCards as fetchCardsFromApi } from '@/features/card/services/card.service';
 import {
   checkInVehicle,
+  checkEntryConditions,
+  updateCheckinInfo,
   fetchActiveParkingSessions,
   type VehicleCheckinSession as ParkingSession,
 } from '@/features/vehicles/services/vehicle-checkin.service';
@@ -104,7 +106,7 @@ export default function VehicleCheckin() {
 
   const [licensePlate, setLicensePlate] = useState('51A-123.45');
   const [vehicleType, setVehicleType] = useState<VehicleType>('CAR');
-  const isBookingCheckin = true; 
+  const isBookingCheckin = true;
   const [bookingCode, setBookingCode] = useState('BK-001');
   const [cardCode, setCardCode] = useState('');
   const [selectedZoneId, setSelectedZoneId] = useState<number | null>(1);
@@ -112,6 +114,38 @@ export default function VehicleCheckin() {
   const [isMounted, setIsMounted] = useState(false);
   const [sessionSearch, setSessionSearch] = useState('');
   const [activeView, setActiveView] = useState<'CHECKIN' | 'SESSIONS'>('CHECKIN');
+
+  /* ==========================================================
+     STATE: RANDOM SLOT ASSIGNMENT TOGGLE
+     Bật/tắt tự động gán slot ngẫu nhiên sau check-in.
+  ========================================================== */
+
+  const [autoAssignSlot, setAutoAssignSlot] = useState(true);
+
+  /* ==========================================================
+     STATE: ENTRY CONDITION CHECK
+     Kiểm tra điều kiện trước khi cho phép check-in.
+  ========================================================== */
+
+  const [isCheckingEntry, setIsCheckingEntry] = useState(false);
+  const [entryCheckResult, setEntryCheckResult] = useState<{
+    allowed: boolean;
+    reason?: string;
+  } | null>(null);
+
+  /* ==========================================================
+     STATE: EDIT CHECK-IN MODAL
+     Cho phép Staff chỉnh sửa thông tin check-in.
+  ========================================================== */
+
+  const [editingSession, setEditingSession] = useState<ParkingSession | null>(null);
+  const [editForm, setEditForm] = useState({
+    licensePlate: '',
+    vehicleType: '' as VehicleType | '',
+    zoneId: null as number | null,
+    slotId: null as number | null,
+  });
+  const [isUpdating, setIsUpdating] = useState(false);
 
   /* ==========================================================
      STATE CONFIRM ACTUAL SLOT
@@ -365,11 +399,12 @@ export default function VehicleCheckin() {
     return null;
   }, [blacklist, isPlateBlacklisted, isCardBlacklisted, formattedPlate, normalizedCardCode]);
 
-  // FE chỉ validate các field bắt buộc; business rules do BE xử lý.
+  // FE chỉ validate các field bắt buộc; entry conditions do BE xử lý.
   const canCheckin =
     isLicensePlateValid &&
     selectedCard?.status === 'AVAILABLE' &&
-    Boolean(vehicleType);
+    Boolean(vehicleType) &&
+    entryCheckResult?.allowed === true;
 
   useEffect(() => {
     if (!selectedBooking) {
@@ -397,9 +432,56 @@ export default function VehicleCheckin() {
   };
 
   /* ==========================================================
+     AUTO CHECK ENTRY CONDITIONS
+     Tự động kiểm tra khi tất cả field bắt buộc đã nhập.
+   ========================================================== */
+
+  const hasRequiredFields = formattedPlate.length > 0 && normalizedCardCode.length > 0 && Boolean(vehicleType);
+
+  useEffect(() => {
+    if (!hasRequiredFields || !selectedCard) {
+      setEntryCheckResult(null);
+      return;
+    }
+
+    let cancelled = false;
+
+    const runCheck = async () => {
+      setIsCheckingEntry(true);
+      try {
+        const result = await checkEntryConditions({
+          licensePlate: formattedPlate,
+          vehicleTypeId: vehicleType === 'CAR' ? 2 : 1,
+          cardCode: selectedCard.code,
+          buildingId: 1,
+        });
+        if (!cancelled) {
+          setEntryCheckResult(result);
+          if (!result.allowed) {
+            showToast(result.reason || 'Entry conditions not met.', 'error');
+          }
+        }
+      } catch (error) {
+        if (!cancelled) {
+          const message = error instanceof Error ? error.message : 'Entry check failed.';
+          setEntryCheckResult({ allowed: false, reason: message });
+          showToast(message, 'error');
+        }
+      } finally {
+        if (!cancelled) setIsCheckingEntry(false);
+      }
+    };
+
+    runCheck();
+
+    return () => { cancelled = true; };
+  }, [formattedPlate, normalizedCardCode, vehicleType]);
+
+  /* ==========================================================
      HANDLE CHECK-IN
      Gọi API BE thật để tạo Parking Session.
-  ========================================================== */
+     Nếu autoAssignSlot=true và là CAR, randomly assign slot.
+   ========================================================== */
 
 const handleCheckin = async (e: React.FormEvent) => {
   e.preventDefault();
@@ -418,11 +500,13 @@ const handleCheckin = async (e: React.FormEvent) => {
       cardCode: selectedCard.code,
       buildingId: 1,
       staffId: 2,
+      randomizeSlot: autoAssignSlot && vehicleType === 'CAR',
     });
 
     await Promise.all([fetchActiveSessions(), fetchAvailableCards()]);
 
     setCardCode('');
+    setEntryCheckResult(null);
     setIsCheckedIn(true);
     setTimeout(() => setIsCheckedIn(false), 3000);
   } catch (error) {
@@ -549,6 +633,67 @@ const handleCheckin = async (e: React.FormEvent) => {
         slot.accessType === 'GENERAL' &&
         slot.status === 'AVAILABLE'
     );
+  };
+
+  /* ==========================================================
+     HANDLE EDIT SESSION
+     Mở modal chỉnh sửa thông tin check-in.
+  ========================================================== */
+
+  const handleOpenEdit = (session: ParkingSession) => {
+    setEditingSession(session);
+    setEditForm({
+      licensePlate: session.licensePlate,
+      vehicleType: session.vehicleType === 'UNKNOWN' ? '' : session.vehicleType,
+      zoneId: session.zoneId,
+      slotId: session.actualSlotId,
+    });
+  };
+
+  const handleCloseEdit = () => {
+    setEditingSession(null);
+    setEditForm({ licensePlate: '', vehicleType: '', zoneId: null, slotId: null });
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingSession) return;
+
+    setIsUpdating(true);
+
+    try {
+      await updateCheckinInfo(editingSession.id, {
+        licensePlate: editForm.licensePlate.trim().toUpperCase(),
+        vehicleTypeId: editForm.vehicleType === 'CAR' ? 2 : editForm.vehicleType === 'MOTORCYCLE' ? 1 : undefined,
+        zoneId: editForm.zoneId ?? undefined,
+        slotId: editForm.slotId,
+      });
+
+      // Update local sessions state
+      setSessions((prev) =>
+        prev.map((s) =>
+          s.id === editingSession.id
+            ? {
+                ...s,
+                licensePlate: editForm.licensePlate.trim().toUpperCase(),
+                vehicleType: (editForm.vehicleType as ParkingSession['vehicleType']) || s.vehicleType,
+                zoneId: editForm.zoneId ?? s.zoneId,
+                actualSlotId: editForm.slotId,
+                actualSlotCode: editForm.slotId
+                  ? slots.find((sl) => sl.id === editForm.slotId)?.code ?? s.actualSlotCode
+                  : s.actualSlotCode,
+              }
+            : s
+        )
+      );
+
+      showToast('Check-in info updated successfully.', 'success');
+      handleCloseEdit();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Update failed.';
+      showToast(message, 'error');
+    } finally {
+      setIsUpdating(false);
+    }
   };
 
   /* ==========================================================
@@ -769,6 +914,56 @@ const handleCheckin = async (e: React.FormEvent) => {
                 </div>
               )}
 
+              {/* ENTRY CONDITION CHECK RESULT — only show errors */}
+              {entryCheckResult && !entryCheckResult.allowed && (
+                <div className="p-4 rounded-xl flex items-start gap-3 my-4 bg-amber-50 border border-amber-200">
+                  <span className="material-symbols-outlined shrink-0 text-amber-600">warning</span>
+                  <div>
+                    <h4 className="font-bold text-sm text-amber-800">Entry Conditions Failed</h4>
+                    {entryCheckResult.reason && (
+                      <p className="text-xs mt-0.5 text-amber-700">{entryCheckResult.reason}</p>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {isCheckingEntry && (
+                <div className="flex items-center gap-2 text-xs text-slate-400 py-1">
+                  <span className="h-3 w-3 animate-spin rounded-full border-2 border-slate-300 border-t-emerald-500" />
+                  Checking entry conditions...
+                </div>
+              )}
+
+              {/* RANDOM SLOT ASSIGNMENT TOGGLE */}
+              <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-200">
+                <div className="flex items-center gap-3">
+                  <span className="material-symbols-outlined text-slate-500">casino</span>
+                  <div>
+                    <p className="text-sm font-bold text-slate-700">Auto Random Slot Assignment</p>
+                    <p className="text-xs text-slate-400">
+                      {autoAssignSlot
+                        ? 'Car will get a random available slot after check-in'
+                        : 'Manual slot selection required after check-in'}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setAutoAssignSlot(!autoAssignSlot)}
+                  className={`relative inline-flex h-7 w-12 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 ${
+                    autoAssignSlot ? 'bg-emerald-500' : 'bg-slate-300'
+                  }`}
+                  role="switch"
+                  aria-checked={autoAssignSlot}
+                >
+                  <span
+                    className={`pointer-events-none inline-block h-6 w-6 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out ${
+                      autoAssignSlot ? 'translate-x-5' : 'translate-x-0'
+                    }`}
+                  />
+                </button>
+              </div>
+
               {/* SUBMIT BUTTON */}
               <button
                 type="submit"
@@ -912,8 +1107,8 @@ const handleCheckin = async (e: React.FormEvent) => {
               Active Parking Sessions
             </h3>
             <p className="text-sm text-slate-500">
-              Staff can view active sessions, handle lost card and confirm actual
-              slot for car after parking.
+              Staff can view active sessions, edit check-in info, handle lost card
+              and confirm actual slot for car after parking.
             </p>
           </div>
 
@@ -943,7 +1138,7 @@ const handleCheckin = async (e: React.FormEvent) => {
                 <th className="px-5 py-4 text-left">Zone</th>
                 <th className="px-5 py-4 text-left">Actual Slot</th>
                 <th className="px-5 py-4 text-left">Status</th>
-                <th className="px-5 py-4 text-left">Action</th>
+                <th className="px-5 py-4 text-left">Actions</th>
               </tr>
             </thead>
 
@@ -1031,13 +1226,22 @@ const handleCheckin = async (e: React.FormEvent) => {
                     </td>
 
                     <td className="px-5 py-4">
-                      <button
-                        type="button"
-                        onClick={() => handleLostCard(session)}
-                        className="px-3 py-2 bg-red-50 text-red-700 rounded-lg font-bold hover:bg-red-100"
-                      >
-                        Lost Card
-                      </button>
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => handleOpenEdit(session)}
+                          className="px-3 py-2 bg-blue-50 text-blue-700 rounded-lg font-bold hover:bg-blue-100"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleLostCard(session)}
+                          className="px-3 py-2 bg-red-50 text-red-700 rounded-lg font-bold hover:bg-red-100"
+                        >
+                          Lost Card
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 );
@@ -1059,6 +1263,159 @@ const handleCheckin = async (e: React.FormEvent) => {
           </table>
         </div>
       </div>
+      )}
+
+      {/* ==========================================================
+         EDIT CHECK-IN MODAL
+         Cho phép Staff chỉnh sửa thông tin check-in.
+      ========================================================== */}
+      {isMounted && editingSession && createPortal(
+        <div className="fixed inset-0 z-[100000] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl border border-slate-100 max-w-lg w-full shadow-2xl overflow-hidden">
+            <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-blue-50/50">
+              <div className="flex items-center gap-2 text-blue-600">
+                <span className="material-symbols-outlined">edit</span>
+                <h3 className="font-bold text-base">Edit Check-in Info</h3>
+              </div>
+              <button
+                type="button"
+                onClick={handleCloseEdit}
+                className="text-slate-400 hover:text-slate-600"
+              >
+                <span className="material-symbols-outlined">close</span>
+              </button>
+            </div>
+
+            <div className="p-6 space-y-5">
+              {/* Session Code (read-only) */}
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-slate-500 uppercase">
+                  Session Code
+                </label>
+                <input
+                  type="text"
+                  value={editingSession.sessionCode}
+                  readOnly
+                  className="w-full px-4 py-3 bg-slate-100 border border-slate-200 rounded-xl font-mono font-bold text-slate-500"
+                />
+              </div>
+
+              {/* License Plate */}
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-slate-500 uppercase">
+                  License Plate
+                </label>
+                <input
+                  type="text"
+                  value={editForm.licensePlate}
+                  onChange={(e) =>
+                    setEditForm((prev) => ({
+                      ...prev,
+                      licensePlate: e.target.value.toUpperCase(),
+                    }))
+                  }
+                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-mono font-bold uppercase text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              {/* Vehicle Type */}
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-slate-500 uppercase">
+                  Vehicle Type
+                </label>
+                <select
+                  value={editForm.vehicleType}
+                  onChange={(e) =>
+                    setEditForm((prev) => ({
+                      ...prev,
+                      vehicleType: e.target.value as VehicleType | '',
+                    }))
+                  }
+                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">Keep current</option>
+                  <option value="CAR">Car</option>
+                  <option value="MOTORCYCLE">Motorcycle</option>
+                </select>
+              </div>
+
+              {/* Zone */}
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-slate-500 uppercase">
+                  Zone
+                </label>
+                <select
+                  value={editForm.zoneId ?? ''}
+                  onChange={(e) =>
+                    setEditForm((prev) => ({
+                      ...prev,
+                      zoneId: e.target.value ? Number(e.target.value) : null,
+                    }))
+                  }
+                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">Keep current</option>
+                  {zones
+                    .filter((z) => z.status === 'ACTIVE')
+                    .map((zone) => (
+                      <option key={zone.id} value={zone.id}>
+                        {zone.name} ({zone.code})
+                      </option>
+                    ))}
+                </select>
+              </div>
+
+              {/* Slot */}
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-slate-500 uppercase">
+                  Slot
+                </label>
+                <select
+                  value={editForm.slotId ?? ''}
+                  onChange={(e) =>
+                    setEditForm((prev) => ({
+                      ...prev,
+                      slotId: e.target.value ? Number(e.target.value) : null,
+                    }))
+                  }
+                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">No slot</option>
+                  {slots
+                    .filter(
+                      (s) =>
+                        s.status === 'AVAILABLE' &&
+                        (!editForm.zoneId || s.zoneId === editForm.zoneId)
+                    )
+                    .map((slot) => (
+                      <option key={slot.id} value={slot.id}>
+                        {slot.code}
+                      </option>
+                    ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="p-6 border-t border-slate-100 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={handleCloseEdit}
+                className="px-4 py-2.5 text-sm font-semibold text-slate-500 bg-transparent hover:bg-slate-100 rounded-xl"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveEdit}
+                disabled={isUpdating}
+                className="px-5 py-2.5 text-sm font-semibold text-white bg-blue-500 hover:bg-blue-600 rounded-xl shadow-md shadow-blue-500/10 disabled:bg-slate-300"
+              >
+                {isUpdating ? 'Saving...' : 'Save Changes'}
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
       )}
 
       {isMounted &&

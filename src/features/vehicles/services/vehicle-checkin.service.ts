@@ -28,6 +28,7 @@ export type CheckInVehiclePayload = {
   cardCode: string;
   buildingId: number;
   staffId: number;
+  randomizeSlot?: boolean;
 };
 
 export type VehicleCheckinSession = {
@@ -132,3 +133,70 @@ export const checkInVehicle = async (
     throw new Error(getApiErrorMessage(error));
   }
 };
+
+/* ==========================================================
+   ENTRY CONDITION CHECK
+   Validates pre-check-in conditions before allowing access.
+   POST /parking-sessions/check-entry
+   ========================================================== */
+
+export type CheckEntryPayload = {
+  licensePlate: string;
+  vehicleTypeId: number;
+  cardCode: string;
+  buildingId: number;
+};
+
+export type CheckEntryResult = {
+  allowed: boolean;
+  reason?: string;
+  pricingPolicyValid: boolean;
+  zoneAvailable: boolean;
+  cardAvailable: boolean;
+  notBlacklisted: boolean;
+  notAlreadyParked: boolean;
+};
+
+export const checkEntryConditions = async (
+  payload: CheckEntryPayload
+): Promise<CheckEntryResult> => {
+  try {
+    const response = await api.post<BaseResponse<CheckEntryResult>>(
+      '/parking-sessions/check-entry',
+      payload
+    );
+    return unwrap(response, 'Entry condition check failed.');
+  } catch (error) {
+    throw new Error(getApiErrorMessage(error));
+  }
+};
+
+/* ==========================================================
+   UPDATE CHECK-IN INFO
+   PUT /parking-sessions/{sessionId}/update
+   ========================================================== */
+
+export type UpdateCheckinPayload = {
+  licensePlate?: string;
+  vehicleTypeId?: number;
+  cardCode?: string;
+  zoneId?: number;
+  slotId?: number | null;
+};
+
+export const updateCheckinInfo = async (
+  sessionId: number,
+  payload: UpdateCheckinPayload
+): Promise<VehicleCheckinSession> => {
+  try {
+    const response = await api.patch<BaseResponse<ParkingSessionDto>>(
+      `/parking-sessions/${sessionId}/update`,
+      payload
+    );
+    return mapActiveParkingSession(unwrap(response, 'Update check-in info failed.'));
+  } catch (error) {
+    throw new Error(getApiErrorMessage(error));
+  }
+};
+
+

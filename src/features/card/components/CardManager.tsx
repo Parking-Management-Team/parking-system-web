@@ -7,8 +7,6 @@ import { useCardManagement } from '@/features/card/hooks/useCardManagement';
 import type {
   CardOperationResult,
   CardStatus,
-  CardType,
-  CreatableCardType,
   ParkingCard,
 } from '@/features/card/types/card';
 
@@ -21,12 +19,6 @@ const statusClassNames: Record<CardStatus, string> = {
   LOST: 'bg-red-50 text-red-700 border-red-200',
   BLOCKED: 'bg-slate-100 text-slate-600 border-slate-200',
   UNKNOWN: 'bg-amber-50 text-amber-700 border-amber-200',
-};
-
-const typeClassNames: Record<CardType, string> = {
-  PARKING_CARD: 'bg-cyan-50 text-cyan-700 border-cyan-200',
-  MONTHLY: 'bg-amber-50 text-amber-700 border-amber-200',
-  UNKNOWN: 'bg-slate-100 text-slate-600 border-slate-200',
 };
 
 const formatDateTime = (value: string) =>
@@ -108,8 +100,6 @@ export default function CardManager() {
     filteredCards,
     searchCode,
     setSearchCode,
-    typeFilter,
-    setTypeFilter,
     statusFilter,
     setStatusFilter,
     isLoading,
@@ -124,28 +114,38 @@ export default function CardManager() {
   const [isMounted, setIsMounted] = useState(false);
 
   const [newCardCode, setNewCardCode] = useState('');
-  const [newCardType, setNewCardType] = useState<CreatableCardType>('PARKING_CARD');
 
   useEffect(() => {
     setIsMounted(true);
   }, []);
 
+  // Staff Card Management chỉ vận hành thẻ gửi xe thường.
+  // Monthly subscription/card thuộc luồng quản lý riêng nên được ẩn hoàn toàn ở Staff UI.
+  const parkingCards = useMemo(
+    () => cards.filter((card) => card.cardType === 'PARKING_CARD'),
+    [cards]
+  );
+
+  const visibleCards = useMemo(
+    () => filteredCards.filter((card) => card.cardType === 'PARKING_CARD'),
+    [filteredCards]
+  );
+
   const statusCounts = useMemo(
     () =>
-      cards.reduce<Record<CardStatus, number>>(
+      parkingCards.reduce<Record<CardStatus, number>>(
         (counts, card) => ({
           ...counts,
           [card.cardStatus]: counts[card.cardStatus] + 1,
         }),
         { AVAILABLE: 0, ACTIVE: 0, ASSIGNED: 0, LOST: 0, BLOCKED: 0, UNKNOWN: 0 }
       ),
-    [cards]
+    [parkingCards]
   );
 
   const closeModal = () => {
     setModalMode(null);
     setNewCardCode('');
-    setNewCardType('PARKING_CARD');
   };
 
   const showResult = (operationResult: CardOperationResult) => {
@@ -168,14 +168,11 @@ export default function CardManager() {
 
   const handleCreateCard = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    showResult(await createCard({ cardCode: newCardCode, cardType: newCardType }));
+    showResult(await createCard({ cardCode: newCardCode, cardType: 'PARKING_CARD' }));
   };
 
   const handleMarkLost = async (card: ParkingCard) => {
-    const confirmed = window.confirm(
-      `Mark ${card.cardCode} as LOST? This action must remain in card history.`
-    );
-    if (confirmed) showResult(await markCardLost(card.id));
+    showResult(await markCardLost(card.id));
   };
 
   const handleStatusChange = async (
@@ -222,7 +219,7 @@ export default function CardManager() {
       </div>
 
       <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-5">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="relative">
             <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
               search
@@ -235,19 +232,6 @@ export default function CardManager() {
               className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 font-mono text-sm"
             />
           </div>
-
-          <select
-            value={typeFilter}
-            onChange={(event) =>
-              setTypeFilter(event.target.value as 'ALL' | CardType)
-            }
-            className="px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-700"
-          >
-            <option value="ALL">All card types</option>
-            <option value="PARKING_CARD">PARKING_CARD</option>
-            <option value="MONTHLY">MONTHLY</option>
-            <option value="UNKNOWN">UNKNOWN</option>
-          </select>
 
           <select
             value={statusFilter}
@@ -267,31 +251,22 @@ export default function CardManager() {
         </div>
 
         <div className="space-y-3">
-          {filteredCards.length > 0 && (
-            <div className="grid grid-cols-[minmax(150px,1.25fr)_minmax(100px,.75fr)_minmax(140px,1fr)_minmax(110px,.8fr)_auto_auto] items-center gap-4 px-4 text-[10px] font-bold uppercase tracking-wider text-slate-400 max-lg:hidden">
+          {visibleCards.length > 0 && (
+            <div className="grid grid-cols-[minmax(150px,1.25fr)_minmax(140px,1fr)_minmax(110px,.8fr)_auto_auto] items-center gap-4 px-4 text-[10px] font-bold uppercase tracking-wider text-slate-400 max-lg:hidden">
               <span>Card code</span>
-              <span>Card type</span>
               <span>Vehicle plate</span>
               <span>Status</span>
               <span>Action</span>
               <span className="w-5" aria-hidden="true" />
             </div>
           )}
-          {filteredCards.map((card) => {
+          {visibleCards.map((card) => {
             const isExpanded = expandedCardId === card.id;
 
             const detailItems = [
               {
                 label: 'Session ID',
                 value: card.currentSessionId ?? '—',
-              },
-              {
-                label: 'Subscription ID',
-                value: card.monthlySubscriptionId ?? '—',
-              },
-              {
-                label: 'Subscription Code',
-                value: card.subscriptionCode ?? '—',
               },
               {
                 label: 'Vehicle Plate',
@@ -323,14 +298,11 @@ export default function CardManager() {
                       setExpandedCardId(isExpanded ? null : card.id);
                     }
                   }}
-                  className="grid cursor-pointer grid-cols-[minmax(150px,1.25fr)_minmax(100px,.75fr)_minmax(140px,1fr)_minmax(110px,.8fr)_auto_auto] items-center gap-4 px-4 py-3.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald-500 max-lg:grid-cols-[1fr_auto]"
+                  className="grid cursor-pointer grid-cols-[minmax(150px,1.25fr)_minmax(140px,1fr)_minmax(110px,.8fr)_auto_auto] items-center gap-4 px-4 py-3.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald-500 max-lg:grid-cols-[1fr_auto]"
                 >
                   <p className="truncate font-mono text-sm font-black text-slate-800" title={card.cardCode}>
                     {card.cardCode}
                   </p>
-                  <span className={`w-fit rounded-full border px-2.5 py-1 text-[11px] font-bold ${typeClassNames[card.cardType]}`}>
-                    {card.cardType}
-                  </span>
                   <p className="truncate text-sm font-bold text-slate-700 max-lg:hidden" title={card.vehiclePlate ?? 'No vehicle assigned'}>
                     {card.vehiclePlate ?? '—'}
                   </p>
@@ -408,7 +380,7 @@ export default function CardManager() {
             </div>
           )}
 
-          {!isLoading && filteredCards.length === 0 && (
+          {!isLoading && visibleCards.length === 0 && (
             <div className="rounded-2xl border border-dashed border-slate-200 px-5 py-14 text-center">
               <span className="material-symbols-outlined text-4xl text-slate-300">
                 credit_card_off
@@ -466,16 +438,12 @@ export default function CardManager() {
                     <label className="text-xs font-bold text-slate-500 uppercase">
                       Card Type
                     </label>
-                    <select
-                      value={newCardType}
-                      onChange={(event) =>
-                        setNewCardType(event.target.value as CreatableCardType)
-                      }
-                      className="w-full mt-2 px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl"
-                    >
-                      <option value="PARKING_CARD">PARKING_CARD</option>
-                      <option value="MONTHLY">MONTHLY</option>
-                    </select>
+                    <div className="mt-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-black text-emerald-700">
+                      PARKING_CARD
+                    </div>
+                    <p className="mt-2 text-xs font-semibold text-slate-400">
+                      Monthly Card flow is hidden from Staff Card Management.
+                    </p>
                   </div>
                   <button
                     type="submit"

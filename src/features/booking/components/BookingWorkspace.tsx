@@ -24,7 +24,15 @@ interface BuildingItem {
   code: string;
 }
 
-export default function BookingWorkspace() {
+type BookingWorkspaceProps = {
+  title?: string;
+  description?: string;
+};
+
+export default function BookingWorkspace({
+  title = 'Bookings Management',
+  description = 'Monitor incoming pre-booked slot reservations, or cancel bookings when needed.',
+}: BookingWorkspaceProps) {
   const {
     bookings,
     isLoading,
@@ -126,9 +134,9 @@ export default function BookingWorkspace() {
       {/* HEADER */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-black text-slate-800 tracking-tight">Bookings Management</h1>
+          <h1 className="text-2xl font-black text-slate-800 tracking-tight">{title}</h1>
           <p className="text-sm text-slate-400 mt-1">
-            Monitor incoming pre-booked slot reservations, or cancel bookings when needed.
+            {description}
           </p>
         </div>
         <button

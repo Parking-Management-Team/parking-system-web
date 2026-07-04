@@ -3,12 +3,15 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useAuth } from '@/features/auth/context/AuthContext';
-import { markCardLost } from '@/features/card/services/card.service';
+import { blacklistService } from '@/features/blacklist/services/blacklist.service';
+import { updateCardStatus } from '@/features/card/services/card.service';
 import { incidentService } from '@/features/incident/services/incident.service';
-import type { IncidentType } from '@/features/incident/types';
+import type { Incident, IncidentType } from '@/features/incident/types';
 import {
   createCheckoutPayment,
   fetchCheckoutActiveSessions,
+  fetchCheckoutHistorySessions,
+  rollbackCheckout,
   startCheckout,
   type CheckoutPayment,
   type CheckoutPaymentMethod,
@@ -23,7 +26,7 @@ type CheckoutHistoryItem = {
   customerType: CheckoutSession['customerType'];
   checkInTime: string | null;
   checkOutTime: string;
-  amount: number;
+  amount: number | null;
   paymentMethod: string;
   paymentStatus: string;
 };
@@ -34,12 +37,13 @@ type CheckoutOverlay = {
   checkOutTime: string;
   exitPlate: string;
   duration: string;
+  incidents: Incident[];
+  incidentTotal: number;
 };
 
 type VehicleTypeFilter = 'ALL' | 'CAR' | 'MOTORCYCLE' | 'UNKNOWN';
 
 const STAFF_ID = 2;
-const HISTORY_STORAGE_KEY = 'pbms_staff_checkout_history';
 
 const normalizeText = (value?: string | null) => String(value ?? '').trim().toUpperCase();
 const normalizeComparable = (value?: string | null) =>
@@ -87,24 +91,6 @@ const getVehicleTypeGroup = (vehicleType: string): VehicleTypeFilter => {
   return 'UNKNOWN';
 };
 
-const readHistory = (): CheckoutHistoryItem[] => {
-  if (typeof window === 'undefined') return [];
-
-  try {
-    const raw = window.localStorage.getItem(HISTORY_STORAGE_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
-};
-
-const writeHistory = (items: CheckoutHistoryItem[]) => {
-  if (typeof window === 'undefined') return;
-  window.localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(items.slice(0, 50)));
-};
-
 export default function VehicleCheckout() {
   const { showToast } = useAuth();
   const [sessions, setSessions] = useState<CheckoutSession[]>([]);
@@ -121,11 +107,51 @@ export default function VehicleCheckout() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isReporting, setIsReporting] = useState(false);
+  const [isHistoryLoading, setIsHistoryLoading] = useState(false);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  const [incidentTypes, setIncidentTypes] = useState<IncidentType[]>([]);
+  const [sessionIncidents, setSessionIncidents] = useState<Incident[]>([]);
+  const [selectedIncidentIds, setSelectedIncidentIds] = useState<number[]>([]);
+  const [isIncidentPanelOpen, setIsIncidentPanelOpen] = useState(false);
+  const [isIncidentLoading, setIsIncidentLoading] = useState(false);
 
   const selectedSession =
     sessions.find((session) => session.id === selectedSessionId) ?? null;
+
+  const selectedIncidents = useMemo(
+    () =>
+      sessionIncidents.filter((incident) =>
+        selectedIncidentIds.includes(incident.id)
+      ),
+    [selectedIncidentIds, sessionIncidents]
+  );
+
+  const incidentTotal = useMemo(
+    () =>
+      selectedIncidents.reduce(
+        (total, incident) => total + Number(incident.penaltyFee ?? 0),
+        0
+      ),
+    [selectedIncidents]
+  );
+
+  const isLostCardIncident = useCallback((value?: {
+    incidentCode?: string | null;
+    incidentName?: string | null;
+  }) => {
+    const code = normalizeText(value?.incidentCode);
+    const name = normalizeText(value?.incidentName);
+    return (
+      code === 'LOST_CARD' ||
+      code === 'LOST_TICKET' ||
+      code.includes('LOST') ||
+      name.includes('LOST CARD') ||
+      name.includes('LOST TICKET') ||
+      name.includes('MẤT THẺ') ||
+      name.includes('MAT THE')
+    );
+  }, []);
 
   const filteredSessions = useMemo(() => {
     const fromTime = filterFrom ? new Date(filterFrom).getTime() : null;
@@ -176,16 +202,83 @@ export default function VehicleCheckout() {
     }
   }, [showToast]);
 
+  const loadCheckoutHistory = useCallback(async () => {
+    setIsHistoryLoading(true);
+
+    try {
+      const sessionHistory = await fetchCheckoutHistorySessions();
+      setHistory(
+        sessionHistory.slice(0, 50).map((session) => ({
+          id: String(session.id),
+          sessionId: session.id,
+          licensePlate: session.licensePlate,
+          cardCode: session.cardCode ?? '—',
+          customerType: session.customerType,
+          checkInTime: session.checkInTime,
+          checkOutTime: session.checkOutTime ?? '',
+          amount: null,
+          paymentMethod: '—',
+          paymentStatus: session.status,
+        }))
+      );
+    } catch (error) {
+      showToast(
+        error instanceof Error ? error.message : 'Could not load checkout history.',
+        'error'
+      );
+    } finally {
+      setIsHistoryLoading(false);
+    }
+  }, [showToast]);
+
+  const loadIncidentTypes = useCallback(async () => {
+    try {
+      setIncidentTypes(await incidentService.getIncidentTypes());
+    } catch (error) {
+      setIncidentTypes([]);
+      showToast(
+        error instanceof Error ? error.message : 'Could not load incident types.',
+        'error'
+      );
+    }
+  }, [showToast]);
+
+  const loadSessionIncidents = useCallback(
+    async (sessionId: number) => {
+      setIsIncidentLoading(true);
+
+      try {
+        const incidents = await incidentService.getBySessionId(sessionId);
+        const openIncidents = incidents.filter((incident) => incident.status === 'OPEN');
+        setSessionIncidents(incidents);
+        setSelectedIncidentIds(openIncidents.map((incident) => incident.id));
+      } catch (error) {
+        setSessionIncidents([]);
+        setSelectedIncidentIds([]);
+        showToast(
+          error instanceof Error ? error.message : 'Could not load session incidents.',
+          'error'
+        );
+      } finally {
+        setIsIncidentLoading(false);
+      }
+    },
+    [showToast]
+  );
+
   useEffect(() => {
     setIsMounted(true);
-    setHistory(readHistory());
     void loadActiveSessions();
-  }, [loadActiveSessions]);
+    void loadCheckoutHistory();
+    void loadIncidentTypes();
+  }, [loadActiveSessions, loadCheckoutHistory, loadIncidentTypes]);
 
   const selectSession = (session: CheckoutSession) => {
     setSelectedSessionId(session.id);
     setExitPlate('');
     setSearchQuery(session.cardCode || session.licensePlate);
+    setIsIncidentPanelOpen(false);
+    void loadSessionIncidents(session.id);
   };
 
   const resetForNextVehicle = () => {
@@ -193,9 +286,12 @@ export default function VehicleCheckout() {
     setExitPlate('');
     setPaymentMethod('CASH');
     setSearchQuery('');
+    setSessionIncidents([]);
+    setSelectedIncidentIds([]);
+    setIsIncidentPanelOpen(false);
   };
 
-  const handleSearch = (event: React.FormEvent<HTMLFormElement>) => {
+  const handleSearch = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
     const queryKey = normalizeComparable(searchQuery);
@@ -224,32 +320,131 @@ export default function VehicleCheckout() {
       return;
     }
 
+    const [isCardBlocked, isVehicleBlocked] = await Promise.all([
+      matchedSession.cardId
+        ? blacklistService.checkCardBlocked(matchedSession.cardId)
+        : Promise.resolve(false),
+      matchedSession.vehicleId
+        ? blacklistService.checkVehicleBlocked(matchedSession.vehicleId)
+        : Promise.resolve(false),
+    ]);
+
+    if (isCardBlocked) {
+      showToast('This card is blacklisted. Please route to incident handling.', 'error');
+      return;
+    }
+
+    if (isVehicleBlocked) {
+      showToast('This vehicle is blacklisted. Please route to incident handling.', 'error');
+      return;
+    }
+
     selectSession(matchedSession);
     showToast('Active session loaded. Please compare exit plate.', 'success');
   };
 
-  const handleMarkLost = async () => {
-    if (!selectedSession) return;
-
-    if (!selectedSession.cardId) {
-      showToast('This session does not have cardId from the system.', 'error');
+  const includeExistingIncident = (incident: Incident) => {
+    if (incident.status !== 'OPEN') {
+      showToast(
+        'Only OPEN incidents are included in checkout payment by the current BE rule.',
+        'info'
+      );
       return;
     }
 
-    setIsSubmitting(true);
+    setSelectedIncidentIds((current) =>
+      current.includes(incident.id) ? current : [...current, incident.id]
+    );
+  };
+
+  const createIncidentFromType = async (incidentType: IncidentType) => {
+    if (!selectedSession) {
+      showToast('Please load a session before selecting an incident.', 'error');
+      return;
+    }
+
+    const existingOpenIncident = sessionIncidents.find(
+      (incident) =>
+        incident.incidentTypeId === incidentType.id && incident.status === 'OPEN'
+    );
+
+    if (existingOpenIncident) {
+      setSelectedIncidentIds((current) =>
+        current.includes(existingOpenIncident.id)
+          ? current
+          : [...current, existingOpenIncident.id]
+      );
+      return;
+    }
+
+    setIsIncidentLoading(true);
 
     try {
-      await markCardLost(selectedSession.cardId);
+      await incidentService.create({
+        sessionId: selectedSession.id,
+        incidentTypeId: incidentType.id,
+        description: `${incidentType.incidentName} - ${selectedSession.licensePlate}`,
+        penaltyFee: null,
+      });
+
+      if (isLostCardIncident(incidentType)) {
+        if (!selectedSession.cardId) {
+          showToast('Lost-card incident was created, but this session has no cardId to update.', 'info');
+        } else {
+          await updateCardStatus(selectedSession.cardId, 'LOST');
+        }
+      }
+
+      await loadSessionIncidents(selectedSession.id);
       await loadActiveSessions();
-      showToast(`Card ${selectedSession.cardCode ?? selectedSession.cardId} was marked LOST.`, 'success');
+      showToast('Incident was added to this checkout session.', 'success');
     } catch (error) {
       showToast(
-        error instanceof Error ? error.message : 'Could not mark this card as lost.',
+        error instanceof Error ? error.message : 'Could not add this incident.',
         'error'
       );
     } finally {
-      setIsSubmitting(false);
+      setIsIncidentLoading(false);
     }
+  };
+
+  const removeIncident = async (incident: Incident) => {
+    setIsIncidentLoading(true);
+
+    try {
+      await incidentService.delete(incident.id);
+      if (isLostCardIncident(incident) && selectedSession?.cardId) {
+        await updateCardStatus(selectedSession.cardId, 'ACTIVE');
+      }
+      setSessionIncidents((current) => current.filter((item) => item.id !== incident.id));
+      setSelectedIncidentIds((current) => current.filter((id) => id !== incident.id));
+      await loadActiveSessions();
+      showToast('Incident was removed from this session.', 'success');
+    } catch (error) {
+      showToast(
+        error instanceof Error ? error.message : 'Could not remove this incident.',
+        'error'
+      );
+    } finally {
+      setIsIncidentLoading(false);
+    }
+  };
+
+  const resolveSelectedIncidents = async (incidents: Incident[]) => {
+    const unresolved = incidents.filter(
+      (incident) => incident.status === 'OPEN' || incident.status === 'PROCESSING'
+    );
+
+    if (unresolved.length === 0) return;
+
+    await Promise.all(
+      unresolved.map((incident) =>
+        incidentService.updateStatus(incident.id, {
+          status: 'RESOLVED',
+          note: 'Resolved after checkout payment was completed.',
+        })
+      )
+    );
   };
 
   const handleConfirmCheckout = async () => {
@@ -280,23 +475,7 @@ export default function VehicleCheckout() {
 
       const payment = await createCheckoutPayment(selectedSession, paymentMethod);
       const duration = getDurationLabel(selectedSession.checkInTime, lockedCheckOutTime);
-
-      const nextHistory: CheckoutHistoryItem = {
-        id: `${selectedSession.id}-${lockedCheckOutTime}`,
-        sessionId: selectedSession.id,
-        licensePlate: selectedSession.licensePlate,
-        cardCode: selectedSession.cardCode ?? '—',
-        customerType: selectedSession.customerType,
-        checkInTime: selectedSession.checkInTime,
-        checkOutTime: lockedCheckOutTime,
-        amount: payment.amount,
-        paymentMethod: String(payment.paymentMethod || paymentMethod),
-        paymentStatus: String(payment.paymentStatus),
-      };
-
-      const newHistory = [nextHistory, ...history].slice(0, 50);
-      setHistory(newHistory);
-      writeHistory(newHistory);
+      const paymentStatus = String(payment.paymentStatus).toUpperCase();
 
       setOverlay({
         session: selectedSession,
@@ -304,11 +483,31 @@ export default function VehicleCheckout() {
         checkOutTime: lockedCheckOutTime,
         exitPlate: normalizeText(exitPlate),
         duration,
+        incidents: selectedIncidents,
+        incidentTotal,
       });
 
       await loadActiveSessions();
+      if (paymentStatus === 'PAID') {
+        try {
+          await resolveSelectedIncidents(selectedIncidents);
+        } catch (error) {
+          showToast(
+            error instanceof Error
+              ? error.message
+              : 'Payment succeeded, but incidents could not be marked resolved.',
+            'error'
+          );
+        }
+        await loadCheckoutHistory();
+      }
       resetForNextVehicle();
-      showToast('Checkout completed for the selected vehicle.', 'success');
+      showToast(
+        paymentStatus === 'PAID'
+          ? 'Cash payment completed and vehicle was checked out.'
+          : 'Online payment was created. Please complete payment before allowing exit.',
+        paymentStatus === 'PAID' ? 'success' : 'info'
+      );
     } catch (error) {
       showToast(
         error instanceof Error ? error.message : 'Could not complete checkout flow.',
@@ -352,14 +551,21 @@ export default function VehicleCheckout() {
         return;
       }
 
-      await incidentService.create({
+      const incident = await incidentService.create({
         sessionId: overlay.session.id,
         incidentTypeId: incidentType.id,
         description: `Driver refused or could not complete payment. Plate: ${overlay.session.licensePlate}. Card: ${overlay.session.cardCode ?? 'N/A'}. Amount: ${formatCurrency(overlay.payment.amount)}. Payment status: ${overlay.payment.paymentStatus}.`,
         penaltyFee: null,
       });
 
-      showToast('Payment issue was reported to manager.', 'success');
+      await incidentService.createBlacklistRecord({
+        vehicleId: overlay.session.vehicleId ?? null,
+        cardId: overlay.session.cardId ?? null,
+        incidentId: incident?.id ?? null,
+        reason: `Unpaid checkout - ${overlay.session.licensePlate} - ${formatCurrency(overlay.payment.amount)}`,
+      });
+
+      showToast('Payment issue was reported and blacklisted.', 'success');
     } catch (error) {
       showToast(
         error instanceof Error ? error.message : 'Could not report payment issue.',
@@ -367,6 +573,35 @@ export default function VehicleCheckout() {
       );
     } finally {
       setIsReporting(false);
+    }
+  };
+
+  const handleBackToCheckout = async () => {
+    if (!overlay) return;
+
+    setIsSubmitting(true);
+
+    try {
+      await rollbackCheckout(overlay.session.id);
+      setSessions((current) =>
+        current.some((session) => session.id === overlay.session.id)
+          ? current
+          : [overlay.session, ...current]
+      );
+      setSelectedSessionId(overlay.session.id);
+      setExitPlate(overlay.exitPlate);
+      setSearchQuery(overlay.session.cardCode || overlay.session.licensePlate);
+      setOverlay(null);
+      await loadActiveSessions();
+      await loadCheckoutHistory();
+      showToast('Checkout rollback completed. You can change payment or review again.', 'success');
+    } catch (error) {
+      showToast(
+        error instanceof Error ? error.message : 'Could not rollback this checkout.',
+        'error'
+      );
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -395,7 +630,10 @@ export default function VehicleCheckout() {
             </button>
             <button
               type="button"
-              onClick={() => setIsHistoryOpen(true)}
+              onClick={() => {
+                setIsHistoryOpen(true);
+                void loadCheckoutHistory();
+              }}
               className="inline-flex h-11 items-center gap-2 rounded-2xl bg-white px-4 text-sm font-black text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50"
             >
               <span className="material-symbols-outlined text-lg">history</span>
@@ -492,11 +730,11 @@ export default function VehicleCheckout() {
               {selectedSession && (
                 <button
                   type="button"
-                  disabled={isSubmitting}
-                  onClick={() => void handleMarkLost()}
-                  className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-black text-red-700 hover:bg-red-100 disabled:opacity-60"
+                  disabled={isIncidentLoading}
+                  onClick={() => setIsIncidentPanelOpen((value) => !value)}
+                  className="rounded-xl border border-orange-200 bg-orange-50 px-3 py-2 text-xs font-black text-orange-700 hover:bg-orange-100 disabled:opacity-60"
                 >
-                  Lost card
+                  Incidents
                 </button>
               )}
             </div>
@@ -522,6 +760,18 @@ export default function VehicleCheckout() {
                     value={`${selectedSession.zoneCode ?? '—'} / ${selectedSession.slotCode ?? '—'}`}
                   />
                 </div>
+                <IncidentSelectionPanel
+                  incidentTypes={incidentTypes}
+                  incidents={sessionIncidents}
+                  selectedIncidentIds={selectedIncidentIds}
+                  total={incidentTotal}
+                  isOpen={isIncidentPanelOpen}
+                  isLoading={isIncidentLoading}
+                  onToggleOpen={() => setIsIncidentPanelOpen((value) => !value)}
+                  onSelectIncidentType={(incidentType) => void createIncidentFromType(incidentType)}
+                  onToggleIncident={includeExistingIncident}
+                  onRemoveIncident={(incident) => void removeIncident(incident)}
+                />
               </div>
             ) : (
               <EmptyState icon="badge" text="Scan or enter a card code/license plate to load the vehicle." />
@@ -593,8 +843,42 @@ export default function VehicleCheckout() {
 
                 <div className="grid grid-cols-2 gap-3">
                   <InfoBox label="Checkout time" value="Logged when confirmed" />
-                  <InfoBox label="Amount due" value="Calculated after confirm" />
+                  <InfoBox
+                    label="Incident fees"
+                    value={incidentTotal > 0 ? formatCurrency(incidentTotal) : 'No added fees'}
+                  />
                 </div>
+
+                {selectedIncidents.length > 0 && (
+                  <div className="rounded-2xl border border-red-100 bg-red-50 p-4">
+                    <p className="text-xs font-black uppercase tracking-wider text-red-700">
+                      Additional fees
+                    </p>
+                    <div className="mt-2 space-y-1">
+                      {selectedIncidents.map((incident) => (
+                        <div
+                          key={incident.id}
+                          className="flex items-center justify-between gap-3 text-sm font-bold text-slate-800"
+                        >
+                          <span className="truncate">
+                            {incident.incidentName || incident.incidentCode || `Incident #${incident.id}`}
+                          </span>
+                          <span className="font-black text-red-700">
+                            {formatCurrency(incident.penaltyFee)}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="mt-3 flex items-center justify-between border-t border-red-100 pt-3">
+                      <span className="text-xs font-black uppercase text-red-700">
+                        Total incident fees
+                      </span>
+                      <span className="text-2xl font-black text-red-700">
+                        {formatCurrency(incidentTotal)}
+                      </span>
+                    </div>
+                  </div>
+                )}
 
                 <button
                   type="button"
@@ -638,8 +922,10 @@ export default function VehicleCheckout() {
               </div>
 
               <div className="mt-5 min-h-0 flex-1 overflow-y-auto pr-1">
-                {history.length === 0 ? (
-                  <EmptyState icon="history" text="No checkout history in this browser yet." />
+                {isHistoryLoading ? (
+                  <EmptyState icon="progress_activity" text="Loading checkout history from system..." />
+                ) : history.length === 0 ? (
+                  <EmptyState icon="history" text="No checkout history returned by the system yet." />
                 ) : (
                   <div className="grid gap-3 md:grid-cols-2">
                     {history.map((item) => (
@@ -657,7 +943,7 @@ export default function VehicleCheckout() {
                             </p>
                           </div>
                           <p className="text-right text-lg font-black text-emerald-700">
-                            {formatCurrency(item.amount)}
+                            {item.amount == null ? '—' : formatCurrency(item.amount)}
                           </p>
                         </div>
                         <div className="mt-4 grid grid-cols-2 gap-2 text-xs font-semibold text-slate-600">
@@ -698,8 +984,29 @@ export default function VehicleCheckout() {
                 <OverlayInfo label="Duration" value={overlay.duration} />
                 <OverlayInfo label="Payment method" value={String(overlay.payment.paymentMethod || paymentMethod)} />
                 <OverlayInfo label="Payment status" value={String(overlay.payment.paymentStatus)} />
+                <OverlayInfo label="Incident fees" value={formatCurrency(overlay.incidentTotal)} />
                 <OverlayInfo label="Amount due" value={formatCurrency(overlay.payment.amount)} strong />
               </div>
+              {overlay.incidents.length > 0 && (
+                <div className="mt-5 rounded-3xl bg-white/15 p-4 text-left">
+                  <p className="text-xs font-black uppercase tracking-wider text-white/70">
+                    Added incident fees
+                  </p>
+                  <div className="mt-3 space-y-2">
+                    {overlay.incidents.map((incident) => (
+                      <div
+                        key={incident.id}
+                        className="flex items-center justify-between gap-4 rounded-2xl bg-white/10 px-4 py-3 text-sm font-black"
+                      >
+                        <span className="truncate">
+                          {incident.incidentName || incident.incidentCode || `Incident #${incident.id}`}
+                        </span>
+                        <span>{formatCurrency(incident.penaltyFee)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
               {overlay.payment.paymentUrl && (
                 <a
                   href={overlay.payment.paymentUrl}
@@ -714,24 +1021,11 @@ export default function VehicleCheckout() {
                 {String(overlay.payment.paymentStatus).toUpperCase() !== 'PAID' && (
                   <button
                     type="button"
-                    onClick={() => {
-                      setSessions((current) =>
-                        current.some((session) => session.id === overlay.session.id)
-                          ? current
-                          : [overlay.session, ...current]
-                      );
-                      setSelectedSessionId(overlay.session.id);
-                      setExitPlate(overlay.exitPlate);
-                      setSearchQuery(overlay.session.cardCode || overlay.session.licensePlate);
-                      setOverlay(null);
-                      showToast(
-                        'Returned to checkout screen. Current pending payment is still open until Backend supports cancel/change payment.',
-                        'info'
-                      );
-                    }}
+                    disabled={isSubmitting}
+                    onClick={() => void handleBackToCheckout()}
                     className="rounded-2xl border border-white/40 px-5 py-3 text-sm font-black text-white hover:bg-white/10"
                   >
-                    Back to checkout
+                    {isSubmitting ? 'Rolling back...' : 'Back to checkout'}
                   </button>
                 )}
                 <button
@@ -754,6 +1048,162 @@ export default function VehicleCheckout() {
           </div>,
           document.body
         )}
+    </div>
+  );
+}
+
+function IncidentSelectionPanel({
+  incidentTypes,
+  incidents,
+  selectedIncidentIds,
+  total,
+  isOpen,
+  isLoading,
+  onToggleOpen,
+  onSelectIncidentType,
+  onToggleIncident,
+  onRemoveIncident,
+}: {
+  incidentTypes: IncidentType[];
+  incidents: Incident[];
+  selectedIncidentIds: number[];
+  total: number;
+  isOpen: boolean;
+  isLoading: boolean;
+  onToggleOpen: () => void;
+  onSelectIncidentType: (incidentType: IncidentType) => void;
+  onToggleIncident: (incident: Incident) => void;
+  onRemoveIncident: (incident: Incident) => void;
+}) {
+  const selectedIncidents = incidents.filter((incident) =>
+    selectedIncidentIds.includes(incident.id)
+  );
+  const selectedIncidentTypeIds = new Set(
+    selectedIncidents.map((incident) => incident.incidentTypeId)
+  );
+
+  return (
+    <div className="rounded-3xl border border-orange-100 bg-orange-50/60 p-4">
+      <button
+        type="button"
+        onClick={onToggleOpen}
+        className="flex w-full items-center justify-between gap-3 text-left"
+      >
+        <div>
+          <p className="text-xs font-black uppercase tracking-wider text-orange-700">
+            Incidents
+          </p>
+          <p className="mt-1 text-sm font-bold text-slate-800">
+            {isLoading
+              ? 'Loading incidents...'
+              : selectedIncidents.length > 0
+                ? `${selectedIncidents.length} selected · ${formatCurrency(total)}`
+                : 'Tap to choose incident types'}
+          </p>
+        </div>
+        <span className="material-symbols-outlined text-orange-700">
+          {isOpen ? 'expand_less' : 'expand_more'}
+        </span>
+      </button>
+
+      {selectedIncidents.length > 0 && (
+        <div className="mt-3 flex flex-wrap gap-2">
+          {selectedIncidents.map((incident) => (
+            <span
+              key={incident.id}
+              className="inline-flex items-center gap-2 rounded-full bg-white px-3 py-2 text-xs font-black text-slate-700 ring-1 ring-orange-100"
+            >
+              {incident.incidentName || incident.incidentCode || `Incident #${incident.id}`}
+              <span className="text-red-600">{formatCurrency(incident.penaltyFee)}</span>
+              <button
+                type="button"
+                onClick={() => onRemoveIncident(incident)}
+                className="rounded-full bg-slate-100 p-0.5 text-slate-500 hover:bg-red-100 hover:text-red-600"
+                aria-label="Remove selected incident"
+              >
+                <span className="material-symbols-outlined text-sm">close</span>
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
+
+      {isOpen && (
+        <div className="mt-3 max-h-56 overflow-y-auto rounded-2xl border border-orange-100 bg-white p-2">
+          {isLoading ? (
+            <p className="p-3 text-xs font-bold text-slate-400">
+              Loading incidents...
+            </p>
+          ) : incidentTypes.length === 0 ? (
+            <p className="p-3 text-xs font-bold text-slate-400">
+              No incident types returned by the system.
+            </p>
+          ) : (
+            <div className="space-y-2">
+              {incidentTypes.map((incidentType) => {
+                const existingIncident = incidents.find(
+                  (incident) =>
+                    incident.incidentTypeId === incidentType.id &&
+                    incident.status === 'OPEN'
+                );
+                const isSelected = selectedIncidentTypeIds.has(incidentType.id);
+                const displayFee =
+                  existingIncident?.penaltyFee ?? incidentType.defaultPenaltyFee ?? 0;
+
+                return (
+                  <div
+                    key={incidentType.id}
+                    className={`flex items-center justify-between gap-3 rounded-2xl border p-3 ${
+                      isSelected
+                        ? 'border-orange-200 bg-orange-50'
+                        : 'border-slate-100 bg-white'
+                    }`}
+                  >
+                    <button
+                      type="button"
+                      onClick={() =>
+                        existingIncident
+                          ? onToggleIncident(existingIncident)
+                          : onSelectIncidentType(incidentType)
+                      }
+                      className="min-w-0 flex-1 text-left"
+                    >
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="truncate text-sm font-black text-slate-900">
+                          {incidentType.incidentName || incidentType.incidentCode || `Type #${incidentType.id}`}
+                        </span>
+                        <span
+                          className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-black text-slate-500"
+                        >
+                          {incidentType.incidentCode || 'NO_CODE'}
+                        </span>
+                        {isSelected && (
+                          <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-black text-emerald-700">
+                            selected
+                          </span>
+                        )}
+                      </div>
+                      <p className="mt-1 text-xs font-bold text-slate-500">
+                        {formatCurrency(displayFee)}
+                      </p>
+                    </button>
+                    {existingIncident && (
+                      <button
+                        type="button"
+                        onClick={() => onRemoveIncident(existingIncident)}
+                        className="rounded-xl bg-slate-100 p-2 text-slate-500 hover:bg-red-50 hover:text-red-600"
+                        aria-label="Delete incident"
+                      >
+                        <span className="material-symbols-outlined text-base">close</span>
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

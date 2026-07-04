@@ -75,6 +75,7 @@ export type CheckoutSession = {
   subscriptionCode: string | null;
   monthlyValidTo: string | null;
   checkInTime: string | null;
+  checkOutTime: string | null;
   status: string;
 };
 
@@ -165,6 +166,7 @@ const mapSession = (
     subscriptionCode: session.subscriptionCode ?? null,
     monthlyValidTo: session.monthlyValidTo ?? null,
     checkInTime: session.checkInTime ?? null,
+    checkOutTime: session.checkOutTime ?? null,
     status: String(session.sessionStatus ?? 'ACTIVE'),
   };
 };
@@ -223,6 +225,32 @@ export const fetchCheckoutActiveSessions = async (): Promise<CheckoutSession[]> 
   }
 };
 
+export const fetchCheckoutHistorySessions = async (): Promise<CheckoutSession[]> => {
+  try {
+    const [response, cardCodeById] = await Promise.all([
+      api.get<BaseResponse<ActiveSessionDto[]> | ActiveSessionDto[]>('/parking-sessions'),
+      fetchCardCodeMap(),
+    ]);
+    const data = Array.isArray(response)
+      ? response
+      : unwrap(response, 'Could not load checkout history.');
+
+    return data
+      .map((session) => mapSession(session, cardCodeById))
+      .filter((session) => {
+        const status = String(session.status ?? '').trim().toUpperCase();
+        return status === 'COMPLETED' || Boolean(session.checkOutTime);
+      })
+      .sort((a, b) => {
+        const aTime = new Date(a.checkOutTime ?? a.checkInTime ?? 0).getTime();
+        const bTime = new Date(b.checkOutTime ?? b.checkInTime ?? 0).getTime();
+        return (Number.isNaN(bTime) ? 0 : bTime) - (Number.isNaN(aTime) ? 0 : aTime);
+      });
+  } catch (error) {
+    throw new Error(getApiErrorMessage(error));
+  }
+};
+
 export const startCheckout = async (
   sessionId: number,
   input: {
@@ -235,6 +263,17 @@ export const startCheckout = async (
     await api.patch<BaseResponse<unknown>>(
       `/parking-sessions/${sessionId}/checkout/start`,
       input
+    );
+  } catch (error) {
+    throw new Error(getApiErrorMessage(error));
+  }
+};
+
+export const rollbackCheckout = async (sessionId: number): Promise<void> => {
+  try {
+    await api.patch<BaseResponse<unknown>>(
+      `/parking-sessions/${sessionId}/checkout/rollback`,
+      {}
     );
   } catch (error) {
     throw new Error(getApiErrorMessage(error));

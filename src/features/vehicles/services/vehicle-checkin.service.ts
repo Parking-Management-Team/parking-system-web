@@ -37,6 +37,13 @@ type BookingDto = {
   checkinGraceUntil?: string | null;
 };
 
+type VehicleTypeDto = {
+  id?: number | null;
+  name?: string | null;
+  description?: string | null;
+  vehicleTypeStatus?: string | null;
+};
+
 export type CheckInVehiclePayload = {
   licensePlate: string;
   vehicleTypeId: number;
@@ -77,6 +84,13 @@ export type VehicleCheckinBooking = {
   checkinGraceUntil: string | null;
   depositAmount: number;
   bookingStatus: string;
+};
+
+export type CheckinVehicleType = {
+  id: number;
+  key: 'CAR' | 'MOTORCYCLE';
+  label: string;
+  status: string;
 };
 
 export type CheckEntryPayload = {
@@ -183,6 +197,33 @@ const mapBooking = (booking: BookingDto): VehicleCheckinBooking => {
   };
 };
 
+const mapVehicleTypeKey = (name?: string | null): CheckinVehicleType['key'] => {
+  const value = String(name ?? '').trim().toUpperCase();
+  if (
+    value.includes('MOTOR') ||
+    value.includes('BIKE') ||
+    value.includes('MOTORCYCLE') ||
+    value.includes('XE MAY') ||
+    value.includes('XE MÁY')
+  ) {
+    return 'MOTORCYCLE';
+  }
+  return 'CAR';
+};
+
+const mapVehicleType = (vehicleType: VehicleTypeDto): CheckinVehicleType | null => {
+  const id = Number(vehicleType.id ?? 0);
+  if (id <= 0) return null;
+
+  const label = String(vehicleType.name ?? '').trim() || `Vehicle type #${id}`;
+  return {
+    id,
+    key: mapVehicleTypeKey(label),
+    label,
+    status: String(vehicleType.vehicleTypeStatus ?? 'ACTIVE').trim().toUpperCase(),
+  };
+};
+
 export const fetchActiveParkingSessions = async (): Promise<VehicleCheckinSession[]> => {
   try {
     const response = await api.get<BaseResponse<ParkingSessionDto[]>>(
@@ -191,6 +232,24 @@ export const fetchActiveParkingSessions = async (): Promise<VehicleCheckinSessio
     return unwrap(response, 'Could not load active parking sessions.').map(
       mapActiveParkingSession
     );
+  } catch (error) {
+    throw new Error(getApiErrorMessage(error));
+  }
+};
+
+export const fetchCheckinVehicleTypes = async (): Promise<CheckinVehicleType[]> => {
+  try {
+    const response = await api.get<BaseResponse<VehicleTypeDto[]> | VehicleTypeDto[]>(
+      '/vehicle-types'
+    );
+    const data = Array.isArray(response)
+      ? response
+      : unwrap(response, 'Could not load vehicle types.');
+
+    return data
+      .map(mapVehicleType)
+      .filter((vehicleType): vehicleType is CheckinVehicleType => Boolean(vehicleType))
+      .filter((vehicleType) => vehicleType.status !== 'INACTIVE');
   } catch (error) {
     throw new Error(getApiErrorMessage(error));
   }

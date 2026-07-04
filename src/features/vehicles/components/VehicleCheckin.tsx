@@ -12,6 +12,8 @@ import {
   fetchActiveParkingSessions,
   fetchCheckinBookings,
   fetchCheckinBookingsByBuilding,
+  fetchCheckinVehicleTypes,
+  type CheckinVehicleType,
   type VehicleCheckinBooking,
   type VehicleCheckinSession,
 } from '@/features/vehicles/services/vehicle-checkin.service';
@@ -37,9 +39,7 @@ type GateOverlay =
 const BUILDING_ID = 1;
 const STAFF_ID = 2;
 
-// TODO(api-confirm): giữ mapping tạm theo yêu cầu test hiện tại.
-// Nếu BE seed VehicleType khác, chỉ cần đổi mapping này.
-const VEHICLE_TYPE_ID_BY_TYPE: Record<VehicleType, number> = {
+const FALLBACK_VEHICLE_TYPE_ID_BY_TYPE: Record<VehicleType, number> = {
   CAR: 1,
   MOTORCYCLE: 2,
 };
@@ -84,6 +84,7 @@ export default function VehicleCheckin() {
 
   const [cards, setCards] = useState<ParkingCard[]>([]);
   const [activeSessions, setActiveSessions] = useState<VehicleCheckinSession[]>([]);
+  const [vehicleTypes, setVehicleTypes] = useState<CheckinVehicleType[]>([]);
   const [bookings, setBookings] = useState<VehicleCheckinBooking[]>([]);
   const [blacklist, setBlacklist] = useState<BlacklistDto[]>([]);
   const [licensePlate, setLicensePlate] = useState('');
@@ -96,6 +97,16 @@ export default function VehicleCheckin() {
 
   const formattedPlate = normalizeText(licensePlate);
   const normalizedCardCode = normalizeText(cardCode);
+
+  const vehicleTypeIdByType = useMemo(() => {
+    const nextMap = { ...FALLBACK_VEHICLE_TYPE_ID_BY_TYPE };
+
+    vehicleTypes.forEach((type) => {
+      nextMap[type.key] = type.id;
+    });
+
+    return nextMap;
+  }, [vehicleTypes]);
 
   const availableCards = useMemo(
     () =>
@@ -135,9 +146,13 @@ export default function VehicleCheckin() {
   const loadGateData = useCallback(async () => {
     // Staff check-in cần Cards/Active Sessions/Booking/Blacklist để hỗ trợ vận hành cổng vào.
     // Booking/Blacklist chỉ là dữ liệu hỗ trợ; nếu endpoint phụ lỗi thì không được làm hỏng check-in chính.
-    const [cardData, sessionData, bookingData, blacklistData] = await Promise.all([
+    const [cardData, sessionData, vehicleTypeData, bookingData, blacklistData] = await Promise.all([
       fetchCards(),
       fetchActiveParkingSessions(),
+      fetchCheckinVehicleTypes().catch((error) => {
+        console.warn('Vehicle Type API is not ready; using fallback vehicle type ids.', error);
+        return [];
+      }),
       fetchCheckinBookingsByBuilding(BUILDING_ID).catch(async (error) => {
         console.warn(
           'Booking by building API is not ready; falling back to all bookings.',
@@ -162,6 +177,7 @@ export default function VehicleCheckin() {
 
     setCards(cardData);
     setActiveSessions(sessionData);
+    setVehicleTypes(vehicleTypeData);
     setBookings(bookingData);
     setBlacklist(blacklistData.items ?? []);
   }, []);
@@ -257,9 +273,19 @@ export default function VehicleCheckin() {
     setIsSubmitting(true);
 
     try {
+      const isCardBlocked = await blacklistService.checkCardBlocked(selectedCard.id);
+      if (isCardBlocked) {
+        showGateOverlay({
+          type: 'error',
+          title: 'Check-in blocked',
+          message: `Card ${normalizedCardCode} is blacklisted and cannot be used for check-in.`,
+        });
+        return;
+      }
+
       const session = await checkInVehicle({
         licensePlate: formattedPlate,
-        vehicleTypeId: VEHICLE_TYPE_ID_BY_TYPE[vehicleType],
+        vehicleTypeId: vehicleTypeIdByType[vehicleType],
         cardCode: normalizedCardCode,
         buildingId: BUILDING_ID,
         staffId: STAFF_ID,

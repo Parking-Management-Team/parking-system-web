@@ -1,8 +1,11 @@
 'use client';
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
 import { useAuth } from '@/features/auth/context/AuthContext';
 import { useIncidents } from '@/features/incident';
+import { penaltyConfigService } from '@/features/incident-type/services/incident-type.service';
+import type { PenaltyConfig } from '@/features/incident-type/types';
 import type {
   BlacklistTargetType,
   Incident,
@@ -83,6 +86,7 @@ export default function IncidentHandling() {
     createIncident,
     updateIncidentStatus,
     createBlacklist,
+    deleteIncident,
   } = useIncidents();
 
   const [selectedSessionId, setSelectedSessionId] = useState('');
@@ -95,10 +99,32 @@ export default function IncidentHandling() {
   const [blacklistTarget, setBlacklistTarget] =
     useState<BlacklistTargetType>('VEHICLE');
   const [blacklistReason, setBlacklistReason] = useState('');
+  const [penaltyConfigs, setPenaltyConfigs] = useState<PenaltyConfig[]>([]);
 
   const selectedIncidentType = incidentTypes.find(
     (type) => type.id === Number(selectedIncidentTypeId)
   );
+
+  const selectedSession = activeSessions.find(
+    (session) => session.sessionId === Number(selectedSessionId)
+  );
+
+  const penaltyByTypeId = useMemo(() => {
+    const map = new Map<number, PenaltyConfig>();
+    penaltyConfigs.forEach((config) => {
+      if (config.isActive) {
+        map.set(config.incidentTypeId, config);
+      }
+    });
+    return map;
+  }, [penaltyConfigs]);
+
+  const selectedDefaultPenalty =
+    selectedIncidentType != null
+      ? penaltyByTypeId.get(selectedIncidentType.id)?.penaltyFee ??
+        selectedIncidentType.defaultPenaltyFee ??
+        0
+      : 0;
 
   const selectedBlacklistSession = findIncidentSession(
     blacklistIncident,
@@ -125,17 +151,45 @@ export default function IncidentHandling() {
     [incidents]
   );
 
-  useEffect(() => {
-    if (selectedIncidentType?.defaultPenaltyFee != null) {
-      setPenaltyFee(String(selectedIncidentType.defaultPenaltyFee));
+  const loadPenaltyConfigs = useCallback(async () => {
+    try {
+      setPenaltyConfigs(await penaltyConfigService.getAllActive());
+    } catch (error) {
+      console.warn('Could not load active penalty configs for Staff Incident.', error);
+      setPenaltyConfigs([]);
     }
-  }, [selectedIncidentType]);
+  }, []);
+
+  useEffect(() => {
+    void loadPenaltyConfigs();
+  }, [loadPenaltyConfigs]);
+
+  useEffect(() => {
+    if (selectedIncidentType) {
+      setPenaltyFee(String(selectedDefaultPenalty));
+    }
+  }, [selectedDefaultPenalty, selectedIncidentType]);
 
   useEffect(() => {
     if (error) {
       showToast(error, 'error');
     }
   }, [error, showToast]);
+
+  const isUnpaidIncidentType = (type?: { incidentCode?: string | null; incidentName?: string | null }) => {
+    const code = String(type?.incidentCode ?? '').trim().toUpperCase();
+    const name = String(type?.incidentName ?? '').trim().toUpperCase();
+    return (
+      code === 'UNPAID_VEHICLE' ||
+      code.includes('UNPAID') ||
+      code.includes('PAYMENT') ||
+      name.includes('UNPAID') ||
+      name.includes('PAYMENT') ||
+      name.includes('REFUSE') ||
+      name.includes('KHONG THANH TOAN') ||
+      name.includes('KHÔNG THANH TOÁN')
+    );
+  };
 
   const handleCreateIncident = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -178,6 +232,30 @@ export default function IncidentHandling() {
     showToast(result.message, result.success ? 'success' : 'error');
 
     if (result.success) {
+      if (isUnpaidIncidentType(selectedIncidentType)) {
+        const includeVehicle = selectedSession?.vehicleId ?? null;
+        const includeCard = selectedSession?.cardId ?? null;
+
+        if (includeVehicle || includeCard || result.incident?.id) {
+          const blacklistResult = await createBlacklist({
+            vehicleId: includeVehicle,
+            cardId: includeCard,
+            incidentId: result.incident?.id ?? null,
+            reason: `Unpaid vehicle incident${selectedSession?.licensePlate ? ` - ${selectedSession.licensePlate}` : ''}`,
+          });
+          showToast(
+            blacklistResult.success
+              ? 'Unpaid incident was created and blacklisted.'
+              : blacklistResult.message,
+            blacklistResult.success ? 'success' : 'error'
+          );
+        } else {
+          showToast(
+            'Incident was created, but BE did not return vehicle/card/incident id for blacklist.',
+            'info'
+          );
+        }
+      }
       setSelectedSessionId('');
       setSelectedIncidentTypeId('');
       setDescription('');
@@ -198,8 +276,26 @@ export default function IncidentHandling() {
     showToast(result.message, result.success ? 'success' : 'error');
 
     if (result.success) {
+      if (nextStatus === 'PROCESSING') {
+        showToast(
+          'Incident moved to processing. Incident-level QR/payment API is not available yet; use checkout online payment when collecting fees.',
+          'info'
+        );
+      }
       setSelectedIncident(null);
       setStatusNote('');
+    }
+  };
+
+  const handleDeleteIncident = async (incident: Incident) => {
+    const success = await deleteIncident(incident.id);
+    showToast(
+      success ? 'Incident was removed.' : 'Could not remove this incident.',
+      success ? 'success' : 'error'
+    );
+
+    if (success && selectedIncident?.id === incident.id) {
+      setSelectedIncident(null);
     }
   };
 
@@ -263,14 +359,26 @@ export default function IncidentHandling() {
             parking, and unpaid vehicles.
           </p>
         </div>
-        <button
-          type="button"
-          onClick={() => void refresh()}
-          className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-3 text-xs font-bold text-white transition hover:bg-slate-700"
-        >
-          <span className="material-symbols-outlined text-base">refresh</span>
-          Refresh
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <Link
+            href="/dashboard/staff/incident-types"
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-white px-4 py-3 text-xs font-bold text-slate-700 ring-1 ring-slate-200 transition hover:bg-slate-50"
+          >
+            <span className="material-symbols-outlined text-base">category</span>
+            Incident types
+          </Link>
+          <button
+            type="button"
+            onClick={() => {
+              void refresh();
+              void loadPenaltyConfigs();
+            }}
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-3 text-xs font-bold text-white transition hover:bg-slate-700"
+          >
+            <span className="material-symbols-outlined text-base">refresh</span>
+            Refresh
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
@@ -364,11 +472,6 @@ export default function IncidentHandling() {
               placeholder="0"
               className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 font-mono text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500"
             />
-            {selectedIncidentType?.defaultPenaltyFee != null && (
-              <p className="text-xs text-slate-400">
-                Default: {formatCurrency(selectedIncidentType.defaultPenaltyFee)}
-              </p>
-            )}
           </div>
 
           <div className="space-y-2">
@@ -516,6 +619,15 @@ export default function IncidentHandling() {
                           className="rounded-lg bg-red-50 px-3 py-2 text-xs font-bold text-red-700 hover:bg-red-100"
                         >
                           Blacklist
+                        </button>
+                        <button
+                          type="button"
+                          disabled={isSubmitting}
+                          onClick={() => void handleDeleteIncident(incident)}
+                          className="rounded-lg bg-slate-100 px-3 py-2 text-xs font-bold text-slate-600 hover:bg-slate-200 disabled:opacity-60"
+                          title="Remove incident"
+                        >
+                          <span className="material-symbols-outlined text-sm">close</span>
                         </button>
                       </div>
                     </div>

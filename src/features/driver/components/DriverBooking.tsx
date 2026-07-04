@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/features/auth';
 import { api, ApiError } from '@/lib/api/client';
 import {
@@ -51,7 +51,6 @@ interface SlotItem {
 
 export default function DriverBooking() {
   const { user, showToast } = useAuth();
-  const router = useRouter();
   const searchParams = useSearchParams();
 
   // Mounting state for Portal
@@ -155,7 +154,7 @@ export default function DriverBooking() {
   };
 
   const getEstimatedDeposit = () => {
-    return calculateCost();
+    return selectedVehicleTypeId === 1 ? 5000 : 20000;
   };
 
   useEffect(() => {
@@ -437,14 +436,14 @@ export default function DriverBooking() {
     const selectedEnd = new Date(`${endBookingDate}T${endTime}:00+07:00`);
 
     // Get current Vietnam time for user-friendly error message
-    const vnNowStr = now.toLocaleTimeString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh', hour: '2-digit', minute: '2-digit', hour12: false });
-    const vnDateStr = now.toLocaleDateString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh', day: '2-digit', month: '2-digit', year: 'numeric' });
+    const vnNowStr = now.toLocaleTimeString('en-US', { timeZone: 'Asia/Ho_Chi_Minh', hour: '2-digit', minute: '2-digit', hour12: false });
+    const vnDateStr = now.toLocaleDateString('en-US', { timeZone: 'Asia/Ho_Chi_Minh', day: '2-digit', month: '2-digit', year: 'numeric' });
 
     // Check if start time is at least 15 minutes from now
     const diffStartMinutes = (selectedStart.getTime() - now.getTime()) / (1000 * 60);
     if (diffStartMinutes < 15) {
       showToast(
-        `Thời gian bắt đầu phải cách hiện tại ít nhất 15 phút. Hiện tại: ${vnNowStr} ngày ${vnDateStr} (Giờ VN). Vui lòng chọn lại thời gian.`,
+        `Start time must be at least 15 minutes from now. Current time: ${vnNowStr} on ${vnDateStr} (VN Time). Please select a different time.`,
         "error"
       );
       return;
@@ -453,7 +452,7 @@ export default function DriverBooking() {
     // Check if end time is at least 4 hours after start time
     const diffEndHours = (selectedEnd.getTime() - selectedStart.getTime()) / (1000 * 60 * 60);
     if (diffEndHours < 3.99) {
-      showToast("Thời gian kết thúc phải cách thời gian bắt đầu tối thiểu 4 tiếng!", "error");
+      showToast("End time must be at least 4 hours after start time!", "error");
       return;
     }
 
@@ -501,12 +500,12 @@ export default function DriverBooking() {
     setIsCancelling(true);
     try {
       await api.delete(`/bookings/${createdBookingId}`);
-      showToast('Đặt chỗ đã bị hủy thành công.', 'info');
+      showToast('Booking has been cancelled successfully.', 'info');
       setShowPaymentModal(false);
       setCreatedBookingId(null);
     } catch (err) {
       console.error(err);
-      showToast('Có lỗi xảy ra khi hủy đặt chỗ.', 'error');
+      showToast('An error occurred while cancelling the booking.', 'error');
     } finally {
       setIsCancelling(false);
     }
@@ -522,14 +521,14 @@ export default function DriverBooking() {
       });
 
       if (payRes.success && payRes.data && payRes.data.paymentUrl) {
-        showToast('Đang chuyển hướng đến cổng VNPay...', 'success');
+        showToast('Redirecting to VNPay gateway...', 'success');
         window.location.href = payRes.data.paymentUrl;
       } else {
-        showToast('Không thể tạo liên kết thanh toán VNPay.', 'error');
+        showToast('Unable to create VNPay payment link.', 'error');
       }
     } catch (err) {
       console.error(err);
-      showToast('Hệ thống thanh toán đang bận. Vui lòng thử lại sau.', 'error');
+      showToast('Payment system is busy. Please try again later.', 'error');
     } finally {
       setIsPaying(false);
     }
@@ -639,17 +638,17 @@ export default function DriverBooking() {
                 <div className="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto">
                   <Clock className="w-6 h-6" />
                 </div>
-                <p className="text-sm font-bold text-slate-700">Đăng ký đỗ xe máy theo khung giờ</p>
+                <p className="text-sm font-bold text-slate-700">Motorbike Parking Registration</p>
                 <p className="text-xs text-slate-500 max-w-md mx-auto leading-relaxed">
-                  Xe máy được đỗ tại khu vực đỗ xe máy chung (Motorbike Zone) tại Tầng 1. Hệ thống không yêu cầu chọn vị trí ô đỗ cụ thể. Bạn chỉ cần chọn thời gian gửi dự kiến ở phần Tóm tắt đặt chỗ.
+                  Motorbikes park in the shared Motorbike Zone on Floor 1. No specific slot selection is required. You only need to select the expected parking time in the Booking Summary section.
                 </p>
               </div>
             ) : floors.length === 0 ? (
               <div className="p-6 bg-slate-50 border border-slate-200/60 rounded-xl text-center space-y-2">
                 <AlertTriangle className="w-8 h-8 text-amber-500 mx-auto" />
-                <p className="text-sm font-bold text-slate-700">Tòa nhà không còn chỗ trống hoặc không hỗ trợ đặt chỗ trước cho loại xe này.</p>
+                <p className="text-sm font-bold text-slate-700">No available parking slots or this building does not support advance booking for this vehicle type.</p>
                 <p className="text-xs text-slate-400 max-w-md mx-auto">
-                  Hiện tại không có khu vực đỗ xe vãng lai/đặt chỗ nào được cấu hình cho loại phương tiện này trong tòa nhà. Vui lòng chọn phương tiện khác hoặc liên hệ Ban quản lý.
+                  There are currently no general/booking parking zones configured for this vehicle type in this building. Please select a different vehicle or contact the building management.
                 </p>
               </div>
             ) : (
@@ -677,7 +676,7 @@ export default function DriverBooking() {
                 {/* Slots grid */}
                 {slotsList.length === 0 ? (
                   <div className="p-6 text-center text-slate-400 text-xs italic">
-                    Không có vị trí đỗ xe khả dụng trên tầng này.
+                    No available parking slots on this floor.
                   </div>
                 ) : (
                   <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 pt-2">
@@ -782,7 +781,7 @@ export default function DriverBooking() {
               <div className="flex justify-between items-center">
                 <span className="text-slate-400 font-medium">Selected Slot</span>
                 <span className={`font-bold ${selectedVehicleTypeId === 1 || selectedSlotCode ? 'text-emerald-600' : 'text-slate-400 italic'}`}>
-                  {selectedVehicleTypeId === 1 ? 'Khu vực xe máy' : (selectedSlotCode || 'Not selected')}
+                  {selectedVehicleTypeId === 1 ? 'Motorbike Zone' : (selectedSlotCode || 'Not selected')}
                 </span>
               </div>
               <div className="flex justify-between items-center">
@@ -813,23 +812,23 @@ export default function DriverBooking() {
                 if (dur < 0) dur += 24;
                 return (
                   <p className="text-[10px] text-slate-400 font-medium">
-                    Rate: <span className="text-slate-600 font-bold">{rate.toLocaleString('vi-VN')} đ/hr</span>
+                    Rate: <span className="text-slate-600 font-bold">{rate.toLocaleString('en-US')} VND/hr</span>
                     {dur > 0 && (
-                      <> · <span className="text-slate-600 font-bold">{dur % 1 === 0 ? dur : dur.toFixed(1)} hr{dur !== 1 ? 's' : ''}</span> · Max cap: <span className="text-slate-600 font-bold">{cap.toLocaleString('vi-VN')} đ</span></>
+                      <> · <span className="text-slate-600 font-bold">{dur % 1 === 0 ? dur : dur.toFixed(1)} hr{dur !== 1 ? 's' : ''}</span> · Max cap: <span className="text-slate-600 font-bold">{cap.toLocaleString('en-US')} VND</span></>
                     )}
                   </p>
                 );
               })()}
               <div className="flex justify-between items-center text-xs">
                 <span className="text-slate-400 font-medium">Estimated Parking Fee</span>
-                <span className="font-bold text-slate-700">{calculateCost().toLocaleString('vi-VN')} đ</span>
+                <span className="font-bold text-slate-700">{calculateCost().toLocaleString('en-US')} VND</span>
               </div>
-              <div className="flex justify-between items-center text-sm font-bold pt-2 border-t border-slate-200/60">
-                <span className="text-slate-500">Total Amount to Pay (Tổng tiền chi trả)</span>
-                <span className="text-xl font-black text-[#00a86b]">{getEstimatedDeposit().toLocaleString('vi-VN')} đ</span>
+              <div className="flex flex-wrap justify-between items-center gap-2 text-sm font-bold pt-2 border-t border-slate-200/60">
+                <span className="text-slate-500">Total Deposit Amount</span>
+                <span className="text-xl font-black text-[#00a86b] whitespace-nowrap">{depositAmount.toLocaleString('en-US')} VND</span>
               </div>
               <p className="text-[10px] text-slate-400 leading-normal">
-                * Deposit is a fixed upfront fee deducted from your final parking fee upon checkout.
+                * Deposit is required to confirm booking. Remaining balance is paid at checkout.
               </p>
             </div>
 
@@ -864,7 +863,7 @@ export default function DriverBooking() {
             <div className="px-6 py-4 bg-slate-900 text-white flex justify-between items-center">
               <div className="flex items-center gap-2">
                 <QrCode className="w-5 h-5 text-emerald-400" />
-                <h3 className="font-bold text-sm">Thanh toán cọc đặt chỗ trước</h3>
+                <h3 className="font-bold text-sm">Booking Deposit Payment</h3>
               </div>
               <button
                 onClick={() => handleCancelBooking()}
@@ -877,32 +876,35 @@ export default function DriverBooking() {
 
             <div className="p-6 space-y-6">
               <div className="text-center space-y-1">
-                <p className="text-[10px] text-slate-400 uppercase tracking-widest font-bold">Tổng tiền cần thanh toán</p>
-                <h4 className="text-3xl font-black text-slate-800">{depositAmount.toLocaleString('vi-VN')} đ</h4>
+                <p className="text-[10px] text-slate-400 uppercase tracking-widest font-bold">Booking Deposit</p>
+                <h4 className="text-3xl font-black text-[#00a86b]">{depositAmount.toLocaleString('en-US')} VND</h4>
                 <p className="text-[11px] text-slate-500 max-w-[320px] mx-auto leading-relaxed">
-                  Để xác nhận đặt lịch đỗ xe, bạn cần hoàn tất thanh toán khoản tiền này trực tuyến qua cổng VNPay.
+                  To confirm your parking reservation, you need to pay this deposit online via VNPay gateway.
+                </p>
+                <p className="text-[10px] text-slate-400">
+                  Estimated total fee: <span className="font-bold text-slate-600">{calculateCost().toLocaleString('en-US')} VND</span> · Pay remaining balance at checkout
                 </p>
               </div>
 
               {/* Chi tiết đơn đặt chỗ */}
               <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 space-y-2.5 text-xs text-slate-600">
                 <div className="flex justify-between">
-                  <span className="font-medium text-slate-400">Biển số xe:</span>
+                  <span className="font-medium text-slate-400">License Plate:</span>
                   <span className="font-bold text-slate-700">{selectedVehicle}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="font-medium text-slate-400">Vị trí ô đỗ:</span>
-                  <span className="font-bold text-slate-750">{selectedVehicleTypeId === 1 ? 'Khu vực xe máy chung' : selectedSlotCode}</span>
+                  <span className="font-medium text-slate-400">Parking Slot:</span>
+                  <span className="font-bold text-slate-750">{selectedVehicleTypeId === 1 ? 'Shared Motorbike Zone' : selectedSlotCode}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="font-medium text-slate-400">Thời gian dự kiến:</span>
+                  <span className="font-medium text-slate-400">Scheduled Time:</span>
                   <span className="font-bold text-slate-700">{bookingDate} ({startTime} - {endTime})</span>
                 </div>
               </div>
 
               <div className="p-3 bg-amber-50 border border-amber-100 rounded-xl text-left text-amber-800 text-[11px] flex gap-2">
                 <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-                <span>Mã đặt chỗ này sẽ tự động bị hủy sau 15 phút nếu bạn chưa thanh toán cọc trực tuyến.</span>
+                <span>This booking will be automatically cancelled after 15 minutes if the deposit is not paid online.</span>
               </div>
 
               <div className="flex flex-col gap-3">
@@ -914,11 +916,11 @@ export default function DriverBooking() {
                   {isPaying ? (
                     <>
                       <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                      <span>Đang tạo liên kết VNPay...</span>
+                      <span>Creating VNPay link...</span>
                     </>
                   ) : (
                     <>
-                      <span>Thanh toán Online qua VNPay</span>
+                      <span>Pay Online via VNPay</span>
                       <ArrowRight className="w-4 h-4" />
                     </>
                   )}
@@ -932,10 +934,10 @@ export default function DriverBooking() {
                   {isCancelling ? (
                     <>
                       <div className="w-4 h-4 border-2 border-rose-600 border-t-transparent rounded-full animate-spin" />
-                      <span>Đang hủy đặt chỗ...</span>
+                      <span>Cancelling booking...</span>
                     </>
                   ) : (
-                    <span>Hủy đặt chỗ (Cancel)</span>
+                    <span>Cancel Booking</span>
                   )}
                 </button>
               </div>

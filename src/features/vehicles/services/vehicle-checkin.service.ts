@@ -44,6 +44,7 @@ export type CheckInVehiclePayload = {
   buildingId: number;
   staffId: number;
   bookingId?: number;
+  randomizeSlot?: boolean;
 };
 
 export type VehicleCheckinSession = {
@@ -76,6 +77,31 @@ export type VehicleCheckinBooking = {
   checkinGraceUntil: string | null;
   depositAmount: number;
   bookingStatus: string;
+};
+
+export type CheckEntryPayload = {
+  licensePlate: string;
+  vehicleTypeId: number;
+  cardCode: string;
+  buildingId: number;
+};
+
+export type CheckEntryResult = {
+  allowed: boolean;
+  reason?: string;
+  pricingPolicyValid: boolean;
+  zoneAvailable: boolean;
+  cardAvailable: boolean;
+  notBlacklisted: boolean;
+  notAlreadyParked: boolean;
+};
+
+export type UpdateCheckinPayload = {
+  licensePlate?: string;
+  vehicleTypeId?: number;
+  cardCode?: string;
+  zoneId?: number;
+  slotId?: number | null;
 };
 
 const getApiErrorMessage = (error: unknown): string => {
@@ -113,30 +139,30 @@ export const mapActiveParkingSession = (
   const cardId = Number(session.cardId ?? 0);
 
   return {
-  id: sessionId,
-  sessionCode: `SS-${sessionId}`,
-  licensePlate: String(session.licensePlateIn ?? '-'),
-  // The current active-session DTO does not expose VehicleTypeId.
-  vehicleType: 'UNKNOWN',
-  customerType: session.monthlySubscriptionId
-    ? 'MONTHLY'
-    : session.bookingId
-      ? 'BOOKING'
-      : 'WALK_IN',
-  vehicleId: session.vehicleId ?? null,
-  buildingId: session.buildingId ?? null,
-  cardId,
-  cardCode: String(session.cardCode ?? `#${cardId}`),
-  zoneId: session.zoneId ?? null,
-  zoneName: session.zoneCode ?? '-',
-  actualSlotId: session.slotId ?? null,
-  actualSlotCode: session.slotCode ?? null,
-  checkInTime: String(session.checkInTime ?? ''),
-  status:
-    String(session.sessionStatus ?? 'ACTIVE').trim().toUpperCase() ===
-    'LOST_CARD_REPORTED'
-      ? 'LOST_CARD_REPORTED'
-      : 'ACTIVE',
+    id: sessionId,
+    sessionCode: `SS-${sessionId}`,
+    licensePlate: String(session.licensePlateIn ?? '-'),
+    // The current active-session DTO does not expose VehicleTypeId.
+    vehicleType: 'UNKNOWN',
+    customerType: session.monthlySubscriptionId
+      ? 'MONTHLY'
+      : session.bookingId
+        ? 'BOOKING'
+        : 'WALK_IN',
+    vehicleId: session.vehicleId ?? null,
+    buildingId: session.buildingId ?? null,
+    cardId,
+    cardCode: String(session.cardCode ?? `#${cardId}`),
+    zoneId: session.zoneId ?? null,
+    zoneName: session.zoneCode ?? '-',
+    actualSlotId: session.slotId ?? null,
+    actualSlotCode: session.slotCode ?? null,
+    checkInTime: String(session.checkInTime ?? ''),
+    status:
+      String(session.sessionStatus ?? 'ACTIVE').trim().toUpperCase() ===
+      'LOST_CARD_REPORTED'
+        ? 'LOST_CARD_REPORTED'
+        : 'ACTIVE',
   };
 };
 
@@ -179,6 +205,35 @@ export const checkInVehicle = async (
       payload
     );
     return mapActiveParkingSession(unwrap(response, 'Vehicle check-in failed.'));
+  } catch (error) {
+    throw new Error(getApiErrorMessage(error));
+  }
+};
+
+export const checkEntryConditions = async (
+  payload: CheckEntryPayload
+): Promise<CheckEntryResult> => {
+  try {
+    const response = await api.post<BaseResponse<CheckEntryResult>>(
+      '/parking-sessions/check-entry',
+      payload
+    );
+    return unwrap(response, 'Entry condition check failed.');
+  } catch (error) {
+    throw new Error(getApiErrorMessage(error));
+  }
+};
+
+export const updateCheckinInfo = async (
+  sessionId: number,
+  payload: UpdateCheckinPayload
+): Promise<VehicleCheckinSession> => {
+  try {
+    const response = await api.patch<BaseResponse<ParkingSessionDto>>(
+      `/parking-sessions/${sessionId}/update`,
+      payload
+    );
+    return mapActiveParkingSession(unwrap(response, 'Update check-in info failed.'));
   } catch (error) {
     throw new Error(getApiErrorMessage(error));
   }

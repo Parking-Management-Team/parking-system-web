@@ -156,7 +156,7 @@ function PaymentResultContent() {
         {/* Actions */}
         <div className="w-full flex flex-col gap-3 mt-8">
           <Link
-            href="/dashboard/driver/booking"
+            href="/dashboard/driver/parking-utils"
             className="w-full py-3 bg-[#006d43] hover:bg-[#005c38] text-white font-extrabold text-sm rounded-2xl text-center shadow-lg shadow-[#006d43]/10 transition-all"
           >
             Tiếp tục đặt chỗ

@@ -1,5 +1,12 @@
-import DriverParkingHistory from '@/features/driver/components/DriverParkingHistory';
+'use client';
+
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 
 export default function Page() {
-  return <DriverParkingHistory />;
+  const router = useRouter();
+  useEffect(() => {
+    router.replace('/dashboard/driver/parking-utils');
+  }, [router]);
+  return null;
 }

@@ -286,7 +286,7 @@ export default function DriverDashboard() {
           </div>
         </div>
         <button
-          onClick={() => router.push('/dashboard/driver/booking')}
+          onClick={() => router.push('/dashboard/driver/parking-utils')}
           className="relative z-10 px-6 py-3 rounded-xl bg-[#00a86b] text-white font-semibold text-sm hover:bg-[#00905b] active:scale-[0.98] transition-all shadow-md shadow-emerald-500/10"
         >
           Book Parking Space
@@ -473,7 +473,7 @@ export default function DriverDashboard() {
                     const isClickable = statusKey === 'available';
                     const statusLabel = statusKey.charAt(0).toUpperCase() + statusKey.slice(1);
 
-                    let statusClass = 'border-[#00a86b] bg-emerald-50/10 hover:border-emerald-500 hover:scale-[1.03] cursor-pointer text-emerald-700';
+                    let statusClass = 'border-slate-200 bg-white hover:bg-emerald-50/10 hover:border-[#00a86b] hover:scale-[1.03] cursor-pointer text-emerald-700';
                     if (!isClickable) {
                       statusClass = 'border-[#e2e8f0] bg-slate-50/30 cursor-not-allowed text-slate-400';
                     }
@@ -482,7 +482,7 @@ export default function DriverDashboard() {
                       <div
                         key={slot.id}
                         className={`p-4 border rounded-xl transition-all flex flex-col justify-between h-32 ${statusClass}`}
-                        onClick={() => isClickable && router.push(`/dashboard/driver/booking?slot=${slot.code}&vehicleTypeId=${selectedVehicleTypeId}`)}
+                        onClick={() => isClickable && router.push(`/dashboard/driver/parking-utils?slot=${slot.code}&vehicleTypeId=${selectedVehicleTypeId}`)}
                         title={`${slot.code} — ${statusLabel}`}
                       >
                         <div className="flex items-center justify-between">
@@ -542,21 +542,21 @@ export default function DriverDashboard() {
             </p>
             {hasActiveSession ? (
               <button
-                onClick={() => router.push('/dashboard/driver/sessions')}
+                onClick={() => router.push('/dashboard/driver/parking-utils')}
                 className="w-full py-3.5 rounded-xl bg-[#00a86b] text-white font-bold text-sm shadow-md shadow-emerald-500/10 hover:bg-[#00905b] active:scale-[0.98] transition-all"
               >
                 View Active Session
               </button>
             ) : (
               <button
-                onClick={() => router.push('/dashboard/driver/booking')}
+                onClick={() => router.push('/dashboard/driver/parking-utils')}
                 className="w-full py-3.5 rounded-xl bg-[#00a86b] text-white font-bold text-sm shadow-md shadow-emerald-500/10 hover:bg-[#00905b] active:scale-[0.98] transition-all mb-4"
               >
                 Book a Slot
               </button>
             )}
             <button
-              onClick={() => router.push('/dashboard/driver/sessions')}
+              onClick={() => router.push('/dashboard/driver/parking-utils')}
               className="text-[#00a86b] text-sm font-bold hover:underline mt-2"
             >
               Scan QR code to check-out

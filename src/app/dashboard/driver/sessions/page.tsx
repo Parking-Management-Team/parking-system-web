@@ -1,5 +1,12 @@
-import DriverSessions from '@/features/driver/components/DriverSessions';
+'use client';
+
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 
 export default function Page() {
-  return <DriverSessions />;
+  const router = useRouter();
+  useEffect(() => {
+    router.replace('/dashboard/driver/parking-utils');
+  }, [router]);
+  return null;
 }

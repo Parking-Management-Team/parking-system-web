@@ -40,8 +40,8 @@ const STAFF_ID = 2;
 // TODO(api-confirm): giữ mapping tạm theo yêu cầu test hiện tại.
 // Nếu BE seed VehicleType khác, chỉ cần đổi mapping này.
 const VEHICLE_TYPE_ID_BY_TYPE: Record<VehicleType, number> = {
-  CAR: 1,
-  MOTORCYCLE: 2,
+  CAR: 2,
+  MOTORCYCLE: 1,
 };
 
 const normalizeText = (value: string) => value.trim().toUpperCase();

@@ -1,5 +1,12 @@
-import DriverBooking from '@/features/driver/components/DriverBooking';
+'use client';
+
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 
 export default function Page() {
-  return <DriverBooking />;
+  const router = useRouter();
+  useEffect(() => {
+    router.replace('/dashboard/driver/parking-utils');
+  }, [router]);
+  return null;
 }

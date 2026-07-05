@@ -7,3 +7,4 @@ export { default as DriverPayments } from './components/DriverPayments';
 export { default as DriverReports } from './components/DriverReports';
 export { default as DriverSessions } from './components/DriverSessions';
 export { default as DriverVehicles } from './components/DriverVehicles';
+export { default as ParkingUtilsWorkspace } from './components/ParkingUtilsWorkspace';

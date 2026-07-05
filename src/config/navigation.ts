@@ -186,14 +186,9 @@ export const ROLE_NAVIGATION: Record<string, NavigationItem[]> = {
       icon: 'grid_view',
     },
     {
-      label: 'Parking Booking',
-      href: '/dashboard/driver/booking',
-      icon: 'calendar_month',
-    },
-    {
-      label: 'Parking Session',
-      href: '/dashboard/driver/sessions',
-      icon: 'timer',
+      label: 'Parking Utils',
+      href: '/dashboard/driver/parking-utils',
+      icon: 'construction',
     },
     {
       label: 'Payment',
@@ -204,11 +199,6 @@ export const ROLE_NAVIGATION: Record<string, NavigationItem[]> = {
       label: 'Payment History',
       href: '/dashboard/driver/payment-history',
       icon: 'receipt_long',
-    },
-    {
-      label: 'Parking History',
-      href: '/dashboard/driver/parking-history',
-      icon: 'history',
     },
     {
       label: 'My Vehicles',

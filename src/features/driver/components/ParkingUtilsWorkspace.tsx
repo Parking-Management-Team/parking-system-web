@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/features/auth';
@@ -194,6 +194,7 @@ export default function ParkingUtilsWorkspace() {
   const [selectedSlotCode, setSelectedSlotCode] = useState<string>('');
   const [selectedSlotId, setSelectedSlotId] = useState<number | null>(null);
   const [bookingDate, setBookingDate] = useState<string>('');
+  const [endBookingDate, setEndBookingDate] = useState<string>('');
   const [startTime, setStartTime] = useState<string>('');
   const [endTime, setEndTime] = useState<string>('');
   const [isSubmittingBooking, setIsSubmittingBooking] = useState<boolean>(false);
@@ -379,6 +380,16 @@ export default function ParkingUtilsWorkspace() {
     return () => clearInterval(timer);
   }, [sessionsTab, activeSession, vehicles]);
 
+  const maxBookingDate = useMemo(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 30);
+    const vnDateParts = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Asia/Ho_Chi_Minh',
+      year: 'numeric', month: '2-digit', day: '2-digit'
+    }).formatToParts(d);
+    return `${vnDateParts.find(p => p.type === 'year')?.value}-${vnDateParts.find(p => p.type === 'month')?.value}-${vnDateParts.find(p => p.type === 'day')?.value}`;
+  }, []);
+
   // ─── Initialize Booking Stepper Date & Times ────────────────────────
   const initWizardDateTime = () => {
     const now = new Date();
@@ -404,8 +415,10 @@ export default function ParkingUtilsWorkspace() {
     }).formatToParts(endDate);
     const endH = vnEndParts.find(p => p.type === 'hour')?.value ?? '00';
     const endM = vnEndParts.find(p => p.type === 'minute')?.value ?? '00';
+    const endDateStr = endDate.toLocaleDateString('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' });
 
     setBookingDate(vnDate);
+    setEndBookingDate(endDateStr);
     setStartTime(`${startH}:${startM}`);
     setEndTime(`${endH}:${endM}`);
   };
@@ -648,19 +661,21 @@ export default function ParkingUtilsWorkspace() {
   };
 
   const calculateCost = () => {
-    if (!startTime || !endTime) return 0;
-    const [startH, startM] = startTime.split(':').map(Number);
-    const [endH, endM] = endTime.split(':').map(Number);
-    let durationHours = (endH + endM / 60) - (startH + startM / 60);
-
-    if (durationHours < 0) {
-      durationHours += 24;
-    }
-
-    if (durationHours <= 0) return 0;
+    if (!startTime || !endTime || !bookingDate || !endBookingDate) return 0;
+    const start = new Date(`${bookingDate}T${startTime}:00+07:00`);
+    const end = new Date(`${endBookingDate}T${endTime}:00+07:00`);
+    
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return 0;
+    
+    const diffMs = end.getTime() - start.getTime();
+    if (diffMs <= 0) return 0;
+    
+    const durationHours = diffMs / (1000 * 60 * 60);
     const rate = selectedVehicleTypeId === 1 ? 5000 : 20000;
     const cost = durationHours * rate;
-    const cap = selectedVehicleTypeId === 1 ? 20000 : 150000;
+    
+    const days = Math.ceil(durationHours / 24);
+    const cap = (selectedVehicleTypeId === 1 ? 20000 : 150000) * days;
     return Math.min(cost, cap);
   };
 
@@ -686,7 +701,7 @@ export default function ParkingUtilsWorkspace() {
       setWizardStep(4);
     } else if (wizardStep === 4) {
       // Validate date and time inputs
-      if (!bookingDate || !startTime || !endTime) {
+      if (!bookingDate || !endBookingDate || !startTime || !endTime) {
         showToast("Please specify the booking date and time duration.", "error");
         return;
       }
@@ -695,13 +710,6 @@ export default function ParkingUtilsWorkspace() {
       now.setSeconds(0, 0);
 
       const selectedStart = new Date(`${bookingDate}T${startTime}:00+07:00`);
-      
-      let endBookingDate = bookingDate;
-      if (endTime <= startTime) {
-        const d = new Date(`${bookingDate}T00:00:00+07:00`);
-        d.setDate(d.getDate() + 1);
-        endBookingDate = d.toLocaleDateString('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' });
-      }
       const selectedEnd = new Date(`${endBookingDate}T${endTime}:00+07:00`);
 
       const diffStartMinutes = (selectedStart.getTime() - now.getTime()) / (1000 * 60);
@@ -756,12 +764,6 @@ export default function ParkingUtilsWorkspace() {
     now.setSeconds(0, 0);
 
     const selectedStart = new Date(`${bookingDate}T${startTime}:00+07:00`);
-    let endBookingDate = bookingDate;
-    if (endTime <= startTime) {
-      const d = new Date(`${bookingDate}T00:00:00+07:00`);
-      d.setDate(d.getDate() + 1);
-      endBookingDate = d.toLocaleDateString('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' });
-    }
     const selectedEnd = new Date(`${endBookingDate}T${endTime}:00+07:00`);
 
     const diffStartMinutes = (selectedStart.getTime() - now.getTime()) / (1000 * 60);
@@ -835,6 +837,13 @@ export default function ParkingUtilsWorkspace() {
     }
   };
 
+  const handlePayLater = () => {
+    setShowPaymentModal(false);
+    setCreatedBookingId(null);
+    fetchActiveData();
+    showToast('Booking reserved! Please pay the deposit within 15 minutes in your Payments dashboard.', 'success');
+  };
+
   const handleOnlinePaymentRedirect = async () => {
     if (!createdBookingId) return;
     setIsPaying(true);
@@ -882,7 +891,7 @@ export default function ParkingUtilsWorkspace() {
     }
     setIsSavingModify(true);
     try {
-      const checkinDate = new Date(`${newCheckinDate}T${newCheckinTime}:00`);
+      const checkinDate = new Date(`${newCheckinDate}T${newCheckinTime}:00+07:00`);
       const originalDurationMs = modifyingBooking.plannedCheckoutTime 
         ? (new Date(modifyingBooking.plannedCheckoutTime).getTime() - new Date(modifyingBooking.plannedCheckinTime).getTime())
         : 4 * 60 * 60 * 1000;
@@ -1161,29 +1170,29 @@ export default function ParkingUtilsWorkspace() {
                           </div>
                           <div className="flex gap-2">
                             {booking.bookingStatus === 'Pending' && (
-                              <button
-                                onClick={() => {
-                                  setCreatedBookingId(booking.id);
-                                  setDepositAmount(booking.depositAmount);
-                                  setShowPaymentModal(true);
-                                }}
-                                className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg transition-all"
-                              >
-                                Pay Now
-                              </button>
-                            )}
-                            {booking.bookingStatus === 'Confirmed' && (
-                              <button
-                                onClick={() => openModifyModal(booking)}
-                                className="px-3 py-2 bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-200 text-xs font-bold rounded-lg transition-all flex items-center gap-1"
-                              >
-                                <Edit3 className="w-3.5 h-3.5" />
-                                Edit
-                              </button>
+                              <>
+                                <button
+                                  onClick={() => {
+                                    setCreatedBookingId(booking.id);
+                                    setDepositAmount(booking.depositAmount);
+                                    setShowPaymentModal(true);
+                                  }}
+                                  className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg transition-all"
+                                >
+                                  Pay Now
+                                </button>
+                                <button
+                                  onClick={() => openModifyModal(booking)}
+                                  className="px-3 py-2 bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-200 text-xs font-bold rounded-lg transition-all flex items-center gap-1"
+                                >
+                                  <Edit3 className="w-3.5 h-3.5" />
+                                  Edit
+                                </button>
+                              </>
                             )}
                             <button
                               onClick={() => openCancelConfirm(booking.id)}
-                              className="px-3 py-2 text-red-650 hover:bg-red-50 text-xs font-bold rounded-lg transition-all"
+                              className="px-3 py-2 text-white bg-red-500 hover:bg-red-600 text-xs font-bold rounded-lg transition-all"
                             >
                               Cancel
                             </button>
@@ -1652,15 +1661,34 @@ export default function ParkingUtilsWorkspace() {
                     <p className="text-xs text-slate-400 mt-0.5">Choose date and parking duration (minimum 4 hours).</p>
                   </div>
                   <div className="space-y-4">
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Reservation Date</label>
-                      <input
-                        type="date"
-                        value={bookingDate}
-                        min={new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' })}
-                        onChange={(e) => setBookingDate(e.target.value)}
-                        className="w-full bg-slate-50 border border-[#e2e8f0] rounded-xl px-4 py-2.5 text-sm focus:border-[#00a86b] focus:ring-[#00a86b]/10 transition-all outline-none font-sans"
-                      />
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">From Date</label>
+                        <input
+                          type="date"
+                          value={bookingDate}
+                          min={new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' })}
+                          max={maxBookingDate}
+                          onChange={(e) => {
+                            setBookingDate(e.target.value);
+                            if (endBookingDate && e.target.value > endBookingDate) {
+                              setEndBookingDate(e.target.value);
+                            }
+                          }}
+                          className="w-full bg-slate-50 border border-[#e2e8f0] rounded-xl px-4 py-2.5 text-sm focus:border-[#00a86b] focus:ring-[#00a86b]/10 transition-all outline-none font-sans"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">To Date</label>
+                        <input
+                          type="date"
+                          value={endBookingDate}
+                          min={bookingDate || new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' })}
+                          max={maxBookingDate}
+                          onChange={(e) => setEndBookingDate(e.target.value)}
+                          className="w-full bg-slate-50 border border-[#e2e8f0] rounded-xl px-4 py-2.5 text-sm focus:border-[#00a86b] focus:ring-[#00a86b]/10 transition-all outline-none font-sans"
+                        />
+                      </div>
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-1">
@@ -1711,10 +1739,11 @@ export default function ParkingUtilsWorkspace() {
                         {selectedVehicleTypeId === 1 ? 'Motorbike Shared Zone' : `Slot ${selectedSlotCode}`}
                       </span>
                     </div>
-                    <div className="flex justify-between items-center">
+                    <div className="flex justify-between items-start">
                       <span className="text-slate-400">Booking Time</span>
-                      <span className="font-bold text-slate-800">
-                        {bookingDate} | {startTime} - {endTime}
+                      <span className="font-bold text-slate-800 text-right leading-relaxed">
+                        From: {bookingDate} {startTime}<br />
+                        To: {endBookingDate} {endTime}
                       </span>
                     </div>
                   </div>
@@ -1829,10 +1858,17 @@ export default function ParkingUtilsWorkspace() {
                     </>
                   ) : (
                     <>
-                      Pay Online via VNPay
+                      Pay Online via VNPAY
                       <ArrowRight className="w-4 h-4" />
                     </>
                   )}
+                </button>
+                <button
+                  onClick={handlePayLater}
+                  disabled={isPaying || isCancelling}
+                  className="w-full py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold text-xs rounded-xl transition-all flex items-center justify-center gap-1.5"
+                >
+                  Pay Later (Thanh toán sau)
                 </button>
                 <button
                   onClick={handleCancelCreatedBooking}
@@ -1876,6 +1912,7 @@ export default function ParkingUtilsWorkspace() {
                   type="date"
                   value={newCheckinDate}
                   min={new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' })}
+                  max={maxBookingDate}
                   onChange={(e) => setNewCheckinDate(e.target.value)}
                   className="w-full bg-slate-50 border border-[#e2e8f0] rounded-xl px-4 py-2.5 text-sm focus:border-emerald-600 outline-none font-sans"
                 />

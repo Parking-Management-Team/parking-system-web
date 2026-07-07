@@ -6,6 +6,7 @@ import { useAuth } from '@/features/auth/context/AuthContext';
 import { fetchCards } from '@/features/card/services/card.service';
 import type { ParkingCard } from '@/features/card/types/card';
 import { blacklistService } from '@/features/blacklist/services/blacklist.service';
+import { api } from '@/lib/api/client';
 import type { BlacklistDto } from '@/features/blacklist/types';
 import {
   checkInVehicle,
@@ -34,7 +35,6 @@ type GateOverlay =
       message: string;
     };
 
-const BUILDING_ID = 1;
 const STAFF_ID = 2;
 
 // TODO(api-confirm): giữ mapping tạm theo yêu cầu test hiện tại.
@@ -82,6 +82,8 @@ const isConfirmedBookingForPlate = (
 export default function VehicleCheckin() {
   const { showToast } = useAuth();
 
+  const [buildingId, setBuildingId] = useState<number>(3);
+  const [buildings, setBuildings] = useState<{ id: number; name: string }[]>([]);
   const [cards, setCards] = useState<ParkingCard[]>([]);
   const [activeSessions, setActiveSessions] = useState<VehicleCheckinSession[]>([]);
   const [bookings, setBookings] = useState<VehicleCheckinBooking[]>([]);
@@ -133,12 +135,31 @@ export default function VehicleCheckin() {
   }, []);
 
   const loadGateData = useCallback(async () => {
+    let currentBuildingId = buildingId;
+    try {
+      const buildingsRes = await api.get<any>('/Buildings/paged?pageSize=100');
+      if (buildingsRes.success && buildingsRes.data?.items && Array.isArray(buildingsRes.data.items)) {
+        const mapped = buildingsRes.data.items.map((b: any) => ({ id: b.id, name: b.name }));
+        setBuildings(mapped);
+        
+        if (mapped.length > 0) {
+          const hasCurrent = mapped.some((b: any) => b.id === buildingId);
+          if (!hasCurrent) {
+            currentBuildingId = mapped[0].id;
+            setBuildingId(currentBuildingId);
+          }
+        }
+      }
+    } catch (err) {
+      console.warn('Failed to fetch building list:', err);
+    }
+
     // Staff check-in cần Cards/Active Sessions/Booking/Blacklist để hỗ trợ vận hành cổng vào.
     // Booking/Blacklist chỉ là dữ liệu hỗ trợ; nếu endpoint phụ lỗi thì không được làm hỏng check-in chính.
     const [cardData, sessionData, bookingData, blacklistData] = await Promise.all([
       fetchCards(),
       fetchActiveParkingSessions(),
-      fetchCheckinBookingsByBuilding(BUILDING_ID).catch(async (error) => {
+      fetchCheckinBookingsByBuilding(currentBuildingId).catch(async (error) => {
         console.warn(
           'Booking by building API is not ready; falling back to all bookings.',
           error
@@ -164,7 +185,7 @@ export default function VehicleCheckin() {
     setActiveSessions(sessionData);
     setBookings(bookingData);
     setBlacklist(blacklistData.items ?? []);
-  }, []);
+  }, [buildingId]);
 
   useEffect(() => {
     setIsMounted(true);
@@ -259,9 +280,11 @@ export default function VehicleCheckin() {
     try {
       const session = await checkInVehicle({
         licensePlate: formattedPlate,
-        vehicleTypeId: VEHICLE_TYPE_ID_BY_TYPE[vehicleType],
+        vehicleTypeId: matchedBooking && matchedBooking.vehicleTypeId
+          ? matchedBooking.vehicleTypeId
+          : VEHICLE_TYPE_ID_BY_TYPE[vehicleType],
         cardCode: normalizedCardCode,
-        buildingId: BUILDING_ID,
+        buildingId: buildingId,
         staffId: STAFF_ID,
         ...(matchedBooking ? { bookingId: matchedBooking.id } : {}),
       });
@@ -340,6 +363,24 @@ export default function VehicleCheckin() {
             </div>
 
             <div className="space-y-3">
+              {buildings.length > 0 && (
+                <div>
+                  <label className="text-xs font-black uppercase tracking-wider text-slate-500">
+                    Tòa nhà (Building)
+                  </label>
+                  <select
+                    value={buildingId}
+                    onChange={(e) => setBuildingId(Number(e.target.value))}
+                    className="mt-2 block w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-black text-slate-700 outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100"
+                  >
+                    {buildings.map((b) => (
+                      <option key={b.id} value={b.id}>
+                        {b.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
               <div>
                 <label className="text-xs font-black uppercase tracking-wider text-slate-500">
                   License plate
@@ -432,7 +473,7 @@ export default function VehicleCheckin() {
                   <div className="mt-2 grid grid-cols-2 gap-2 text-xs font-bold text-slate-600">
                     <span>Deposit: {formatCurrency(matchedBooking.depositAmount)}</span>
                     <span>Grace: {formatDateTime(matchedBooking.checkinGraceUntil)}</span>
-                    <span>Building: {matchedBooking.buildingName || BUILDING_ID}</span>
+                    <span>Building: {matchedBooking.buildingName || buildingId}</span>
                     <span>Type: {matchedBooking.vehicleTypeName}</span>
                   </div>
                 )}

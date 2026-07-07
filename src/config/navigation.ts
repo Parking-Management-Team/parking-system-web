@@ -196,11 +196,6 @@ export const ROLE_NAVIGATION: Record<string, NavigationItem[]> = {
       icon: 'account_balance_wallet',
     },
     {
-      label: 'Payment History',
-      href: '/dashboard/driver/payment-history',
-      icon: 'receipt_long',
-    },
-    {
       label: 'My Vehicles',
       href: '/dashboard/driver/vehicles',
       icon: 'directions_car',

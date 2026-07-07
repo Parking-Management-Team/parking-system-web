@@ -265,33 +265,6 @@ export function RegisterForm({ isModal = false, onSuccess, onClose, onSwitchMode
     }
   }, [loginWithGoogle, isModal, onSuccess, router, startCooldown, showToast]);
 
-  // Google sign up mock fallback (cho việc test UI không cần thật)
-  const handleGoogleSignUpMock = async () => {
-    setGoogleLoading(true);
-    try {
-      await loginWithGoogle();
-      showToast('Welcome to NexPark! Account created successfully.', 'success');
-      if (isModal && onSuccess) {
-        onSuccess();
-      } else {
-        router.push('/');
-      }
-    } catch (err: any) {
-      if (err.code === 'REQUIRE_OTP_VERIFICATION') {
-        setIsGoogleFlow(true);
-        setGoogleIdToken("mock_google_id_token_from_frontend");
-        setEmail(err.email || 'customer@gmail.com');
-        setFullName(err.fullName || 'Mock Google User');
-        setStep(2);
-        startCooldown();
-        showToast('Google registration requires verification. OTP sent to your email.', 'info');
-      } else {
-        setErrors({ form: err.message || 'Failed to sign up with Google' });
-      }
-    } finally {
-      setGoogleLoading(false);
-    }
-  };
 
   // Khởi tạo Google Button trên RegisterForm
   React.useEffect(() => {
@@ -426,14 +399,6 @@ export function RegisterForm({ isModal = false, onSuccess, onClose, onSwitchMode
             {/* Google Sign Up */}
             <div className="w-full flex flex-col items-center py-0.5 gap-2">
               <div id="google-signup-btn" className="w-full flex justify-center" />
-              {/* Dev Mock Fallback Button - Bấm để test nhanh khi không chạy SDK thực */}
-              <button
-                type="button"
-                onClick={handleGoogleSignUpMock}
-                className="text-[10px] text-gray-400 hover:text-emerald-600 transition-colors mt-1 underline"
-              >
-                (Dev Mock) Sign up with Google Mock
-              </button>
             </div>
 
             {/* Divider */}

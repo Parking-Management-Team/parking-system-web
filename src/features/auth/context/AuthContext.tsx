@@ -240,12 +240,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       let tokenToSend = idToken;
 
-      // Hỗ trợ kiểm thử UI: Nếu click nút mà chưa cấu hình SDK Google lấy token thật,
-      // hệ thống sẽ tự động dùng Token giả lập gửi lên Backend để bạn kiểm thử luồng API.
       if (!tokenToSend) {
-        console.warn('Warning: Google ID Token not received. Automatically using mock token.');
-        await new Promise((resolve) => setTimeout(resolve, 1500));
-        tokenToSend = "mock_google_id_token_from_frontend";
+        throw new Error('Google ID Token not received.');
       }
 
       // 1. Gửi ID Token nhận từ Google lên API của bạn

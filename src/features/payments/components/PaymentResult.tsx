@@ -1,11 +1,12 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 
 function PaymentResultContent() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   
   const [status, setStatus] = useState<'success' | 'failed' | 'loading'>('loading');
   const [details, setDetails] = useState<{
@@ -20,14 +21,20 @@ function PaymentResultContent() {
   useEffect(() => {
     if (!searchParams) return;
 
-    // 1. Detect VNPay params
+    // Detect backend redirect parameters
+    const statusParam = searchParams.get('status');
+    const bookingId = searchParams.get('bookingId');
+    const paymentId = searchParams.get('paymentId');
+    const backendMessage = searchParams.get('message');
+
+    // Detect raw VNPay params
     const vnp_ResponseCode = searchParams.get('vnp_ResponseCode');
     const vnp_TxnRef = searchParams.get('vnp_TxnRef');
     const vnp_Amount = searchParams.get('vnp_Amount');
     const vnp_TransactionNo = searchParams.get('vnp_TransactionNo');
     const vnp_PayDate = searchParams.get('vnp_PayDate');
 
-    // 2. Detect Momo params
+    // Detect MoMo params
     const resultCode = searchParams.get('resultCode');
     const orderId = searchParams.get('orderId');
     const amount = searchParams.get('amount');
@@ -44,51 +51,76 @@ function PaymentResultContent() {
       payDate: new Date().toLocaleString('vi-VN'),
     };
 
-    if (vnp_ResponseCode !== null) {
-      isSuccess = vnp_ResponseCode === '00';
-      const parsedAmount = vnp_Amount ? (parseInt(vnp_Amount) / 100).toLocaleString('vi-VN') + ' VND' : '—';
-      
-      // Parse VNPay date (YYYYMMDDHHMMSS)
-      let formattedDate = '—';
-      if (vnp_PayDate && vnp_PayDate.length === 14) {
-        const year = vnp_PayDate.substring(0, 4);
-        const month = vnp_PayDate.substring(4, 6);
-        const day = vnp_PayDate.substring(6, 8);
-        const hour = vnp_PayDate.substring(8, 10);
-        const minute = vnp_PayDate.substring(10, 12);
-        const second = vnp_PayDate.substring(12, 14);
-        formattedDate = `${day}/${month}/${year} ${hour}:${minute}:${second}`;
+    // Helper to parse VNPay Date
+    const parseVnpDate = (dateStr: string | null) => {
+      if (dateStr && dateStr.length === 14) {
+        const year = dateStr.substring(0, 4);
+        const month = dateStr.substring(4, 6);
+        const day = dateStr.substring(6, 8);
+        const hour = dateStr.substring(8, 10);
+        const minute = dateStr.substring(10, 12);
+        const second = dateStr.substring(12, 14);
+        return `${day}/${month}/${year} ${hour}:${minute}:${second}`;
       }
+      return new Date().toLocaleString('vi-VN');
+    };
 
+    if (statusParam !== null) {
+      // 1. Backend-mediated Redirect Flow (VNPay / MoMo confirmed by backend)
+      isSuccess = statusParam === 'success';
+      const parsedAmount = vnp_Amount ? (parseInt(vnp_Amount) / 100).toLocaleString('vi-VN') + ' ₫' : '—';
+      computedDetails = {
+        transactionId: paymentId || '—',
+        orderId: bookingId || '—',
+        amount: parsedAmount,
+        method: 'VNPay',
+        message: backendMessage ? decodeURIComponent(backendMessage) : (isSuccess ? 'Đã hoàn tất thanh toán cọc và xác nhận đặt chỗ thành công.' : 'Giao dịch thất bại'),
+        payDate: parseVnpDate(vnp_PayDate),
+      };
+      
+      setStatus(isSuccess ? 'success' : 'failed');
+      setDetails(computedDetails);
+    } else if (vnp_ResponseCode !== null) {
+      // 2. Direct VNPay Redirect Flow
+      isSuccess = vnp_ResponseCode === '00';
+      const parsedAmount = vnp_Amount ? (parseInt(vnp_Amount) / 100).toLocaleString('vi-VN') + ' ₫' : '—';
       computedDetails = {
         transactionId: vnp_TransactionNo || '—',
         orderId: vnp_TxnRef || '—',
         amount: parsedAmount,
         method: 'VNPay',
-        message: isSuccess ? 'Giao dịch thành công' : `Giao dịch thất bại (Lỗi ${vnp_ResponseCode})`,
-        payDate: formattedDate !== '—' ? formattedDate : new Date().toLocaleString('vi-VN'),
+        message: isSuccess ? 'Đã hoàn tất thanh toán cọc và xác nhận đặt chỗ thành công.' : `Giao dịch thất bại (Lỗi ${vnp_ResponseCode})`,
+        payDate: parseVnpDate(vnp_PayDate),
       };
       
       setStatus(isSuccess ? 'success' : 'failed');
       setDetails(computedDetails);
     } else if (resultCode !== null) {
+      // 3. Direct MoMo Redirect Flow
       isSuccess = resultCode === '0';
-      const parsedAmount = amount ? parseInt(amount).toLocaleString('vi-VN') + ' VND' : '—';
+      const parsedAmount = amount ? parseInt(amount).toLocaleString('vi-VN') + ' ₫' : '—';
       computedDetails = {
         transactionId: transId || '—',
         orderId: orderId || '—',
         amount: parsedAmount,
         method: 'MoMo',
-        message: message || (isSuccess ? 'Giao dịch thành công' : 'Giao dịch thất bại'),
+        message: message || (isSuccess ? 'Giao dịch thanh toán cọc thành công.' : 'Giao dịch thanh toán cọc thất bại'),
         payDate: new Date().toLocaleString('vi-VN'),
       };
       
       setStatus(isSuccess ? 'success' : 'failed');
       setDetails(computedDetails);
     } else {
-      // If accessed directly without params
+      // 4. Direct access without query params (Failure)
       setStatus('failed');
-      computedDetails.message = 'Không tìm thấy thông tin giao dịch.';
+      computedDetails = {
+        transactionId: '—',
+        orderId: '—',
+        amount: '—',
+        method: 'Unknown',
+        message: 'Không tìm thấy thông tin kết quả giao dịch thanh toán.',
+        payDate: new Date().toLocaleString('vi-VN'),
+      };
       setDetails(computedDetails);
     }
   }, [searchParams]);
@@ -96,8 +128,11 @@ function PaymentResultContent() {
   if (status === 'loading') {
     return (
       <div className="flex flex-col items-center justify-center min-h-[400px]">
-        <div className="w-12 h-12 border-4 border-[#006d43] border-t-transparent rounded-full animate-spin"></div>
-        <p className="mt-4 text-slate-500 font-bold text-sm">Đang xác thực giao dịch...</p>
+        <div className="relative w-16 h-16">
+          <div className="absolute inset-0 rounded-full border-4 border-emerald-100"></div>
+          <div className="absolute inset-0 rounded-full border-4 border-emerald-600 border-t-transparent animate-spin"></div>
+        </div>
+        <p className="mt-6 text-slate-600 font-bold text-sm tracking-wide animate-pulse">Đang xác thực giao dịch từ cổng thanh toán...</p>
       </div>
     );
   }
@@ -105,70 +140,134 @@ function PaymentResultContent() {
   const isSuccess = status === 'success';
 
   return (
-    <div className="w-full max-w-md mx-auto bg-white rounded-3xl border border-slate-200/80 shadow-xl overflow-hidden p-6 md:p-8 animate-in fade-in slide-in-from-bottom-4 duration-300">
-      <div className="flex flex-col items-center text-center">
-        {/* Status Icon */}
-        <div className={`w-20 h-20 rounded-full flex items-center justify-center mb-6 ${
-          isSuccess ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-650'
-        }`}>
-          <span className="material-symbols-outlined text-[48px] font-semibold">
-            {isSuccess ? 'check_circle' : 'cancel'}
-          </span>
-        </div>
+    <div className="relative w-full max-w-lg mx-auto">
+      {/* Background Decorative Glow */}
+      <div className={`absolute -inset-1 rounded-[38px] blur-xl opacity-30 transition-all duration-500 ${
+        isSuccess ? 'bg-emerald-400 group-hover:opacity-40' : 'bg-red-400 group-hover:opacity-40'
+      }`} />
 
-        {/* Status Text */}
-        <h2 className={`text-2xl font-black tracking-tight ${
-          isSuccess ? 'text-emerald-700' : 'text-red-700'
-        }`}>
-          {isSuccess ? 'Thanh Toán Thành Công' : 'Thanh Toán Thất Bại'}
-        </h2>
-        <p className="text-sm text-slate-500 font-semibold mt-2 px-4">
-          {details?.message}
-        </p>
+      {/* Main Card Container */}
+      <div className="relative w-full bg-white/95 backdrop-blur-md rounded-[32px] border border-slate-100 shadow-2xl overflow-hidden p-8 md:p-10 transition-all duration-300">
+        
+        {/* Dynamic Colorful Header Accent */}
+        <div className={`absolute top-0 left-0 right-0 h-2 ${
+          isSuccess ? 'bg-gradient-to-r from-emerald-400 via-teal-500 to-emerald-600' : 'bg-gradient-to-r from-rose-500 via-red-500 to-orange-500'
+        }`} />
 
-        {/* Separator line */}
-        <div className="w-full border-t border-dashed border-slate-200 my-6"></div>
+        <div className="flex flex-col items-center text-center">
+          
+          {/* Custom SVG Icon Container with animations */}
+          <div className="relative mb-6">
+            <div className={`absolute inset-0 rounded-full blur-lg opacity-40 scale-125 ${
+              isSuccess ? 'bg-emerald-200' : 'bg-rose-200'
+            }`} />
+            <div className={`relative w-24 h-24 rounded-full flex items-center justify-center transition-transform duration-500 hover:scale-105 ${
+              isSuccess ? 'bg-emerald-50 text-emerald-600 border-2 border-emerald-500/20' : 'bg-rose-50 text-rose-600 border-2 border-rose-500/20'
+            }`}>
+              {isSuccess ? (
+                // Success SVG Icon
+                <svg xmlns="http://www.w3.org/2000/svg" className="w-12 h-12 stroke-current" fill="none" viewBox="0 0 24 24" strokeWidth="3">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" className="animate-dash" style={{ strokeDasharray: 50, strokeDashoffset: 50, animation: 'drawCheck 0.6s cubic-bezier(0.65, 0, 0.45, 1) 0.2s forwards' }} />
+                </svg>
+              ) : (
+                // Failure SVG Icon
+                <svg xmlns="http://www.w3.org/2000/svg" className="w-12 h-12 stroke-current" fill="none" viewBox="0 0 24 24" strokeWidth="2.5">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" className="animate-pulse" />
+                </svg>
+              )}
+            </div>
+          </div>
 
-        {/* Details List */}
-        <div className="w-full space-y-4 text-left">
-          <div className="flex justify-between items-center text-xs">
-            <span className="font-bold text-slate-400 uppercase tracking-wider">Phương thức</span>
-            <span className="font-extrabold text-slate-700">{details?.method}</span>
-          </div>
-          <div className="flex justify-between items-center text-xs">
-            <span className="font-bold text-slate-400 uppercase tracking-wider">Mã giao dịch</span>
-            <span className="font-mono font-extrabold text-slate-700">{details?.transactionId}</span>
-          </div>
-          <div className="flex justify-between items-center text-xs">
-            <span className="font-bold text-slate-400 uppercase tracking-wider">Mã đơn hàng</span>
-            <span className="font-mono font-extrabold text-slate-700">{details?.orderId}</span>
-          </div>
-          <div className="flex justify-between items-center text-xs">
-            <span className="font-bold text-slate-400 uppercase tracking-wider">Số tiền</span>
-            <span className="text-sm font-black text-slate-900">{details?.amount}</span>
-          </div>
-          <div className="flex justify-between items-center text-xs">
-            <span className="font-bold text-slate-400 uppercase tracking-wider">Thời gian</span>
-            <span className="font-extrabold text-slate-650">{details?.payDate}</span>
-          </div>
-        </div>
+          {/* Status Title */}
+          <h2 className={`text-2xl md:text-3xl font-black tracking-tight ${
+            isSuccess ? 'text-emerald-800' : 'text-rose-800'
+          }`}>
+            {isSuccess ? 'Thanh Toán Thành Công!' : 'Thanh Toán Thất Bại'}
+          </h2>
+          
+          <p className="text-slate-500 text-sm font-semibold mt-3 max-w-sm leading-relaxed px-2">
+            {details?.message}
+          </p>
 
-        {/* Actions */}
-        <div className="w-full flex flex-col gap-3 mt-8">
-          <Link
-            href="/dashboard/driver/parking-utils"
-            className="w-full py-3 bg-[#006d43] hover:bg-[#005c38] text-white font-extrabold text-sm rounded-2xl text-center shadow-lg shadow-[#006d43]/10 transition-all"
-          >
-            Tiếp tục đặt chỗ
-          </Link>
-          <Link
-            href="/dashboard/driver"
-            className="w-full py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold text-sm rounded-2xl text-center transition-all"
-          >
-            Về Trang chủ Dashboard
-          </Link>
+          {/* Ticket Information Separator */}
+          <div className="relative w-full my-8">
+            <div className="absolute left-[-42px] w-6 h-6 bg-[#f9f9ff] rounded-full border-r border-slate-200/50 shadow-inner"></div>
+            <div className="absolute right-[-42px] w-6 h-6 bg-[#f9f9ff] rounded-full border-l border-slate-200/50 shadow-inner"></div>
+            <div className="w-full border-t border-dashed border-slate-200 pt-1"></div>
+          </div>
+
+          {/* Detailed Transaction Info */}
+          <div className="w-full bg-slate-50/50 rounded-2xl border border-slate-100 p-5 md:p-6 space-y-4 text-left">
+            
+            <div className="flex justify-between items-center">
+              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Phương thức</span>
+              <span className="text-xs font-black text-slate-700 bg-white border border-slate-100 px-3 py-1 rounded-full shadow-sm">{details?.method}</span>
+            </div>
+
+            <div className="flex justify-between items-center">
+              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Mã giao dịch</span>
+              <span className="text-xs font-mono font-bold text-slate-700 select-all">{details?.transactionId}</span>
+            </div>
+
+            <div className="flex justify-between items-center">
+              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Mã đơn hàng</span>
+              <span className="text-xs font-mono font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded">{details?.orderId}</span>
+            </div>
+
+            <div className="flex justify-between items-center border-t border-slate-100 pt-3 mt-1">
+              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Tổng thanh toán</span>
+              <span className="text-lg font-black text-slate-900">{details?.amount}</span>
+            </div>
+
+            <div className="flex justify-between items-center border-t border-slate-100 pt-3">
+              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Thời gian</span>
+              <span className="text-xs font-bold text-slate-500">{details?.payDate}</span>
+            </div>
+          </div>
+
+          {/* Notification for Success Check-in */}
+          {isSuccess && (
+            <div className="w-full mt-6 bg-emerald-50/50 border border-emerald-100/50 rounded-2xl p-4 flex gap-3 text-left">
+              <div className="text-emerald-600 flex-shrink-0 mt-0.5">
+                <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 fill-current" viewBox="0 0 24 24">
+                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/>
+                </svg>
+              </div>
+              <div>
+                <h4 className="text-xs font-bold text-emerald-800">Lưu ý quan trọng</h4>
+                <p className="text-[11px] text-emerald-700/80 font-medium leading-normal mt-0.5">
+                  Vui lòng đến bãi đỗ đúng giờ. Booking có thời hạn ân hạn là 30 phút. Quá thời gian ân hạn, booking sẽ tự động hủy và không được hoàn cọc.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Action Buttons */}
+          <div className="w-full flex flex-col gap-3 mt-8">
+            <Link
+              href="/dashboard/driver"
+              className="w-full py-3.5 bg-slate-900 hover:bg-slate-800 text-white font-extrabold text-sm rounded-2xl text-center shadow-lg shadow-slate-900/10 active:scale-[0.98] transition-all"
+            >
+              Về Trang chủ Dashboard
+            </Link>
+            <Link
+              href="/dashboard/driver/booking"
+              className="w-full py-3.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold text-sm rounded-2xl text-center active:scale-[0.98] transition-all"
+            >
+              Xem Lịch sử Đặt chỗ
+            </Link>
+          </div>
         </div>
       </div>
+      
+      {/* Inline styles for SVG checkmark animations */}
+      <style jsx global>{`
+        @keyframes drawCheck {
+          to {
+            stroke-dashoffset: 0;
+          }
+        }
+      `}</style>
     </div>
   );
 }

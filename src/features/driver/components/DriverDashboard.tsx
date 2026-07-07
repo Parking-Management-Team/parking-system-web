@@ -607,7 +607,7 @@ export default function DriverDashboard() {
                 <span className="text-[10px] font-bold text-slate-500 uppercase tracking-tight">Scan QR</span>
               </button>
               <button
-                onClick={() => router.push('/dashboard/driver/payment-history')}
+                onClick={() => router.push('/dashboard/driver/payments')}
                 className="p-4 bg-slate-50 border border-[#e2e8f0] rounded-xl flex flex-col items-center gap-2 hover:border-[#00a86b]/40 hover:bg-emerald-50/10 transition-all group"
               >
                 <FileText className="w-5 h-5 text-emerald-600 group-hover:scale-110 transition-transform" />

@@ -238,7 +238,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const loginWithGoogle = React.useCallback(async (idToken?: string): Promise<User> => {
     setIsLoading(true);
     try {
-      let tokenToSend = idToken;
+      const tokenToSend = idToken;
 
       if (!tokenToSend) {
         throw new Error('Google ID Token not received.');

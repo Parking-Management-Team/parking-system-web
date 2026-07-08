@@ -13,9 +13,12 @@ import {
   fetchActiveParkingSessions,
   fetchCheckinBookings,
   fetchCheckinBookingsByBuilding,
+  fetchAvailableSlotsForReallocation,
   type VehicleCheckinBooking,
   type VehicleCheckinSession,
+  type ReallocateSlotDto,
 } from '@/features/vehicles/services/vehicle-checkin.service';
+import { ApiError } from '@/lib/api/client';
 
 type VehicleType = 'CAR' | 'MOTORCYCLE';
 
@@ -95,6 +98,11 @@ export default function VehicleCheckin() {
   const [overlay, setOverlay] = useState<GateOverlay | null>(null);
   const [isMounted, setIsMounted] = useState(false);
   const [isSessionsOpen, setIsSessionsOpen] = useState(false);
+
+  const [showReallocateBtn, setShowReallocateBtn] = useState(false);
+  const [isReallocateModalOpen, setIsReallocateModalOpen] = useState(false);
+  const [availableSlots, setAvailableSlots] = useState<ReallocateSlotDto[]>([]);
+  const [selectedSlotId, setSelectedSlotId] = useState<number | null>(null);
 
   const formattedPlate = normalizeText(licensePlate);
   const normalizedCardCode = normalizeText(cardCode);
@@ -276,6 +284,7 @@ export default function VehicleCheckin() {
     }
 
     setIsSubmitting(true);
+    setShowReallocateBtn(false);
 
     try {
       const session = await checkInVehicle({
@@ -304,13 +313,96 @@ export default function VehicleCheckin() {
         checkInTime: session.checkInTime || new Date().toISOString(),
       });
     } catch (error) {
+      let isSlotUnavailableError = false;
+      let errMsg = 'This vehicle cannot be checked in. Please verify the information.';
+
+      if (error instanceof ApiError && error.data && typeof error.data === 'object') {
+        const body = error.data as { errorCode?: string; message?: string };
+        if (body.errorCode === 'SLOT_NOT_AVAILABLE') {
+          isSlotUnavailableError = true;
+        }
+        if (body.message) errMsg = body.message;
+      } else if (error instanceof Error) {
+        errMsg = error.message;
+        if (error.message.includes('SLOT_NOT_AVAILABLE') || error.message.includes('chiếm dụng') || error.message.includes('bận')) {
+          isSlotUnavailableError = true;
+        }
+      }
+
+      if (isSlotUnavailableError && matchedBooking) {
+        setShowReallocateBtn(true);
+      }
+
       showGateOverlay({
         type: 'error',
         title: 'Check-in failed',
-        message:
-          error instanceof Error
-            ? error.message
-            : 'This vehicle cannot be checked in. Please verify the information.',
+        message: errMsg,
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleOpenReallocate = async () => {
+    if (!matchedBooking) return;
+    try {
+      setIsSubmitting(true);
+      const slots = await fetchAvailableSlotsForReallocation(
+        buildingId,
+        matchedBooking.vehicleTypeId ?? VEHICLE_TYPE_ID_BY_TYPE[vehicleType],
+        matchedBooking.plannedCheckinTime || new Date().toISOString(),
+        matchedBooking.plannedCheckoutTime || new Date(Date.now() + 4 * 3600000).toISOString()
+      );
+      setAvailableSlots(slots);
+      setIsReallocateModalOpen(true);
+    } catch (err) {
+      showToast('Không thể tải danh sách vị trí đỗ trống: ' + (err instanceof Error ? err.message : String(err)), 'error');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleConfirmReallocateCheckin = async () => {
+    if (!selectedSlotId || !matchedBooking) return;
+    setIsReallocateModalOpen(false);
+    setIsSubmitting(true);
+    try {
+      const session = await checkInVehicle({
+        licensePlate: formattedPlate,
+        vehicleTypeId: matchedBooking.vehicleTypeId ?? VEHICLE_TYPE_ID_BY_TYPE[vehicleType],
+        cardCode: normalizedCardCode,
+        buildingId: buildingId,
+        staffId: STAFF_ID,
+        bookingId: matchedBooking.id,
+        overrideSlotId: selectedSlotId,
+      });
+
+      await loadGateData();
+      setCardCode('');
+      setShowReallocateBtn(false);
+      setSelectedSlotId(null);
+
+      showGateOverlay({
+        type: 'success',
+        title: 'Check-in successful',
+        message: `Đổi sang vị trí đỗ mới và check-in thành công cho xe ${formattedPlate}.`,
+        session,
+        vehicleType,
+        cardCode: normalizedCardCode,
+        checkInTime: session.checkInTime || new Date().toISOString(),
+      });
+    } catch (error) {
+      let errMsg = 'Đổi vị trí và Check-in thất bại.';
+      if (error instanceof ApiError && error.data && typeof error.data === 'object') {
+        const body = error.data as { message?: string };
+        if (body.message) errMsg = body.message;
+      } else if (error instanceof Error) {
+        errMsg = error.message;
+      }
+      showGateOverlay({
+        type: 'error',
+        title: 'Reallocation failed',
+        message: errMsg,
       });
     } finally {
       setIsSubmitting(false);
@@ -489,6 +581,18 @@ export default function VehicleCheckin() {
                 </span>
                 {isSubmitting ? 'Checking in...' : 'Confirm Check-in'}
               </button>
+
+              {showReallocateBtn && matchedBooking && (
+                <button
+                  type="button"
+                  onClick={handleOpenReallocate}
+                  disabled={isSubmitting}
+                  className="mt-3 flex w-full items-center justify-center gap-2 rounded-2xl bg-amber-500 py-3.5 text-base font-black text-white shadow-lg shadow-amber-500/20 transition hover:bg-amber-600 disabled:cursor-not-allowed disabled:bg-slate-300"
+                >
+                  <span className="material-symbols-outlined">swap_horiz</span>
+                  Đổi vị trí đỗ (Reallocate Slot)
+                </button>
+              )}
             </div>
           </form>
 
@@ -658,6 +762,83 @@ export default function VehicleCheckin() {
                 </div>
               </div>
             )}
+          </div>,
+          document.body
+        )}
+
+      {isMounted &&
+        isReallocateModalOpen &&
+        createPortal(
+          <div className="fixed inset-0 z-[100000] flex items-center justify-center bg-slate-950/70 p-6 backdrop-blur-sm">
+            <div className="flex w-full max-w-lg flex-col rounded-[2rem] bg-white p-6 shadow-2xl">
+              <div className="flex shrink-0 items-center justify-between gap-4 border-b border-slate-100 pb-4">
+                <div>
+                  <h2 className="text-xl font-black text-slate-900">
+                    Chọn vị trí đỗ mới
+                  </h2>
+                  <p className="text-xs font-semibold text-slate-500">
+                    Chọn một vị trí đỗ trống khác trong tòa nhà.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsReallocateModalOpen(false)}
+                  className="rounded-2xl bg-slate-100 p-2.5 text-slate-600 hover:bg-slate-200"
+                  aria-label="Close modal"
+                >
+                  <span className="material-symbols-outlined text-lg">close</span>
+                </button>
+              </div>
+
+              <div className="mt-4 min-h-0 flex-1 overflow-y-auto max-h-[320px] pr-1">
+                {availableSlots.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-slate-200 py-10 text-center text-slate-400">
+                    <span className="material-symbols-outlined text-4xl">
+                      search_off
+                    </span>
+                    <p className="mt-2 text-xs font-semibold">Không tìm thấy vị trí đỗ trống nào khả dụng.</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 gap-2">
+                    {availableSlots.map((slot) => (
+                      <button
+                        key={slot.id}
+                        type="button"
+                        onClick={() => setSelectedSlotId(slot.id)}
+                        className={`flex flex-col items-start rounded-2xl border p-3 text-left transition ${
+                          selectedSlotId === slot.id
+                            ? 'border-emerald-500 bg-emerald-50 text-emerald-950 ring-2 ring-emerald-500'
+                            : 'border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700'
+                        }`}
+                      >
+                        <span className="font-mono text-sm font-black">{slot.code}</span>
+                        <span className="mt-1 text-[10px] font-bold text-slate-400">
+                          {slot.floorName} · {slot.zoneName}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="mt-6 border-t border-slate-100 pt-4 flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setIsReallocateModalOpen(false)}
+                  className="flex-1 rounded-2xl border border-slate-200 py-3 text-sm font-black text-slate-600 hover:bg-slate-50"
+                >
+                  Hủy bỏ
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmReallocateCheckin}
+                  disabled={!selectedSlotId || isSubmitting}
+                  className="flex-1 rounded-2xl bg-emerald-600 py-3 text-sm font-black text-white shadow-lg shadow-emerald-600/20 hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+                >
+                  Xác nhận & Check-in
+                </button>
+              </div>
+            </div>
           </div>,
           document.body
         )}

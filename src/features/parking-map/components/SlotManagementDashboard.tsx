@@ -237,6 +237,7 @@ export function SlotManagementDashboard() {
                     case 'occupied': return 'OCCUPIED';
                     case 'blocked': return 'BLOCKED';
                     case 'maintenance': return 'MAINTENANCE';
+                    case 'reserved': return 'RESERVED';
                     default: return 'AVAILABLE';
                   }
                 }
@@ -245,6 +246,7 @@ export function SlotManagementDashboard() {
                   case 1: return 'OCCUPIED';
                   case 2: return 'BLOCKED';
                   case 3: return 'MAINTENANCE';
+                  case 4: return 'RESERVED';
                   default: return 'AVAILABLE';
                 }
               };
@@ -340,6 +342,7 @@ export function SlotManagementDashboard() {
                     case 'occupied': return 'OCCUPIED';
                     case 'blocked': return 'BLOCKED';
                     case 'maintenance': return 'MAINTENANCE';
+                    case 'reserved': return 'RESERVED';
                     default: return 'AVAILABLE';
                   }
                 }
@@ -348,6 +351,7 @@ export function SlotManagementDashboard() {
                   case 1: return 'OCCUPIED';
                   case 2: return 'BLOCKED';
                   case 3: return 'MAINTENANCE';
+                  case 4: return 'RESERVED';
                   default: return 'AVAILABLE';
                 }
               };
@@ -508,6 +512,8 @@ export function SlotManagementDashboard() {
         return 'bg-[#ba1a1a] border-[#ba1a1a] text-white hover:brightness-110';
       case 'MAINTENANCE':
         return 'bg-[#d97706] border-[#d97706] text-white hover:brightness-110';
+      case 'RESERVED':
+        return 'bg-amber-500 border-amber-500 text-white hover:brightness-110';
       default:
         return 'bg-slate-300 border-slate-300 text-slate-700';
     }
@@ -639,11 +645,13 @@ export function SlotManagementDashboard() {
               const blocked = statusCounts?.Blocked ?? 0;
               const maintenance = statusCounts?.Maintenance ?? 0;
               const available = statusCounts?.Available ?? 0;
+              const reserved = statusCounts?.Reserved ?? 0;
               const total = totalSlots ?? 0;
               const occupiedPct = total > 0 ? Math.round((occupied / total) * 100) : 0;
               const blockedPct = total > 0 ? Math.round((blocked / total) * 100) : 0;
               const maintenancePct = total > 0 ? Math.round((maintenance / total) * 100) : 0;
               const availablePct = total > 0 ? Math.round((available / total) * 100) : 0;
+              const reservedPct = total > 0 ? Math.round((reserved / total) * 100) : 0;
               const isMotorbike = vehicleTypeName?.toUpperCase().includes('MOTOR') || vehicleTypeName?.toUpperCase().includes('BIKE');
               
               return (
@@ -663,6 +671,11 @@ export function SlotManagementDashboard() {
                     <div className="text-center min-w-[50px]">
                       <p className="text-2xl font-black text-[#006d43]">{available}</p>
                       <p className="text-[10px] font-bold text-slate-400 uppercase mt-0.5">Available</p>
+                    </div>
+                    <div className="h-8 w-px bg-slate-100"></div>
+                    <div className="text-center min-w-[50px]">
+                      <p className="text-2xl font-black text-amber-500">{reserved}</p>
+                      <p className="text-[10px] font-bold text-slate-400 uppercase mt-0.5">Reserved</p>
                     </div>
                     <div className="h-8 w-px bg-slate-100"></div>
                     <div className="text-center min-w-[50px]">
@@ -692,6 +705,7 @@ export function SlotManagementDashboard() {
                       <span className="text-slate-500 uppercase tracking-wider">Capacity Usage</span>
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="text-[#006d43]">{availablePct}% free</span>
+                        <span className="text-amber-500">{reservedPct}% reserved</span>
                         <span className="text-[#263143]">{occupiedPct}% occupied</span>
                         {blocked > 0 && <span className="text-[#ba1a1a]">{blockedPct}% blocked</span>}
                         {maintenance > 0 && <span className="text-[#d97706]">{maintenancePct}% maintaining</span>}
@@ -701,6 +715,10 @@ export function SlotManagementDashboard() {
                       <div
                         className="h-full bg-[#006d43] transition-all duration-700"
                         style={{ width: `${availablePct}%` }}
+                      />
+                      <div
+                        className="h-full bg-amber-500 transition-all duration-700"
+                        style={{ width: `${reservedPct}%` }}
                       />
                       <div
                         className="h-full bg-[#263143] transition-all duration-700"
@@ -731,6 +749,10 @@ export function SlotManagementDashboard() {
               <div className="flex items-center gap-2">
                 <div className="w-3.5 h-3.5 rounded-md bg-[#006d43]"></div>
                 <span>Available</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-3.5 h-3.5 rounded-md bg-amber-500"></div>
+                <span>Reserved</span>
               </div>
               <div className="flex items-center gap-2">
                 <div className="w-3.5 h-3.5 rounded-md bg-[#263143]"></div>

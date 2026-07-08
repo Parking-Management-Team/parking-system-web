@@ -412,7 +412,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       {children}
 
       {/* Sleek Floating Toast Container - Khu vực hiển thị danh sách các thông báo nổi */}
-      <div className="fixed top-6 right-6 z-[9999] flex flex-col gap-3 pointer-events-none max-w-sm w-full">
+      <div className="fixed top-6 right-6 z-[100000] flex flex-col gap-3 pointer-events-none max-w-sm w-full">
         {toasts.map((toast) => (
           <div
             key={toast.id}

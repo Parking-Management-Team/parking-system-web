@@ -29,6 +29,7 @@ interface SlotItem {
   name?: string;
   status: string | number;
   vehicleTypeId?: number;
+  isReserved?: boolean;
 }
 
 interface BuildingItem {
@@ -198,7 +199,7 @@ export default function DriverDashboard() {
         // Compute summary
         const summary: SlotSummary = { available: 0, occupied: 0, reserved: 0, maintenance: 0, total: mergedSlots.length };
         mergedSlots.forEach(slot => {
-          const s = getSlotStatus(slot.status);
+          const s = slot.isReserved ? 'reserved' : getSlotStatus(slot.status);
           summary[s]++;
         });
         setSlotSummary(summary);
@@ -469,7 +470,7 @@ export default function DriverDashboard() {
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                   {mapSlots.map((slot) => {
-                    const statusKey = getSlotStatus(slot.status);
+                    const statusKey = slot.isReserved ? 'reserved' : getSlotStatus(slot.status);
                     const isClickable = statusKey === 'available';
                     const statusLabel = statusKey.charAt(0).toUpperCase() + statusKey.slice(1);
 

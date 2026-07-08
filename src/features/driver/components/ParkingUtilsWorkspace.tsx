@@ -64,6 +64,7 @@ interface SlotItem {
   name?: string;
   status: any;
   vehicleTypeId?: number;
+  isReserved?: boolean;
 }
 
 interface BookingRecord {
@@ -587,12 +588,30 @@ export default function ParkingUtilsWorkspace() {
     }
   }, [allFloors, selectedVehicleTypeId, selectedFloor]);
 
+  // Reset slot selection when time or floor changes to prevent stale selections
+  useEffect(() => {
+    setSelectedSlotCode('');
+    setSelectedSlotId(null);
+  }, [bookingDate, startTime, endBookingDate, endTime, selectedFloor]);
+
   // Load Slots on Floor Change
   useEffect(() => {
     if (!selectedFloor || !showBookingModal) {
       setSlotsList([]);
       return;
     }
+
+    let timeParams = '';
+    if (bookingDate && startTime && endBookingDate && endTime) {
+      try {
+        const startDt = new Date(`${bookingDate}T${startTime}:00+07:00`);
+        const endDt = new Date(`${endBookingDate}T${endTime}:00+07:00`);
+        timeParams = `?plannedCheckinTime=${encodeURIComponent(startDt.toISOString())}&plannedCheckoutTime=${encodeURIComponent(endDt.toISOString())}`;
+      } catch (err) {
+        console.error("Error constructing times for slot query:", err);
+      }
+    }
+
     api.get<any>(`/Zones/floor/${selectedFloor}`)
       .then(async (res) => {
         if (res.success && res.data && res.data.length > 0) {
@@ -605,7 +624,7 @@ export default function ParkingUtilsWorkspace() {
           }
           try {
             const allSlotsPromises = generalZones.map((zone: any) =>
-              api.get<any>(`/ParkingSlots/zone/${zone.id}`)
+              api.get<any>(`/ParkingSlots/zone/${zone.id}${timeParams}`)
                 .then(r => r.success ? r.data : [])
                 .catch(() => [])
             );
@@ -629,7 +648,7 @@ export default function ParkingUtilsWorkspace() {
       .catch(() => {
         setSlotsList([]);
       });
-  }, [selectedFloor, selectedVehicleTypeId, showBookingModal]);
+  }, [selectedFloor, selectedVehicleTypeId, showBookingModal, bookingDate, startTime, endBookingDate, endTime]);
 
   const openNewBooking = () => {
     if (vehicles.length === 0) {
@@ -694,13 +713,7 @@ export default function ParkingUtilsWorkspace() {
       }
       setWizardStep(3);
     } else if (wizardStep === 3) {
-      if (selectedVehicleTypeId !== 1 && !selectedSlotCode) {
-        showToast("Please select a parking slot to proceed.", "error");
-        return;
-      }
-      setWizardStep(4);
-    } else if (wizardStep === 4) {
-      // Validate date and time inputs
+      // Step 3: Schedule Timing (Choose date & time first)
       if (!bookingDate || !endBookingDate || !startTime || !endTime) {
         showToast("Please specify the booking date and time duration.", "error");
         return;
@@ -725,6 +738,13 @@ export default function ParkingUtilsWorkspace() {
       }
 
       setDepositAmount(getEstimatedDeposit());
+      setWizardStep(4);
+    } else if (wizardStep === 4) {
+      // Step 4: Floor & Slot Selection (Select spot based on chose timing)
+      if (selectedVehicleTypeId !== 1 && !selectedSlotCode) {
+        showToast("Please select a parking slot to proceed.", "error");
+        return;
+      }
       setWizardStep(5);
     }
   };
@@ -1450,8 +1470,8 @@ export default function ParkingUtilsWorkspace() {
                 {[
                   { num: 1, label: 'Vehicle' },
                   { num: 2, label: 'Building' },
-                  { num: 3, label: 'Floor & Slot' },
-                  { num: 4, label: 'Schedule' },
+                  { num: 3, label: 'Schedule' },
+                  { num: 4, label: 'Floor & Slot' },
                   { num: 5, label: 'Summary' }
                 ].map((item) => {
                   const isCurrent = wizardStep === item.num;
@@ -1559,8 +1579,8 @@ export default function ParkingUtilsWorkspace() {
                 </div>
               )}
 
-              {/* STEP 3: Floor & Slot Selection */}
-              {wizardStep === 3 && (
+              {/* STEP 4: Floor & Slot Selection */}
+              {wizardStep === 4 && (
                 <div className="space-y-4">
                   <div className="pb-2 border-b border-slate-100">
                     <h3 className="font-bold text-slate-800 text-sm">Choose Floor & Slot</h3>
@@ -1615,7 +1635,7 @@ export default function ParkingUtilsWorkspace() {
                         <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 pt-2">
                           {slotsList.map((slot) => {
                             const isSelected = selectedSlotCode === slot.code;
-                            const isOccupied = slot.status !== 0 && slot.status !== 'Available';
+                            const isOccupied = (slot.status !== 0 && slot.status !== 'Available') || slot.isReserved;
                             
                             let statusText = 'Available';
                             let statusClass = 'border-emerald-250/20 text-emerald-700 bg-white hover:bg-emerald-50/15 hover:scale-[1.02]';
@@ -1653,8 +1673,8 @@ export default function ParkingUtilsWorkspace() {
                 </div>
               )}
 
-              {/* STEP 4: Schedule Timing */}
-              {wizardStep === 4 && (
+              {/* STEP 3: Schedule Timing */}
+              {wizardStep === 3 && (
                 <div className="space-y-6 max-w-md mx-auto">
                   <div className="pb-2 border-b border-slate-100 text-center">
                     <h3 className="font-bold text-slate-800 text-sm">Specify Arrival Time</h3>

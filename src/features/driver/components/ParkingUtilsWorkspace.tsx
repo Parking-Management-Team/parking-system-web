@@ -503,8 +503,8 @@ export default function ParkingUtilsWorkspace() {
         // Initialize date & times
         initWizardDateTime();
 
-        // Show the booking modal and set wizard to step 4 (Schedule Time)
-        setWizardStep(4);
+        // Show the booking modal and set wizard to step 3 (Schedule Time)
+        setWizardStep(3);
         setShowBookingModal(true);
 
         // Clear query parameters from URL
@@ -741,9 +741,20 @@ export default function ParkingUtilsWorkspace() {
       setWizardStep(4);
     } else if (wizardStep === 4) {
       // Step 4: Floor & Slot Selection (Select spot based on chose timing)
-      if (selectedVehicleTypeId !== 1 && !selectedSlotCode) {
-        showToast("Please select a parking slot to proceed.", "error");
-        return;
+      if (selectedVehicleTypeId !== 1) {
+        if (!selectedSlotCode) {
+          showToast("Please select a parking slot to proceed.", "error");
+          return;
+        }
+        // Verify that the pre-selected or selected slot is indeed available in the current timeframe
+        const currentSlotObj = slotsList.find(s => s.code === selectedSlotCode);
+        if (currentSlotObj) {
+          const isSlotOccupied = (currentSlotObj.status !== 0 && currentSlotObj.status !== 'Available') || currentSlotObj.isReserved;
+          if (isSlotOccupied) {
+            showToast("The selected slot is reserved or occupied during this timeframe. Please choose another slot.", "error");
+            return;
+          }
+        }
       }
       setWizardStep(5);
     }

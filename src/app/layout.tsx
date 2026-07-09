@@ -31,8 +31,8 @@ const plusJakartaSans = Plus_Jakarta_Sans({
 
 // SEO - hiển thị trên tab trình duyệt và kết quả tìm kiếm Google
 export const metadata: Metadata = {
-  title: 'NexPark - Smart Parking Management',
-  description: 'Modern smart parking solution for buildings with real-time allocation, booking, and monthly passes',
+  title: 'NexPark - Smart Parking',
+  description: 'Modern smart parking solution for buildings with real-time allocation, bookings',
 }
 
 /**

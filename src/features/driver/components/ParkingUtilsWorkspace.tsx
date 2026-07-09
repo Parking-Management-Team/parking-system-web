@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/features/auth';
@@ -64,6 +64,7 @@ interface SlotItem {
   name?: string;
   status: any;
   vehicleTypeId?: number;
+  isReserved?: boolean;
 }
 
 interface BookingRecord {
@@ -98,7 +99,7 @@ function normalizeSession(raw: any) {
   const plate = raw.licensePlateIn || raw.licensePlate || '—';
   const checkInTime = raw.checkInTime || raw.checkIn || '';
   const checkOutTime = raw.checkOutTime || raw.checkOut || '';
-  
+
   let duration = '—';
   if (checkInTime && checkOutTime) {
     const diffMs = new Date(checkOutTime).getTime() - new Date(checkInTime).getTime();
@@ -109,8 +110,8 @@ function normalizeSession(raw: any) {
     }
   }
 
-  const zone = raw.zoneCode || raw.buildingName || raw.slotCode ? 
-    [raw.zoneCode, raw.slotCode].filter(Boolean).join(' / ') : 
+  const zone = raw.zoneCode || raw.buildingName || raw.slotCode ?
+    [raw.zoneCode, raw.slotCode].filter(Boolean).join(' / ') :
     (raw.buildingName || 'Smart City Plaza');
 
   const fee = raw.totalFee ?? raw.fee ?? 0;
@@ -122,16 +123,16 @@ function normalizeSession(raw: any) {
 
   const formatDt = (dt: string) => {
     if (!dt) return '—';
-    try { 
-      return new Date(dt).toLocaleString('en-US', { 
-        month: 'short', 
-        day: 'numeric', 
-        year: 'numeric', 
-        hour: '2-digit', 
-        minute: '2-digit' 
-      }); 
-    } catch { 
-      return dt; 
+    try {
+      return new Date(dt).toLocaleString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    } catch {
+      return dt;
     }
   };
 
@@ -186,7 +187,7 @@ export default function ParkingUtilsWorkspace() {
   // ─── Booking Modal & Stepper States ────────────────────────────────
   const [showBookingModal, setShowBookingModal] = useState<boolean>(false);
   const [wizardStep, setWizardStep] = useState<number>(1);
-  
+
   // Selection states for booking wizard
   const [selectedVehicle, setSelectedVehicle] = useState<string>('');
   const [selectedBuilding, setSelectedBuilding] = useState<string>('');
@@ -194,6 +195,7 @@ export default function ParkingUtilsWorkspace() {
   const [selectedSlotCode, setSelectedSlotCode] = useState<string>('');
   const [selectedSlotId, setSelectedSlotId] = useState<number | null>(null);
   const [bookingDate, setBookingDate] = useState<string>('');
+  const [endBookingDate, setEndBookingDate] = useState<string>('');
   const [startTime, setStartTime] = useState<string>('');
   const [endTime, setEndTime] = useState<string>('');
   const [isSubmittingBooking, setIsSubmittingBooking] = useState<boolean>(false);
@@ -282,7 +284,7 @@ export default function ParkingUtilsWorkspace() {
             const checkInDate = new Date(matchedSession.checkInTime);
             const diffSecs = Math.max(0, Math.floor((Date.now() - checkInDate.getTime()) / 1000));
             setWalkinDuration(diffSecs);
-            
+
             const matchedVehicle = vehiclesList.find((v: any) => v.licensePlate === matchedSession.licensePlateIn);
             const isMotor = matchedVehicle?.vehicleTypeId === 1 || matchedSession.slotCode?.startsWith('M');
             const rate = isMotor ? 5000 : 20000;
@@ -367,7 +369,7 @@ export default function ParkingUtilsWorkspace() {
       const matchedVehicle = vehicles.find(v => v.licensePlate === activeSession.licensePlateIn);
       const isMotor = matchedVehicle?.vehicleTypeId === 1 || activeSession.slotCode?.startsWith('M');
       const rate = isMotor ? 5000 : 20000;
-      
+
       timer = setInterval(() => {
         setWalkinDuration(prev => {
           const next = prev + 1;
@@ -378,6 +380,16 @@ export default function ParkingUtilsWorkspace() {
     }
     return () => clearInterval(timer);
   }, [sessionsTab, activeSession, vehicles]);
+
+  const maxBookingDate = useMemo(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 30);
+    const vnDateParts = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Asia/Ho_Chi_Minh',
+      year: 'numeric', month: '2-digit', day: '2-digit'
+    }).formatToParts(d);
+    return `${vnDateParts.find(p => p.type === 'year')?.value}-${vnDateParts.find(p => p.type === 'month')?.value}-${vnDateParts.find(p => p.type === 'day')?.value}`;
+  }, []);
 
   // ─── Initialize Booking Stepper Date & Times ────────────────────────
   const initWizardDateTime = () => {
@@ -404,8 +416,10 @@ export default function ParkingUtilsWorkspace() {
     }).formatToParts(endDate);
     const endH = vnEndParts.find(p => p.type === 'hour')?.value ?? '00';
     const endM = vnEndParts.find(p => p.type === 'minute')?.value ?? '00';
+    const endDateStr = endDate.toLocaleDateString('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' });
 
     setBookingDate(vnDate);
+    setEndBookingDate(endDateStr);
     setStartTime(`${startH}:${startM}`);
     setEndTime(`${endH}:${endM}`);
   };
@@ -437,7 +451,7 @@ export default function ParkingUtilsWorkspace() {
       try {
         // 1. Make sure buildings are loaded
         await loadBuildingsList();
-        
+
         // 2. Fetch all slots to find the matched one
         const allSlotsRes = await api.get<any>('/ParkingSlots');
         if (!allSlotsRes.success || !allSlotsRes.data) return;
@@ -489,8 +503,8 @@ export default function ParkingUtilsWorkspace() {
         // Initialize date & times
         initWizardDateTime();
 
-        // Show the booking modal and set wizard to step 4 (Schedule Time)
-        setWizardStep(4);
+        // Show the booking modal and set wizard to step 3 (Schedule Time)
+        setWizardStep(3);
         setShowBookingModal(true);
 
         // Clear query parameters from URL
@@ -505,7 +519,7 @@ export default function ParkingUtilsWorkspace() {
     };
 
     resolveSlotFromUrl();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams, user]);
 
   // Load Floors on Building Change
@@ -574,12 +588,30 @@ export default function ParkingUtilsWorkspace() {
     }
   }, [allFloors, selectedVehicleTypeId, selectedFloor]);
 
+  // Reset slot selection when time or floor changes to prevent stale selections
+  useEffect(() => {
+    setSelectedSlotCode('');
+    setSelectedSlotId(null);
+  }, [bookingDate, startTime, endBookingDate, endTime, selectedFloor]);
+
   // Load Slots on Floor Change
   useEffect(() => {
     if (!selectedFloor || !showBookingModal) {
       setSlotsList([]);
       return;
     }
+
+    let timeParams = '';
+    if (bookingDate && startTime && endBookingDate && endTime) {
+      try {
+        const startDt = new Date(`${bookingDate}T${startTime}:00+07:00`);
+        const endDt = new Date(`${endBookingDate}T${endTime}:00+07:00`);
+        timeParams = `?plannedCheckinTime=${encodeURIComponent(startDt.toISOString())}&plannedCheckoutTime=${encodeURIComponent(endDt.toISOString())}`;
+      } catch (err) {
+        console.error("Error constructing times for slot query:", err);
+      }
+    }
+
     api.get<any>(`/Zones/floor/${selectedFloor}`)
       .then(async (res) => {
         if (res.success && res.data && res.data.length > 0) {
@@ -592,7 +624,7 @@ export default function ParkingUtilsWorkspace() {
           }
           try {
             const allSlotsPromises = generalZones.map((zone: any) =>
-              api.get<any>(`/ParkingSlots/zone/${zone.id}`)
+              api.get<any>(`/ParkingSlots/zone/${zone.id}${timeParams}`)
                 .then(r => r.success ? r.data : [])
                 .catch(() => [])
             );
@@ -616,7 +648,7 @@ export default function ParkingUtilsWorkspace() {
       .catch(() => {
         setSlotsList([]);
       });
-  }, [selectedFloor, selectedVehicleTypeId, showBookingModal]);
+  }, [selectedFloor, selectedVehicleTypeId, showBookingModal, bookingDate, startTime, endBookingDate, endTime]);
 
   const openNewBooking = () => {
     if (vehicles.length === 0) {
@@ -635,7 +667,7 @@ export default function ParkingUtilsWorkspace() {
 
   const getEstimatedDeposit = () => {
     if (selectedVehicleTypeId === 1) return 10000;
-    
+
     // For Cars (vehicle type 2), check start time to see if it is day or night
     if (startTime) {
       const [hour] = startTime.split(':').map(Number);
@@ -648,19 +680,21 @@ export default function ParkingUtilsWorkspace() {
   };
 
   const calculateCost = () => {
-    if (!startTime || !endTime) return 0;
-    const [startH, startM] = startTime.split(':').map(Number);
-    const [endH, endM] = endTime.split(':').map(Number);
-    let durationHours = (endH + endM / 60) - (startH + startM / 60);
+    if (!startTime || !endTime || !bookingDate || !endBookingDate) return 0;
+    const start = new Date(`${bookingDate}T${startTime}:00+07:00`);
+    const end = new Date(`${endBookingDate}T${endTime}:00+07:00`);
 
-    if (durationHours < 0) {
-      durationHours += 24;
-    }
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return 0;
 
-    if (durationHours <= 0) return 0;
+    const diffMs = end.getTime() - start.getTime();
+    if (diffMs <= 0) return 0;
+
+    const durationHours = diffMs / (1000 * 60 * 60);
     const rate = selectedVehicleTypeId === 1 ? 5000 : 20000;
     const cost = durationHours * rate;
-    const cap = selectedVehicleTypeId === 1 ? 20000 : 150000;
+
+    const days = Math.ceil(durationHours / 24);
+    const cap = (selectedVehicleTypeId === 1 ? 20000 : 150000) * days;
     return Math.min(cost, cap);
   };
 
@@ -679,29 +713,16 @@ export default function ParkingUtilsWorkspace() {
       }
       setWizardStep(3);
     } else if (wizardStep === 3) {
-      if (selectedVehicleTypeId !== 1 && !selectedSlotCode) {
-        showToast("Please select a parking slot to proceed.", "error");
-        return;
-      }
-      setWizardStep(4);
-    } else if (wizardStep === 4) {
-      // Validate date and time inputs
-      if (!bookingDate || !startTime || !endTime) {
+      // Step 3: Schedule Timing (Choose date & time first)
+      if (!bookingDate || !endBookingDate || !startTime || !endTime) {
         showToast("Please specify the booking date and time duration.", "error");
         return;
       }
-      
+
       const now = new Date();
       now.setSeconds(0, 0);
 
       const selectedStart = new Date(`${bookingDate}T${startTime}:00+07:00`);
-      
-      let endBookingDate = bookingDate;
-      if (endTime <= startTime) {
-        const d = new Date(`${bookingDate}T00:00:00+07:00`);
-        d.setDate(d.getDate() + 1);
-        endBookingDate = d.toLocaleDateString('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' });
-      }
       const selectedEnd = new Date(`${endBookingDate}T${endTime}:00+07:00`);
 
       const diffStartMinutes = (selectedStart.getTime() - now.getTime()) / (1000 * 60);
@@ -717,6 +738,24 @@ export default function ParkingUtilsWorkspace() {
       }
 
       setDepositAmount(getEstimatedDeposit());
+      setWizardStep(4);
+    } else if (wizardStep === 4) {
+      // Step 4: Floor & Slot Selection (Select spot based on chose timing)
+      if (selectedVehicleTypeId !== 1) {
+        if (!selectedSlotCode) {
+          showToast("Please select a parking slot to proceed.", "error");
+          return;
+        }
+        // Verify that the pre-selected or selected slot is indeed available in the current timeframe
+        const currentSlotObj = slotsList.find(s => s.code === selectedSlotCode);
+        if (currentSlotObj) {
+          const isSlotOccupied = (currentSlotObj.status !== 0 && currentSlotObj.status !== 'Available') || currentSlotObj.isReserved;
+          if (isSlotOccupied) {
+            showToast("The selected slot is reserved or occupied during this timeframe. Please choose another slot.", "error");
+            return;
+          }
+        }
+      }
       setWizardStep(5);
     }
   };
@@ -756,12 +795,6 @@ export default function ParkingUtilsWorkspace() {
     now.setSeconds(0, 0);
 
     const selectedStart = new Date(`${bookingDate}T${startTime}:00+07:00`);
-    let endBookingDate = bookingDate;
-    if (endTime <= startTime) {
-      const d = new Date(`${bookingDate}T00:00:00+07:00`);
-      d.setDate(d.getDate() + 1);
-      endBookingDate = d.toLocaleDateString('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' });
-    }
     const selectedEnd = new Date(`${endBookingDate}T${endTime}:00+07:00`);
 
     const diffStartMinutes = (selectedStart.getTime() - now.getTime()) / (1000 * 60);
@@ -835,6 +868,13 @@ export default function ParkingUtilsWorkspace() {
     }
   };
 
+  const handlePayLater = () => {
+    setShowPaymentModal(false);
+    setCreatedBookingId(null);
+    fetchActiveData();
+    showToast('Booking reserved! Please pay the deposit within 15 minutes in your Payments dashboard.', 'success');
+  };
+
   const handleOnlinePaymentRedirect = async () => {
     if (!createdBookingId) return;
     setIsPaying(true);
@@ -882,8 +922,8 @@ export default function ParkingUtilsWorkspace() {
     }
     setIsSavingModify(true);
     try {
-      const checkinDate = new Date(`${newCheckinDate}T${newCheckinTime}:00`);
-      const originalDurationMs = modifyingBooking.plannedCheckoutTime 
+      const checkinDate = new Date(`${newCheckinDate}T${newCheckinTime}:00+07:00`);
+      const originalDurationMs = modifyingBooking.plannedCheckoutTime
         ? (new Date(modifyingBooking.plannedCheckoutTime).getTime() - new Date(modifyingBooking.plannedCheckinTime).getTime())
         : 4 * 60 * 60 * 1000;
       const durationMs = Math.max(originalDurationMs, 4 * 60 * 60 * 1000);
@@ -941,8 +981,8 @@ export default function ParkingUtilsWorkspace() {
   const filteredSessions = historySessions.filter(s => {
     const q = searchTerm.toLowerCase();
     const matchSearch = String(s.id).includes(q) ||
-                        s.plate.toLowerCase().includes(q) ||
-                        s.zone.toLowerCase().includes(q);
+      s.plate.toLowerCase().includes(q) ||
+      s.zone.toLowerCase().includes(q);
     const matchStatus = statusFilter === 'all' || s.status === statusFilter;
     return matchSearch && matchStatus;
   });
@@ -988,14 +1028,14 @@ export default function ParkingUtilsWorkspace() {
             </thead>
             <tbody>
               ${filteredSessions.map(s => {
-                const safeId = escapeHtml(String(s.id).slice(0, 8));
-                const safePlate = escapeHtml(s.plate);
-                const safeCheckIn = escapeHtml(s.checkIn);
-                const safeCheckOut = escapeHtml(s.checkOut);
-                const safeDuration = escapeHtml(s.duration);
-                const safeZone = escapeHtml(s.zone);
-                const safeStatus = s.status === 'completed' || s.status === 'cancelled' ? s.status : 'cancelled';
-                return `
+      const safeId = escapeHtml(String(s.id).slice(0, 8));
+      const safePlate = escapeHtml(s.plate);
+      const safeCheckIn = escapeHtml(s.checkIn);
+      const safeCheckOut = escapeHtml(s.checkOut);
+      const safeDuration = escapeHtml(s.duration);
+      const safeZone = escapeHtml(s.zone);
+      const safeStatus = s.status === 'completed' || s.status === 'cancelled' ? s.status : 'cancelled';
+      return `
                 <tr>
                   <td>#${safeId}</td>
                   <td>${safePlate}</td>
@@ -1007,7 +1047,7 @@ export default function ParkingUtilsWorkspace() {
                   <td><span class="badge-${safeStatus}">${safeStatus}</span></td>
                 </tr>
               `;
-              }).join('')}
+    }).join('')}
             </tbody>
           </table>
         </body>
@@ -1027,7 +1067,7 @@ export default function ParkingUtilsWorkspace() {
 
   return (
     <div className="p-8 max-w-[1200px] mx-auto space-y-6">
-      
+
       {/* ─── HEADER ─── */}
       <section className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
@@ -1040,7 +1080,7 @@ export default function ParkingUtilsWorkspace() {
             className={`px-5 py-2.5 text-xs font-bold rounded-xl border transition-all ${mainTab === 'sessions'
               ? 'bg-slate-800 text-white border-slate-800 shadow-sm'
               : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'
-            }`}
+              }`}
           >
             Sessions & Bookings
           </button>
@@ -1049,7 +1089,7 @@ export default function ParkingUtilsWorkspace() {
             className={`px-5 py-2.5 text-xs font-bold rounded-xl border transition-all ${mainTab === 'history'
               ? 'bg-slate-800 text-white border-slate-800 shadow-sm'
               : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'
-            }`}
+              }`}
           >
             Parking History
           </button>
@@ -1066,7 +1106,7 @@ export default function ParkingUtilsWorkspace() {
                 className={`px-4 py-2 text-xs font-bold rounded-lg border transition-all ${sessionsTab === 'booked'
                   ? 'bg-slate-100 text-slate-800 border-slate-200'
                   : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'
-                }`}
+                  }`}
               >
                 Pre-booked ({bookings.length})
               </button>
@@ -1075,12 +1115,12 @@ export default function ParkingUtilsWorkspace() {
                 className={`px-4 py-2 text-xs font-bold rounded-lg border transition-all ${sessionsTab === 'walkin'
                   ? 'bg-slate-100 text-slate-800 border-slate-200'
                   : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'
-                }`}
+                  }`}
               >
                 Walk-in / Active ({activeSession ? 1 : 0})
               </button>
             </div>
-            
+
             <button
               onClick={openNewBooking}
               className="flex items-center gap-1.5 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-sm transition-all"
@@ -1115,9 +1155,8 @@ export default function ParkingUtilsWorkspace() {
                       <div key={booking.id} className="bg-white border border-[#e2e8f0] rounded-2xl p-5 shadow-sm space-y-4 hover:shadow-md transition-all">
                         <div className="flex justify-between items-start">
                           <div>
-                            <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full uppercase ${
-                              booking.bookingStatus === 'Confirmed' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-amber-50 text-amber-700 border border-amber-200'
-                            }`}>
+                            <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full uppercase ${booking.bookingStatus === 'Confirmed' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-amber-50 text-amber-700 border border-amber-200'
+                              }`}>
                               {booking.bookingStatus}
                             </span>
                             <h3 className="text-sm font-extrabold text-[#1B2A41] mt-2">
@@ -1161,29 +1200,29 @@ export default function ParkingUtilsWorkspace() {
                           </div>
                           <div className="flex gap-2">
                             {booking.bookingStatus === 'Pending' && (
-                              <button
-                                onClick={() => {
-                                  setCreatedBookingId(booking.id);
-                                  setDepositAmount(booking.depositAmount);
-                                  setShowPaymentModal(true);
-                                }}
-                                className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg transition-all"
-                              >
-                                Pay Now
-                              </button>
-                            )}
-                            {booking.bookingStatus === 'Confirmed' && (
-                              <button
-                                onClick={() => openModifyModal(booking)}
-                                className="px-3 py-2 bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-200 text-xs font-bold rounded-lg transition-all flex items-center gap-1"
-                              >
-                                <Edit3 className="w-3.5 h-3.5" />
-                                Edit
-                              </button>
+                              <>
+                                <button
+                                  onClick={() => {
+                                    setCreatedBookingId(booking.id);
+                                    setDepositAmount(booking.depositAmount);
+                                    setShowPaymentModal(true);
+                                  }}
+                                  className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg transition-all"
+                                >
+                                  Pay Now
+                                </button>
+                                <button
+                                  onClick={() => openModifyModal(booking)}
+                                  className="px-3 py-2 bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-200 text-xs font-bold rounded-lg transition-all flex items-center gap-1"
+                                >
+                                  <Edit3 className="w-3.5 h-3.5" />
+                                  Edit
+                                </button>
+                              </>
                             )}
                             <button
                               onClick={() => openCancelConfirm(booking.id)}
-                              className="px-3 py-2 text-red-650 hover:bg-red-50 text-xs font-bold rounded-lg transition-all"
+                              className="px-3 py-2 text-white bg-red-500 hover:bg-red-600 text-xs font-bold rounded-lg transition-all"
                             >
                               Cancel
                             </button>
@@ -1282,7 +1321,7 @@ export default function ParkingUtilsWorkspace() {
       {mainTab === 'history' && (
         <div className="space-y-6">
           <div className="bg-white border border-[#e2e8f0] rounded-2xl shadow-sm overflow-hidden flex flex-col">
-            
+
             {/* FILTERS */}
             <div className="p-5 border-b border-slate-100 flex flex-wrap gap-3 items-center justify-between bg-slate-50/30">
               <div className="flex flex-wrap gap-2 items-center flex-1 max-w-lg">
@@ -1307,16 +1346,16 @@ export default function ParkingUtilsWorkspace() {
                   <option value="cancelled">Cancelled</option>
                 </select>
               </div>
-              
+
               <div className="flex gap-2">
-                <button 
+                <button
                   onClick={handleExportPDF}
                   className="flex items-center gap-1.5 px-3 py-2 bg-white hover:bg-slate-50 border border-slate-200 text-slate-600 text-xs font-bold rounded-xl shadow-xs transition-all font-sans"
                 >
                   <Download className="w-4 h-4" />
                   Export PDF
                 </button>
-                <button 
+                <button
                   onClick={() => { setSearchTerm(''); setStatusFilter('all'); setCurrentHistoryPage(1); }}
                   className="text-xs text-emerald-600 hover:text-emerald-700 font-bold px-2"
                 >
@@ -1368,11 +1407,10 @@ export default function ParkingUtilsWorkspace() {
                               {s.fee > 0 ? `${Math.round(s.fee).toLocaleString('vi-VN')} đ` : '0 đ'}
                             </td>
                             <td className="px-6 py-4">
-                              <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold capitalize ${
-                                s.status === 'completed' 
-                                  ? 'bg-emerald-50 text-emerald-700 border border-emerald-250/20' 
+                              <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold capitalize ${s.status === 'completed'
+                                  ? 'bg-emerald-50 text-emerald-700 border border-emerald-250/20'
                                   : 'bg-red-50 text-red-650 border border-red-200'
-                              }`}>
+                                }`}>
                                 {s.status}
                               </span>
                             </td>
@@ -1417,7 +1455,7 @@ export default function ParkingUtilsWorkspace() {
       {mounted && showBookingModal && createPortal(
         <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md" style={{ backdropFilter: 'blur(8px)' }}>
           <div className="w-full max-w-4xl bg-white border border-slate-200 rounded-3xl shadow-2xl flex flex-col max-h-[85vh] overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-            
+
             {/* Modal Header */}
             <div className="flex items-center justify-between p-6 border-b border-slate-100 bg-slate-50/40">
               <div>
@@ -1437,30 +1475,28 @@ export default function ParkingUtilsWorkspace() {
               <div className="flex justify-between items-center relative">
                 {/* Connector line */}
                 <div className="absolute left-0 right-0 h-0.5 bg-slate-100 -z-10 top-1/2 transform -translate-y-1/2"></div>
-                
+
                 {[
                   { num: 1, label: 'Vehicle' },
                   { num: 2, label: 'Building' },
-                  { num: 3, label: 'Floor & Slot' },
-                  { num: 4, label: 'Schedule' },
+                  { num: 3, label: 'Schedule' },
+                  { num: 4, label: 'Floor & Slot' },
                   { num: 5, label: 'Summary' }
                 ].map((item) => {
                   const isCurrent = wizardStep === item.num;
                   const isCompleted = wizardStep > item.num;
                   return (
                     <div key={item.num} className="flex flex-col items-center bg-white px-2">
-                      <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all ${
-                        isCurrent 
-                          ? 'bg-[#1B2A41] text-white ring-4 ring-slate-100' 
-                          : isCompleted 
-                            ? 'bg-emerald-600 text-white' 
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all ${isCurrent
+                          ? 'bg-[#1B2A41] text-white ring-4 ring-slate-100'
+                          : isCompleted
+                            ? 'bg-emerald-600 text-white'
                             : 'bg-slate-100 text-slate-400'
-                      }`}>
+                        }`}>
                         {isCompleted ? <Check className="w-4 h-4" /> : item.num}
                       </div>
-                      <span className={`text-[10px] font-bold uppercase mt-1.5 tracking-wider ${
-                        isCurrent ? 'text-[#1B2A41]' : isCompleted ? 'text-emerald-700' : 'text-slate-400'
-                      }`}>
+                      <span className={`text-[10px] font-bold uppercase mt-1.5 tracking-wider ${isCurrent ? 'text-[#1B2A41]' : isCompleted ? 'text-emerald-700' : 'text-slate-400'
+                        }`}>
                         {item.label}
                       </span>
                     </div>
@@ -1471,7 +1507,7 @@ export default function ParkingUtilsWorkspace() {
 
             {/* Stepper Content Section (Scrollable) */}
             <div className="flex-grow p-8 overflow-y-auto min-h-[300px]">
-              
+
               {/* STEP 1: Select Vehicle */}
               {wizardStep === 1 && (
                 <div className="space-y-4">
@@ -1484,16 +1520,14 @@ export default function ParkingUtilsWorkspace() {
                       <div
                         key={v.licensePlate}
                         onClick={() => setSelectedVehicle(v.licensePlate)}
-                        className={`p-4 border rounded-xl cursor-pointer transition-all flex items-center justify-between group ${
-                          selectedVehicle === v.licensePlate
+                        className={`p-4 border rounded-xl cursor-pointer transition-all flex items-center justify-between group ${selectedVehicle === v.licensePlate
                             ? 'border-[#00a86b] bg-emerald-50/10'
                             : 'border-[#e2e8f0] hover:border-slate-300 bg-slate-50/30'
-                        }`}
+                          }`}
                       >
                         <div className="flex items-center gap-3">
-                          <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
-                            selectedVehicle === v.licensePlate ? 'bg-[#00a86b] text-white' : 'bg-slate-100 text-slate-400 group-hover:bg-slate-200'
-                          }`}>
+                          <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${selectedVehicle === v.licensePlate ? 'bg-[#00a86b] text-white' : 'bg-slate-100 text-slate-400 group-hover:bg-slate-200'
+                            }`}>
                             <Car className="w-5 h-5" />
                           </div>
                           <div>
@@ -1501,9 +1535,8 @@ export default function ParkingUtilsWorkspace() {
                             <p className="text-xs text-slate-400">{v.vehicleTypeName || 'Private Vehicle'}</p>
                           </div>
                         </div>
-                        <span className={`w-5 h-5 rounded-full border flex items-center justify-center shrink-0 ${
-                          selectedVehicle === v.licensePlate ? 'border-[#00a86b] bg-[#00a86b] text-white' : 'border-slate-300'
-                        }`}>
+                        <span className={`w-5 h-5 rounded-full border flex items-center justify-center shrink-0 ${selectedVehicle === v.licensePlate ? 'border-[#00a86b] bg-[#00a86b] text-white' : 'border-slate-300'
+                          }`}>
                           {selectedVehicle === v.licensePlate && <span className="w-1.5 h-1.5 rounded-full bg-white"></span>}
                         </span>
                       </div>
@@ -1528,16 +1561,14 @@ export default function ParkingUtilsWorkspace() {
                           setSelectedSlotCode('');
                           setSelectedSlotId(null);
                         }}
-                        className={`p-4 border rounded-xl cursor-pointer transition-all flex flex-col justify-between h-32 ${
-                          selectedBuilding === b.id.toString()
+                        className={`p-4 border rounded-xl cursor-pointer transition-all flex flex-col justify-between h-32 ${selectedBuilding === b.id.toString()
                             ? 'border-[#00a86b] bg-emerald-50/10'
                             : 'border-[#e2e8f0] hover:border-slate-300 bg-slate-50/30'
-                        }`}
+                          }`}
                       >
                         <div className="flex items-center justify-between">
-                          <span className={`text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md ${
-                            selectedBuilding === b.id.toString() ? 'bg-[#00a86b] text-white' : 'bg-slate-100 text-slate-500'
-                          }`}>{b.code}</span>
+                          <span className={`text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md ${selectedBuilding === b.id.toString() ? 'bg-[#00a86b] text-white' : 'bg-slate-100 text-slate-500'
+                            }`}>{b.code}</span>
                           <span className="text-[10px] text-slate-400 font-bold">{b.totalFloor} floors</span>
                         </div>
                         <div>
@@ -1550,8 +1581,8 @@ export default function ParkingUtilsWorkspace() {
                 </div>
               )}
 
-              {/* STEP 3: Floor & Slot Selection */}
-              {wizardStep === 3 && (
+              {/* STEP 4: Floor & Slot Selection */}
+              {wizardStep === 4 && (
                 <div className="space-y-4">
                   <div className="pb-2 border-b border-slate-100">
                     <h3 className="font-bold text-slate-800 text-sm">Choose Floor & Slot</h3>
@@ -1586,11 +1617,10 @@ export default function ParkingUtilsWorkspace() {
                               setSelectedSlotCode('');
                               setSelectedSlotId(null);
                             }}
-                            className={`px-3 py-1.5 text-xs font-bold rounded-lg border transition-all whitespace-nowrap shrink-0 ${
-                              selectedFloor === f.id.toString()
+                            className={`px-3 py-1.5 text-xs font-bold rounded-lg border transition-all whitespace-nowrap shrink-0 ${selectedFloor === f.id.toString()
                                 ? 'bg-slate-800 text-white border-slate-800'
                                 : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'
-                            }`}
+                              }`}
                           >
                             {f.name || `Floor ${f.floorNumber}`}
                           </button>
@@ -1606,14 +1636,31 @@ export default function ParkingUtilsWorkspace() {
                         <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 pt-2">
                           {slotsList.map((slot) => {
                             const isSelected = selectedSlotCode === slot.code;
-                            const isOccupied = slot.status !== 0 && slot.status !== 'Available';
-                            
+
+                            const getStatusString = (s: number | string) => {
+                              if (s === 0 || s === 'Available') return 'available';
+                              if (s === 1 || s === 'Occupied') return 'occupied';
+                              if (s === 2 || s === 'Blocked') return 'blocked';
+                              if (s === 3 || s === 'Maintenance') return 'maintenance';
+                              if (s === 4 || s === 'Reserved') return 'reserved';
+                              return 'available';
+                            };
+
+                            const statusKey = slot.isReserved ? 'reserved' : getStatusString(slot.status);
+                            const isDisabled = statusKey !== 'available';
+
                             let statusText = 'Available';
                             let statusClass = 'border-emerald-250/20 text-emerald-700 bg-white hover:bg-emerald-50/15 hover:scale-[1.02]';
-                            
-                            if (isOccupied) {
+
+                            if (statusKey === 'occupied' || statusKey === 'blocked') {
                               statusText = 'Occupied';
                               statusClass = 'border-slate-100 text-slate-350 bg-slate-50/40 cursor-not-allowed';
+                            } else if (statusKey === 'maintenance') {
+                              statusText = 'Maintenance';
+                              statusClass = 'border-rose-100 text-rose-350 bg-rose-50/40 cursor-not-allowed';
+                            } else if (statusKey === 'reserved') {
+                              statusText = 'Reserved';
+                              statusClass = 'border-amber-200 bg-amber-50/60 text-amber-700 cursor-not-allowed';
                             } else if (isSelected) {
                               statusText = 'Selected';
                               statusClass = 'border-[#00a86b] bg-[#00a86b] text-white shadow-md shadow-emerald-500/10';
@@ -1623,7 +1670,7 @@ export default function ParkingUtilsWorkspace() {
                               <button
                                 key={slot.id}
                                 type="button"
-                                disabled={isOccupied}
+                                disabled={isDisabled}
                                 onClick={() => {
                                   setSelectedSlotCode(slot.code);
                                   setSelectedSlotId(slot.id);
@@ -1644,23 +1691,42 @@ export default function ParkingUtilsWorkspace() {
                 </div>
               )}
 
-              {/* STEP 4: Schedule Timing */}
-              {wizardStep === 4 && (
+              {/* STEP 3: Schedule Timing */}
+              {wizardStep === 3 && (
                 <div className="space-y-6 max-w-md mx-auto">
                   <div className="pb-2 border-b border-slate-100 text-center">
                     <h3 className="font-bold text-slate-800 text-sm">Specify Arrival Time</h3>
                     <p className="text-xs text-slate-400 mt-0.5">Choose date and parking duration (minimum 4 hours).</p>
                   </div>
                   <div className="space-y-4">
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Reservation Date</label>
-                      <input
-                        type="date"
-                        value={bookingDate}
-                        min={new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' })}
-                        onChange={(e) => setBookingDate(e.target.value)}
-                        className="w-full bg-slate-50 border border-[#e2e8f0] rounded-xl px-4 py-2.5 text-sm focus:border-[#00a86b] focus:ring-[#00a86b]/10 transition-all outline-none font-sans"
-                      />
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">From Date</label>
+                        <input
+                          type="date"
+                          value={bookingDate}
+                          min={new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' })}
+                          max={maxBookingDate}
+                          onChange={(e) => {
+                            setBookingDate(e.target.value);
+                            if (endBookingDate && e.target.value > endBookingDate) {
+                              setEndBookingDate(e.target.value);
+                            }
+                          }}
+                          className="w-full bg-slate-50 border border-[#e2e8f0] rounded-xl px-4 py-2.5 text-sm focus:border-[#00a86b] focus:ring-[#00a86b]/10 transition-all outline-none font-sans"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">To Date</label>
+                        <input
+                          type="date"
+                          value={endBookingDate}
+                          min={bookingDate || new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' })}
+                          max={maxBookingDate}
+                          onChange={(e) => setEndBookingDate(e.target.value)}
+                          className="w-full bg-slate-50 border border-[#e2e8f0] rounded-xl px-4 py-2.5 text-sm focus:border-[#00a86b] focus:ring-[#00a86b]/10 transition-all outline-none font-sans"
+                        />
+                      </div>
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-1">
@@ -1711,10 +1777,11 @@ export default function ParkingUtilsWorkspace() {
                         {selectedVehicleTypeId === 1 ? 'Motorbike Shared Zone' : `Slot ${selectedSlotCode}`}
                       </span>
                     </div>
-                    <div className="flex justify-between items-center">
+                    <div className="flex justify-between items-start">
                       <span className="text-slate-400">Booking Time</span>
-                      <span className="font-bold text-slate-800">
-                        {bookingDate} | {startTime} - {endTime}
+                      <span className="font-bold text-slate-800 text-right leading-relaxed">
+                        From: {bookingDate} {startTime}<br />
+                        To: {endBookingDate} {endTime}
                       </span>
                     </div>
                   </div>
@@ -1743,7 +1810,7 @@ export default function ParkingUtilsWorkspace() {
               >
                 Back
               </button>
-              
+
               {wizardStep < 5 ? (
                 <button
                   type="button"
@@ -1777,14 +1844,14 @@ export default function ParkingUtilsWorkspace() {
 
           </div>
         </div>
-      , document.body)}
+        , document.body)}
 
       {/* ─── 2. DEPOSIT ONLINE PAYMENT MODAL ─── */}
       {mounted && showPaymentModal && createPortal(
         <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md" style={{ backdropFilter: 'blur(8px)' }}>
           <div className="w-full max-w-md bg-white border border-slate-200 rounded-3xl shadow-2xl p-6 md:p-8 animate-in fade-in zoom-in-95 duration-200">
             <div className="flex flex-col items-center text-center">
-              
+
               {/* Payment Icon */}
               <div className="w-16 h-16 rounded-full bg-emerald-50 text-[#006d43] flex items-center justify-center mb-4">
                 <CreditCard className="w-8 h-8" />
@@ -1829,10 +1896,17 @@ export default function ParkingUtilsWorkspace() {
                     </>
                   ) : (
                     <>
-                      Pay Online via VNPay
+                      Pay Online via VNPAY
                       <ArrowRight className="w-4 h-4" />
                     </>
                   )}
+                </button>
+                <button
+                  onClick={handlePayLater}
+                  disabled={isPaying || isCancelling}
+                  className="w-full py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold text-xs rounded-xl transition-all flex items-center justify-center gap-1.5"
+                >
+                  Pay Later (Thanh toán sau)
                 </button>
                 <button
                   onClick={handleCancelCreatedBooking}
@@ -1853,7 +1927,7 @@ export default function ParkingUtilsWorkspace() {
             </div>
           </div>
         </div>
-      , document.body)}
+        , document.body)}
 
       {/* ─── 3. MODIFY BOOKING MODAL ─── */}
       {mounted && showModifyModal && modifyingBooking && createPortal(
@@ -1868,7 +1942,7 @@ export default function ParkingUtilsWorkspace() {
                 <X className="w-4 h-4" />
               </button>
             </div>
-            
+
             <div className="py-6 space-y-4">
               <div className="space-y-1">
                 <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Check-in Date</label>
@@ -1876,6 +1950,7 @@ export default function ParkingUtilsWorkspace() {
                   type="date"
                   value={newCheckinDate}
                   min={new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' })}
+                  max={maxBookingDate}
                   onChange={(e) => setNewCheckinDate(e.target.value)}
                   className="w-full bg-slate-50 border border-[#e2e8f0] rounded-xl px-4 py-2.5 text-sm focus:border-emerald-600 outline-none font-sans"
                 />
@@ -1915,7 +1990,7 @@ export default function ParkingUtilsWorkspace() {
             </div>
           </div>
         </div>
-      , document.body)}
+        , document.body)}
 
       {/* ─── 4. CANCEL BOOKING CONFIRM MODAL ─── */}
       {mounted && showCancelModal && createPortal(
@@ -1924,10 +1999,10 @@ export default function ParkingUtilsWorkspace() {
             <div className="w-12 h-12 rounded-full bg-red-50 text-red-650 flex items-center justify-center mx-auto mb-4">
               <AlertTriangle className="w-6 h-6" />
             </div>
-            
+
             <h3 className="text-base font-extrabold text-[#1B2A41]">Cancel Reservation</h3>
             <p className="text-xs text-slate-400 mt-2 leading-relaxed">
-              Are you sure you want to cancel this booking reservation? 
+              Are you sure you want to cancel this booking reservation?
               <br />
               <span className="text-[10px] text-amber-600 font-bold block mt-1">
                 Notice: Cancellations within 1 hour of scheduled arrival forfeit the deposit.
@@ -1958,7 +2033,7 @@ export default function ParkingUtilsWorkspace() {
             </div>
           </div>
         </div>
-      , document.body)}
+        , document.body)}
 
     </div>
   );

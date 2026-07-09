@@ -32,6 +32,7 @@ type BookingDto = {
   buildingId?: number | null;
   buildingName?: string | null;
   plannedCheckinTime?: string | null;
+  plannedCheckoutTime?: string | null;
   depositAmount?: number | null;
   bookingStatus?: string | null;
   checkinGraceUntil?: string | null;
@@ -45,6 +46,7 @@ export type CheckInVehiclePayload = {
   staffId: number;
   bookingId?: number;
   randomizeSlot?: boolean;
+  overrideSlotId?: number;
 };
 
 export type VehicleCheckinSession = {
@@ -74,6 +76,7 @@ export type VehicleCheckinBooking = {
   buildingId: number | null;
   buildingName: string;
   plannedCheckinTime: string | null;
+  plannedCheckoutTime: string | null;
   checkinGraceUntil: string | null;
   depositAmount: number;
   bookingStatus: string;
@@ -177,6 +180,7 @@ const mapBooking = (booking: BookingDto): VehicleCheckinBooking => {
     buildingId: booking.buildingId ?? null,
     buildingName: String(booking.buildingName ?? ''),
     plannedCheckinTime: booking.plannedCheckinTime ?? null,
+    plannedCheckoutTime: booking.plannedCheckoutTime ?? null,
     checkinGraceUntil: booking.checkinGraceUntil ?? null,
     depositAmount: Number(booking.depositAmount ?? 0),
     bookingStatus: String(booking.bookingStatus ?? ''),
@@ -256,6 +260,57 @@ export const fetchCheckinBookings = async (): Promise<VehicleCheckinBooking[]> =
   try {
     const response = await api.get<BaseResponse<BookingDto[]>>('/bookings');
     return unwrap(response, 'Could not load bookings.').map(mapBooking);
+  } catch (error) {
+    throw new Error(getApiErrorMessage(error));
+  }
+};
+
+export type ReallocateSlotDto = {
+  id: number;
+  code: string;
+  zoneName: string;
+  floorName: string;
+};
+
+export const fetchAvailableSlotsForReallocation = async (
+  buildingId: number,
+  vehicleTypeId: number,
+  plannedCheckinTime: string,
+  plannedCheckoutTime: string
+): Promise<ReallocateSlotDto[]> => {
+  try {
+    const floorRes = await api.get<any>('/Floors');
+    const floors = (floorRes && floorRes.success) ? floorRes.data : (Array.isArray(floorRes) ? floorRes : []);
+    const buildingFloors = floors.filter((f: any) => Number(f.buildingId ?? 0) === buildingId);
+
+    const availableSlots: ReallocateSlotDto[] = [];
+
+    for (const floor of buildingFloors) {
+      const zoneRes = await api.get<any>(`/Zones/floor/${floor.id}`);
+      const zones = (zoneRes && zoneRes.success) ? zoneRes.data : (Array.isArray(zoneRes) ? zoneRes : []);
+      const matchingZones = zones.filter((z: any) => Number(z.vehicleTypeId) === vehicleTypeId);
+
+      for (const zone of matchingZones) {
+        const slotRes = await api.get<any>(
+          `/ParkingSlots/zone/${zone.id}?plannedCheckinTime=${plannedCheckinTime}&plannedCheckoutTime=${plannedCheckoutTime}`
+        );
+        const slots = (slotRes && slotRes.success) ? slotRes.data : (Array.isArray(slotRes) ? slotRes : []);
+
+        for (const slot of slots) {
+          const isAvailable = (slot.status === 0 || slot.status === 'Available') && !slot.isReserved;
+          if (isAvailable) {
+            availableSlots.push({
+              id: slot.id,
+              code: slot.code || '',
+              zoneName: zone.name || '',
+              floorName: floor.name || '',
+            });
+          }
+        }
+      }
+    }
+
+    return availableSlots;
   } catch (error) {
     throw new Error(getApiErrorMessage(error));
   }

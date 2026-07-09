@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/features/auth';
 import { api } from '@/lib/api/client';
@@ -20,7 +20,8 @@ import {
   ArrowRight,
   ShieldCheck,
   X,
-  FileCheck
+  FileCheck,
+  Loader2
 } from 'lucide-react';
 
 interface IncidentReport {
@@ -32,83 +33,154 @@ interface IncidentReport {
   caseNumber: string;
 }
 
+interface IncidentType {
+  id: number;
+  incidentCode: string;
+  incidentName: string;
+  description?: string;
+}
+
+interface Vehicle {
+  id: number;
+  licensePlate: string;
+}
+
 export default function DriverReports() {
   const { user, showToast } = useAuth();
   const router = useRouter();
 
   // Form States
   const [rating, setRating] = useState<number>(4);
-  const [category, setCategory] = useState<string>('general');
+  const [incidentTypes, setIncidentTypes] = useState<IncidentType[]>([]);
+  const [selectedTypeId, setSelectedTypeId] = useState<number | ''>('');
   const [description, setDescription] = useState<string>('');
   const [evidenceName, setEvidenceName] = useState<string>('');
   
-  // Simulated Reports list
-  const [reports, setReports] = useState<IncidentReport[]>([
-    { id: '1', category: 'Overcharged Fee - Booking #9822', description: 'Charged for 5 hours instead of 3 hours.', submittedAt: 'Submitted Oct 12, 2026', status: 'resolved', caseNumber: 'PS-1102' },
-    { id: '2', category: 'Occupied Slot - Level 3, Slot B4', description: 'Another car is parked in my reserved slot.', submittedAt: 'Submitted Today, 09:45 AM', status: 'investigating', caseNumber: 'PS-1290' },
-  ]);
+  // Real DB data states
+  const [reports, setReports] = useState<IncidentReport[]>([]);
+  const [activeSession, setActiveSession] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleTileClick = (cat: string) => {
-    setCategory(cat);
-    showToast(`Category set to: ${cat.replace('-', ' ')}`, 'info');
+  // Load vehicles, active sessions, incident types, and past reports
+  const fetchReportData = useCallback(async () => {
+    if (!user?.id) return;
+    setLoading(true);
+    try {
+      // 1. Fetch user's registered vehicles
+      const vehRes = await api.get<any>(`/vehicles?accountId=${user.id}`);
+      let userPlates: string[] = [];
+      if (vehRes.success && Array.isArray(vehRes.data)) {
+        userPlates = vehRes.data.map((v: any) => v.licensePlate);
+      }
+
+      // 2. Fetch active session for this user
+      const activeRes = await api.get<any>('/parking-sessions/active');
+      let foundActive: any = null;
+      if (activeRes.success && Array.isArray(activeRes.data)) {
+        foundActive = activeRes.data.find((s: any) => userPlates.includes(s.licensePlateIn));
+        setActiveSession(foundActive);
+      }
+
+      // 3. Fetch Incident Types from DB
+      const typeRes = await api.get<any>('/IncidentType');
+      if (typeRes.success && Array.isArray(typeRes.data)) {
+        setIncidentTypes(typeRes.data);
+        if (typeRes.data.length > 0) {
+          setSelectedTypeId(typeRes.data[0].id);
+        }
+      }
+
+      // 4. Fetch all incidents and filter by user's license plates
+      const incRes = await api.get<any>('/Incident?pageIndex=1&pageSize=100');
+      if (incRes.success && incRes.data?.items && Array.isArray(incRes.data.items)) {
+        const filteredIncidents = incRes.data.items.filter((inc: any) => 
+          userPlates.includes(inc.licensePlate)
+        );
+
+        const mappedReports: IncidentReport[] = filteredIncidents.map((inc: any) => {
+          let uiStatus: 'resolved' | 'investigating' | 'received' = 'received';
+          if (inc.status === 2) uiStatus = 'resolved';
+          else if (inc.status === 1) uiStatus = 'investigating';
+          
+          return {
+            id: inc.id.toString(),
+            category: inc.incidentName || 'Báo cáo sự cố',
+            description: inc.description || '',
+            submittedAt: `Gửi lúc: ${new Date(inc.createdAt).toLocaleString('vi-VN')}`,
+            status: uiStatus,
+            caseNumber: `INC-${inc.id}`
+          };
+        });
+
+        setReports(mappedReports);
+      }
+    } catch (err) {
+      console.error('Lỗi khi tải dữ liệu sự cố:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    fetchReportData();
+  }, [fetchReportData]);
+
+  const handleTileClick = (code: string) => {
+    const matched = incidentTypes.find(t => t.incidentCode === code);
+    if (matched) {
+      setSelectedTypeId(matched.id);
+      showToast(`Đã chọn loại sự cố: ${matched.incidentName}`, 'info');
+    }
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       setEvidenceName(e.target.files[0].name);
-      showToast(`File attached: ${e.target.files[0].name}`, 'success');
+      showToast(`Đính kèm file thành công: ${e.target.files[0].name}`, 'success');
     }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!description.trim()) {
-      showToast('Please provide a description of the issue.', 'error');
+      showToast('Vui lòng nhập mô tả chi tiết sự cố.', 'error');
       return;
     }
 
-    // Map category to display label
-    const categoryLabel =
-      category === 'lost-ticket' ? 'Lost Ticket Retrieval' :
-      category === 'wrong-fee'   ? 'Fee Overcharge Review' :
-      category === 'occupied-slot' ? 'Occupied Reserved Slot' :
-      'General Feedback';
+    if (!selectedTypeId) {
+      showToast('Vui lòng chọn loại sự cố.', 'error');
+      return;
+    }
 
-    // Attempt real API call first
-    const isSubmittedToApi = await (async () => {
-      try {
-        const payload = {
-          accountId: user?.id,
-          category,
-          description: description.trim(),
-          rating,
-        };
-        const res = await api.post<any>('/incident-reports', payload);
-        return res.success;
-      } catch {
-        // API not available yet — fall through to local mock
-        return false;
+    if (!activeSession) {
+      showToast('Bạn phải có một phiên đỗ xe đang hoạt động (đã check-in) để báo cáo sự cố.', 'error');
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const payload = {
+        sessionId: activeSession.id,
+        incidentTypeId: Number(selectedTypeId),
+        description: description.trim()
+      };
+
+      const res = await api.post<any>('/Incident', payload);
+      if (res.success) {
+        showToast('Báo cáo sự cố của bạn đã được gửi thành công!', 'success');
+        setDescription('');
+        setEvidenceName('');
+        // Reload data from DB
+        fetchReportData();
+      } else {
+        showToast(res.message || 'Lỗi khi gửi báo cáo sự cố.', 'error');
       }
-    })();
-
-    const newReport: IncidentReport = {
-      id: Date.now().toString(),
-      category: categoryLabel,
-      description,
-      submittedAt: 'Submitted Just now',
-      status: 'received',
-      caseNumber: `PS-${Math.floor(1000 + Math.random() * 9000)}`
-    };
-
-    setReports(prev => [newReport, ...prev]);
-    setDescription('');
-    setEvidenceName('');
-    setRating(4);
-
-    if (isSubmittedToApi) {
-      showToast('Your incident report has been submitted to our team. We will review it shortly.', 'success');
-    } else {
-      showToast('Report logged successfully. Our team will follow up with you soon.', 'success');
+    } catch (err) {
+      console.error('Lỗi API Incident:', err);
+      showToast('Gặp sự cố khi gửi dữ liệu lên máy chủ.', 'error');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -121,251 +193,233 @@ export default function DriverReports() {
         <p className="text-sm text-slate-400 mt-1">Report parking issues or submit an incident to help us resolve your concern quickly.</p>
       </section>
 
-      {/* GRID LAYOUT */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        
-        {/* LEFT COLUMN: FORM & ACTIVITY */}
-        <div className="lg:col-span-8 space-y-6">
+      {loading ? (
+        <div className="flex items-center justify-center h-64">
+          <Loader2 className="w-8 h-8 text-emerald-600 animate-spin" />
+        </div>
+      ) : (
+        /* GRID LAYOUT */
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           
-          {/* QUICK TILES */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <button 
-              onClick={() => handleTileClick('lost-ticket')}
-              className={`group flex flex-col p-4 rounded-xl border text-left transition-all active:scale-[0.98] ${
-                category === 'lost-ticket' 
-                  ? 'border-emerald-600 bg-emerald-50/20 shadow-xs' 
-                  : 'border-slate-200 bg-white hover:border-emerald-500/50 hover:shadow-xs'
-              }`}
-            >
-              <FileText className={`w-5 h-5 mb-2 ${category === 'lost-ticket' ? 'text-emerald-600' : 'text-slate-400 group-hover:text-emerald-600'}`} />
-              <span className="text-xs font-bold text-slate-700">Lost Ticket</span>
-              <span className="text-[10px] text-slate-400 mt-1">Start ticket recovery</span>
-            </button>
-
-            <button 
-              onClick={() => handleTileClick('wrong-fee')}
-              className={`group flex flex-col p-4 rounded-xl border text-left transition-all active:scale-[0.98] ${
-                category === 'wrong-fee' 
-                  ? 'border-emerald-600 bg-emerald-50/20 shadow-xs' 
-                  : 'border-slate-200 bg-white hover:border-emerald-500/50 hover:shadow-xs'
-              }`}
-            >
-              <DollarSign className={`w-5 h-5 mb-2 ${category === 'wrong-fee' ? 'text-emerald-600' : 'text-slate-400 group-hover:text-emerald-600'}`} />
-              <span className="text-xs font-bold text-slate-700">Wrong Fee</span>
-              <span className="text-[10px] text-slate-400 mt-1">Request charge review</span>
-            </button>
-
-            <button 
-              onClick={() => handleTileClick('occupied-slot')}
-              className={`group flex flex-col p-4 rounded-xl border text-left transition-all active:scale-[0.98] ${
-                category === 'occupied-slot' 
-                  ? 'border-emerald-600 bg-emerald-50/20 shadow-xs' 
-                  : 'border-slate-200 bg-white hover:border-emerald-500/50 hover:shadow-xs'
-              }`}
-            >
-              <Car className={`w-5 h-5 mb-2 ${category === 'occupied-slot' ? 'text-emerald-600' : 'text-slate-400 group-hover:text-emerald-600'}`} />
-              <span className="text-xs font-bold text-slate-700">Occupied Slot</span>
-              <span className="text-[10px] text-slate-400 mt-1">Report slot blockage</span>
-            </button>
-          </div>
-
-          {/* MAIN FORM */}
-          <div className="bg-white border border-[#e2e8f0] rounded-2xl p-6 shadow-sm space-y-5">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
-              <h2 className="text-sm font-bold text-slate-800 uppercase tracking-wider">Submit Report</h2>
-              
-              {/* Stars selection */}
-              <div className="flex items-center gap-1">
-                <span className="text-xs text-slate-400 font-semibold mr-1.5">Rate Experience:</span>
-                {[1, 2, 3, 4, 5].map((star) => (
-                  <button 
-                    key={star}
-                    type="button"
-                    onClick={() => setRating(star)}
-                    className="focus:outline-none"
-                  >
-                    <Star 
-                      className={`w-4 h-4 transition-transform hover:scale-110 ${
-                        star <= rating 
-                          ? 'text-amber-400 fill-amber-400' 
-                          : 'text-slate-200'
-                      }`} 
-                    />
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-1.5">Report Category</label>
-                  <select
-                    value={category}
-                    onChange={(e) => setCategory(e.target.value)}
-                    className="w-full px-4 py-2.5 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 text-xs font-bold rounded-xl bg-white text-slate-700"
-                  >
-                    <option value="general">General Feedback</option>
-                    <option value="lost-ticket">Lost Ticket Retrieval</option>
-                    <option value="wrong-fee">Wrong Charging Review</option>
-                    <option value="occupied-slot">Reserved Slot Occupied</option>
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-1.5">Detailed Description</label>
-                <textarea
-                  rows={4}
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Provide precise details (e.g. Booking ID, Slot location, Vehicle plates, Gate number) to help us resolve it quickly..."
-                  className="w-full px-4 py-2.5 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 text-xs font-medium rounded-xl resize-none"
-                  required
-                ></textarea>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-1.5">Evidence Upload (Optional)</label>
-                <div className="relative border-2 border-dashed border-slate-200 rounded-xl p-6 bg-slate-50/50 hover:bg-slate-50 hover:border-emerald-500/50 transition-all flex flex-col items-center justify-center cursor-pointer group">
-                  <input 
-                    type="file"
-                    accept="image/*"
-                    onChange={handleFileChange}
-                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                  />
-                  <Upload className="w-8 h-8 text-slate-400 group-hover:text-emerald-600 transition-colors mb-2" />
-                  <p className="text-xs font-bold text-slate-600">
-                    {evidenceName ? `Attached: ${evidenceName}` : 'Click or drag photo evidence here'}
-                  </p>
-                  <p className="text-[10px] text-slate-400 mt-1">Accepts JPG, PNG up to 10MB</p>
-                </div>
-              </div>
-
-              <div className="flex justify-end pt-2 border-t border-slate-100">
-                <button
-                  type="submit"
-                  className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-sm transition-all"
-                >
-                  Submit Incident Ticket
-                </button>
-              </div>
-            </form>
-          </div>
-
-          {/* RECENT TICKETS LIST */}
-          <div className="bg-white border border-[#e2e8f0] rounded-2xl shadow-sm overflow-hidden flex flex-col">
-            <div className="p-5 border-b border-slate-100 flex items-center justify-between">
-              <h2 className="text-sm font-bold text-slate-800 uppercase tracking-wider">Your Active Tickets</h2>
-            </div>
+          {/* LEFT COLUMN: FORM & ACTIVITY */}
+          <div className="lg:col-span-8 space-y-6">
             
-            <div className="divide-y divide-slate-100">
-              {reports.map((report) => (
-                <div key={report.id} className="p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-slate-50/30 transition-colors">
-                  <div className="flex items-start gap-3">
-                    <div className={`p-2 rounded-xl shrink-0 mt-0.5 ${
-                      report.status === 'resolved' 
-                        ? 'bg-emerald-50 text-emerald-600' 
-                        : report.status === 'investigating'
-                        ? 'bg-amber-50 text-amber-600'
-                        : 'bg-slate-100 text-slate-500'
-                    }`}>
-                      {report.status === 'resolved' ? (
-                        <CheckCircle className="w-5 h-5" />
-                      ) : (
-                        <Clock className="w-5 h-5" />
-                      )}
-                    </div>
-                    <div>
-                      <h4 className="text-xs font-bold text-slate-800">{report.category}</h4>
-                      <p className="text-xs text-slate-400 mt-0.5">{report.description}</p>
-                      <p className="text-[10px] text-slate-400 mt-1 font-mono tracking-wide">{report.submittedAt} · Case #{report.caseNumber}</p>
-                    </div>
-                  </div>
+            {/* QUICK TILES */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <button 
+                onClick={() => handleTileClick('LOST_CARD')}
+                className={`group flex flex-col p-4 rounded-xl border text-left transition-all active:scale-[0.98] ${
+                  incidentTypes.find(t => t.id === selectedTypeId)?.incidentCode === 'LOST_CARD'
+                    ? 'border-emerald-600 bg-emerald-50/20 shadow-xs' 
+                    : 'border-slate-200 bg-white hover:border-emerald-500/50 hover:shadow-xs'
+                }`}
+              >
+                <FileText className={`w-5 h-5 mb-2 ${incidentTypes.find(t => t.id === selectedTypeId)?.incidentCode === 'LOST_CARD' ? 'text-emerald-600' : 'text-slate-400 group-hover:text-emerald-600'}`} />
+                <span className="text-xs font-bold text-slate-700">Mất thẻ gửi xe</span>
+                <span className="text-[10px] text-slate-400 mt-1">Báo mất thẻ vật lý</span>
+              </button>
 
-                  <span className={`self-start sm:self-auto text-[10px] font-bold px-2.5 py-0.5 rounded-full uppercase border shrink-0 ${
-                    report.status === 'resolved'
-                      ? 'bg-emerald-50 text-emerald-700 border-emerald-200/50'
-                      : report.status === 'investigating'
-                      ? 'bg-amber-50 text-amber-700 border-amber-200/50'
-                      : 'bg-slate-50 text-slate-600 border-slate-200/50'
-                  }`}>
-                    {report.status}
+              <button 
+                onClick={() => handleTileClick('LATE_CHECKOUT')}
+                className={`group flex flex-col p-4 rounded-xl border text-left transition-all active:scale-[0.98] ${
+                  incidentTypes.find(t => t.id === selectedTypeId)?.incidentCode === 'LATE_CHECKOUT'
+                    ? 'border-emerald-600 bg-emerald-50/20 shadow-xs' 
+                    : 'border-slate-200 bg-white hover:border-emerald-500/50 hover:shadow-xs'
+                }`}
+              >
+                <DollarSign className={`w-5 h-5 mb-2 ${incidentTypes.find(t => t.id === selectedTypeId)?.incidentCode === 'LATE_CHECKOUT' ? 'text-emerald-600' : 'text-slate-400 group-hover:text-emerald-600'}`} />
+                <span className="text-xs font-bold text-slate-700">Đỗ xe quá giờ</span>
+                <span className="text-[10px] text-slate-400 mt-1">Gia hạn/Phí quá giờ</span>
+              </button>
+
+              <button 
+                onClick={() => handleTileClick('VEHICLE_CRASH')}
+                className={`group flex flex-col p-4 rounded-xl border text-left transition-all active:scale-[0.98] ${
+                  incidentTypes.find(t => t.id === selectedTypeId)?.incidentCode === 'VEHICLE_CRASH'
+                    ? 'border-emerald-600 bg-emerald-50/20 shadow-xs' 
+                    : 'border-slate-200 bg-white hover:border-emerald-500/50 hover:shadow-xs'
+                }`}
+              >
+                <Car className={`w-5 h-5 mb-2 ${incidentTypes.find(t => t.id === selectedTypeId)?.incidentCode === 'VEHICLE_CRASH' ? 'text-emerald-600' : 'text-slate-400 group-hover:text-emerald-600'}`} />
+                <span className="text-xs font-bold text-slate-700">Va chạm xe</span>
+                <span className="text-[10px] text-slate-400 mt-1">Báo cáo tai nạn bãi xe</span>
+              </button>
+            </div>
+
+            {/* MAIN FORM */}
+            <div className="bg-white border border-[#e2e8f0] rounded-2xl p-6 shadow-sm space-y-5">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
+                <h2 className="text-sm font-bold text-slate-800 uppercase tracking-wider">Submit Report</h2>
+                
+                {/* Active Session Info */}
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-slate-400 font-semibold">Active Session:</span>
+                  <span className={`text-xs font-bold px-2 py-0.5 rounded-lg ${activeSession ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-600'}`}>
+                    {activeSession ? `${activeSession.licensePlateIn} (${activeSession.slotCode || 'Đang đỗ'})` : 'Không tìm thấy'}
                   </span>
                 </div>
-              ))}
-            </div>
-          </div>
+              </div>
 
-        </div>
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-1.5">Report Category</label>
+                    <select
+                      value={selectedTypeId}
+                      onChange={(e) => setSelectedTypeId(Number(e.target.value))}
+                      className="w-full px-4 py-2.5 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 text-xs font-bold rounded-xl bg-white text-slate-700"
+                    >
+                      {incidentTypes.map((type) => (
+                        <option key={type.id} value={type.id}>{type.incidentName}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
 
-        {/* RIGHT COLUMN: HOTLINE & CHAT */}
-        <div className="lg:col-span-4 space-y-6">
-          
-          {/* HERO BANNER CARD */}
-          <div className="relative overflow-hidden bg-gradient-to-br from-slate-900 to-[#1B2A41] text-white p-6 rounded-2xl shadow-sm space-y-4">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 rounded-full blur-2xl pointer-events-none"></div>
-            
-            <h3 className="font-bold text-sm">Need Instant Support?</h3>
-            <p className="text-xs text-slate-300 leading-relaxed">
-              Our city operators are available 24/7. Connect directly via live chat or emergency hotline.
-            </p>
-          </div>
-
-          {/* CONTACT INFO WIDGET */}
-          <div className="bg-white border border-[#e2e8f0] rounded-2xl p-6 shadow-sm space-y-5">
-            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider pb-2 border-b border-slate-100">Live Support Options</h3>
-            
-            <div className="space-y-4">
-              <div className="flex items-start gap-3">
-                <MessageSquare className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
                 <div>
-                  <h4 className="text-xs font-bold text-slate-700">Live Chat Assistant</h4>
-                  <p className="text-[10px] text-slate-400 mt-0.5">Average reply rate: <span className="font-bold text-emerald-600">2 mins</span></p>
-                  <button 
-                    onClick={() => showToast('Connecting to a live operator...', 'info')}
-                    className="text-[10px] text-emerald-600 hover:text-emerald-700 font-bold mt-1.5 hover:underline"
+                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-1.5">Detailed Description</label>
+                  <textarea
+                    rows={4}
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    placeholder="Cung cấp thông tin mô tả chi tiết sự cố tại đây..."
+                    className="w-full px-4 py-2.5 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 text-xs font-medium rounded-xl resize-none"
+                    required
+                  ></textarea>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-1.5">Evidence Upload (Optional)</label>
+                  <div className="relative border-2 border-dashed border-slate-200 rounded-xl p-6 bg-slate-50/50 hover:bg-slate-50 hover:border-emerald-500/50 transition-all flex flex-col items-center justify-center cursor-pointer group">
+                    <input 
+                      type="file"
+                      accept="image/*"
+                      onChange={handleFileChange}
+                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                    />
+                    <Upload className="w-8 h-8 text-slate-400 group-hover:text-emerald-600 transition-colors mb-2" />
+                    <p className="text-xs font-bold text-slate-600">
+                      {evidenceName ? `Attached: ${evidenceName}` : 'Click or drag photo evidence here'}
+                    </p>
+                    <p className="text-[10px] text-slate-400 mt-1">Accepts JPG, PNG up to 10MB</p>
+                  </div>
+                </div>
+
+                <div className="flex justify-end pt-2 border-t border-slate-100">
+                  <button
+                    type="submit"
+                    disabled={isSubmitting || !activeSession}
+                    className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-sm transition-all disabled:opacity-50 flex items-center gap-2"
                   >
-                    Start Conversation &rarr;
+                    {isSubmitting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                    Submit Incident Ticket
                   </button>
                 </div>
-              </div>
+              </form>
+            </div>
 
-              <div className="flex items-start gap-3">
-                <Phone className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
-                <div>
-                  <h4 className="text-xs font-bold text-slate-700">24/7 Hotline</h4>
-                  <p className="text-sm font-bold text-slate-800 font-mono mt-0.5">+1 (800) SMART-PK</p>
-                  <p className="text-[10px] text-slate-400">Toll-free emergency dispatch line</p>
-                </div>
+            {/* RECENT TICKETS LIST */}
+            <div className="bg-white border border-[#e2e8f0] rounded-2xl shadow-sm overflow-hidden flex flex-col">
+              <div className="p-5 border-b border-slate-100 flex items-center justify-between">
+                <h2 className="text-sm font-bold text-slate-800 uppercase tracking-wider">Your Active Tickets</h2>
               </div>
+              
+              <div className="divide-y divide-slate-100">
+                {reports.length === 0 ? (
+                  <div className="p-8 text-center text-slate-400 text-xs font-medium">
+                    Không có báo cáo sự cố nào từ phương tiện của bạn.
+                  </div>
+                ) : (
+                  reports.map((report) => (
+                    <div key={report.id} className="p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-slate-50/30 transition-colors">
+                      <div className="flex items-start gap-3">
+                        <div className={`p-2 rounded-xl shrink-0 mt-0.5 ${
+                          report.status === 'resolved' 
+                            ? 'bg-emerald-50 text-emerald-600' 
+                            : report.status === 'investigating'
+                            ? 'bg-amber-50 text-amber-600'
+                            : 'bg-slate-100 text-slate-500'
+                        }`}>
+                          {report.status === 'resolved' ? (
+                            <CheckCircle className="w-5 h-5" />
+                          ) : (
+                            <Clock className="w-5 h-5" />
+                          )}
+                        </div>
+                        <div>
+                          <h4 className="text-xs font-bold text-slate-800">{report.category}</h4>
+                          <p className="text-xs text-slate-400 mt-0.5">{report.description}</p>
+                          <p className="text-[10px] text-slate-400 mt-1 font-mono tracking-wide">{report.submittedAt} · Case #{report.caseNumber}</p>
+                        </div>
+                      </div>
 
-              <div className="flex items-start gap-3">
-                <Mail className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
-                <div>
-                  <h4 className="text-xs font-bold text-slate-700">Email Helpdesk</h4>
-                  <p className="text-[10px] text-slate-500 font-mono mt-0.5">support@parkingsmart.com</p>
-                </div>
+                      <span className={`self-start sm:self-auto text-[10px] font-bold px-2.5 py-0.5 rounded-full uppercase border shrink-0 ${
+                        report.status === 'resolved'
+                          ? 'bg-emerald-50 text-emerald-700 border-emerald-200/50'
+                          : report.status === 'investigating'
+                          ? 'bg-amber-50 text-amber-700 border-amber-200/50'
+                          : 'bg-slate-50 text-slate-600 border-slate-200/50'
+                      }`}>
+                        {report.status}
+                      </span>
+                    </div>
+                  ))
+                )}
               </div>
             </div>
+
           </div>
 
-          {/* HELP CENTER QUICK LINK */}
-          <div 
-            onClick={() => router.push('/dashboard/driver/help')}
-            className="bg-emerald-50 hover:bg-emerald-100/80 border border-emerald-100 p-5 rounded-2xl flex items-center justify-between cursor-pointer group transition-all"
-          >
-            <div>
-              <p className="text-xs font-bold text-emerald-800">Frequently Asked Questions</p>
-              <p className="text-[10px] text-slate-500 mt-0.5">Find immediate answers</p>
+          {/* RIGHT COLUMN: INFO & SUPPORT */}
+          <div className="lg:col-span-4 space-y-6">
+            
+            <div className="bg-white border border-[#e2e8f0] rounded-2xl p-6 shadow-sm space-y-4">
+              <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Need Immediate Help?</h3>
+              <p className="text-xs text-slate-500 leading-relaxed font-medium">
+                If you have an urgent parking loop blockage or barrier hardware emergency, please contact the security counter directly.
+              </p>
+              
+              <div className="space-y-2 pt-2 border-t border-slate-100">
+                <a href="tel:0943059948" className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-slate-50 transition-all group">
+                  <Phone className="w-4 h-4 text-emerald-600 group-hover:scale-110 transition-transform" />
+                  <div>
+                    <div className="text-[10px] text-slate-400 font-bold uppercase">Phone Hotline</div>
+                    <div className="text-xs font-bold text-slate-700">0943059948</div>
+                  </div>
+                </a>
+
+                <a href="mailto:support@pbms.com" className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-slate-50 transition-all group">
+                  <Mail className="w-4 h-4 text-emerald-600 group-hover:scale-110 transition-transform" />
+                  <div>
+                    <div className="text-[10px] text-slate-400 font-bold uppercase">Email Support</div>
+                    <div className="text-xs font-bold text-slate-700">support@pbms.com</div>
+                  </div>
+                </a>
+              </div>
             </div>
-            <ArrowRight className="w-4 h-4 text-emerald-600 group-hover:translate-x-1 transition-transform" />
+
+            <div className="bg-white border border-[#e2e8f0] rounded-2xl p-6 shadow-sm space-y-4">
+              <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Incident Policy</h3>
+              <div className="space-y-3">
+                <div className="flex gap-2 text-xs">
+                  <span className="text-emerald-600 font-bold">1.</span>
+                  <p className="text-slate-500 font-medium leading-relaxed">Mất thẻ hoặc mất vé xe sẽ bị phạt phí 100.000đ theo biên bản.</p>
+                </div>
+                <div className="flex gap-2 text-xs">
+                  <span className="text-emerald-600 font-bold">2.</span>
+                  <p className="text-slate-500 font-medium leading-relaxed">Đỗ xe quá thời gian quy định sẽ chịu biểu phí phạt đỗ quá giờ.</p>
+                </div>
+                <div className="flex gap-2 text-xs">
+                  <span className="text-emerald-600 font-bold">3.</span>
+                  <p className="text-slate-500 font-medium leading-relaxed">Thời gian phản hồi đối soát sự cố giao dịch ngân hàng là 24h làm việc.</p>
+                </div>
+              </div>
+            </div>
+
           </div>
 
         </div>
-
-      </div>
-
+      )}
     </div>
   );
 }

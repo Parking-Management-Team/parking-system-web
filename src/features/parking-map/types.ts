@@ -103,7 +103,7 @@ export interface Slot {
   floorId: number;
   buildingId: number;
   slotType: 'Standard' | 'EV Charging';
-  status: 'AVAILABLE' | 'OCCUPIED' | 'BLOCKED' | 'MAINTENANCE';
+  status: 'AVAILABLE' | 'OCCUPIED' | 'BLOCKED' | 'MAINTENANCE' | 'RESERVED';
   vehicleTypeId: number;
   assignedVehicle?: {
     plate: string;
@@ -121,6 +121,7 @@ export interface StatusCounts {
   Occupied: number;
   Blocked: number;
   Maintenance?: number;
+  Reserved?: number;
 }
 
 export interface VehicleTypeSlotSummary {

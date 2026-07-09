@@ -208,7 +208,7 @@ export function LoginForm({ isModal = false, onSuccess, onClose, onSwitchMode }:
       if (err && err.code === 'REQUIRE_OTP_VERIFICATION') {
         // Save to sessionStorage to restore in RegisterForm
         sessionStorage.setItem('nexpark_google_signup', JSON.stringify({
-          idToken: response.credential || "mock_google_id_token_from_frontend",
+          idToken: response.credential,
           email: err.email,
           fullName: err.fullName
         }));

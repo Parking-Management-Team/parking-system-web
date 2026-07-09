@@ -63,7 +63,7 @@ interface SlotView {
   code: string;
   zoneId: number;
   zoneName: string;
-  status: 'AVAILABLE' | 'OCCUPIED' | 'MAINTENANCE' | 'BLOCKED';
+  status: 'AVAILABLE' | 'OCCUPIED' | 'MAINTENANCE' | 'BLOCKED' | 'RESERVED';
   licensePlate?: string;
   checkInTime?: string;
   subscriptionInfo?: SlotDto['subscription'];
@@ -76,6 +76,7 @@ function mapStatus(statusVal: number | string): SlotView['status'] {
       case 'occupied': return 'OCCUPIED';
       case 'blocked': return 'BLOCKED';
       case 'maintenance': return 'MAINTENANCE';
+      case 'reserved': return 'RESERVED';
       default: return 'AVAILABLE';
     }
   }
@@ -84,6 +85,7 @@ function mapStatus(statusVal: number | string): SlotView['status'] {
     case 1: return 'OCCUPIED';
     case 2: return 'BLOCKED';
     case 3: return 'MAINTENANCE';
+    case 4: return 'RESERVED';
     default: return 'AVAILABLE';
   }
 }
@@ -199,6 +201,7 @@ export default function SlotMonitoring() {
 
   const totalSlots     = slots.length;
   const availableSlots = slots.filter(s => s.status === 'AVAILABLE').length;
+  const reservedSlots  = slots.filter(s => s.status === 'RESERVED').length;
   const occupiedSlots  = slots.filter(s => s.status === 'OCCUPIED').length;
   const blockedSlots     = slots.filter(s => s.status === 'BLOCKED').length;
   const maintenanceSlots = slots.filter(s => s.status === 'MAINTENANCE').length;
@@ -210,7 +213,8 @@ export default function SlotMonitoring() {
       case 'AVAILABLE':   return 'bg-[#006d43] border-[#006d43] text-white';
       case 'OCCUPIED':    return 'bg-[#263143] border-[#263143] text-white';
       case 'BLOCKED':     return 'bg-[#ba1a1a] border-[#ba1a1a] text-white';
-      case 'MAINTENANCE': return 'bg-amber-500 border-amber-500 text-white';
+      case 'MAINTENANCE': return 'bg-[#d97706] border-[#d97706] text-white';
+      case 'RESERVED':    return 'bg-amber-500 border-amber-500 text-white';
     }
   };
 
@@ -293,13 +297,14 @@ export default function SlotMonitoring() {
 
       {/* ── Capacity Summary ──────────────────────────────────── */}
       {selectedFloorId && (
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-4">
           {[
             { label: 'Total Slots', value: totalSlots, color: 'text-slate-700' },
             { label: 'Available',   value: availableSlots, color: 'text-[#006d43]' },
+            { label: 'Reserved',    value: reservedSlots,  color: 'text-amber-500' },
             { label: 'Occupied',    value: occupiedSlots,  color: 'text-[#263143]' },
             { label: 'Blocked',     value: blockedSlots,   color: 'text-[#ba1a1a]' },
-            { label: 'Maintenance', value: maintenanceSlots, color: 'text-amber-600' },
+            { label: 'Maintenance', value: maintenanceSlots, color: 'text-[#d97706]' },
             { label: 'Utilization', value: `${pct}%`,      color: pct >= 90 ? 'text-red-650' : pct >= 75 ? 'text-amber-650' : 'text-[#006d43]' },
           ].map(stat => (
             <div key={stat.label} className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 text-center">
@@ -315,9 +320,10 @@ export default function SlotMonitoring() {
         <span className="text-[10px] text-slate-400 uppercase tracking-wider">Legend:</span>
         {[
           { color: 'bg-[#006d43]', label: 'Available' },
+          { color: 'bg-amber-500', label: 'Reserved' },
           { color: 'bg-[#263143]', label: 'Occupied' },
           { color: 'bg-[#ba1a1a]', label: 'Blocked' },
-          { color: 'bg-amber-500', label: 'Maintenance' },
+          { color: 'bg-[#d97706]', label: 'Maintenance' },
         ].map(l => (
           <span key={l.label} className="flex items-center gap-1.5">
             <span className={`w-3 h-3 rounded ${l.color}`} />
@@ -368,6 +374,7 @@ export default function SlotMonitoring() {
                       {/* Status Icon */}
                       <span className="material-symbols-outlined text-[16px] mx-auto opacity-80">
                         {slot.status === 'AVAILABLE'   ? 'check_circle' :
+                         slot.status === 'RESERVED'    ? 'book' :
                          slot.status === 'OCCUPIED'    ? 'directions_car' :
                          slot.status === 'MAINTENANCE' ? 'construction' :
                                                          'block'}
@@ -390,7 +397,7 @@ export default function SlotMonitoring() {
                         </>
                       ) : (
                         <span className="text-[9px] font-bold opacity-75 uppercase tracking-wide">
-                          {slot.status === 'AVAILABLE' ? 'Free' : slot.status}
+                          {slot.status === 'AVAILABLE' ? 'Free' : slot.status === 'RESERVED' ? 'Reserved' : slot.status}
                         </span>
                       )}
                     </div>

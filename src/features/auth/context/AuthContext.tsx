@@ -238,14 +238,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const loginWithGoogle = React.useCallback(async (idToken?: string): Promise<User> => {
     setIsLoading(true);
     try {
-      let tokenToSend = idToken;
+      const tokenToSend = idToken;
 
-      // Hỗ trợ kiểm thử UI: Nếu click nút mà chưa cấu hình SDK Google lấy token thật,
-      // hệ thống sẽ tự động dùng Token giả lập gửi lên Backend để bạn kiểm thử luồng API.
       if (!tokenToSend) {
-        console.warn('Warning: Google ID Token not received. Automatically using mock token.');
-        await new Promise((resolve) => setTimeout(resolve, 1500));
-        tokenToSend = "mock_google_id_token_from_frontend";
+        throw new Error('Google ID Token not received.');
       }
 
       // 1. Gửi ID Token nhận từ Google lên API của bạn
@@ -416,7 +412,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       {children}
 
       {/* Sleek Floating Toast Container - Khu vực hiển thị danh sách các thông báo nổi */}
-      <div className="fixed top-6 right-6 z-[9999] flex flex-col gap-3 pointer-events-none max-w-sm w-full">
+      <div className="fixed top-6 right-6 z-[100000] flex flex-col gap-3 pointer-events-none max-w-sm w-full">
         {toasts.map((toast) => (
           <div
             key={toast.id}

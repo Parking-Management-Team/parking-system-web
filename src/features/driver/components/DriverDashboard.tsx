@@ -29,6 +29,7 @@ interface SlotItem {
   name?: string;
   status: string | number;
   vehicleTypeId?: number;
+  isReserved?: boolean;
 }
 
 interface BuildingItem {
@@ -76,7 +77,7 @@ export default function DriverDashboard() {
   const getSlotStatus = (status: string | number): 'available' | 'occupied' | 'reserved' | 'maintenance' => {
     if (status === 0 || status === 'Available') return 'available';
     if (status === 1 || status === 'Occupied') return 'occupied';
-    if (status === 2 || status === 'Blocked' || status === 'Reserved') return 'reserved';
+    if (status === 2 || status === 'Blocked' || status === 4 || status === 'Reserved') return 'reserved';
     if (status === 3 || status === 'Maintenance') return 'maintenance';
     return 'available';
   };
@@ -198,7 +199,7 @@ export default function DriverDashboard() {
         // Compute summary
         const summary: SlotSummary = { available: 0, occupied: 0, reserved: 0, maintenance: 0, total: mergedSlots.length };
         mergedSlots.forEach(slot => {
-          const s = getSlotStatus(slot.status);
+          const s = slot.isReserved ? 'reserved' : getSlotStatus(slot.status);
           summary[s]++;
         });
         setSlotSummary(summary);
@@ -391,7 +392,13 @@ export default function DriverDashboard() {
                   <span className="w-2.5 h-2.5 rounded bg-[#00a86b]"></span> AVAILABLE ({slotSummary.available})
                 </div>
                 <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-500">
-                  <span className="w-2.5 h-2.5 rounded bg-slate-300"></span> UNAVAILABLE ({slotSummary.occupied + slotSummary.reserved + slotSummary.maintenance})
+                  <span className="w-2.5 h-2.5 rounded bg-amber-400"></span> RESERVED ({slotSummary.reserved})
+                </div>
+                <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-500">
+                  <span className="w-2.5 h-2.5 rounded bg-slate-300"></span> OCCUPIED ({slotSummary.occupied})
+                </div>
+                <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-500">
+                  <span className="w-2.5 h-2.5 rounded bg-rose-300"></span> MAINTENANCE ({slotSummary.maintenance})
                 </div>
               </div>
             </div>
@@ -468,14 +475,27 @@ export default function DriverDashboard() {
                 </div>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                  {mapSlots.map((slot) => {
-                    const statusKey = getSlotStatus(slot.status);
+                   {mapSlots.map((slot) => {
+                    const statusKey = slot.isReserved ? 'reserved' : getSlotStatus(slot.status);
                     const isClickable = statusKey === 'available';
-                    const statusLabel = statusKey.charAt(0).toUpperCase() + statusKey.slice(1);
+                    const statusLabel = statusKey === 'reserved' ? 'Reserved' : statusKey === 'occupied' ? 'Occupied' : statusKey === 'maintenance' ? 'Maintenance' : 'Available';
 
                     let statusClass = 'border-slate-200 bg-white hover:bg-emerald-50/10 hover:border-[#00a86b] hover:scale-[1.03] cursor-pointer text-emerald-700';
-                    if (!isClickable) {
-                      statusClass = 'border-[#e2e8f0] bg-slate-50/30 cursor-not-allowed text-slate-400';
+                    let badgeClass = 'bg-[#00a86b] text-white';
+                    let textClass = 'text-slate-800';
+
+                    if (statusKey === 'reserved') {
+                      statusClass = 'border-amber-200 bg-amber-50/40 cursor-not-allowed text-amber-700';
+                      badgeClass = 'bg-amber-500 text-white';
+                      textClass = 'text-amber-800';
+                    } else if (statusKey === 'occupied') {
+                      statusClass = 'border-slate-200 bg-slate-50/30 cursor-not-allowed text-slate-400';
+                      badgeClass = 'bg-slate-300 text-slate-700';
+                      textClass = 'text-slate-500';
+                    } else if (statusKey === 'maintenance') {
+                      statusClass = 'border-rose-200 bg-rose-50/30 cursor-not-allowed text-rose-500';
+                      badgeClass = 'bg-rose-400 text-white';
+                      textClass = 'text-rose-700';
                     }
 
                     return (
@@ -486,9 +506,7 @@ export default function DriverDashboard() {
                         title={`${slot.code} — ${statusLabel}`}
                       >
                         <div className="flex items-center justify-between">
-                          <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md ${
-                            isClickable ? 'bg-[#00a86b] text-white' : 'bg-slate-200 text-slate-600'
-                          }`}>
+                          <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md ${badgeClass}`}>
                             {slot.code}
                           </span>
                           <span className="text-xs text-slate-400 font-bold">
@@ -496,7 +514,7 @@ export default function DriverDashboard() {
                           </span>
                         </div>
                         <div className="text-left">
-                          <h3 className={`text-sm font-bold mt-2 ${isClickable ? 'text-slate-800' : 'text-slate-500'}`}>
+                          <h3 className={`text-sm font-bold mt-2 ${textClass}`}>
                             {slot.name || `Slot ${slot.code}`}
                           </h3>
                           <p className="text-xs text-slate-400 mt-0.5 truncate">
@@ -607,7 +625,7 @@ export default function DriverDashboard() {
                 <span className="text-[10px] font-bold text-slate-500 uppercase tracking-tight">Scan QR</span>
               </button>
               <button
-                onClick={() => router.push('/dashboard/driver/payment-history')}
+                onClick={() => router.push('/dashboard/driver/payments')}
                 className="p-4 bg-slate-50 border border-[#e2e8f0] rounded-xl flex flex-col items-center gap-2 hover:border-[#00a86b]/40 hover:bg-emerald-50/10 transition-all group"
               >
                 <FileText className="w-5 h-5 text-emerald-600 group-hover:scale-110 transition-transform" />

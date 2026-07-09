@@ -1,8 +1,6 @@
 export { default as DriverDashboard } from './components/DriverDashboard';
-export { default as DriverBooking } from './components/DriverBooking';
 export { default as DriverHelp } from './components/DriverHelp';
 export { default as DriverParkingHistory } from './components/DriverParkingHistory';
-export { default as DriverPaymentHistory } from './components/DriverPaymentHistory';
 export { default as DriverPayments } from './components/DriverPayments';
 export { default as DriverReports } from './components/DriverReports';
 export { default as DriverSessions } from './components/DriverSessions';

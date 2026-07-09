@@ -69,6 +69,13 @@ export default function DriverSessions() {
   const [cancellingId, setCancellingId] = useState<number | null>(null);
   const [isCancelling, setIsCancelling] = useState(false);
 
+  // Extend booking modal states
+  const [showExtendModal, setShowExtendModal] = useState(false);
+  const [extendingBooking, setExtendingBooking] = useState<BookingRecord | null>(null);
+  const [newCheckoutDate, setNewCheckoutDate] = useState('');
+  const [newCheckoutTime, setNewCheckoutTime] = useState('');
+  const [isSavingExtend, setIsSavingExtend] = useState(false);
+
   // Walk-in live counter
   const [duration, setDuration] = useState<number>(0);
   const [cost, setCost] = useState<number>(0);
@@ -95,7 +102,7 @@ export default function DriverSessions() {
         const bookRes = await api.get<any>(`/bookings/by-account/${user.id}`);
         if (bookRes.success && bookRes.data) {
           const activeBookings = bookRes.data.filter((b: any) =>
-            b.bookingStatus === 'Pending' || b.bookingStatus === 'Confirmed'
+            b.bookingStatus === 'Pending' || b.bookingStatus === 'Confirmed' || b.bookingStatus === 'CheckedIn'
           );
           setBookings(activeBookings);
         } else {
@@ -267,6 +274,85 @@ export default function DriverSessions() {
     }
   };
 
+  // ── Extend Booking ──────────────────────────────────────────
+  const openExtendModal = (booking: BookingRecord) => {
+    setExtendingBooking(booking);
+    
+    // Set default value: current planned checkout time plus 1 hour
+    const currentCheckout = new Date(booking.plannedCheckoutTime);
+    const dt = new Date(currentCheckout.getTime() + 60 * 60 * 1000);
+    
+    const year = dt.getFullYear();
+    const month = String(dt.getMonth() + 1).padStart(2, '0');
+    const date = String(dt.getDate()).padStart(2, '0');
+    setNewCheckoutDate(`${year}-${month}-${date}`);
+    
+    const hours = String(dt.getHours()).padStart(2, '0');
+    const minutes = String(dt.getMinutes()).padStart(2, '0');
+    setNewCheckoutTime(`${hours}:${minutes}`);
+    
+    setShowExtendModal(true);
+  };
+
+  const handleSaveExtend = async () => {
+    if (!extendingBooking) return;
+    if (!newCheckoutDate || !newCheckoutTime) {
+      showToast('Please select a valid date and time.', 'error');
+      return;
+    }
+    setIsSavingExtend(true);
+    try {
+      const formatLocalVNTime = (date: Date): string => {
+        const parts = new Intl.DateTimeFormat('en-US', {
+          timeZone: 'Asia/Ho_Chi_Minh',
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+          hour12: false,
+        }).formatToParts(date);
+
+        const y = parts.find(p => p.type === 'year')?.value;
+        const m = parts.find(p => p.type === 'month')?.value;
+        const d = parts.find(p => p.type === 'day')?.value;
+        let hr = parts.find(p => p.type === 'hour')?.value ?? '00';
+        const min = parts.find(p => p.type === 'minute')?.value ?? '00';
+        const sec = parts.find(p => p.type === 'second')?.value ?? '00';
+
+        if (hr === '24') hr = '00';
+
+        return `${y}-${m}-${d}T${hr}:${min}:${sec}+07:00`;
+      };
+
+      const checkoutDate = new Date(`${newCheckoutDate}T${newCheckoutTime}:00`);
+      
+      const res = await api.post<any>(`/bookings/${extendingBooking.id}/extend?requestedNewEndTime=${encodeURIComponent(formatLocalVNTime(checkoutDate))}`, null);
+      
+      if (res.success && res.data) {
+        const extResult = res.data;
+        if (extResult.paymentUrl) {
+          showToast('Redirecting to VNPay for additional payment...', 'success');
+          window.location.href = extResult.paymentUrl;
+        } else {
+          showToast(extResult.message || 'Booking extended successfully!', 'success');
+          setShowExtendModal(false);
+          setExtendingBooking(null);
+          fetchSessionsData();
+        }
+      } else {
+        showToast('Failed to request booking extension.', 'error');
+      }
+    } catch (err: any) {
+      console.error('Extend error:', err);
+      const errMsg = err?.data?.message || err?.message || 'Failed to extend booking. Please try again.';
+      showToast(errMsg, 'error');
+    } finally {
+      setIsSavingExtend(false);
+    }
+  };
+
   const matchedVehicleForActive = vehicles.find(v => v.licensePlate === activeSession?.licensePlateIn);
   const isMotor = matchedVehicleForActive?.vehicleTypeId === 1 || activeSession?.slotCode?.startsWith('M');
 
@@ -317,9 +403,12 @@ export default function DriverSessions() {
                   <div className="lg:col-span-8 bg-white border border-[#e2e8f0] rounded-2xl p-6 shadow-sm space-y-6">
                     <div className="flex flex-wrap items-center justify-between gap-3 pb-4 border-b border-slate-100">
                       <div className="space-y-0.5">
-                        <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md ${booking.bookingStatus === 'Confirmed'
-                            ? 'bg-emerald-50 text-emerald-700'
-                            : 'bg-amber-50 text-amber-700'
+                        <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md ${
+                            booking.bookingStatus === 'Confirmed'
+                              ? 'bg-emerald-50 text-emerald-700'
+                              : booking.bookingStatus === 'CheckedIn'
+                              ? 'bg-blue-50 text-blue-700'
+                              : 'bg-amber-50 text-amber-700'
                           }`}>
                           {booking.bookingStatus}
                         </span>
@@ -378,13 +467,15 @@ export default function DriverSessions() {
                     <div className="h-[1px] bg-slate-100 my-4"></div>
 
                     <div className="flex justify-end gap-3">
-                      <button
-                        onClick={() => openCancelConfirm(booking.id)}
-                        className="px-5 py-2.5 border border-rose-200 hover:bg-rose-50 text-rose-600 text-xs font-bold rounded-xl transition-all"
-                      >
-                        Cancel Booking
-                      </button>
-                      {booking.bookingStatus === 'Pending' ? (
+                      {booking.bookingStatus !== 'CheckedIn' && (
+                        <button
+                          onClick={() => openCancelConfirm(booking.id)}
+                          className="px-5 py-2.5 border border-rose-200 hover:bg-rose-50 text-rose-600 text-xs font-bold rounded-xl transition-all"
+                        >
+                          Cancel Booking
+                        </button>
+                      )}
+                      {booking.bookingStatus === 'Pending' && (
                         <button
                           onClick={() => openModifyModal(booking)}
                           className="px-5 py-2.5 bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold rounded-xl transition-all flex items-center gap-1.5"
@@ -392,14 +483,22 @@ export default function DriverSessions() {
                           <Edit3 className="w-3.5 h-3.5" />
                           Modify Reservation
                         </button>
+                      )}
+                      {(booking.bookingStatus === 'Pending' || booking.bookingStatus === 'Confirmed' || booking.bookingStatus === 'CheckedIn') ? (
+                        <button
+                          onClick={() => openExtendModal(booking)}
+                          className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl transition-all flex items-center gap-1.5"
+                        >
+                          <Clock className="w-3.5 h-3.5" />
+                          Extend Stay
+                        </button>
                       ) : (
                         <button
                           disabled
-                          title="Only pending reservations can be modified (deposit not paid)"
                           className="px-5 py-2.5 bg-slate-100 text-slate-400 text-xs font-bold rounded-xl cursor-not-allowed flex items-center gap-1.5 border border-slate-200"
                         >
-                          <Edit3 className="w-3.5 h-3.5" />
-                          Modify Reservation (Locked)
+                          <Clock className="w-3.5 h-3.5" />
+                          Extend Stay (Locked)
                         </button>
                       )}
                     </div>
@@ -615,6 +714,80 @@ export default function DriverSessions() {
                 className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 disabled:opacity-50"
               >
                 {isSavingModify ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Saving...</> : 'Save Changes'}
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* ── EXTEND STAY MODAL ── */}
+      {mounted && showExtendModal && extendingBooking && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+          <div className="bg-white w-full max-w-md rounded-2xl shadow-xl overflow-hidden">
+            <div className="px-6 py-5 border-b border-slate-100 flex justify-between items-start">
+              <div>
+                <h3 className="font-bold text-slate-800">Extend Stay #BK-{extendingBooking.id}</h3>
+                <p className="text-xs text-slate-400 mt-1">Select a new checkout date and time for this reservation.</p>
+              </div>
+              <button
+                onClick={() => setShowExtendModal(false)}
+                className="p-1 hover:bg-slate-100 rounded-lg text-slate-400 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              <div className="space-y-1">
+                <label className="block text-xs font-bold text-slate-400 uppercase tracking-wide">Current Checkout Time</label>
+                <div className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 text-sm rounded-xl text-slate-600 font-semibold">
+                  {new Date(extendingBooking.plannedCheckoutTime).toLocaleString()}
+                </div>
+              </div>
+              <div className="space-y-1">
+                <label className="block text-xs font-bold text-slate-400 uppercase tracking-wide">New Checkout Date</label>
+                <input
+                  type="date"
+                  value={newCheckoutDate}
+                  min={(() => {
+                    const d = new Date(extendingBooking.plannedCheckoutTime);
+                    const y = d.getFullYear();
+                    const m = String(d.getMonth() + 1).padStart(2, '0');
+                    const date = String(d.getDate()).padStart(2, '0');
+                    return `${y}-${m}-${date}`;
+                  })()}
+                  onChange={(e) => setNewCheckoutDate(e.target.value)}
+                  className="w-full px-4 py-2.5 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 text-sm rounded-xl"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="block text-xs font-bold text-slate-400 uppercase tracking-wide">New Checkout Time</label>
+                <input
+                  type="time"
+                  value={newCheckoutTime}
+                  onChange={(e) => setNewCheckoutTime(e.target.value)}
+                  className="w-full px-4 py-2.5 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 text-sm rounded-xl"
+                />
+              </div>
+              <div className="p-3 bg-amber-50 border border-amber-100 rounded-xl text-amber-800 text-xs flex gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-amber-600" />
+                <span>Extending your stay may require additional payment. You will be redirected to VNPay to confirm.</span>
+              </div>
+            </div>
+            <div className="px-6 pb-6 flex gap-3">
+              <button
+                onClick={() => setShowExtendModal(false)}
+                disabled={isSavingExtend}
+                className="flex-1 py-2.5 border border-slate-200 hover:bg-slate-50 text-slate-600 text-xs font-bold rounded-xl transition-all"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveExtend}
+                disabled={isSavingExtend}
+                className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 disabled:opacity-50"
+              >
+                {isSavingExtend ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Saving...</> : 'Confirm Extension'}
               </button>
             </div>
           </div>

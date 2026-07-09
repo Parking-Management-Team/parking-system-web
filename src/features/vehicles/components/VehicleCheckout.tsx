@@ -91,6 +91,9 @@ const getVehicleTypeGroup = (vehicleType: string): VehicleTypeFilter => {
   return 'UNKNOWN';
 };
 
+const getBaseAmount = (amount?: number | null, incidentTotal?: number | null) =>
+  Math.max(0, Number(amount ?? 0) - Number(incidentTotal ?? 0));
+
 export default function VehicleCheckout() {
   const { showToast } = useAuth();
   const [sessions, setSessions] = useState<CheckoutSession[]>([]);
@@ -965,18 +968,45 @@ export default function VehicleCheckout() {
       {isMounted &&
         overlay &&
         createPortal(
-          <div className="fixed inset-0 z-[100000] flex items-center justify-center bg-emerald-700 p-6 text-white">
-            <div className="w-full max-w-4xl rounded-[2rem] bg-white/15 p-8 text-center shadow-2xl backdrop-blur-sm">
-              <div className="mx-auto flex h-24 w-24 items-center justify-center rounded-full bg-white/20">
-                <span className="material-symbols-outlined text-6xl">paid</span>
+          <div className="fixed inset-0 z-[100000] overflow-y-auto bg-emerald-700 p-4 text-white sm:p-6">
+            <div className="mx-auto my-4 flex min-h-[calc(100vh-2rem)] w-full max-w-5xl items-center sm:my-6 sm:min-h-[calc(100vh-3rem)]">
+              <div className="w-full rounded-[1.75rem] bg-white/15 p-5 text-center shadow-2xl backdrop-blur-sm sm:p-6 lg:p-7">
+              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-white/20 sm:h-20 sm:w-20">
+                <span className="material-symbols-outlined text-4xl sm:text-5xl">paid</span>
               </div>
-              <p className="mt-6 text-xs font-black uppercase tracking-[0.4em] text-white/70">
+              <p className="mt-4 text-[10px] font-black uppercase tracking-[0.35em] text-white/70 sm:text-xs">
                 Checkout summary
               </p>
-              <h2 className="mt-2 font-mono text-5xl font-black tracking-widest">
+              <h2 className="mt-2 break-all font-mono text-4xl font-black tracking-widest sm:text-5xl">
                 {overlay.session.licensePlate}
               </h2>
-              <div className="mt-8 grid gap-3 text-left md:grid-cols-2">
+              <div className="mx-auto mt-5 max-w-3xl rounded-[1.75rem] bg-white px-5 py-5 text-emerald-800 shadow-2xl shadow-emerald-950/10">
+                <p className="text-xs font-black uppercase tracking-[0.35em] text-emerald-600">
+                  Total to pay
+                </p>
+                <p className="mt-2 break-words text-5xl font-black tracking-tight sm:text-6xl">
+                  {formatCurrency(overlay.payment.amount)}
+                </p>
+                <div className="mt-4 grid gap-2 text-left text-sm font-black sm:grid-cols-2">
+                  <div className="rounded-2xl bg-emerald-50 px-4 py-3">
+                    <p className="text-[10px] uppercase tracking-wider text-emerald-500">
+                      Parking fee
+                    </p>
+                    <p className="mt-1 text-lg text-slate-900">
+                      {formatCurrency(getBaseAmount(overlay.payment.amount, overlay.incidentTotal))}
+                    </p>
+                  </div>
+                  <div className="rounded-2xl bg-red-50 px-4 py-3">
+                    <p className="text-[10px] uppercase tracking-wider text-red-500">
+                      Incident fees
+                    </p>
+                    <p className="mt-1 text-lg text-red-700">
+                      {formatCurrency(overlay.incidentTotal)}
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <div className="mt-5 grid gap-3 text-left md:grid-cols-2 xl:grid-cols-3">
                 <OverlayInfo label="Card code" value={overlay.session.cardCode ?? '—'} />
                 <OverlayInfo label="Exit plate" value={overlay.exitPlate} />
                 <OverlayInfo label="Check-in time" value={formatDateTime(overlay.session.checkInTime)} />
@@ -984,15 +1014,13 @@ export default function VehicleCheckout() {
                 <OverlayInfo label="Duration" value={overlay.duration} />
                 <OverlayInfo label="Payment method" value={String(overlay.payment.paymentMethod || paymentMethod)} />
                 <OverlayInfo label="Payment status" value={String(overlay.payment.paymentStatus)} />
-                <OverlayInfo label="Incident fees" value={formatCurrency(overlay.incidentTotal)} />
-                <OverlayInfo label="Amount due" value={formatCurrency(overlay.payment.amount)} strong />
               </div>
               {overlay.incidents.length > 0 && (
-                <div className="mt-5 rounded-3xl bg-white/15 p-4 text-left">
+                <div className="mt-4 rounded-3xl bg-white/15 p-4 text-left">
                   <p className="text-xs font-black uppercase tracking-wider text-white/70">
                     Added incident fees
                   </p>
-                  <div className="mt-3 space-y-2">
+                  <div className="mt-3 max-h-40 space-y-2 overflow-y-auto pr-1">
                     {overlay.incidents.map((incident) => (
                       <div
                         key={incident.id}
@@ -1017,7 +1045,7 @@ export default function VehicleCheckout() {
                   Open online payment URL
                 </a>
               )}
-              <div className="mt-6 flex flex-col justify-center gap-3 sm:flex-row">
+              <div className="mt-5 flex flex-col justify-center gap-3 sm:flex-row">
                 {String(overlay.payment.paymentStatus).toUpperCase() !== 'PAID' && (
                   <button
                     type="button"
@@ -1043,6 +1071,7 @@ export default function VehicleCheckout() {
                 >
                   Ready for next vehicle
                 </button>
+              </div>
               </div>
             </div>
           </div>,
@@ -1261,9 +1290,13 @@ function OverlayInfo({
   strong?: boolean;
 }) {
   return (
-    <div className="rounded-2xl bg-white/15 p-4">
+    <div className="min-w-0 rounded-2xl bg-white/15 p-3 sm:p-4">
       <p className="text-xs font-black uppercase text-white/60">{label}</p>
-      <p className={`mt-1 font-black ${strong ? 'text-3xl' : 'text-xl'}`}>
+      <p
+        className={`mt-1 break-words font-black ${
+          strong ? 'text-2xl sm:text-3xl' : 'text-lg sm:text-xl'
+        }`}
+      >
         {value}
       </p>
     </div>

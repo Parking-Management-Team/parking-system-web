@@ -11,6 +11,7 @@ import VehicleModals from './VehicleModals';
  */
 export default function VehicleDetailsWorkspace() {
   const {
+    loading,
     isParked,
     parkedSlot,
     showViolationModal,
@@ -29,6 +30,14 @@ export default function VehicleDetailsWorkspace() {
     handleReleaseSlot,
     submitViolation
   } = useVehicles();
+
+  if (loading) {
+    return (
+      <div className="flex-grow flex items-center justify-center min-h-screen bg-[#f9f9ff]">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600" />
+      </div>
+    );
+  }
 
   return (
     <div className="flex-grow flex flex-col min-h-screen relative bg-[#f9f9ff]">

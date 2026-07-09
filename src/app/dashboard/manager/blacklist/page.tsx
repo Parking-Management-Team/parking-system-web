@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import BlacklistManagement from '@/features/blacklist/components/BlacklistManagement';
+import { BlacklistManagement } from '@/features/blacklist';
 
 /**
  * Manager Blacklist Management Page

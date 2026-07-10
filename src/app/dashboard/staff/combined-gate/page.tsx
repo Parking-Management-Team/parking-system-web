@@ -678,14 +678,14 @@ export default function CombinedGatePage() {
 
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="text-xs font-bold text-slate-500">Loại phương tiện</label>
+                      <label className="text-xs font-bold text-slate-500">Vehicle Type</label>
                       <select
                         value={checkinVehicleType}
                         onChange={(e) => setCheckinVehicleType(e.target.value as any)}
                         className="mt-1.5 w-full rounded-xl border border-slate-200 px-3 py-3 text-xs font-bold text-slate-700 outline-none"
                       >
-                        <option value="CAR">Ô tô</option>
-                        <option value="MOTORCYCLE">Xe máy</option>
+                        <option value="CAR">Car</option>
+                        <option value="MOTORCYCLE">Motorcycle</option>
                       </select>
                     </div>
                     <div>

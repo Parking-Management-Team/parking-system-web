@@ -24,6 +24,7 @@ type ParkingSessionDto = {
   slotCode?: string | null;
   imageIn?: string | null;
   imageOut?: string | null;
+  vehicleType?: string | null;
 };
 
 type BookingDto = {
@@ -161,8 +162,9 @@ export const mapActiveParkingSession = (
     id: sessionId,
     sessionCode: `SS-${sessionId}`,
     licensePlate: String(session.licensePlateIn ?? '-'),
-    // The current active-session DTO does not expose VehicleTypeId.
-    vehicleType: 'UNKNOWN',
+    vehicleType: session.vehicleType
+      ? (String(session.vehicleType).toUpperCase().includes('CAR') ? 'CAR' : 'MOTORCYCLE')
+      : 'UNKNOWN',
     customerType: session.monthlySubscriptionId
       ? 'MONTHLY'
       : session.bookingId

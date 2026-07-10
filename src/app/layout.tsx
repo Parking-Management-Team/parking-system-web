@@ -15,6 +15,7 @@ import './globals.css'
 import type { Metadata } from 'next'
 import { Inter, Plus_Jakarta_Sans } from 'next/font/google'
 import { AuthProvider } from '@/features/auth'
+import { SidebarProvider } from '@/components/layout/SidebarContext'
 import Script from 'next/script'
 
 // Font chính cho body text (nội dung thường)
@@ -59,7 +60,9 @@ export default function RootLayout({
       <body className={`${inter.className} ${plusJakartaSans.variable} bg-gray-50 text-gray-900 antialiased`}>
         {/* AuthProvider bọc quanh toàn bộ app để mọi component đều kiểm tra được user đã đăng nhập chưa */}
         <AuthProvider>
-          {children}
+          <SidebarProvider>
+            {children}
+          </SidebarProvider>
         </AuthProvider>
         {/* Load Google Identity Services SDK */}
         <Script src="https://accounts.google.com/gsi/client" strategy="afterInteractive" />

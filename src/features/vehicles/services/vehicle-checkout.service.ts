@@ -30,6 +30,8 @@ type ActiveSessionDto = {
   bookingCode?: string | null;
   subscriptionCode?: string | null;
   monthlyValidTo?: string | null;
+  imageIn?: string | null;
+  imageOut?: string | null;
 };
 
 type PaymentDto = {
@@ -76,6 +78,8 @@ export type CheckoutSession = {
   monthlyValidTo: string | null;
   checkInTime: string | null;
   status: string;
+  imageIn: string | null;
+  imageOut: string | null;
 };
 
 export type CheckoutPayment = {
@@ -91,22 +95,33 @@ export type CheckoutPayment = {
 };
 
 const getApiErrorMessage = (error: unknown): string => {
-  if (error instanceof ApiError && error.data && typeof error.data === 'object') {
-    const body = error.data as {
-      message?: unknown;
-      title?: unknown;
-      errors?: Record<string, unknown>;
-    };
+  if (error && typeof error === 'object') {
+    const isApiError =
+      error instanceof ApiError ||
+      ('name' in error && (error as any).name === 'ApiError') ||
+      ('status' in error && 'data' in error);
 
-    const validationMessages = body.errors
-      ? Object.values(body.errors)
-          .flatMap((value) => (Array.isArray(value) ? value : [value]))
-          .filter((value): value is string => typeof value === 'string')
-      : [];
+    if (isApiError && 'data' in error && error.data && typeof error.data === 'object') {
+      const body = error.data as {
+        message?: unknown;
+        title?: unknown;
+        errors?: Record<string, unknown>;
+      };
 
-    if (typeof body.message === 'string' && body.message.trim()) return body.message;
-    if (validationMessages.length > 0) return validationMessages.join('\n');
-    if (typeof body.title === 'string' && body.title.trim()) return body.title;
+      const validationMessages = body.errors
+        ? Object.values(body.errors)
+            .flatMap((value) => (Array.isArray(value) ? value : [value]))
+            .filter((value): value is string => typeof value === 'string')
+        : [];
+
+      if (typeof body.message === 'string' && body.message.trim()) return body.message;
+      if (validationMessages.length > 0) return validationMessages.join('\n');
+      if (typeof body.title === 'string' && body.title.trim()) return body.title;
+    }
+
+    if ('message' in error && typeof (error as any).message === 'string' && (error as any).message.trim()) {
+      return (error as any).message;
+    }
   }
 
   return error instanceof Error ? error.message : 'Vehicle check-out request failed.';
@@ -166,6 +181,8 @@ const mapSession = (
     monthlyValidTo: session.monthlyValidTo ?? null,
     checkInTime: session.checkInTime ?? null,
     status: String(session.sessionStatus ?? 'ACTIVE'),
+    imageIn: session.imageIn ?? null,
+    imageOut: session.imageOut ?? null,
   };
 };
 
@@ -223,19 +240,32 @@ export const fetchCheckoutActiveSessions = async (): Promise<CheckoutSession[]> 
   }
 };
 
+export type StartCheckoutResponse = {
+  totalFee: number;
+  penaltyFee: number;
+  amountDue: number;
+};
+
 export const startCheckout = async (
   sessionId: number,
   input: {
     checkOutTime: string;
     licensePlateOut: string;
     outStaffId: number;
+    imageOut?: string;
   }
-): Promise<void> => {
+): Promise<StartCheckoutResponse> => {
   try {
-    await api.patch<BaseResponse<unknown>>(
+    const response = await api.patch<BaseResponse<any>>(
       `/parking-sessions/${sessionId}/checkout/start`,
       input
     );
+    const data = unwrap(response, 'Could not start checkout.');
+    return {
+      totalFee: data.totalFee ?? 0,
+      penaltyFee: data.penaltyFee ?? 0,
+      amountDue: data.amountDue ?? 0,
+    };
   } catch (error) {
     throw new Error(getApiErrorMessage(error));
   }

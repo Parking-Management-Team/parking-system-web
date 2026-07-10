@@ -7,6 +7,7 @@ import type { ParkingCard } from '@/features/card/types/card';
 import {
   checkInVehicle,
   fetchActiveParkingSessions,
+  scanLicensePlate,
   type VehicleCheckinSession,
 } from '@/features/vehicles/services/vehicle-checkin.service';
 import {
@@ -26,7 +27,6 @@ import {
   Square,
   ChevronRight,
 } from 'lucide-react';
-import { createWorker } from 'tesseract.js';
 
 const BUILDING_ID = 3;
 const STAFF_ID = 2;
@@ -174,49 +174,20 @@ export default function CameraTestPage() {
     return dataUrl;
   };
 
-  // Run Tesseract.js OCR offline on base64 capture
+  // Run OCR on Backend Cloud API
   const performOCR = async (base64Img: string) => {
     setIsScanning(true);
-    setScanProgress('Đang khởi tạo công cụ OCR...');
+    setScanProgress('Đang gửi hình ảnh lên Cloud API để nhận diện...');
     setOcrText('');
 
     try {
-      const worker = await createWorker('eng');
-      
-      setScanProgress('Đang nhận dạng chữ viết...');
-      const { data: { text } } = await worker.recognize(base64Img);
-      await worker.terminate();
-
-      setOcrText(text);
-
-      // Clean text to extract license plate
-      const cleanedText = text.toUpperCase().replace(/[^A-Z0-9\-\.]/g, ' ').trim();
-      const rawPlate = text.toUpperCase().replace(/[^A-Z0-9]/g, '');
-
-      // Simple regex pattern search (e.g. 59G212345 or 30A99999)
-      const vnPlateRegex = /[0-9]{2}[A-Z0-9]{1,2}[0-9]{4,5}/;
-      const match = rawPlate.match(vnPlateRegex);
-
-      let finalPlate = '';
-      if (match) {
-        finalPlate = match[0];
-        showToast(`Nhận diện biển số thành công: ${finalPlate}`, 'success');
-      } else {
-        // Fallback to first line or longest alphanumeric block
-        const blocks = cleanedText.split(/\s+/).filter(b => b.length >= 4);
-        if (blocks.length > 0) {
-          finalPlate = blocks[0];
-          showToast(`Nhận diện biển số (mức khá): ${finalPlate}`, 'info');
-        } else {
-          finalPlate = cleanedText.substring(0, 12);
-          showToast('Không tìm thấy biển số xe phù hợp, vui lòng kiểm tra lại.', 'info');
-        }
-      }
-
-      return finalPlate;
-    } catch (err) {
+      const result = await scanLicensePlate({ image: base64Img });
+      setOcrText(result.licensePlate);
+      showToast(`Nhận diện biển số thành công: ${result.licensePlate} (Độ tin cậy: ${Math.round(result.confidence * 100)}%)`, 'success');
+      return result.licensePlate;
+    } catch (err: any) {
       console.error('Lỗi OCR:', err);
-      showToast('Lỗi trong quá trình quét OCR.', 'error');
+      showToast(err.message || 'Lỗi trong quá trình quét OCR.', 'error');
       return '';
     } finally {
       setIsScanning(false);

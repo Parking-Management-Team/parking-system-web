@@ -240,6 +240,12 @@ export const fetchCheckoutActiveSessions = async (): Promise<CheckoutSession[]> 
   }
 };
 
+export type StartCheckoutResponse = {
+  totalFee: number;
+  penaltyFee: number;
+  amountDue: number;
+};
+
 export const startCheckout = async (
   sessionId: number,
   input: {
@@ -248,12 +254,18 @@ export const startCheckout = async (
     outStaffId: number;
     imageOut?: string;
   }
-): Promise<void> => {
+): Promise<StartCheckoutResponse> => {
   try {
-    await api.patch<BaseResponse<unknown>>(
+    const response = await api.patch<BaseResponse<any>>(
       `/parking-sessions/${sessionId}/checkout/start`,
       input
     );
+    const data = unwrap(response, 'Could not start checkout.');
+    return {
+      totalFee: data.totalFee ?? 0,
+      penaltyFee: data.penaltyFee ?? 0,
+      amountDue: data.amountDue ?? 0,
+    };
   } catch (error) {
     throw new Error(getApiErrorMessage(error));
   }

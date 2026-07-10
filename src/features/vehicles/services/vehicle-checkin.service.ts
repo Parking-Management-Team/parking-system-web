@@ -214,6 +214,29 @@ export const fetchActiveParkingSessions = async (): Promise<VehicleCheckinSessio
   }
 };
 
+export type OcrScanPayload = {
+  image: string;
+};
+
+export type OcrScanResult = {
+  licensePlate: string;
+  confidence: number;
+};
+
+export const scanLicensePlate = async (
+  payload: OcrScanPayload
+): Promise<OcrScanResult> => {
+  try {
+    const response = await api.post<BaseResponse<OcrScanResult>>(
+      '/parking-sessions/ocr',
+      payload
+    );
+    return unwrap(response, 'License plate scanning failed.');
+  } catch (error) {
+    throw new Error(getApiErrorMessage(error));
+  }
+};
+
 export const checkInVehicle = async (
   payload: CheckInVehiclePayload
 ): Promise<VehicleCheckinSession> => {

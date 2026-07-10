@@ -10,22 +10,34 @@ type BaseResponse<T> = {
 type ParkingSessionDto = {
   id?: number | null;
   vehicleId?: number | null;
+  accountId?: number | null;
   buildingId?: number | null;
   cardId?: number | null;
   zoneId?: number | null;
   slotId?: number | null;
   bookingId?: number | null;
+  bookingCode?: string | null;
   monthlySubscriptionId?: number | null;
   checkInTime?: string | null;
   licensePlateIn?: string | null;
   sessionStatus?: string | null;
   cardCode?: string | null;
+  cardStatus?: string | null;
   zoneCode?: string | null;
+  zoneName?: string | null;
   slotCode?: string | null;
+  vehicleTypeId?: number | null;
+  vehicleTypeName?: string | null;
+  plannedCheckoutTime?: string | null;
+  totalFee?: number | null;
+  penaltyFee?: number | null;
+  amountDue?: number | null;
 };
 
 type BookingDto = {
   id?: number | null;
+  bookingId?: number | null;
+  bookingCode?: string | null;
   licensePlate?: string | null;
   vehicleTypeId?: number | null;
   vehicleTypeName?: string | null;
@@ -154,13 +166,17 @@ export const mapActiveParkingSession = (
 ): VehicleCheckinSession => {
   const sessionId = Number(session.id ?? 0);
   const cardId = Number(session.cardId ?? 0);
+  const vehicleTypeName = String(session.vehicleTypeName ?? '').trim().toUpperCase();
 
   return {
     id: sessionId,
-    sessionCode: `SS-${sessionId}`,
+    sessionCode: session.bookingCode ?? `SS-${sessionId}`,
     licensePlate: String(session.licensePlateIn ?? '-'),
-    // The current active-session DTO does not expose VehicleTypeId.
-    vehicleType: 'UNKNOWN',
+    vehicleType: vehicleTypeName.includes('MOTOR') || vehicleTypeName.includes('BIKE')
+      ? 'MOTORCYCLE'
+      : vehicleTypeName.includes('CAR')
+        ? 'CAR'
+        : 'UNKNOWN',
     customerType: session.monthlySubscriptionId
       ? 'MONTHLY'
       : session.bookingId
@@ -171,7 +187,7 @@ export const mapActiveParkingSession = (
     cardId,
     cardCode: String(session.cardCode ?? `#${cardId}`),
     zoneId: session.zoneId ?? null,
-    zoneName: session.zoneCode ?? '-',
+    zoneName: session.zoneName ?? session.zoneCode ?? '-',
     actualSlotId: session.slotId ?? null,
     actualSlotCode: session.slotCode ?? null,
     checkInTime: String(session.checkInTime ?? ''),
@@ -184,10 +200,10 @@ export const mapActiveParkingSession = (
 };
 
 const mapBooking = (booking: BookingDto): VehicleCheckinBooking => {
-  const id = Number(booking.id ?? 0);
+  const id = Number(booking.bookingId ?? booking.id ?? 0);
   return {
     id,
-    bookingCode: `BK-${String(id).padStart(4, '0')}`,
+    bookingCode: booking.bookingCode ?? `BK-${String(id).padStart(4, '0')}`,
     licensePlate: String(booking.licensePlate ?? ''),
     vehicleTypeId: booking.vehicleTypeId ?? null,
     vehicleTypeName: String(booking.vehicleTypeName ?? 'Unknown'),
@@ -324,6 +340,24 @@ export const fetchCheckinBookings = async (): Promise<VehicleCheckinBooking[]> =
   }
 };
 
+export const lookupCheckinBookingByPlate = async (
+  licensePlate: string,
+  buildingId?: number | null
+): Promise<VehicleCheckinBooking | null> => {
+  const query = new URLSearchParams({ licensePlate: licensePlate.trim() });
+  if (buildingId != null) query.set('buildingId', String(buildingId));
+
+  try {
+    const response = await api.get<BaseResponse<BookingDto>>(
+      `/parking-sessions/check-in/booking?${query.toString()}`
+    );
+    return mapBooking(unwrap(response, 'Could not lookup check-in booking.'));
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 404) return null;
+    throw new Error(getApiErrorMessage(error));
+  }
+};
+
 export type ReallocateSlotDto = {
   id: number;
   code: string;
@@ -356,7 +390,8 @@ export const fetchAvailableSlotsForReallocation = async (
         const slots = (slotRes && slotRes.success) ? slotRes.data : (Array.isArray(slotRes) ? slotRes : []);
 
         for (const slot of slots) {
-          const isAvailable = (slot.status === 0 || slot.status === 'Available') && !slot.isReserved;
+          const status = String(slot.status ?? '').trim().toUpperCase();
+          const isAvailable = slot.status === 0 || status === 'AVAILABLE';
           if (isAvailable) {
             availableSlots.push({
               id: slot.id,

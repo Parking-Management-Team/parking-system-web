@@ -23,11 +23,16 @@ type ActiveSessionDto = {
   licensePlateOut?: string | null;
   sessionStatus?: string | null;
   cardCode?: string | null;
+  cardStatus?: string | null;
   zoneCode?: string | null;
+  zoneName?: string | null;
   slotCode?: string | null;
   vehicleType?: string | null;
+  vehicleTypeName?: string | null;
+  vehicleTypeId?: number | null;
   customerType?: string | null;
   bookingCode?: string | null;
+  plannedCheckoutTime?: string | null;
   subscriptionCode?: string | null;
   monthlyValidTo?: string | null;
 };
@@ -44,11 +49,33 @@ type PaymentDto = {
   orderCode?: number | null;
   paymentUrl?: string | null;
   qrCodeUrl?: string | null;
+  baseParkingFee?: number | null;
+  BaseParkingFee?: number | null;
+  incidentFeeTotal?: number | null;
+  IncidentFeeTotal?: number | null;
+  parkingFee?: number | null;
+  incidentFees?: number | null;
+  items?: PaymentBreakdownItemDto[] | null;
+  Items?: PaymentBreakdownItemDto[] | null;
+  details?: PaymentBreakdownItemDto[] | null;
+};
+
+type PaymentBreakdownItemDto = {
+  type?: string | null;
+  Type?: string | null;
+  name?: string | null;
+  Name?: string | null;
+  amount?: number | null;
+  Amount?: number | null;
+  incidentId?: number | null;
+  IncidentId?: number | null;
 };
 
 type CardDto = {
   id?: number | null;
   cardCode?: string | null;
+  cardStatus?: string | null;
+  cardType?: string | null;
 };
 
 export type CheckoutPaymentMethod = 'CASH' | 'ONLINE_BANKING';
@@ -89,6 +116,14 @@ export type CheckoutPayment = {
   paymentUrl: string | null;
   qrCodeUrl: string | null;
   orderCode: number | null;
+  baseParkingFee: number;
+  incidentFeeTotal: number;
+  items: {
+    type: string | null;
+    name: string;
+    amount: number;
+    incidentId: number | null;
+  }[];
 };
 
 const getApiErrorMessage = (error: unknown): string => {
@@ -177,17 +212,37 @@ const mapPaymentStatus = (value: unknown): CheckoutPaymentStatus | string => {
   return status || 'PENDING';
 };
 
-const mapPayment = (payment: PaymentDto): CheckoutPayment => ({
-  id: Number(payment.id ?? 0),
-  sessionId: payment.sessionId ?? null,
-  amount: Number(payment.amount ?? 0),
-  paymentMethod: String(payment.paymentMethod ?? ''),
-  paymentStatus: mapPaymentStatus(payment.paymentStatus),
-  paymentTime: payment.paymentTime ?? null,
-  paymentUrl: payment.paymentUrl ?? null,
-  qrCodeUrl: payment.qrCodeUrl ?? null,
-  orderCode: payment.orderCode ?? null,
+const mapBreakdownItem = (item: PaymentBreakdownItemDto) => ({
+  type: item.type ?? item.Type ?? null,
+  name: String(item.name ?? item.Name ?? 'Fee'),
+  amount: Number(item.amount ?? item.Amount ?? 0),
+  incidentId: item.incidentId ?? item.IncidentId ?? null,
 });
+
+const mapPayment = (payment: PaymentDto): CheckoutPayment => {
+  const items = payment.items ?? payment.Items ?? payment.details ?? [];
+  const baseParkingFee = Number(
+    payment.baseParkingFee ?? payment.BaseParkingFee ?? payment.parkingFee ?? 0
+  );
+  const incidentFeeTotal = Number(
+    payment.incidentFeeTotal ?? payment.IncidentFeeTotal ?? payment.incidentFees ?? 0
+  );
+
+  return {
+    id: Number(payment.id ?? 0),
+    sessionId: payment.sessionId ?? null,
+    amount: Number(payment.amount ?? baseParkingFee + incidentFeeTotal),
+    paymentMethod: String(payment.paymentMethod ?? ''),
+    paymentStatus: mapPaymentStatus(payment.paymentStatus),
+    paymentTime: payment.paymentTime ?? null,
+    paymentUrl: payment.paymentUrl ?? null,
+    qrCodeUrl: payment.qrCodeUrl ?? null,
+    orderCode: payment.orderCode ?? null,
+    baseParkingFee,
+    incidentFeeTotal,
+    items: items.map(mapBreakdownItem),
+  };
+};
 
 const fetchCardCodeMap = async (): Promise<Map<number, string>> => {
   const response = await api.get<BaseResponse<CardDto[]> | CardDto[]>('/cards');
@@ -206,6 +261,18 @@ const fetchCardCodeMap = async (): Promise<Map<number, string>> => {
   });
 
   return cardCodeById;
+};
+
+export const fetchCheckoutCardByCode = async (cardCode: string): Promise<CardDto | null> => {
+  try {
+    const response = await api.get<BaseResponse<CardDto>>(
+      `/cards/by-code/${encodeURIComponent(cardCode.trim())}`
+    );
+    return unwrap(response, 'Could not load card by code.');
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 404) return null;
+    throw new Error(getApiErrorMessage(error));
+  }
 };
 
 export const fetchCheckoutActiveSessions = async (): Promise<CheckoutSession[]> => {

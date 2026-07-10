@@ -1,12 +1,12 @@
 'use client';
 
 import React from 'react';
-import { SlotMonitoring } from '@/features/facilities';
+import { StaffSlotMonitoring } from '@/features/staff';
 
 /**
- * Slot Monitoring Page - Trang giám sát và cập nhật trạng thái ô đỗ trực tiếp.
- * Render giao diện Slot Monitoring của features/facilities.
+ * Staff Slot Monitoring Page - màn vận hành gọn cho Staff xác nhận slot thực tế.
+ * Không dùng lại màn Facility/Manager để tránh hiển thị dư thông tin quản trị.
  */
 export default function SlotMonitoringPage() {
-  return <SlotMonitoring />;
+  return <StaffSlotMonitoring />;
 }

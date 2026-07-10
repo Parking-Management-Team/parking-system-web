@@ -6,7 +6,7 @@ import { useAuth } from '@/features/auth/context/AuthContext';
 import { fetchCards } from '@/features/card/services/card.service';
 import type { ParkingCard } from '@/features/card/types/card';
 import { blacklistService } from '@/features/blacklist/services/blacklist.service';
-import { api } from '@/lib/api/client';
+import { api, ApiError } from '@/lib/api/client';
 import type { BlacklistDto } from '@/features/blacklist/types';
 import {
   checkInVehicle,
@@ -15,13 +15,12 @@ import {
   fetchCheckinBookingsByBuilding,
   fetchCheckinVehicleTypes,
   fetchAvailableSlotsForReallocation,
+  lookupCheckinBookingByPlate,
   type CheckinVehicleType,
   type VehicleCheckinBooking,
   type VehicleCheckinSession,
   type ReallocateSlotDto,
 } from '@/features/vehicles/services/vehicle-checkin.service';
-import { ApiError } from '@/lib/api/client';
-
 type VehicleType = 'CAR' | 'MOTORCYCLE';
 
 type GateOverlay =
@@ -33,6 +32,7 @@ type GateOverlay =
       vehicleType: VehicleType;
       cardCode: string;
       checkInTime: string;
+      expectedCheckoutTime?: string | null;
     }
   | {
       type: 'error';
@@ -315,15 +315,24 @@ export default function VehicleCheckin() {
         return;
       }
 
+      const bookingForCheckin = await lookupCheckinBookingByPlate(
+        formattedPlate,
+        buildingId
+      ).catch((error) => {
+        console.warn('Check-in booking lookup endpoint failed; using cached booking fallback.', error);
+        return matchedBooking;
+      });
+      const effectiveBooking = bookingForCheckin ?? matchedBooking;
+
       const session = await checkInVehicle({
         licensePlate: formattedPlate,
-        vehicleTypeId: matchedBooking && matchedBooking.vehicleTypeId
-          ? matchedBooking.vehicleTypeId
+        vehicleTypeId: effectiveBooking && effectiveBooking.vehicleTypeId
+          ? effectiveBooking.vehicleTypeId
           : vehicleTypeIdByType[vehicleType],
         cardCode: normalizedCardCode,
         buildingId: buildingId,
         staffId: STAFF_ID,
-        ...(matchedBooking ? { bookingId: matchedBooking.id } : {}),
+        ...(effectiveBooking ? { bookingId: effectiveBooking.id } : {}),
       });
 
       await loadGateData();
@@ -332,13 +341,14 @@ export default function VehicleCheckin() {
       showGateOverlay({
         type: 'success',
         title: 'Check-in successful',
-        message: matchedBooking
-          ? `Booking ${matchedBooking.bookingCode} was converted to a parking session.`
+        message: effectiveBooking
+          ? `Booking ${effectiveBooking.bookingCode} was converted to a parking session.`
           : 'Walk-in parking session was created.',
         session,
         vehicleType,
         cardCode: normalizedCardCode,
         checkInTime: session.checkInTime || new Date().toISOString(),
+        expectedCheckoutTime: effectiveBooking?.plannedCheckoutTime ?? null,
       });
     } catch (error) {
       let isSlotUnavailableError = false;
@@ -418,6 +428,7 @@ export default function VehicleCheckin() {
         vehicleType,
         cardCode: normalizedCardCode,
         checkInTime: session.checkInTime || new Date().toISOString(),
+        expectedCheckoutTime: matchedBooking.plannedCheckoutTime,
       });
     } catch (error) {
       let errMsg = 'Đổi vị trí và Check-in thất bại.';
@@ -593,6 +604,8 @@ export default function VehicleCheckin() {
                   <div className="mt-2 grid grid-cols-2 gap-2 text-xs font-bold text-slate-600">
                     <span>Deposit: {formatCurrency(matchedBooking.depositAmount)}</span>
                     <span>Grace: {formatDateTime(matchedBooking.checkinGraceUntil)}</span>
+                    <span>Expected in: {formatDateTime(matchedBooking.plannedCheckinTime)}</span>
+                    <span>Expected out: {formatDateTime(matchedBooking.plannedCheckoutTime)}</span>
                     <span>Building: {matchedBooking.buildingName || buildingId}</span>
                     <span>Type: {matchedBooking.vehicleTypeName}</span>
                   </div>
@@ -651,7 +664,7 @@ export default function VehicleCheckin() {
                 </p>
               </div>
 
-              <div className="absolute bottom-6 left-5 right-5 grid grid-cols-3 gap-3 text-xs font-black">
+              <div className="absolute bottom-6 left-5 right-5 grid grid-cols-2 gap-3 text-xs font-black md:grid-cols-4">
                 <div className="rounded-2xl bg-white/10 p-3 text-slate-300">
                   Vehicle
                   <p className="mt-1 text-white">{vehicleType}</p>
@@ -668,6 +681,14 @@ export default function VehicleCheckin() {
                       : 'bg-emerald-300 text-emerald-950'
                   }`}>
                     {matchedBooking ? 'BOOKING' : 'WALK-IN'}
+                  </p>
+                </div>
+                <div className="rounded-2xl bg-white/10 p-3 text-slate-300">
+                  Expected out
+                  <p className="mt-1 text-white">
+                    {matchedBooking
+                      ? formatDateTime(matchedBooking.plannedCheckoutTime)
+                      : 'Not scheduled'}
                   </p>
                 </div>
               </div>
@@ -787,6 +808,14 @@ export default function VehicleCheckin() {
                 <div>
                   <p className="text-xs font-black uppercase text-white/60">Check-in time</p>
                   <p className="text-2xl font-black">{formatDateTime(overlay.checkInTime)}</p>
+                </div>
+                <div className="md:col-span-2">
+                  <p className="text-xs font-black uppercase text-white/60">Expected check-out</p>
+                  <p className="text-2xl font-black">
+                    {overlay.expectedCheckoutTime
+                      ? formatDateTime(overlay.expectedCheckoutTime)
+                      : 'Not scheduled for walk-in'}
+                  </p>
                 </div>
               </div>
             )}

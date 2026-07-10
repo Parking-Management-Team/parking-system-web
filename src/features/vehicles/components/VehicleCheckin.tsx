@@ -34,14 +34,14 @@ type GateOverlay =
       message: string;
     };
 
-const BUILDING_ID = 1;
+const BUILDING_ID = 3;
 const STAFF_ID = 2;
 
 // TODO(api-confirm): giữ mapping tạm theo yêu cầu test hiện tại.
 // Nếu BE seed VehicleType khác, chỉ cần đổi mapping này.
 const VEHICLE_TYPE_ID_BY_TYPE: Record<VehicleType, number> = {
   CAR: 2,
-  MOTORCYCLE: 1,
+  MOTORCYCLE: 3,
 };
 
 const normalizeText = (value: string) => value.trim().toUpperCase();

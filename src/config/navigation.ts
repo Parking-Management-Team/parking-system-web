@@ -103,6 +103,11 @@ export const ROLE_NAVIGATION: Record<string, NavigationItem[]> = {
       icon: 'logout',
     },
     {
+      label: 'Combined Gate',
+      href: '/dashboard/staff/combined-gate',
+      icon: 'sync_alt',
+    },
+    {
       label: 'Slot Monitoring',
       href: '/dashboard/staff/monitoring',
       icon: 'sensors',

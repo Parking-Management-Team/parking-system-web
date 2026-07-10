@@ -22,6 +22,9 @@ type ParkingSessionDto = {
   cardCode?: string | null;
   zoneCode?: string | null;
   slotCode?: string | null;
+  imageIn?: string | null;
+  imageOut?: string | null;
+  vehicleType?: string | null;
 };
 
 type BookingDto = {
@@ -47,6 +50,7 @@ export type CheckInVehiclePayload = {
   bookingId?: number;
   randomizeSlot?: boolean;
   overrideSlotId?: number;
+  imageIn?: string;
 };
 
 export type VehicleCheckinSession = {
@@ -65,6 +69,8 @@ export type VehicleCheckinSession = {
   actualSlotCode: string | null;
   checkInTime: string;
   status: 'ACTIVE' | 'LOST_CARD_REPORTED';
+  imageIn?: string | null;
+  imageOut?: string | null;
 };
 
 export type VehicleCheckinBooking = {
@@ -108,21 +114,32 @@ export type UpdateCheckinPayload = {
 };
 
 const getApiErrorMessage = (error: unknown): string => {
-  if (error instanceof ApiError && error.data && typeof error.data === 'object') {
-    const body = error.data as {
-      message?: unknown;
-      title?: unknown;
-      errors?: Record<string, unknown>;
-    };
-    const validationMessages = body.errors
-      ? Object.values(body.errors)
-          .flatMap((value) => (Array.isArray(value) ? value : [value]))
-          .filter((value): value is string => typeof value === 'string')
-      : [];
+  if (error && typeof error === 'object') {
+    const isApiError =
+      error instanceof ApiError ||
+      ('name' in error && (error as any).name === 'ApiError') ||
+      ('status' in error && 'data' in error);
 
-    if (typeof body.message === 'string' && body.message.trim()) return body.message;
-    if (validationMessages.length > 0) return validationMessages.join('\n');
-    if (typeof body.title === 'string' && body.title.trim()) return body.title;
+    if (isApiError && 'data' in error && error.data && typeof error.data === 'object') {
+      const body = error.data as {
+        message?: unknown;
+        title?: unknown;
+        errors?: Record<string, unknown>;
+      };
+      const validationMessages = body.errors
+        ? Object.values(body.errors)
+            .flatMap((value) => (Array.isArray(value) ? value : [value]))
+            .filter((value): value is string => typeof value === 'string')
+        : [];
+
+      if (typeof body.message === 'string' && body.message.trim()) return body.message;
+      if (validationMessages.length > 0) return validationMessages.join('\n');
+      if (typeof body.title === 'string' && body.title.trim()) return body.title;
+    }
+
+    if ('message' in error && typeof (error as any).message === 'string' && (error as any).message.trim()) {
+      return (error as any).message;
+    }
   }
 
   return error instanceof Error ? error.message : 'Vehicle check-in request failed.';
@@ -145,8 +162,9 @@ export const mapActiveParkingSession = (
     id: sessionId,
     sessionCode: `SS-${sessionId}`,
     licensePlate: String(session.licensePlateIn ?? '-'),
-    // The current active-session DTO does not expose VehicleTypeId.
-    vehicleType: 'UNKNOWN',
+    vehicleType: session.vehicleType
+      ? (String(session.vehicleType).toUpperCase().includes('CAR') ? 'CAR' : 'MOTORCYCLE')
+      : 'UNKNOWN',
     customerType: session.monthlySubscriptionId
       ? 'MONTHLY'
       : session.bookingId
@@ -166,6 +184,8 @@ export const mapActiveParkingSession = (
       'LOST_CARD_REPORTED'
         ? 'LOST_CARD_REPORTED'
         : 'ACTIVE',
+    imageIn: session.imageIn ?? null,
+    imageOut: session.imageOut ?? null,
   };
 };
 
@@ -195,6 +215,29 @@ export const fetchActiveParkingSessions = async (): Promise<VehicleCheckinSessio
     return unwrap(response, 'Could not load active parking sessions.').map(
       mapActiveParkingSession
     );
+  } catch (error) {
+    throw new Error(getApiErrorMessage(error));
+  }
+};
+
+export type OcrScanPayload = {
+  image: string;
+};
+
+export type OcrScanResult = {
+  licensePlate: string;
+  confidence: number;
+};
+
+export const scanLicensePlate = async (
+  payload: OcrScanPayload
+): Promise<OcrScanResult> => {
+  try {
+    const response = await api.post<BaseResponse<OcrScanResult>>(
+      '/parking-sessions/ocr',
+      payload
+    );
+    return unwrap(response, 'License plate scanning failed.');
   } catch (error) {
     throw new Error(getApiErrorMessage(error));
   }

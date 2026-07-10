@@ -21,6 +21,7 @@ export default function ErrorPage({ error, reset }: ErrorProps) {
     console.error('Runtime System Error occurred:', error);
   }, [error]);
 
+
   return (
     <ErrorView
       statusCode="500"

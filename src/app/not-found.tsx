@@ -12,7 +12,7 @@ export default function NotFound() {
     <ErrorView
       statusCode="404"
       title="Page Not Found"
-      description="The link you followed may be broken, or the page has been moved. Please verify the URL or return to the main dashboard to continue your session."
+      description="The link you followed may be broken, or the page has been moved."
     />
   );
 }

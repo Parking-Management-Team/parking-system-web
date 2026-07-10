@@ -21,10 +21,10 @@ import { useAuth, AuthDrawer } from '@/features/auth'
 import { Hero, About, Features, HowItWorks, Pricing, Contact } from '@/features/landing'
 
 export default function Home() {
-  const [isMenuOpen, setIsMenuOpen]       = useState(false)
-  const [isScrolled, setIsScrolled]       = useState(false)
+  const [isMenuOpen, setIsMenuOpen] = useState(false)
+  const [isScrolled, setIsScrolled] = useState(false)
   const [isAuthDrawerOpen, setIsAuthDrawerOpen] = useState(false)
-  const [authDrawerMode, setAuthDrawerMode]     = useState<'login' | 'register'>('login')
+  const [authDrawerMode, setAuthDrawerMode] = useState<'login' | 'register'>('login')
 
   const { user, logout } = useAuth()
   const isLoggedIn = !!user
@@ -42,7 +42,7 @@ export default function Home() {
     setIsMenuOpen(false)
   }
 
-  const openLogin    = () => { setAuthDrawerMode('login');    setIsAuthDrawerOpen(true) }
+  const openLogin = () => { setAuthDrawerMode('login'); setIsAuthDrawerOpen(true) }
   const openRegister = () => { setAuthDrawerMode('register'); setIsAuthDrawerOpen(true) }
 
   return (
@@ -53,11 +53,10 @@ export default function Home() {
         initial={{ y: -100, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ duration: 0.6, ease: 'easeOut' }}
-        className={`fixed z-50 transition-all duration-500 ${
-          isScrolled
-            ? 'top-4 left-4 right-4 bg-black/40 backdrop-blur-md border border-white/10 shadow-2xl rounded-2xl py-3 text-white'
-            : 'top-0 left-0 right-0 bg-transparent shadow-none py-6 text-white'
-        }`}
+        className={`fixed z-50 transition-all duration-500 ${isScrolled
+          ? 'top-4 left-4 right-4 bg-black/40 backdrop-blur-md border border-white/10 shadow-2xl rounded-2xl py-3 text-white'
+          : 'top-0 left-0 right-0 bg-transparent shadow-none py-6 text-white'
+          }`}
       >
         <div className="container mx-auto px-6 flex justify-between items-center">
           <Link href="/" className="flex items-center space-x-2">
@@ -66,11 +65,11 @@ export default function Home() {
 
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center space-x-8">
-            <WavyNavLink onClick={() => scrollToSection('home')}     className="text-white/80 hover:text-white font-medium transition-colors">Home</WavyNavLink>
-            <WavyNavLink onClick={() => scrollToSection('about')}    className="text-white/80 hover:text-white font-medium transition-colors">About</WavyNavLink>
+            <WavyNavLink onClick={() => scrollToSection('home')} className="text-white/80 hover:text-white font-medium transition-colors">Home</WavyNavLink>
+            <WavyNavLink onClick={() => scrollToSection('about')} className="text-white/80 hover:text-white font-medium transition-colors">About</WavyNavLink>
             <WavyNavLink onClick={() => scrollToSection('features')} className="text-white/80 hover:text-white font-medium transition-colors">Features</WavyNavLink>
-            <WavyNavLink onClick={() => scrollToSection('pricing')}  className="text-white/80 hover:text-white font-medium transition-colors">Pricing</WavyNavLink>
-            <WavyNavLink onClick={() => scrollToSection('contact')}  className="text-white/80 hover:text-white font-medium transition-colors">Contact</WavyNavLink>
+            <WavyNavLink onClick={() => scrollToSection('pricing')} className="text-white/80 hover:text-white font-medium transition-colors">Pricing</WavyNavLink>
+            <WavyNavLink onClick={() => scrollToSection('contact')} className="text-white/80 hover:text-white font-medium transition-colors">Contact</WavyNavLink>
 
             {isLoggedIn ? (
               <Link
@@ -90,11 +89,10 @@ export default function Home() {
 
             <button
               onClick={isLoggedIn ? logout : openLogin}
-              className={`flex items-center space-x-2 px-5 py-2.5 rounded-lg font-medium transition-all border cursor-pointer ${
-                isLoggedIn
-                  ? 'border-red-500/30 text-red-400 bg-red-500/10 hover:bg-red-500/20'
-                  : 'border-white/20 text-white hover:bg-white/10'
-              }`}
+              className={`flex items-center space-x-2 px-5 py-2.5 rounded-lg font-medium transition-all border cursor-pointer ${isLoggedIn
+                ? 'border-red-500/30 text-red-400 bg-red-500/10 hover:bg-red-500/20'
+                : 'border-white/20 text-white hover:bg-white/10'
+                }`}
             >
               {isLoggedIn ? <LogOut className="w-4 h-4" /> : <LogIn className="w-4 h-4" />}
               <span>{isLoggedIn ? 'Logout' : 'Login'}</span>
@@ -111,11 +109,11 @@ export default function Home() {
         {isMenuOpen && (
           <div className="md:hidden absolute top-full left-4 right-4 bg-black/90 backdrop-blur-md shadow-2xl border border-white/10 rounded-2xl p-4 mt-2">
             <div className="flex flex-col space-y-4">
-              <button onClick={() => scrollToSection('home')}     className="text-left text-white/80 hover:text-white py-2">Home</button>
-              <button onClick={() => scrollToSection('about')}    className="text-left text-white/80 hover:text-white py-2">About</button>
+              <button onClick={() => scrollToSection('home')} className="text-left text-white/80 hover:text-white py-2">Home</button>
+              <button onClick={() => scrollToSection('about')} className="text-left text-white/80 hover:text-white py-2">About</button>
               <button onClick={() => scrollToSection('features')} className="text-left text-white/80 hover:text-white py-2">Features</button>
-              <button onClick={() => scrollToSection('pricing')}  className="text-left text-white/80 hover:text-white py-2">Pricing</button>
-              <button onClick={() => scrollToSection('contact')}  className="text-left text-white/80 hover:text-white py-2">Contact</button>
+              <button onClick={() => scrollToSection('pricing')} className="text-left text-white/80 hover:text-white py-2">Pricing</button>
+              <button onClick={() => scrollToSection('contact')} className="text-left text-white/80 hover:text-white py-2">Contact</button>
 
               {isLoggedIn ? (
                 <Link
@@ -140,9 +138,8 @@ export default function Home() {
                     openLogin();
                   }
                 }}
-                className={`flex items-center justify-center space-x-2 py-2.5 border rounded-lg font-medium transition-all cursor-pointer ${
-                  isLoggedIn ? 'border-red-500/30 text-red-400 bg-red-500/10' : 'border-white/20 text-white hover:bg-white/10'
-                }`}
+                className={`flex items-center justify-center space-x-2 py-2.5 border rounded-lg font-medium transition-all cursor-pointer ${isLoggedIn ? 'border-red-500/30 text-red-400 bg-red-500/10' : 'border-white/20 text-white hover:bg-white/10'
+                  }`}
               >
                 {isLoggedIn ? <LogOut className="w-5 h-5" /> : <LogIn className="w-5 h-5" />}
                 <span>{isLoggedIn ? 'Logout' : 'Login'}</span>
@@ -153,7 +150,7 @@ export default function Home() {
       </motion.nav>
 
       {/* ===== LANDING PAGE SECTIONS ===== */}
-      <Hero        scrollToSection={scrollToSection} />
+      <Hero scrollToSection={scrollToSection} />
       <About />
       <Features />
       <HowItWorks />

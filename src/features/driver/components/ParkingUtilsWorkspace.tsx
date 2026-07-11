@@ -75,6 +75,7 @@ interface BookingRecord {
   plannedCheckinTime: string;
   plannedCheckoutTime: string;
   depositAmount: number;
+  totalAmount?: number;
   bookingStatus: string;
   createdAt: string;
   slotCode?: string;
@@ -225,6 +226,13 @@ export default function ParkingUtilsWorkspace() {
   const [cancellingId, setCancellingId] = useState<number | null>(null);
   const [isCancellingReservation, setIsCancellingReservation] = useState(false);
 
+  // Extend booking modal states
+  const [showExtendModal, setShowExtendModal] = useState(false);
+  const [extendingBooking, setExtendingBooking] = useState<BookingRecord | null>(null);
+  const [newCheckoutDate, setNewCheckoutDate] = useState('');
+  const [newCheckoutTime, setNewCheckoutTime] = useState('');
+  const [isSavingExtend, setIsSavingExtend] = useState(false);
+
   // Walk-in counter states
   const [sessionsTab, setSessionsTab] = useState<'booked' | 'walkin'>('booked');
   const [walkinDuration, setWalkinDuration] = useState<number>(0);
@@ -261,7 +269,7 @@ export default function ParkingUtilsWorkspace() {
         const bookRes = await api.get<any>(`/bookings/by-account/${user.id}`);
         if (bookRes.success && bookRes.data) {
           const activeBookings = bookRes.data.filter((b: any) =>
-            b.bookingStatus === 'Pending' || b.bookingStatus === 'Confirmed'
+            b.bookingStatus === 'Pending' || b.bookingStatus === 'Confirmed' || b.bookingStatus === 'CheckedIn'
           );
           setBookings(activeBookings);
         } else {
@@ -666,17 +674,7 @@ export default function ParkingUtilsWorkspace() {
   };
 
   const getEstimatedDeposit = () => {
-    if (selectedVehicleTypeId === 1) return 10000;
-
-    // For Cars (vehicle type 2), check start time to see if it is day or night
-    if (startTime) {
-      const [hour] = startTime.split(':').map(Number);
-      // Night is 22:00 to 06:00
-      if (hour >= 22 || hour < 6) {
-        return 40000;
-      }
-    }
-    return 20000;
+    return calculateCost();
   };
 
   const calculateCost = () => {
@@ -901,48 +899,171 @@ export default function ParkingUtilsWorkspace() {
   // ─── Modify Booking Actions ──────────────────────────────────────────
   const openModifyModal = (booking: BookingRecord) => {
     setModifyingBooking(booking);
-    const dt = new Date(booking.plannedCheckinTime);
-    const year = dt.getFullYear();
-    const month = String(dt.getMonth() + 1).padStart(2, '0');
-    const date = String(dt.getDate()).padStart(2, '0');
-    setNewCheckinDate(`${year}-${month}-${date}`);
+    
+    // Check-in Date/Time
+    const dtIn = new Date(booking.plannedCheckinTime);
+    const yearIn = dtIn.getFullYear();
+    const monthIn = String(dtIn.getMonth() + 1).padStart(2, '0');
+    const dateIn = String(dtIn.getDate()).padStart(2, '0');
+    setNewCheckinDate(`${yearIn}-${monthIn}-${dateIn}`);
 
-    const hours = String(dt.getHours()).padStart(2, '0');
-    const minutes = String(dt.getMinutes()).padStart(2, '0');
-    setNewCheckinTime(`${hours}:${minutes}`);
+    const hoursIn = String(dtIn.getHours()).padStart(2, '0');
+    const minutesIn = String(dtIn.getMinutes()).padStart(2, '0');
+    setNewCheckinTime(`${hoursIn}:${minutesIn}`);
+
+    // Check-out Date/Time
+    const dtOut = new Date(booking.plannedCheckoutTime);
+    const yearOut = dtOut.getFullYear();
+    const monthOut = String(dtOut.getMonth() + 1).padStart(2, '0');
+    const dateOut = String(dtOut.getDate()).padStart(2, '0');
+    setNewCheckoutDate(`${yearOut}-${monthOut}-${dateOut}`);
+
+    const hoursOut = String(dtOut.getHours()).padStart(2, '0');
+    const minutesOut = String(dtOut.getMinutes()).padStart(2, '0');
+    setNewCheckoutTime(`${hoursOut}:${minutesOut}`);
 
     setShowModifyModal(true);
   };
 
-  const handleSaveModify = async () => {
+  const handleSaveModify = async (payLater: boolean = false) => {
     if (!modifyingBooking) return;
-    if (!newCheckinDate || !newCheckinTime) {
-      showToast('Please select a valid date and time.', 'error');
-      return;
-    }
     setIsSavingModify(true);
     try {
-      const checkinDate = new Date(`${newCheckinDate}T${newCheckinTime}:00+07:00`);
-      const originalDurationMs = modifyingBooking.plannedCheckoutTime
-        ? (new Date(modifyingBooking.plannedCheckoutTime).getTime() - new Date(modifyingBooking.plannedCheckinTime).getTime())
-        : 4 * 60 * 60 * 1000;
-      const durationMs = Math.max(originalDurationMs, 4 * 60 * 60 * 1000);
-      const checkoutDate = new Date(checkinDate.getTime() + durationMs);
+      if (modifyingBooking.bookingStatus === 'Pending') {
+        if (!newCheckinDate || !newCheckinTime || !newCheckoutDate || !newCheckoutTime) {
+          showToast('Please select valid check-in and check-out dates and times.', 'error');
+          setIsSavingModify(false);
+          return;
+        }
 
-      await api.put(`/bookings/${modifyingBooking.id}`, {
-        plannedCheckinTime: formatLocalVNTime(checkinDate),
-        plannedCheckoutTime: formatLocalVNTime(checkoutDate)
-      });
-      showToast('Booking updated successfully!', 'success');
-      setShowModifyModal(false);
-      setModifyingBooking(null);
-      fetchActiveData();
+        const checkinDate = new Date(`${newCheckinDate}T${newCheckinTime}:00+07:00`);
+        const checkoutDate = new Date(`${newCheckoutDate}T${newCheckoutTime}:00+07:00`);
+
+        if (checkoutDate <= checkinDate) {
+          showToast('Check-out time must be after check-in time.', 'error');
+          setIsSavingModify(false);
+          return;
+        }
+
+        // Call PUT /api/bookings/{id} to save new times and recalculate deposit fee
+        const res = await api.put<any>(`/bookings/${modifyingBooking.id}`, {
+          plannedCheckinTime: formatLocalVNTime(checkinDate),
+          plannedCheckoutTime: formatLocalVNTime(checkoutDate)
+        });
+
+        if (res.success && res.data) {
+          if (!payLater) {
+            // Pay Now: trigger payment redirect
+            const payRes = await api.post<any>('/payments', {
+              bookingId: modifyingBooking.id,
+              paymentMethod: 'ONLINE_BANKING'
+            });
+
+            if (payRes.success && payRes.data && payRes.data.paymentUrl) {
+              showToast('Redirecting to VNPay gateway...', 'success');
+              window.location.href = payRes.data.paymentUrl;
+              return;
+            } else {
+              showToast('Booking updated, but failed to create VNPay payment link.', 'info');
+            }
+          } else {
+            showToast('Booking updated successfully (Pay Later)!', 'success');
+          }
+          setShowModifyModal(false);
+          setModifyingBooking(null);
+          fetchActiveData();
+        } else {
+          showToast('Failed to update booking.', 'error');
+        }
+      } else {
+        // Confirmed or CheckedIn: only checkout time can be updated (extension)
+        if (!newCheckoutDate || !newCheckoutTime) {
+          showToast('Please select a valid checkout date and time.', 'error');
+          setIsSavingModify(false);
+          return;
+        }
+
+        const checkoutDate = new Date(`${newCheckoutDate}T${newCheckoutTime}:00+07:00`);
+        const res = await api.post<any>(`/bookings/${modifyingBooking.id}/extend?requestedNewEndTime=${encodeURIComponent(formatLocalVNTime(checkoutDate))}&payLater=false`, null);
+        if (res.success && res.data) {
+          const extResult = res.data;
+          if (extResult.paymentUrl) {
+            showToast('Redirecting to VNPay for additional payment...', 'success');
+            window.location.href = extResult.paymentUrl;
+          } else {
+            showToast(extResult.message || 'Booking extended successfully!', 'success');
+            setShowModifyModal(false);
+            setModifyingBooking(null);
+            fetchActiveData();
+          }
+        } else {
+          showToast('Failed to request booking extension.', 'error');
+        }
+      }
     } catch (err: any) {
       console.error(err);
-      const errMsg = err?.data?.message || err?.message || 'Failed to update booking.';
+      const errMsg = err?.data?.message || err?.message || 'Failed to save changes.';
       showToast(errMsg, 'error');
     } finally {
       setIsSavingModify(false);
+    }
+  };
+
+  // ─── Extend Booking Actions ──────────────────────────────────────────
+  const openExtendModal = (booking: BookingRecord) => {
+    setExtendingBooking(booking);
+    
+    // Set default value: current planned checkout time plus 1 hour (in VN timezone)
+    const currentCheckout = new Date(booking.plannedCheckoutTime);
+    const dt = new Date(currentCheckout.getTime() + 60 * 60 * 1000);
+    
+    const parts = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'Asia/Ho_Chi_Minh',
+      year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit', hour12: false,
+    }).formatToParts(dt);
+    const year = parts.find(p => p.type === 'year')?.value ?? '';
+    const month = parts.find(p => p.type === 'month')?.value ?? '';
+    const day = parts.find(p => p.type === 'day')?.value ?? '';
+    let hour = parts.find(p => p.type === 'hour')?.value ?? '00';
+    if (hour === '24') hour = '00';
+    const minute = parts.find(p => p.type === 'minute')?.value ?? '00';
+    
+    setNewCheckoutDate(`${year}-${month}-${day}`);
+    setNewCheckoutTime(`${hour}:${minute}`);
+    setShowExtendModal(true);
+  };
+
+  const handleSaveExtend = async (payLater: boolean = false) => {
+    if (!extendingBooking) return;
+    if (!newCheckoutDate || !newCheckoutTime) {
+      showToast('Please select a valid date and time.', 'error');
+      return;
+    }
+    setIsSavingExtend(true);
+    try {
+      const checkoutDate = new Date(`${newCheckoutDate}T${newCheckoutTime}:00+07:00`);
+      const res = await api.post<any>(`/bookings/${extendingBooking.id}/extend?requestedNewEndTime=${encodeURIComponent(formatLocalVNTime(checkoutDate))}&payLater=${payLater}`, null);
+      if (res.success && res.data) {
+        const extResult = res.data;
+        if (extResult.paymentUrl) {
+          showToast('Redirecting to VNPay for additional payment...', 'success');
+          window.location.href = extResult.paymentUrl;
+        } else {
+          showToast(extResult.message || 'Booking extended successfully!', 'success');
+          setShowExtendModal(false);
+          setExtendingBooking(null);
+          fetchActiveData();
+        }
+      } else {
+        showToast('Failed to request booking extension.', 'error');
+      }
+    } catch (err: any) {
+      console.error('Extend error:', err);
+      const errMsg = err?.data?.message || err?.message || 'Failed to extend booking. Please try again.';
+      showToast(errMsg, 'error');
+    } finally {
+      setIsSavingExtend(false);
     }
   };
 
@@ -1155,7 +1276,12 @@ export default function ParkingUtilsWorkspace() {
                       <div key={booking.id} className="bg-white border border-[#e2e8f0] rounded-2xl p-5 shadow-sm space-y-4 hover:shadow-md transition-all">
                         <div className="flex justify-between items-start">
                           <div>
-                            <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full uppercase ${booking.bookingStatus === 'Confirmed' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-amber-50 text-amber-700 border border-amber-200'
+                            <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full uppercase ${
+                                booking.bookingStatus === 'Confirmed'
+                                  ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                  : booking.bookingStatus === 'CheckedIn'
+                                  ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                                  : 'bg-amber-50 text-amber-700 border border-amber-200'
                               }`}>
                               {booking.bookingStatus}
                             </span>
@@ -1193,39 +1319,41 @@ export default function ParkingUtilsWorkspace() {
 
                         <div className="flex justify-between items-center pt-2">
                           <div>
-                            <p className="text-slate-400 text-[10px] font-bold uppercase">Paid Deposit</p>
+                            <p className="text-slate-400 text-[10px] font-bold uppercase">Tổng thanh toán</p>
                             <p className="text-sm font-black text-emerald-700 mt-0.5">
-                              {Math.round(booking.depositAmount).toLocaleString('vi-VN')} đ
+                              {Math.round(booking.totalAmount ?? booking.depositAmount).toLocaleString('vi-VN')} đ
                             </p>
                           </div>
                           <div className="flex gap-2">
                             {booking.bookingStatus === 'Pending' && (
-                              <>
-                                <button
-                                  onClick={() => {
-                                    setCreatedBookingId(booking.id);
-                                    setDepositAmount(booking.depositAmount);
-                                    setShowPaymentModal(true);
-                                  }}
-                                  className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg transition-all"
-                                >
-                                  Pay Now
-                                </button>
-                                <button
-                                  onClick={() => openModifyModal(booking)}
-                                  className="px-3 py-2 bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-200 text-xs font-bold rounded-lg transition-all flex items-center gap-1"
-                                >
-                                  <Edit3 className="w-3.5 h-3.5" />
-                                  Edit
-                                </button>
-                              </>
+                              <button
+                                onClick={() => {
+                                  setCreatedBookingId(booking.id);
+                                  setDepositAmount(booking.totalAmount ?? booking.depositAmount);
+                                  setShowPaymentModal(true);
+                                }}
+                                className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg transition-all"
+                              >
+                                Pay Now
+                              </button>
                             )}
-                            <button
-                              onClick={() => openCancelConfirm(booking.id)}
-                              className="px-3 py-2 text-white bg-red-500 hover:bg-red-600 text-xs font-bold rounded-lg transition-all"
-                            >
-                              Cancel
-                            </button>
+                            {(booking.bookingStatus === 'Pending' || booking.bookingStatus === 'Confirmed' || booking.bookingStatus === 'CheckedIn') && (
+                              <button
+                                onClick={() => openModifyModal(booking)}
+                                className="px-3 py-2 bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-200 text-xs font-bold rounded-lg transition-all flex items-center gap-1"
+                              >
+                                <Edit3 className="w-3.5 h-3.5" />
+                                Edit
+                              </button>
+                            )}
+                            {booking.bookingStatus !== 'CheckedIn' && (
+                              <button
+                                onClick={() => openCancelConfirm(booking.id)}
+                                className="px-3 py-2 text-white bg-red-500 hover:bg-red-600 text-xs font-bold rounded-lg transition-all"
+                              >
+                                Cancel
+                              </button>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -1299,7 +1427,7 @@ export default function ParkingUtilsWorkspace() {
                         </div>
                       </div>
 
-                      <div className="p-4 bg-slate-50 border border-slate-100 rounded-xl flex justify-between items-center">
+                      <div className="p-4 bg-slate-50 border border-slate-100 rounded-xl flex justify-between items-center bg-slate-50/50">
                         <div className="flex items-center gap-1.5">
                           <CreditCard className="w-4 h-4 text-emerald-600" />
                           <span className="text-xs font-bold text-slate-600">Accrued Parking Fee</span>
@@ -1308,6 +1436,34 @@ export default function ParkingUtilsWorkspace() {
                           {Math.round(walkinCost).toLocaleString('vi-VN')} đ
                         </p>
                       </div>
+
+                      {activeSession.bookingId && (
+                        <div className="flex justify-end pt-2">
+                          <button
+                            onClick={() => {
+                              const linkedBooking = bookings.find(b => b.id === activeSession.bookingId);
+                              if (linkedBooking) {
+                                openModifyModal(linkedBooking);
+                              } else {
+                                // Fallback: try fetching it
+                                api.get<any>(`/bookings/${activeSession.bookingId}`).then(res => {
+                                  if (res.success && res.data) {
+                                    openModifyModal(res.data);
+                                  } else {
+                                    showToast('Failed to find booking information.', 'error');
+                                  }
+                                }).catch(() => {
+                                  showToast('Failed to load booking details.', 'error');
+                                });
+                              }
+                            }}
+                            className="px-3 py-2 bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-200 text-xs font-bold rounded-lg transition-all flex items-center gap-1"
+                          >
+                            <Edit3 className="w-3.5 h-3.5" />
+                            Edit
+                          </button>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
@@ -1786,14 +1942,28 @@ export default function ParkingUtilsWorkspace() {
                     </div>
                   </div>
 
-                  <div className="p-4 bg-emerald-50/40 border border-emerald-100 rounded-xl flex justify-between items-center">
-                    <div>
-                      <h4 className="text-xs font-bold text-emerald-800">Advance Deposit Required</h4>
-                      <p className="text-[10px] text-emerald-600 mt-0.5">Required to confirm and hold space.</p>
+                  <div className="space-y-3">
+                    {/* Single payment amount = API depositAmount (full booking cost) */}
+                    <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl flex justify-between items-center">
+                      <div className="text-left">
+                        <h4 className="text-xs font-bold text-emerald-800">Tổng thanh toán (Total Payment)</h4>
+                        <p className="text-[10px] text-emerald-600 mt-0.5">
+                          {(() => {
+                            if (!startTime || !endTime || !bookingDate || !endBookingDate) return 'Booking duration';
+                            const s = new Date(`${bookingDate}T${startTime}:00+07:00`);
+                            const e = new Date(`${endBookingDate}T${endTime}:00+07:00`);
+                            const hrs = (e.getTime() - s.getTime()) / 3600000;
+                            if (hrs <= 0) return 'Booking duration';
+                            const h = Math.floor(hrs);
+                            const m = Math.round((hrs - h) * 60);
+                            return m > 0 ? `${h} giờ ${m} phút` : `${h} giờ`;
+                          })()}
+                        </p>
+                      </div>
+                      <p className="text-base font-black text-emerald-700">
+                        {Math.round(depositAmount).toLocaleString('vi-VN')} đ
+                      </p>
                     </div>
-                    <p className="text-base font-black text-[#006d43]">
-                      {Math.round(depositAmount).toLocaleString('vi-VN')} đ
-                    </p>
                   </div>
                 </div>
               )}
@@ -1863,12 +2033,28 @@ export default function ParkingUtilsWorkspace() {
                 Pay the reservation deposit to confirm your parking space slot.
               </p>
 
-              {/* Price Details */}
-              <div className="w-full bg-slate-50 border border-slate-100 rounded-2xl p-4 my-6 flex justify-between items-center text-xs">
-                <span className="font-bold text-slate-400 uppercase tracking-wider">Deposit Due</span>
-                <span className="text-base font-black text-[#006d43]">
-                  {Math.round(depositAmount).toLocaleString('vi-VN')} đ
-                </span>
+              {/* Single price — depositAmount IS the total booking cost from API */}
+              <div className="w-full space-y-2.5 my-6 text-xs text-left">
+                <div className="w-full bg-emerald-50 border border-emerald-200 rounded-2xl p-4 flex justify-between items-center">
+                  <div>
+                    <span className="font-bold text-emerald-800 uppercase tracking-wider">Tổng thanh toán (Total Payment)</span>
+                    <p className="text-[10px] text-emerald-600 mt-1">
+                      {(() => {
+                        if (!startTime || !endTime || !bookingDate || !endBookingDate) return 'Booking duration';
+                        const s = new Date(`${bookingDate}T${startTime}:00+07:00`);
+                        const e = new Date(`${endBookingDate}T${endTime}:00+07:00`);
+                        const hrs = (e.getTime() - s.getTime()) / 3600000;
+                        if (hrs <= 0) return 'Booking duration';
+                        const h = Math.floor(hrs);
+                        const m = Math.round((hrs - h) * 60);
+                        return m > 0 ? `${h} giờ ${m} phút` : `${h} giờ`;
+                      })()}
+                    </p>
+                  </div>
+                  <span className="text-base font-black text-[#006d43]">
+                    {Math.round(depositAmount).toLocaleString('vi-VN')} đ
+                  </span>
+                </div>
               </div>
 
               {/* Notice */}
@@ -1931,10 +2117,12 @@ export default function ParkingUtilsWorkspace() {
 
       {/* ─── 3. MODIFY BOOKING MODAL ─── */}
       {mounted && showModifyModal && modifyingBooking && createPortal(
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md" style={{ backdropFilter: 'blur(8px)' }}>
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm" style={{ backdropFilter: 'blur(8px)' }}>
           <div className="w-full max-w-md bg-white border border-slate-200 rounded-3xl shadow-2xl p-6 animate-in fade-in zoom-in-95 duration-200">
             <div className="flex justify-between items-center pb-4 border-b border-slate-100">
-              <h3 className="text-base font-extrabold text-[#1B2A41]">Modify Reservation Time</h3>
+              <h3 className="text-base font-extrabold text-[#1B2A41]">
+                {modifyingBooking.bookingStatus === 'Pending' ? 'Modify Reservation Time' : 'Extend Stay'}
+              </h3>
               <button
                 onClick={() => { setShowModifyModal(false); setModifyingBooking(null); }}
                 className="w-7 h-7 rounded-lg hover:bg-slate-100 flex items-center justify-center text-slate-400"
@@ -1943,24 +2131,65 @@ export default function ParkingUtilsWorkspace() {
               </button>
             </div>
 
-            <div className="py-6 space-y-4">
+            <div className="py-6 space-y-4 text-left">
+              {modifyingBooking.bookingStatus === 'Pending' ? (
+                <>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Check-in Date</label>
+                    <input
+                      type="date"
+                      value={newCheckinDate}
+                      min={new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' })}
+                      max={maxBookingDate}
+                      onChange={(e) => setNewCheckinDate(e.target.value)}
+                      className="w-full bg-slate-50 border border-[#e2e8f0] rounded-xl px-4 py-2.5 text-sm focus:border-emerald-600 outline-none font-sans"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Check-in Time</label>
+                    <input
+                      type="time"
+                      value={newCheckinTime}
+                      onChange={(e) => setNewCheckinTime(e.target.value)}
+                      className="w-full bg-slate-50 border border-[#e2e8f0] rounded-xl px-4 py-2.5 text-sm focus:border-emerald-600 outline-none font-sans"
+                    />
+                  </div>
+                </>
+              ) : (
+                <div className="space-y-1">
+                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-wide">Current Checkout Time</label>
+                  <div className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 text-sm rounded-xl text-slate-600 font-semibold font-sans">
+                    {new Date(modifyingBooking.plannedCheckoutTime).toLocaleString()}
+                  </div>
+                </div>
+              )}
+
               <div className="space-y-1">
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Check-in Date</label>
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">
+                  {modifyingBooking.bookingStatus === 'Pending' ? 'Check-out Date' : 'New Checkout Date'}
+                </label>
                 <input
                   type="date"
-                  value={newCheckinDate}
-                  min={new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' })}
-                  max={maxBookingDate}
-                  onChange={(e) => setNewCheckinDate(e.target.value)}
+                  value={newCheckoutDate}
+                  min={(() => {
+                    const d = new Date(modifyingBooking.plannedCheckoutTime);
+                    const y = d.getFullYear();
+                    const m = String(d.getMonth() + 1).padStart(2, '0');
+                    const date = String(d.getDate()).padStart(2, '0');
+                    return `${y}-${m}-${date}`;
+                  })()}
+                  onChange={(e) => setNewCheckoutDate(e.target.value)}
                   className="w-full bg-slate-50 border border-[#e2e8f0] rounded-xl px-4 py-2.5 text-sm focus:border-emerald-600 outline-none font-sans"
                 />
               </div>
               <div className="space-y-1">
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Check-in Time</label>
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">
+                  {modifyingBooking.bookingStatus === 'Pending' ? 'Check-out Time' : 'New Checkout Time'}
+                </label>
                 <input
                   type="time"
-                  value={newCheckinTime}
-                  onChange={(e) => setNewCheckinTime(e.target.value)}
+                  value={newCheckoutTime}
+                  onChange={(e) => setNewCheckoutTime(e.target.value)}
                   className="w-full bg-slate-50 border border-[#e2e8f0] rounded-xl px-4 py-2.5 text-sm focus:border-emerald-600 outline-none font-sans"
                 />
               </div>
@@ -1973,30 +2202,47 @@ export default function ParkingUtilsWorkspace() {
               >
                 Cancel
               </button>
-              <button
-                onClick={handleSaveModify}
-                disabled={isSavingModify}
-                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-xs font-bold rounded-lg flex items-center gap-1.5"
-              >
-                {isSavingModify ? (
-                  <>
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    Saving...
-                  </>
-                ) : (
-                  'Save Changes'
-                )}
-              </button>
+              {modifyingBooking.bookingStatus === 'Pending' ? (
+                <>
+                  <button
+                    onClick={() => handleSaveModify(true)}
+                    disabled={isSavingModify}
+                    className="px-4 py-2 bg-slate-800 hover:bg-slate-900 disabled:opacity-50 text-white text-xs font-bold rounded-lg flex items-center gap-1.5"
+                  >
+                    Pay Later
+                  </button>
+                  <button
+                    onClick={() => handleSaveModify(false)}
+                    disabled={isSavingModify}
+                    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-xs font-bold rounded-lg flex items-center gap-1.5"
+                  >
+                    {isSavingModify ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Pay Now'}
+                  </button>
+                </>
+              ) : (
+                <button
+                  onClick={() => handleSaveModify(false)}
+                  disabled={isSavingModify}
+                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-xs font-bold rounded-lg flex items-center gap-1.5"
+                >
+                  {isSavingModify ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    'Confirm Extension'
+                  )}
+                </button>
+              )}
             </div>
           </div>
         </div>
-        , document.body)}
-
-      {/* ─── 4. CANCEL BOOKING CONFIRM MODAL ─── */}
+        , document.body)} bord      {/* ─── 4. CANCEL BOOKING CONFIRM MODAL ─── */}
       {mounted && showCancelModal && createPortal(
         <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md" style={{ backdropFilter: 'blur(8px)' }}>
           <div className="w-full max-w-sm bg-white border border-slate-200 rounded-3xl shadow-2xl p-6 text-center animate-in fade-in zoom-in-95 duration-200">
-            <div className="w-12 h-12 rounded-full bg-red-50 text-red-650 flex items-center justify-center mx-auto mb-4">
+            <div className="w-12 h-12 rounded-full bg-red-50 text-red-600 flex items-center justify-center mx-auto mb-4">
               <AlertTriangle className="w-6 h-6" />
             </div>
 

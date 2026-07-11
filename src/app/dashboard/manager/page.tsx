@@ -194,8 +194,8 @@ export default function ManagerDashboard() {
           id: s.id.toString(),
           time: new Date(s.checkInTime).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
           plate: s.licensePlateIn,
-          type: s.monthlySubscriptionId ? 'subscription' : 'walkin',
-          message: s.monthlySubscriptionId ? 'Monthly Subscriber Check-in' : 'Visitor Check-in',
+          type: 'walkin',
+          message: 'Visitor Check-in',
           details: `Vehicle ${s.licensePlateIn} entered floor ${floorName} via Card #${s.cardId}.`
         };
       });

@@ -10,34 +10,25 @@ type BaseResponse<T> = {
 type ParkingSessionDto = {
   id?: number | null;
   vehicleId?: number | null;
-  accountId?: number | null;
   buildingId?: number | null;
   cardId?: number | null;
   zoneId?: number | null;
   slotId?: number | null;
   bookingId?: number | null;
-  bookingCode?: string | null;
   monthlySubscriptionId?: number | null;
   checkInTime?: string | null;
   licensePlateIn?: string | null;
   sessionStatus?: string | null;
   cardCode?: string | null;
-  cardStatus?: string | null;
   zoneCode?: string | null;
-  zoneName?: string | null;
   slotCode?: string | null;
-  vehicleTypeId?: number | null;
-  vehicleTypeName?: string | null;
-  plannedCheckoutTime?: string | null;
-  totalFee?: number | null;
-  penaltyFee?: number | null;
-  amountDue?: number | null;
+  imageIn?: string | null;
+  imageOut?: string | null;
+  vehicleType?: string | null;
 };
 
 type BookingDto = {
   id?: number | null;
-  bookingId?: number | null;
-  bookingCode?: string | null;
   licensePlate?: string | null;
   vehicleTypeId?: number | null;
   vehicleTypeName?: string | null;
@@ -50,13 +41,6 @@ type BookingDto = {
   checkinGraceUntil?: string | null;
 };
 
-type VehicleTypeDto = {
-  id?: number | null;
-  name?: string | null;
-  description?: string | null;
-  vehicleTypeStatus?: string | null;
-};
-
 export type CheckInVehiclePayload = {
   licensePlate: string;
   vehicleTypeId: number;
@@ -66,6 +50,7 @@ export type CheckInVehiclePayload = {
   bookingId?: number;
   randomizeSlot?: boolean;
   overrideSlotId?: number;
+  imageIn?: string;
 };
 
 export type VehicleCheckinSession = {
@@ -84,6 +69,8 @@ export type VehicleCheckinSession = {
   actualSlotCode: string | null;
   checkInTime: string;
   status: 'ACTIVE' | 'LOST_CARD_REPORTED';
+  imageIn?: string | null;
+  imageOut?: string | null;
 };
 
 export type VehicleCheckinBooking = {
@@ -99,13 +86,6 @@ export type VehicleCheckinBooking = {
   checkinGraceUntil: string | null;
   depositAmount: number;
   bookingStatus: string;
-};
-
-export type CheckinVehicleType = {
-  id: number;
-  key: 'CAR' | 'MOTORCYCLE';
-  label: string;
-  status: string;
 };
 
 export type CheckEntryPayload = {
@@ -134,21 +114,32 @@ export type UpdateCheckinPayload = {
 };
 
 const getApiErrorMessage = (error: unknown): string => {
-  if (error instanceof ApiError && error.data && typeof error.data === 'object') {
-    const body = error.data as {
-      message?: unknown;
-      title?: unknown;
-      errors?: Record<string, unknown>;
-    };
-    const validationMessages = body.errors
-      ? Object.values(body.errors)
-          .flatMap((value) => (Array.isArray(value) ? value : [value]))
-          .filter((value): value is string => typeof value === 'string')
-      : [];
+  if (error && typeof error === 'object') {
+    const isApiError =
+      error instanceof ApiError ||
+      ('name' in error && (error as any).name === 'ApiError') ||
+      ('status' in error && 'data' in error);
 
-    if (typeof body.message === 'string' && body.message.trim()) return body.message;
-    if (validationMessages.length > 0) return validationMessages.join('\n');
-    if (typeof body.title === 'string' && body.title.trim()) return body.title;
+    if (isApiError && 'data' in error && error.data && typeof error.data === 'object') {
+      const body = error.data as {
+        message?: unknown;
+        title?: unknown;
+        errors?: Record<string, unknown>;
+      };
+      const validationMessages = body.errors
+        ? Object.values(body.errors)
+            .flatMap((value) => (Array.isArray(value) ? value : [value]))
+            .filter((value): value is string => typeof value === 'string')
+        : [];
+
+      if (typeof body.message === 'string' && body.message.trim()) return body.message;
+      if (validationMessages.length > 0) return validationMessages.join('\n');
+      if (typeof body.title === 'string' && body.title.trim()) return body.title;
+    }
+
+    if ('message' in error && typeof (error as any).message === 'string' && (error as any).message.trim()) {
+      return (error as any).message;
+    }
   }
 
   return error instanceof Error ? error.message : 'Vehicle check-in request failed.';
@@ -166,28 +157,23 @@ export const mapActiveParkingSession = (
 ): VehicleCheckinSession => {
   const sessionId = Number(session.id ?? 0);
   const cardId = Number(session.cardId ?? 0);
-  const vehicleTypeName = String(session.vehicleTypeName ?? '').trim().toUpperCase();
 
   return {
     id: sessionId,
-    sessionCode: session.bookingCode ?? `SS-${sessionId}`,
+    sessionCode: `SS-${sessionId}`,
     licensePlate: String(session.licensePlateIn ?? '-'),
-    vehicleType: vehicleTypeName.includes('MOTOR') || vehicleTypeName.includes('BIKE')
-      ? 'MOTORCYCLE'
-      : vehicleTypeName.includes('CAR')
-        ? 'CAR'
-        : 'UNKNOWN',
-    customerType: session.monthlySubscriptionId
-      ? 'MONTHLY'
-      : session.bookingId
-        ? 'BOOKING'
-        : 'WALK_IN',
+    vehicleType: session.vehicleType
+      ? (String(session.vehicleType).toUpperCase().includes('CAR') ? 'CAR' : 'MOTORCYCLE')
+      : 'UNKNOWN',
+    customerType: session.bookingId
+      ? 'BOOKING'
+      : 'WALK_IN',
     vehicleId: session.vehicleId ?? null,
     buildingId: session.buildingId ?? null,
     cardId,
     cardCode: String(session.cardCode ?? `#${cardId}`),
     zoneId: session.zoneId ?? null,
-    zoneName: session.zoneName ?? session.zoneCode ?? '-',
+    zoneName: session.zoneCode ?? '-',
     actualSlotId: session.slotId ?? null,
     actualSlotCode: session.slotCode ?? null,
     checkInTime: String(session.checkInTime ?? ''),
@@ -196,14 +182,16 @@ export const mapActiveParkingSession = (
       'LOST_CARD_REPORTED'
         ? 'LOST_CARD_REPORTED'
         : 'ACTIVE',
+    imageIn: session.imageIn ?? null,
+    imageOut: session.imageOut ?? null,
   };
 };
 
 const mapBooking = (booking: BookingDto): VehicleCheckinBooking => {
-  const id = Number(booking.bookingId ?? booking.id ?? 0);
+  const id = Number(booking.id ?? 0);
   return {
     id,
-    bookingCode: booking.bookingCode ?? `BK-${String(id).padStart(4, '0')}`,
+    bookingCode: `BK-${String(id).padStart(4, '0')}`,
     licensePlate: String(booking.licensePlate ?? ''),
     vehicleTypeId: booking.vehicleTypeId ?? null,
     vehicleTypeName: String(booking.vehicleTypeName ?? 'Unknown'),
@@ -214,33 +202,6 @@ const mapBooking = (booking: BookingDto): VehicleCheckinBooking => {
     checkinGraceUntil: booking.checkinGraceUntil ?? null,
     depositAmount: Number(booking.depositAmount ?? 0),
     bookingStatus: String(booking.bookingStatus ?? ''),
-  };
-};
-
-const mapVehicleTypeKey = (name?: string | null): CheckinVehicleType['key'] => {
-  const value = String(name ?? '').trim().toUpperCase();
-  if (
-    value.includes('MOTOR') ||
-    value.includes('BIKE') ||
-    value.includes('MOTORCYCLE') ||
-    value.includes('XE MAY') ||
-    value.includes('XE MÁY')
-  ) {
-    return 'MOTORCYCLE';
-  }
-  return 'CAR';
-};
-
-const mapVehicleType = (vehicleType: VehicleTypeDto): CheckinVehicleType | null => {
-  const id = Number(vehicleType.id ?? 0);
-  if (id <= 0) return null;
-
-  const label = String(vehicleType.name ?? '').trim() || `Vehicle type #${id}`;
-  return {
-    id,
-    key: mapVehicleTypeKey(label),
-    label,
-    status: String(vehicleType.vehicleTypeStatus ?? 'ACTIVE').trim().toUpperCase(),
   };
 };
 
@@ -257,19 +218,24 @@ export const fetchActiveParkingSessions = async (): Promise<VehicleCheckinSessio
   }
 };
 
-export const fetchCheckinVehicleTypes = async (): Promise<CheckinVehicleType[]> => {
-  try {
-    const response = await api.get<BaseResponse<VehicleTypeDto[]> | VehicleTypeDto[]>(
-      '/vehicle-types'
-    );
-    const data = Array.isArray(response)
-      ? response
-      : unwrap(response, 'Could not load vehicle types.');
+export type OcrScanPayload = {
+  image: string;
+};
 
-    return data
-      .map(mapVehicleType)
-      .filter((vehicleType): vehicleType is CheckinVehicleType => Boolean(vehicleType))
-      .filter((vehicleType) => vehicleType.status !== 'INACTIVE');
+export type OcrScanResult = {
+  licensePlate: string;
+  confidence: number;
+};
+
+export const scanLicensePlate = async (
+  payload: OcrScanPayload
+): Promise<OcrScanResult> => {
+  try {
+    const response = await api.post<BaseResponse<OcrScanResult>>(
+      '/parking-sessions/ocr',
+      payload
+    );
+    return unwrap(response, 'License plate scanning failed.');
   } catch (error) {
     throw new Error(getApiErrorMessage(error));
   }
@@ -340,24 +306,6 @@ export const fetchCheckinBookings = async (): Promise<VehicleCheckinBooking[]> =
   }
 };
 
-export const lookupCheckinBookingByPlate = async (
-  licensePlate: string,
-  buildingId?: number | null
-): Promise<VehicleCheckinBooking | null> => {
-  const query = new URLSearchParams({ licensePlate: licensePlate.trim() });
-  if (buildingId != null) query.set('buildingId', String(buildingId));
-
-  try {
-    const response = await api.get<BaseResponse<BookingDto>>(
-      `/parking-sessions/check-in/booking?${query.toString()}`
-    );
-    return mapBooking(unwrap(response, 'Could not lookup check-in booking.'));
-  } catch (error) {
-    if (error instanceof ApiError && error.status === 404) return null;
-    throw new Error(getApiErrorMessage(error));
-  }
-};
-
 export type ReallocateSlotDto = {
   id: number;
   code: string;
@@ -390,8 +338,7 @@ export const fetchAvailableSlotsForReallocation = async (
         const slots = (slotRes && slotRes.success) ? slotRes.data : (Array.isArray(slotRes) ? slotRes : []);
 
         for (const slot of slots) {
-          const status = String(slot.status ?? '').trim().toUpperCase();
-          const isAvailable = slot.status === 0 || status === 'AVAILABLE';
+          const isAvailable = (slot.status === 0 || slot.status === 'Available') && !slot.isReserved;
           if (isAvailable) {
             availableSlots.push({
               id: slot.id,

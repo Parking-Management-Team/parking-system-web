@@ -23,18 +23,15 @@ type ActiveSessionDto = {
   licensePlateOut?: string | null;
   sessionStatus?: string | null;
   cardCode?: string | null;
-  cardStatus?: string | null;
   zoneCode?: string | null;
-  zoneName?: string | null;
   slotCode?: string | null;
   vehicleType?: string | null;
-  vehicleTypeName?: string | null;
-  vehicleTypeId?: number | null;
   customerType?: string | null;
   bookingCode?: string | null;
-  plannedCheckoutTime?: string | null;
   subscriptionCode?: string | null;
   monthlyValidTo?: string | null;
+  imageIn?: string | null;
+  imageOut?: string | null;
 };
 
 type PaymentDto = {
@@ -49,33 +46,11 @@ type PaymentDto = {
   orderCode?: number | null;
   paymentUrl?: string | null;
   qrCodeUrl?: string | null;
-  baseParkingFee?: number | null;
-  BaseParkingFee?: number | null;
-  incidentFeeTotal?: number | null;
-  IncidentFeeTotal?: number | null;
-  parkingFee?: number | null;
-  incidentFees?: number | null;
-  items?: PaymentBreakdownItemDto[] | null;
-  Items?: PaymentBreakdownItemDto[] | null;
-  details?: PaymentBreakdownItemDto[] | null;
-};
-
-type PaymentBreakdownItemDto = {
-  type?: string | null;
-  Type?: string | null;
-  name?: string | null;
-  Name?: string | null;
-  amount?: number | null;
-  Amount?: number | null;
-  incidentId?: number | null;
-  IncidentId?: number | null;
 };
 
 type CardDto = {
   id?: number | null;
   cardCode?: string | null;
-  cardStatus?: string | null;
-  cardType?: string | null;
 };
 
 export type CheckoutPaymentMethod = 'CASH' | 'ONLINE_BANKING';
@@ -102,8 +77,9 @@ export type CheckoutSession = {
   subscriptionCode: string | null;
   monthlyValidTo: string | null;
   checkInTime: string | null;
-  checkOutTime: string | null;
   status: string;
+  imageIn: string | null;
+  imageOut: string | null;
 };
 
 export type CheckoutPayment = {
@@ -116,33 +92,36 @@ export type CheckoutPayment = {
   paymentUrl: string | null;
   qrCodeUrl: string | null;
   orderCode: number | null;
-  baseParkingFee: number;
-  incidentFeeTotal: number;
-  items: {
-    type: string | null;
-    name: string;
-    amount: number;
-    incidentId: number | null;
-  }[];
 };
 
 const getApiErrorMessage = (error: unknown): string => {
-  if (error instanceof ApiError && error.data && typeof error.data === 'object') {
-    const body = error.data as {
-      message?: unknown;
-      title?: unknown;
-      errors?: Record<string, unknown>;
-    };
+  if (error && typeof error === 'object') {
+    const isApiError =
+      error instanceof ApiError ||
+      ('name' in error && (error as any).name === 'ApiError') ||
+      ('status' in error && 'data' in error);
 
-    const validationMessages = body.errors
-      ? Object.values(body.errors)
-          .flatMap((value) => (Array.isArray(value) ? value : [value]))
-          .filter((value): value is string => typeof value === 'string')
-      : [];
+    if (isApiError && 'data' in error && error.data && typeof error.data === 'object') {
+      const body = error.data as {
+        message?: unknown;
+        title?: unknown;
+        errors?: Record<string, unknown>;
+      };
 
-    if (typeof body.message === 'string' && body.message.trim()) return body.message;
-    if (validationMessages.length > 0) return validationMessages.join('\n');
-    if (typeof body.title === 'string' && body.title.trim()) return body.title;
+      const validationMessages = body.errors
+        ? Object.values(body.errors)
+            .flatMap((value) => (Array.isArray(value) ? value : [value]))
+            .filter((value): value is string => typeof value === 'string')
+        : [];
+
+      if (typeof body.message === 'string' && body.message.trim()) return body.message;
+      if (validationMessages.length > 0) return validationMessages.join('\n');
+      if (typeof body.title === 'string' && body.title.trim()) return body.title;
+    }
+
+    if ('message' in error && typeof (error as any).message === 'string' && (error as any).message.trim()) {
+      return (error as any).message;
+    }
   }
 
   return error instanceof Error ? error.message : 'Vehicle check-out request failed.';
@@ -169,7 +148,6 @@ const unwrap = <T>(response: BaseResponse<T> | T, fallback: string): T => {
 const mapCustomerType = (session: ActiveSessionDto): CheckoutSession['customerType'] => {
   const raw = String(session.customerType ?? '').trim().toUpperCase();
   if (raw === 'BOOKING' || session.bookingId) return 'BOOKING';
-  if (raw === 'MONTHLY' || session.monthlySubscriptionId) return 'MONTHLY';
   return 'WALK_IN';
 };
 
@@ -201,8 +179,9 @@ const mapSession = (
     subscriptionCode: session.subscriptionCode ?? null,
     monthlyValidTo: session.monthlyValidTo ?? null,
     checkInTime: session.checkInTime ?? null,
-    checkOutTime: session.checkOutTime ?? null,
     status: String(session.sessionStatus ?? 'ACTIVE'),
+    imageIn: session.imageIn ?? null,
+    imageOut: session.imageOut ?? null,
   };
 };
 
@@ -212,37 +191,17 @@ const mapPaymentStatus = (value: unknown): CheckoutPaymentStatus | string => {
   return status || 'PENDING';
 };
 
-const mapBreakdownItem = (item: PaymentBreakdownItemDto) => ({
-  type: item.type ?? item.Type ?? null,
-  name: String(item.name ?? item.Name ?? 'Fee'),
-  amount: Number(item.amount ?? item.Amount ?? 0),
-  incidentId: item.incidentId ?? item.IncidentId ?? null,
+const mapPayment = (payment: PaymentDto): CheckoutPayment => ({
+  id: Number(payment.id ?? 0),
+  sessionId: payment.sessionId ?? null,
+  amount: Number(payment.amount ?? 0),
+  paymentMethod: String(payment.paymentMethod ?? ''),
+  paymentStatus: mapPaymentStatus(payment.paymentStatus),
+  paymentTime: payment.paymentTime ?? null,
+  paymentUrl: payment.paymentUrl ?? null,
+  qrCodeUrl: payment.qrCodeUrl ?? null,
+  orderCode: payment.orderCode ?? null,
 });
-
-const mapPayment = (payment: PaymentDto): CheckoutPayment => {
-  const items = payment.items ?? payment.Items ?? payment.details ?? [];
-  const baseParkingFee = Number(
-    payment.baseParkingFee ?? payment.BaseParkingFee ?? payment.parkingFee ?? 0
-  );
-  const incidentFeeTotal = Number(
-    payment.incidentFeeTotal ?? payment.IncidentFeeTotal ?? payment.incidentFees ?? 0
-  );
-
-  return {
-    id: Number(payment.id ?? 0),
-    sessionId: payment.sessionId ?? null,
-    amount: Number(payment.amount ?? baseParkingFee + incidentFeeTotal),
-    paymentMethod: String(payment.paymentMethod ?? ''),
-    paymentStatus: mapPaymentStatus(payment.paymentStatus),
-    paymentTime: payment.paymentTime ?? null,
-    paymentUrl: payment.paymentUrl ?? null,
-    qrCodeUrl: payment.qrCodeUrl ?? null,
-    orderCode: payment.orderCode ?? null,
-    baseParkingFee,
-    incidentFeeTotal,
-    items: items.map(mapBreakdownItem),
-  };
-};
 
 const fetchCardCodeMap = async (): Promise<Map<number, string>> => {
   const response = await api.get<BaseResponse<CardDto[]> | CardDto[]>('/cards');
@@ -263,18 +222,6 @@ const fetchCardCodeMap = async (): Promise<Map<number, string>> => {
   return cardCodeById;
 };
 
-export const fetchCheckoutCardByCode = async (cardCode: string): Promise<CardDto | null> => {
-  try {
-    const response = await api.get<BaseResponse<CardDto>>(
-      `/cards/by-code/${encodeURIComponent(cardCode.trim())}`
-    );
-    return unwrap(response, 'Could not load card by code.');
-  } catch (error) {
-    if (error instanceof ApiError && error.status === 404) return null;
-    throw new Error(getApiErrorMessage(error));
-  }
-};
-
 export const fetchCheckoutActiveSessions = async (): Promise<CheckoutSession[]> => {
   try {
     const [response, cardCodeById] = await Promise.all([
@@ -292,30 +239,10 @@ export const fetchCheckoutActiveSessions = async (): Promise<CheckoutSession[]> 
   }
 };
 
-export const fetchCheckoutHistorySessions = async (): Promise<CheckoutSession[]> => {
-  try {
-    const [response, cardCodeById] = await Promise.all([
-      api.get<BaseResponse<ActiveSessionDto[]> | ActiveSessionDto[]>('/parking-sessions'),
-      fetchCardCodeMap(),
-    ]);
-    const data = Array.isArray(response)
-      ? response
-      : unwrap(response, 'Could not load checkout history.');
-
-    return data
-      .map((session) => mapSession(session, cardCodeById))
-      .filter((session) => {
-        const status = String(session.status ?? '').trim().toUpperCase();
-        return status === 'COMPLETED' || Boolean(session.checkOutTime);
-      })
-      .sort((a, b) => {
-        const aTime = new Date(a.checkOutTime ?? a.checkInTime ?? 0).getTime();
-        const bTime = new Date(b.checkOutTime ?? b.checkInTime ?? 0).getTime();
-        return (Number.isNaN(bTime) ? 0 : bTime) - (Number.isNaN(aTime) ? 0 : aTime);
-      });
-  } catch (error) {
-    throw new Error(getApiErrorMessage(error));
-  }
+export type StartCheckoutResponse = {
+  totalFee: number;
+  penaltyFee: number;
+  amountDue: number;
 };
 
 export const startCheckout = async (
@@ -324,24 +251,20 @@ export const startCheckout = async (
     checkOutTime: string;
     licensePlateOut: string;
     outStaffId: number;
+    imageOut?: string;
   }
-): Promise<void> => {
+): Promise<StartCheckoutResponse> => {
   try {
-    await api.patch<BaseResponse<unknown>>(
+    const response = await api.patch<BaseResponse<any>>(
       `/parking-sessions/${sessionId}/checkout/start`,
       input
     );
-  } catch (error) {
-    throw new Error(getApiErrorMessage(error));
-  }
-};
-
-export const rollbackCheckout = async (sessionId: number): Promise<void> => {
-  try {
-    await api.patch<BaseResponse<unknown>>(
-      `/parking-sessions/${sessionId}/checkout/rollback`,
-      {}
-    );
+    const data = unwrap(response, 'Could not start checkout.');
+    return {
+      totalFee: data.totalFee ?? 0,
+      penaltyFee: data.penaltyFee ?? 0,
+      amountDue: data.amountDue ?? 0,
+    };
   } catch (error) {
     throw new Error(getApiErrorMessage(error));
   }

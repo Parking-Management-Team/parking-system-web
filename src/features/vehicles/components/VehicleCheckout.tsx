@@ -1,22 +1,22 @@
 'use client';
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useAuth } from '@/features/auth/context/AuthContext';
-import { blacklistService } from '@/features/blacklist/services/blacklist.service';
-import { updateCardStatus } from '@/features/card/services/card.service';
+import { markCardLost } from '@/features/card/services/card.service';
 import { incidentService } from '@/features/incident/services/incident.service';
-import type { Incident, IncidentType } from '@/features/incident/types';
+import type { IncidentType } from '@/features/incident/types';
 import {
   createCheckoutPayment,
   fetchCheckoutActiveSessions,
-  fetchCheckoutHistorySessions,
-  rollbackCheckout,
   startCheckout,
+  completeCheckout,
   type CheckoutPayment,
   type CheckoutPaymentMethod,
   type CheckoutSession,
+  type StartCheckoutResponse,
 } from '@/features/vehicles/services/vehicle-checkout.service';
+import { scanLicensePlate } from '@/features/vehicles/services/vehicle-checkin.service';
 
 type CheckoutHistoryItem = {
   id: string;
@@ -26,7 +26,7 @@ type CheckoutHistoryItem = {
   customerType: CheckoutSession['customerType'];
   checkInTime: string | null;
   checkOutTime: string;
-  amount: number | null;
+  amount: number;
   paymentMethod: string;
   paymentStatus: string;
 };
@@ -37,13 +37,12 @@ type CheckoutOverlay = {
   checkOutTime: string;
   exitPlate: string;
   duration: string;
-  incidents: Incident[];
-  incidentTotal: number;
 };
 
 type VehicleTypeFilter = 'ALL' | 'CAR' | 'MOTORCYCLE' | 'UNKNOWN';
 
 const STAFF_ID = 2;
+const HISTORY_STORAGE_KEY = 'pbms_staff_checkout_history';
 
 const normalizeText = (value?: string | null) => String(value ?? '').trim().toUpperCase();
 const normalizeComparable = (value?: string | null) =>
@@ -91,8 +90,23 @@ const getVehicleTypeGroup = (vehicleType: string): VehicleTypeFilter => {
   return 'UNKNOWN';
 };
 
-const getBaseAmount = (amount?: number | null, incidentTotal?: number | null) =>
-  Math.max(0, Number(amount ?? 0) - Number(incidentTotal ?? 0));
+const readHistory = (): CheckoutHistoryItem[] => {
+  if (typeof window === 'undefined') return [];
+
+  try {
+    const raw = window.localStorage.getItem(HISTORY_STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+};
+
+const writeHistory = (items: CheckoutHistoryItem[]) => {
+  if (typeof window === 'undefined') return;
+  window.localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(items.slice(0, 50)));
+};
 
 export default function VehicleCheckout() {
   const { showToast } = useAuth();
@@ -110,51 +124,209 @@ export default function VehicleCheckout() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isReporting, setIsReporting] = useState(false);
-  const [isHistoryLoading, setIsHistoryLoading] = useState(false);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
-  const [incidentTypes, setIncidentTypes] = useState<IncidentType[]>([]);
-  const [sessionIncidents, setSessionIncidents] = useState<Incident[]>([]);
-  const [selectedIncidentIds, setSelectedIncidentIds] = useState<number[]>([]);
-  const [isIncidentPanelOpen, setIsIncidentPanelOpen] = useState(false);
-  const [isIncidentLoading, setIsIncidentLoading] = useState(false);
+
+  // Fee calculation state
+  const [calculatedFee, setCalculatedFee] = useState<StartCheckoutResponse | null>(null);
+  const [lockedCheckoutTime, setLockedCheckoutTime] = useState<string | null>(null);
+
+  // Webcam & LPR states
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [stream, setStream] = useState<MediaStream | null>(null);
+  const [devices, setDevices] = useState<MediaDeviceInfo[]>([]);
+  const [selectedDeviceId, setSelectedDeviceId] = useState<string>('');
+  const [cameraActive, setCameraActive] = useState<boolean>(false);
+  const [isScanning, setIsScanning] = useState<boolean>(false);
+  const [scanProgress, setScanProgress] = useState<string>('');
+  const [ocrText, setOcrText] = useState<string>('');
+  const [capturedImage, setCapturedImage] = useState<string | null>(null);
 
   const selectedSession =
     sessions.find((session) => session.id === selectedSessionId) ?? null;
 
-  const selectedIncidents = useMemo(
-    () =>
-      sessionIncidents.filter((incident) =>
-        selectedIncidentIds.includes(incident.id)
-      ),
-    [selectedIncidentIds, sessionIncidents]
-  );
+  // Enumerate cameras
+  const enumerateCameras = useCallback(async () => {
+    if (typeof window === 'undefined' || !navigator.mediaDevices) {
+      console.warn('Camera API is not available.');
+      return;
+    }
+    try {
+      const mediaDevices = await navigator.mediaDevices.enumerateDevices();
+      const videoDevices = mediaDevices.filter(device => device.kind === 'videoinput');
+      setDevices(videoDevices);
+      if (videoDevices.length > 0 && !selectedDeviceId) {
+        setSelectedDeviceId(videoDevices[0].deviceId);
+      }
+    } catch (err) {
+      console.error('Không tìm thấy thiết bị camera:', err);
+    }
+  }, [selectedDeviceId]);
 
-  const incidentTotal = useMemo(
-    () =>
-      selectedIncidents.reduce(
-        (total, incident) => total + Number(incident.penaltyFee ?? 0),
-        0
-      ),
-    [selectedIncidents]
-  );
+  // Start camera stream
+  const startCamera = useCallback(async () => {
+    if (typeof window === 'undefined' || !navigator.mediaDevices) {
+      showToast('Không thể mở camera: Trình duyệt không hỗ trợ hoặc kết nối không an toàn. Vui lòng sử dụng localhost hoặc HTTPS.', 'error');
+      return;
+    }
+    try {
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+      }
+      const constraints = {
+        video: selectedDeviceId ? { deviceId: { exact: selectedDeviceId } } : true,
+      };
+      const mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
+      setStream(mediaStream);
+      if (videoRef.current) {
+        videoRef.current.srcObject = mediaStream;
+      }
+      setCameraActive(true);
+      showToast('Camera lối ra hoạt động thành công!', 'success');
+    } catch (err) {
+      console.error('Không thể mở camera:', err);
+      showToast('Không thể kết nối camera. Vui lòng cấp quyền.', 'error');
+    }
+  }, [selectedDeviceId, stream, showToast]);
 
-  const isLostCardIncident = useCallback((value?: {
-    incidentCode?: string | null;
-    incidentName?: string | null;
-  }) => {
-    const code = normalizeText(value?.incidentCode);
-    const name = normalizeText(value?.incidentName);
-    return (
-      code === 'LOST_CARD' ||
-      code === 'LOST_TICKET' ||
-      code.includes('LOST') ||
-      name.includes('LOST CARD') ||
-      name.includes('LOST TICKET') ||
-      name.includes('MẤT THẺ') ||
-      name.includes('MAT THE')
-    );
-  }, []);
+  // Stop camera stream
+  const stopCamera = useCallback(() => {
+    if (stream) {
+      stream.getTracks().forEach(track => track.stop());
+      setStream(null);
+    }
+    setCameraActive(false);
+  }, [stream]);
+
+  // Switch camera device
+  useEffect(() => {
+    if (cameraActive && selectedDeviceId) {
+      void startCamera();
+    }
+  }, [selectedDeviceId]);
+
+  // Clean up stream on unmount
+  useEffect(() => {
+    return () => {
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+      }
+    };
+  }, [stream]);
+
+  // Capture frame to base64
+  const captureFrame = useCallback((): string | null => {
+    if (!videoRef.current || !cameraActive) {
+      showToast('Vui lòng bật camera lối ra trước.', 'info');
+      return null;
+    }
+    const video = videoRef.current;
+    const canvas = document.createElement('canvas');
+    canvas.width = video.videoWidth || 640;
+    canvas.height = video.videoHeight || 480;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return null;
+
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.75);
+    setCapturedImage(dataUrl);
+    return dataUrl;
+  }, [cameraActive, showToast]);
+
+  // Run OCR on Backend Cloud API
+  const performOCR = useCallback(async (base64Img: string) => {
+    setIsScanning(true);
+    setScanProgress('Đang quét biển số lối ra...');
+    setOcrText('');
+
+    try {
+      const result = await scanLicensePlate({ image: base64Img });
+      setOcrText(result.licensePlate);
+      showToast(`Nhận diện biển số ra: ${result.licensePlate} (${Math.round(result.confidence * 100)}%)`, 'success');
+      return result.licensePlate;
+    } catch (err: any) {
+      console.error('Lỗi OCR:', err);
+      showToast(err.message || 'Lỗi trong quá trình quét OCR.', 'error');
+      return '';
+    } finally {
+      setIsScanning(false);
+      setScanProgress('');
+    }
+  }, [showToast]);
+
+  const handleCheckoutScan = useCallback(async () => {
+    const base64 = captureFrame();
+    if (!base64) return;
+    const plate = await performOCR(base64);
+    if (plate) {
+      if (!selectedSession) {
+        const queryKey = normalizeComparable(plate);
+        const matched = sessions.find(
+          s => normalizeComparable(s.cardCode) === queryKey || normalizeComparable(s.licensePlate) === queryKey
+        );
+        if (matched) {
+          setSelectedSessionId(matched.id);
+          setSearchQuery(matched.cardCode || matched.licensePlate);
+          setCalculatedFee(null);
+          setLockedCheckoutTime(null);
+          setExitPlate(plate);
+          showToast(`Tự động khớp phiên đỗ của xe: ${plate}`, 'success');
+        } else {
+          showToast(`Không tìm thấy xe đang đỗ có biển số: ${plate}`, 'error');
+        }
+      } else {
+        setExitPlate(plate);
+      }
+    }
+  }, [captureFrame, performOCR, selectedSession, sessions, showToast]);
+
+  const handleMockScanCheckout = useCallback(() => {
+    let targetPlate = '51A-999.99';
+    if (selectedSession) {
+      targetPlate = selectedSession.licensePlate;
+    } else if (sessions.length > 0) {
+      const randomSession = sessions[Math.floor(Math.random() * sessions.length)];
+      targetPlate = randomSession.licensePlate;
+    }
+
+    const canvas = document.createElement('canvas');
+    canvas.width = 300;
+    canvas.height = 150;
+    const ctx = canvas.getContext('2d');
+    if (ctx) {
+      ctx.fillStyle = '#0f172a';
+      ctx.fillRect(0, 0, 300, 150);
+      ctx.fillStyle = '#ffffff';
+      ctx.font = '24px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText(targetPlate, 150, 60);
+      ctx.font = '12px sans-serif';
+      ctx.fillStyle = '#f43f5e';
+      ctx.fillText('MOCK SCAN OUT', 150, 100);
+      const dataUrl = canvas.toDataURL('image/jpeg');
+      setCapturedImage(dataUrl);
+    }
+    showToast(`Giả lập quét biển số ra: ${targetPlate}`, 'success');
+
+    if (!selectedSession) {
+      const queryKey = normalizeComparable(targetPlate);
+      const matched = sessions.find(
+        s => normalizeComparable(s.cardCode) === queryKey || normalizeComparable(s.licensePlate) === queryKey
+      );
+      if (matched) {
+        setSelectedSessionId(matched.id);
+        setSearchQuery(matched.cardCode || matched.licensePlate);
+        setCalculatedFee(null);
+        setLockedCheckoutTime(null);
+        setExitPlate(targetPlate);
+      }
+    } else {
+      setExitPlate(targetPlate);
+    }
+  }, [showToast, selectedSession, sessions]);
+
+
 
   const filteredSessions = useMemo(() => {
     const fromTime = filterFrom ? new Date(filterFrom).getTime() : null;
@@ -205,83 +377,21 @@ export default function VehicleCheckout() {
     }
   }, [showToast]);
 
-  const loadCheckoutHistory = useCallback(async () => {
-    setIsHistoryLoading(true);
-
-    try {
-      const sessionHistory = await fetchCheckoutHistorySessions();
-      setHistory(
-        sessionHistory.slice(0, 50).map((session) => ({
-          id: String(session.id),
-          sessionId: session.id,
-          licensePlate: session.licensePlate,
-          cardCode: session.cardCode ?? '—',
-          customerType: session.customerType,
-          checkInTime: session.checkInTime,
-          checkOutTime: session.checkOutTime ?? '',
-          amount: null,
-          paymentMethod: '—',
-          paymentStatus: session.status,
-        }))
-      );
-    } catch (error) {
-      showToast(
-        error instanceof Error ? error.message : 'Could not load checkout history.',
-        'error'
-      );
-    } finally {
-      setIsHistoryLoading(false);
-    }
-  }, [showToast]);
-
-  const loadIncidentTypes = useCallback(async () => {
-    try {
-      setIncidentTypes(await incidentService.getIncidentTypes());
-    } catch (error) {
-      setIncidentTypes([]);
-      showToast(
-        error instanceof Error ? error.message : 'Could not load incident types.',
-        'error'
-      );
-    }
-  }, [showToast]);
-
-  const loadSessionIncidents = useCallback(
-    async (sessionId: number) => {
-      setIsIncidentLoading(true);
-
-      try {
-        const incidents = await incidentService.getBySessionId(sessionId);
-        const openIncidents = incidents.filter((incident) => incident.status === 'OPEN');
-        setSessionIncidents(incidents);
-        setSelectedIncidentIds(openIncidents.map((incident) => incident.id));
-      } catch (error) {
-        setSessionIncidents([]);
-        setSelectedIncidentIds([]);
-        showToast(
-          error instanceof Error ? error.message : 'Could not load session incidents.',
-          'error'
-        );
-      } finally {
-        setIsIncidentLoading(false);
-      }
-    },
-    [showToast]
-  );
-
   useEffect(() => {
     setIsMounted(true);
+    setHistory(readHistory());
     void loadActiveSessions();
-    void loadCheckoutHistory();
-    void loadIncidentTypes();
-  }, [loadActiveSessions, loadCheckoutHistory, loadIncidentTypes]);
+    void enumerateCameras();
+  }, [loadActiveSessions, enumerateCameras]);
 
   const selectSession = (session: CheckoutSession) => {
     setSelectedSessionId(session.id);
     setExitPlate('');
     setSearchQuery(session.cardCode || session.licensePlate);
-    setIsIncidentPanelOpen(false);
-    void loadSessionIncidents(session.id);
+    setCalculatedFee(null);
+    setLockedCheckoutTime(null);
+    setCapturedImage(null);
+    setOcrText('');
   };
 
   const resetForNextVehicle = () => {
@@ -289,12 +399,13 @@ export default function VehicleCheckout() {
     setExitPlate('');
     setPaymentMethod('CASH');
     setSearchQuery('');
-    setSessionIncidents([]);
-    setSelectedIncidentIds([]);
-    setIsIncidentPanelOpen(false);
+    setCalculatedFee(null);
+    setLockedCheckoutTime(null);
+    setCapturedImage(null);
+    setOcrText('');
   };
 
-  const handleSearch = async (event: React.FormEvent<HTMLFormElement>) => {
+  const handleSearch = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
     const queryKey = normalizeComparable(searchQuery);
@@ -323,134 +434,35 @@ export default function VehicleCheckout() {
       return;
     }
 
-    const [isCardBlocked, isVehicleBlocked] = await Promise.all([
-      matchedSession.cardId
-        ? blacklistService.checkCardBlocked(matchedSession.cardId)
-        : Promise.resolve(false),
-      matchedSession.vehicleId
-        ? blacklistService.checkVehicleBlocked(matchedSession.vehicleId)
-        : Promise.resolve(false),
-    ]);
-
-    if (isCardBlocked) {
-      showToast('This card is blacklisted. Please route to incident handling.', 'error');
-      return;
-    }
-
-    if (isVehicleBlocked) {
-      showToast('This vehicle is blacklisted. Please route to incident handling.', 'error');
-      return;
-    }
-
     selectSession(matchedSession);
     showToast('Active session loaded. Please compare exit plate.', 'success');
   };
 
-  const includeExistingIncident = (incident: Incident) => {
-    if (incident.status !== 'OPEN') {
-      showToast(
-        'Only OPEN incidents are included in checkout payment by the current BE rule.',
-        'info'
-      );
+  const handleMarkLost = async () => {
+    if (!selectedSession) return;
+
+    if (!selectedSession.cardId) {
+      showToast('This session does not have cardId from the system.', 'error');
       return;
     }
 
-    setSelectedIncidentIds((current) =>
-      current.includes(incident.id) ? current : [...current, incident.id]
-    );
-  };
-
-  const createIncidentFromType = async (incidentType: IncidentType) => {
-    if (!selectedSession) {
-      showToast('Please load a session before selecting an incident.', 'error');
-      return;
-    }
-
-    const existingOpenIncident = sessionIncidents.find(
-      (incident) =>
-        incident.incidentTypeId === incidentType.id && incident.status === 'OPEN'
-    );
-
-    if (existingOpenIncident) {
-      setSelectedIncidentIds((current) =>
-        current.includes(existingOpenIncident.id)
-          ? current
-          : [...current, existingOpenIncident.id]
-      );
-      return;
-    }
-
-    setIsIncidentLoading(true);
+    setIsSubmitting(true);
 
     try {
-      await incidentService.create({
-        sessionId: selectedSession.id,
-        incidentTypeId: incidentType.id,
-        description: `${incidentType.incidentName} - ${selectedSession.licensePlate}`,
-        penaltyFee: null,
-      });
-
-      if (isLostCardIncident(incidentType)) {
-        if (!selectedSession.cardId) {
-          showToast('Lost-card incident was created, but this session has no cardId to update.', 'info');
-        } else {
-          await updateCardStatus(selectedSession.cardId, 'LOST');
-        }
-      }
-
-      await loadSessionIncidents(selectedSession.id);
+      await markCardLost(selectedSession.cardId);
       await loadActiveSessions();
-      showToast('Incident was added to this checkout session.', 'success');
+      showToast(`Card ${selectedSession.cardCode ?? selectedSession.cardId} was marked LOST.`, 'success');
     } catch (error) {
       showToast(
-        error instanceof Error ? error.message : 'Could not add this incident.',
+        error instanceof Error ? error.message : 'Could not mark this card as lost.',
         'error'
       );
     } finally {
-      setIsIncidentLoading(false);
+      setIsSubmitting(false);
     }
   };
 
-  const removeIncident = async (incident: Incident) => {
-    setIsIncidentLoading(true);
-
-    try {
-      await incidentService.delete(incident.id);
-      if (isLostCardIncident(incident) && selectedSession?.cardId) {
-        await updateCardStatus(selectedSession.cardId, 'ACTIVE');
-      }
-      setSessionIncidents((current) => current.filter((item) => item.id !== incident.id));
-      setSelectedIncidentIds((current) => current.filter((id) => id !== incident.id));
-      await loadActiveSessions();
-      showToast('Incident was removed from this session.', 'success');
-    } catch (error) {
-      showToast(
-        error instanceof Error ? error.message : 'Could not remove this incident.',
-        'error'
-      );
-    } finally {
-      setIsIncidentLoading(false);
-    }
-  };
-
-  const resolveSelectedIncidents = async (incidents: Incident[]) => {
-    const unresolved = incidents.filter(
-      (incident) => incident.status === 'OPEN' || incident.status === 'PROCESSING'
-    );
-
-    if (unresolved.length === 0) return;
-
-    await Promise.all(
-      unresolved.map((incident) =>
-        incidentService.updateStatus(incident.id, {
-          status: 'RESOLVED',
-          note: 'Resolved after checkout payment was completed.',
-        })
-      )
-    );
-  };
-
-  const handleConfirmCheckout = async () => {
+  const handleStartCheckout = async () => {
     if (!selectedSession) {
       showToast('Please search and load a session first.', 'error');
       return;
@@ -466,51 +478,72 @@ export default function VehicleCheckout() {
       return;
     }
 
-    const lockedCheckOutTime = new Date().toISOString();
+    const checkoutTimeStr = new Date().toISOString();
     setIsSubmitting(true);
 
     try {
-      await startCheckout(selectedSession.id, {
-        checkOutTime: lockedCheckOutTime,
+      const res = await startCheckout(selectedSession.id, {
+        checkOutTime: checkoutTimeStr,
         licensePlateOut: normalizeText(exitPlate),
         outStaffId: STAFF_ID,
+        imageOut: capturedImage || undefined,
       });
 
+      setCalculatedFee(res);
+      setLockedCheckoutTime(checkoutTimeStr);
+      showToast('Tính phí đỗ xe thành công. Vui lòng xác nhận thanh toán.', 'success');
+    } catch (error) {
+      showToast(
+        error instanceof Error ? error.message : 'Không thể tính toán phí gửi xe.',
+        'error'
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleCompleteCheckout = async () => {
+    if (!selectedSession || !calculatedFee || !lockedCheckoutTime) {
+      showToast('Vui lòng tính phí đỗ xe trước.', 'error');
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
       const payment = await createCheckoutPayment(selectedSession, paymentMethod);
-      const duration = getDurationLabel(selectedSession.checkInTime, lockedCheckOutTime);
-      const paymentStatus = String(payment.paymentStatus).toUpperCase();
+      await completeCheckout(selectedSession.id);
+
+      const duration = getDurationLabel(selectedSession.checkInTime, lockedCheckoutTime);
+
+      const nextHistory: CheckoutHistoryItem = {
+        id: `${selectedSession.id}-${lockedCheckoutTime}`,
+        sessionId: selectedSession.id,
+        licensePlate: selectedSession.licensePlate,
+        cardCode: selectedSession.cardCode ?? '—',
+        customerType: selectedSession.customerType,
+        checkInTime: selectedSession.checkInTime,
+        checkOutTime: lockedCheckoutTime,
+        amount: payment.amount,
+        paymentMethod: String(payment.paymentMethod || paymentMethod),
+        paymentStatus: String(payment.paymentStatus),
+      };
+
+      const newHistory = [nextHistory, ...history].slice(0, 50);
+      setHistory(newHistory);
+      writeHistory(newHistory);
 
       setOverlay({
         session: selectedSession,
         payment,
-        checkOutTime: lockedCheckOutTime,
+        checkOutTime: lockedCheckoutTime,
         exitPlate: normalizeText(exitPlate),
         duration,
-        incidents: selectedIncidents,
-        incidentTotal,
       });
 
       await loadActiveSessions();
-      if (paymentStatus === 'PAID') {
-        try {
-          await resolveSelectedIncidents(selectedIncidents);
-        } catch (error) {
-          showToast(
-            error instanceof Error
-              ? error.message
-              : 'Payment succeeded, but incidents could not be marked resolved.',
-            'error'
-          );
-        }
-        await loadCheckoutHistory();
-      }
       resetForNextVehicle();
-      showToast(
-        paymentStatus === 'PAID'
-          ? 'Cash payment completed and vehicle was checked out.'
-          : 'Online payment was created. Please complete payment before allowing exit.',
-        paymentStatus === 'PAID' ? 'success' : 'info'
-      );
+      showToast('Thực hiện check-out và thanh toán thành công!', 'success');
     } catch (error) {
       showToast(
         error instanceof Error ? error.message : 'Could not complete checkout flow.',
@@ -554,21 +587,14 @@ export default function VehicleCheckout() {
         return;
       }
 
-      const incident = await incidentService.create({
+      await incidentService.create({
         sessionId: overlay.session.id,
         incidentTypeId: incidentType.id,
         description: `Driver refused or could not complete payment. Plate: ${overlay.session.licensePlate}. Card: ${overlay.session.cardCode ?? 'N/A'}. Amount: ${formatCurrency(overlay.payment.amount)}. Payment status: ${overlay.payment.paymentStatus}.`,
         penaltyFee: null,
       });
 
-      await incidentService.createBlacklistRecord({
-        vehicleId: overlay.session.vehicleId ?? null,
-        cardId: overlay.session.cardId ?? null,
-        incidentId: incident?.id ?? null,
-        reason: `Unpaid checkout - ${overlay.session.licensePlate} - ${formatCurrency(overlay.payment.amount)}`,
-      });
-
-      showToast('Payment issue was reported and blacklisted.', 'success');
+      showToast('Payment issue was reported to manager.', 'success');
     } catch (error) {
       showToast(
         error instanceof Error ? error.message : 'Could not report payment issue.',
@@ -576,35 +602,6 @@ export default function VehicleCheckout() {
       );
     } finally {
       setIsReporting(false);
-    }
-  };
-
-  const handleBackToCheckout = async () => {
-    if (!overlay) return;
-
-    setIsSubmitting(true);
-
-    try {
-      await rollbackCheckout(overlay.session.id);
-      setSessions((current) =>
-        current.some((session) => session.id === overlay.session.id)
-          ? current
-          : [overlay.session, ...current]
-      );
-      setSelectedSessionId(overlay.session.id);
-      setExitPlate(overlay.exitPlate);
-      setSearchQuery(overlay.session.cardCode || overlay.session.licensePlate);
-      setOverlay(null);
-      await loadActiveSessions();
-      await loadCheckoutHistory();
-      showToast('Checkout rollback completed. You can change payment or review again.', 'success');
-    } catch (error) {
-      showToast(
-        error instanceof Error ? error.message : 'Could not rollback this checkout.',
-        'error'
-      );
-    } finally {
-      setIsSubmitting(false);
     }
   };
 
@@ -626,17 +623,14 @@ export default function VehicleCheckout() {
                 isFilterActive
                   ? 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200'
                   : 'bg-white text-slate-700 ring-1 ring-slate-200'
-              }`}
+                }`}
             >
               <span className="material-symbols-outlined text-lg">filter_alt</span>
               Filter
             </button>
             <button
               type="button"
-              onClick={() => {
-                setIsHistoryOpen(true);
-                void loadCheckoutHistory();
-              }}
+              onClick={() => setIsHistoryOpen(true)}
               className="inline-flex h-11 items-center gap-2 rounded-2xl bg-white px-4 text-sm font-black text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50"
             >
               <span className="material-symbols-outlined text-lg">history</span>
@@ -722,178 +716,308 @@ export default function VehicleCheckout() {
         </section>
 
         <main className="grid min-h-0 flex-1 gap-4 xl:grid-cols-2">
-          <section className="min-h-0 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-            <div className="mb-4 flex items-center justify-between gap-3">
-              <div>
-                <h2 className="text-base font-black text-slate-900">Checked-in info</h2>
-                <p className="text-xs font-semibold text-slate-500">
-                  Loaded from card or license plate search.
+          {/* CỘT TRÁI: CAMERA VÀ THÔNG TIN CHECK-IN */}
+          <div className="space-y-4 flex flex-col min-h-0">
+            {/* Khung Camera lối ra */}
+            <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm flex flex-col">
+              <div className="flex items-center justify-between border-b border-slate-100 px-5 py-3.5">
+                <div className="flex items-center gap-2">
+                  <span className="h-2 w-2 rounded-full bg-red-500" />
+                  <span className="h-2 w-2 rounded-full bg-amber-400" />
+                  <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                </div>
+                <p className="font-mono text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                  Exit Camera · GATE-OUT-01
                 </p>
               </div>
-              {selectedSession && (
-                <button
-                  type="button"
-                  disabled={isIncidentLoading}
-                  onClick={() => setIsIncidentPanelOpen((value) => !value)}
-                  className="rounded-xl border border-orange-200 bg-orange-50 px-3 py-2 text-xs font-black text-orange-700 hover:bg-orange-100 disabled:opacity-60"
-                >
-                  Incidents
-                </button>
-              )}
-            </div>
 
-            {selectedSession ? (
-              <div className="space-y-4">
-                <div className="rounded-3xl bg-emerald-50 p-5">
-                  <p className="text-xs font-black uppercase tracking-wider text-emerald-700">
-                    Check-in plate
-                  </p>
-                  <p className="mt-1 break-all font-mono text-5xl font-black tracking-widest text-slate-950">
-                    {selectedSession.licensePlate}
-                  </p>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <InfoBox label="Card" value={selectedSession.cardCode ?? '—'} mono />
-                  <InfoBox label="Customer" value={selectedSession.customerType} />
-                  <InfoBox label="Vehicle" value={selectedSession.vehicleType} />
-                  <InfoBox label="Check-in" value={formatDateTime(selectedSession.checkInTime)} />
-                  <InfoBox label="Duration" value={getDurationLabel(selectedSession.checkInTime)} />
-                  <InfoBox
-                    label="Zone / slot"
-                    value={`${selectedSession.zoneCode ?? '—'} / ${selectedSession.slotCode ?? '—'}`}
-                  />
-                </div>
-                <IncidentSelectionPanel
-                  incidentTypes={incidentTypes}
-                  incidents={sessionIncidents}
-                  selectedIncidentIds={selectedIncidentIds}
-                  total={incidentTotal}
-                  isOpen={isIncidentPanelOpen}
-                  isLoading={isIncidentLoading}
-                  onToggleOpen={() => setIsIncidentPanelOpen((value) => !value)}
-                  onSelectIncidentType={(incidentType) => void createIncidentFromType(incidentType)}
-                  onToggleIncident={includeExistingIncident}
-                  onRemoveIncident={(incident) => void removeIncident(incident)}
+              <div className="relative aspect-video bg-slate-900 border-b border-slate-100 flex items-center justify-center overflow-hidden">
+                <video
+                  ref={videoRef}
+                  autoPlay
+                  playsInline
+                  muted
+                  className={`h-full w-full object-cover ${cameraActive ? 'block' : 'hidden'}`}
                 />
-              </div>
-            ) : (
-              <EmptyState icon="badge" text="Scan or enter a card code/license plate to load the vehicle." />
-            )}
-          </section>
 
-          <section className="min-h-0 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-            <h2 className="text-base font-black text-slate-900">Check-out confirmation</h2>
-            <p className="text-xs font-semibold text-slate-500">
-              Compare plate at exit before creating payment.
-            </p>
-
-            {selectedSession ? (
-              <div className="mt-4 space-y-4">
-                <div>
-                  <label className="text-xs font-black uppercase tracking-wider text-slate-500">
-                    Exit license plate
-                  </label>
-                  <input
-                    value={exitPlate}
-                    onChange={(event) => setExitPlate(event.target.value.toUpperCase())}
-                    placeholder="Enter plate seen at gate"
-                    className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 font-mono text-3xl font-black uppercase tracking-wider text-slate-900 outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100"
-                  />
-                </div>
-
-                <div
-                  className={`rounded-2xl border px-4 py-3 ${
-                    !exitPlate
-                      ? 'border-amber-200 bg-amber-50 text-amber-700'
-                      : isPlateMatched
-                        ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
-                        : 'border-red-200 bg-red-50 text-red-700'
-                  }`}
-                >
-                  <div className="flex items-center gap-2 text-sm font-black">
-                    <span className="material-symbols-outlined">
-                      {!exitPlate ? 'visibility' : isPlateMatched ? 'check_circle' : 'error'}
-                    </span>
-                    {!exitPlate
-                      ? 'Waiting for plate input'
-                      : isPlateMatched
-                        ? 'Plate matched'
-                        : 'Plate mismatch - send to incident handling'}
+                {!cameraActive && (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-6 space-y-3 bg-slate-950">
+                    <span className="material-symbols-outlined text-4xl text-slate-600">videocam_off</span>
+                    <p className="text-slate-400 text-xs font-semibold">Camera is not active.</p>
+                    <button
+                      type="button"
+                      onClick={startCamera}
+                      className="flex items-center gap-2 rounded-xl bg-emerald-600 px-3.5 py-1.5 text-xs font-black text-white hover:bg-emerald-500 transition shadow-lg shadow-emerald-600/20"
+                    >
+                      Start Camera
+                    </button>
                   </div>
-                </div>
+                )}
 
-                <div>
-                  <label className="text-xs font-black uppercase tracking-wider text-slate-500">
-                    Payment method
-                  </label>
-                  <div className="mt-2 grid grid-cols-2 gap-3">
-                    {(['CASH', 'ONLINE_BANKING'] as CheckoutPaymentMethod[]).map((method) => (
-                      <button
-                        key={method}
-                        type="button"
-                        onClick={() => setPaymentMethod(method)}
-                        className={`rounded-2xl border px-4 py-4 text-sm font-black transition ${
-                          paymentMethod === method
-                            ? 'border-emerald-500 bg-emerald-50 text-emerald-700'
-                            : 'border-slate-200 bg-white text-slate-500 hover:bg-slate-50'
-                        }`}
-                      >
-                        {method === 'CASH' ? 'Cash' : 'Online banking'}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <InfoBox label="Checkout time" value="Logged when confirmed" />
-                  <InfoBox
-                    label="Incident fees"
-                    value={incidentTotal > 0 ? formatCurrency(incidentTotal) : 'No added fees'}
-                  />
-                </div>
-
-                {selectedIncidents.length > 0 && (
-                  <div className="rounded-2xl border border-red-100 bg-red-50 p-4">
-                    <p className="text-xs font-black uppercase tracking-wider text-red-700">
-                      Additional fees
-                    </p>
-                    <div className="mt-2 space-y-1">
-                      {selectedIncidents.map((incident) => (
-                        <div
-                          key={incident.id}
-                          className="flex items-center justify-between gap-3 text-sm font-bold text-slate-800"
-                        >
-                          <span className="truncate">
-                            {incident.incidentName || incident.incidentCode || `Incident #${incident.id}`}
-                          </span>
-                          <span className="font-black text-red-700">
-                            {formatCurrency(incident.penaltyFee)}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                    <div className="mt-3 flex items-center justify-between border-t border-red-100 pt-3">
-                      <span className="text-xs font-black uppercase text-red-700">
-                        Total incident fees
-                      </span>
-                      <span className="text-2xl font-black text-red-700">
-                        {formatCurrency(incidentTotal)}
-                      </span>
+                {cameraActive && (
+                  <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
+                    <div className="w-64 h-32 border-4 border-dashed border-emerald-400/40 rounded-3xl relative">
+                      <div className="absolute top-2 left-2 text-[9px] font-mono font-bold bg-slate-950/80 text-emerald-400 px-1 py-0.5 rounded">
+                        LPR ALIGNMENT
+                      </div>
                     </div>
                   </div>
                 )}
 
-                <button
-                  type="button"
-                  disabled={!isPlateMatched || isSubmitting}
-                  onClick={() => void handleConfirmCheckout()}
-                  className="flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-600 py-4 text-base font-black text-white shadow-lg shadow-emerald-600/20 hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-300"
-                >
-                  <span className="material-symbols-outlined">
-                    {isSubmitting ? 'progress_activity' : 'logout'}
-                  </span>
-                  {isSubmitting ? 'Processing...' : 'Confirm Check-out'}
-                </button>
+                {isScanning && (
+                  <div className="absolute inset-0 bg-slate-950/85 flex flex-col items-center justify-center p-6 text-center space-y-4">
+                    <div className="h-8 w-8 border-3 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
+                    <p className="text-emerald-400 text-xs font-black tracking-wider animate-pulse">{scanProgress}</p>
+                  </div>
+                )}
+              </div>
+
+              <div className="p-4 bg-slate-50 border-t border-slate-100 space-y-3">
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div>
+                    <select
+                      value={selectedDeviceId}
+                      onChange={(e) => setSelectedDeviceId(e.target.value)}
+                      className="w-full rounded-xl bg-white border border-slate-200 px-3 py-2 text-xs text-slate-700 outline-none focus:border-emerald-500"
+                    >
+                      {devices.map((device, idx) => (
+                        <option key={device.deviceId || idx} value={device.deviceId}>
+                          {device.label || `Camera ${idx + 1}`}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={cameraActive ? stopCamera : startCamera}
+                      className={`flex-1 rounded-xl py-2 text-xs font-bold transition flex items-center justify-center gap-1.5 border ${
+                        cameraActive
+                          ? 'bg-red-50 border-red-200 text-red-700 hover:bg-red-100'
+                          : 'bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100'
+                        }`}
+                    >
+                      {cameraActive ? 'Stop Cam' : 'Start Cam'}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="grid gap-3 grid-cols-2">
+                  <button
+                    type="button"
+                    onClick={handleCheckoutScan}
+                    disabled={isScanning || !cameraActive}
+                    className="rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white py-2 text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-md shadow-emerald-600/10 disabled:opacity-50"
+                  >
+                    <span className="material-symbols-outlined text-base">photo_camera</span>
+                    Scan Camera
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleMockScanCheckout}
+                    className="rounded-xl bg-white hover:bg-slate-50 text-slate-600 py-2 text-xs font-semibold border border-slate-200 transition"
+                  >
+                    Mock Scan
+                  </button>
+                </div>
+
+                {capturedImage && (
+                  <div className="bg-white rounded-xl p-3 border border-slate-100 flex items-center gap-4">
+                    <div className="h-14 w-24 bg-slate-950 rounded-lg overflow-hidden border border-slate-200 flex-shrink-0">
+                      <img src={capturedImage} alt="Captured exit snapshot" className="h-full w-full object-contain" />
+                    </div>
+                    <div>
+                      <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Detected Exit Plate</p>
+                      <p className="font-mono text-xl font-black text-slate-900 tracking-wider mt-0.5">{exitPlate || '---'}</p>
+                      {ocrText && <p className="text-[9px] text-emerald-600 font-bold mt-0.5">Confidence: Passed</p>}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </section>
+
+            {/* Thông tin check-in */}
+            {selectedSession ? (
+              <section className="min-h-0 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+                <div className="mb-4 flex items-center justify-between gap-3">
+                  <div>
+                    <h2 className="text-base font-black text-slate-900">Checked-in info</h2>
+                    <p className="text-xs font-semibold text-slate-500">
+                      Loaded from card or license plate search.
+                    </p>
+                  </div>
+                  {selectedSession.cardId && (
+                    <button
+                      type="button"
+                      disabled={isSubmitting}
+                      onClick={() => void handleMarkLost()}
+                      className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-black text-red-700 hover:bg-red-100 disabled:opacity-60"
+                    >
+                      Lost card
+                    </button>
+                  )}
+                </div>
+
+                <div className="space-y-4">
+                  <div className="rounded-3xl bg-emerald-50 p-5">
+                    <p className="text-xs font-black uppercase tracking-wider text-emerald-700">
+                      Check-in plate
+                    </p>
+                    <p className="mt-1 break-all font-mono text-5xl font-black tracking-widest text-slate-950">
+                      {selectedSession.licensePlate}
+                    </p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <InfoBox label="Card" value={selectedSession.cardCode ?? '—'} mono />
+                    <InfoBox label="Customer" value={selectedSession.customerType} />
+                    <InfoBox label="Vehicle" value={selectedSession.vehicleType} />
+                    <InfoBox label="Check-in" value={formatDateTime(selectedSession.checkInTime)} />
+                    <InfoBox label="Duration" value={getDurationLabel(selectedSession.checkInTime)} />
+                    <InfoBox
+                      label="Zone / slot"
+                      value={`${selectedSession.zoneCode ?? '—'} / ${selectedSession.slotCode ?? '—'}`}
+                    />
+                  </div>
+                </div>
+              </section>
+            ) : (
+              <section className="min-h-[150px] rounded-3xl border border-slate-200 bg-white p-5 shadow-sm flex items-center justify-center">
+                <EmptyState icon="badge" text="Scan or enter a card code/license plate to load the vehicle." />
+              </section>
+            )}
+          </div>
+
+          {/* CỘT PHẢI: XÁC NHẬN THANH TOÁN VÀ THANH TOÁN */}
+          <section className="min-h-0 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm flex flex-col justify-start">
+              <h2 className="text-base font-black text-slate-900">Check-out confirmation</h2>
+            <p className="text-xs font-semibold text-slate-500 mb-4">
+                Compare plate at exit before creating payment.
+              </p>
+
+            {selectedSession ? (
+              <div className="space-y-5 flex-1 flex flex-col justify-between">
+                <div className="space-y-4">
+                  {/* Khung nhập biển số lối ra */}
+                  <div>
+                    <label className="text-xs font-black uppercase tracking-wider text-slate-500">
+                      Exit license plate
+                    </label>
+                    <input
+                      value={exitPlate}
+                      onChange={(event) => setExitPlate(event.target.value.toUpperCase())}
+                      placeholder="Enter plate seen at gate"
+                      className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 font-mono text-3xl font-black uppercase tracking-wider text-slate-900 outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100"
+                    />
+                  </div>
+
+                  {/* Trạng thái khớp biển số */}
+                  <div
+                    className={`rounded-2xl border px-4 py-3 ${
+                      !exitPlate
+                        ? 'border-amber-200 bg-amber-50 text-amber-700'
+                        : isPlateMatched
+                          ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                          : 'border-red-200 bg-red-50 text-red-700'
+                      }`}
+                  >
+                    <div className="flex items-center gap-2 text-sm font-black">
+                      <span className="material-symbols-outlined">
+                        {!exitPlate ? 'visibility' : isPlateMatched ? 'check_circle' : 'error'}
+                      </span>
+                      {!exitPlate
+                        ? 'Waiting for plate input'
+                        : isPlateMatched
+                          ? 'Plate matched'
+                          : 'Plate mismatch - check plate or send to incident handling'}
+                    </div>
+                  </div>
+
+                  {/* Phân đoạn 1: Khi chưa tính phí đỗ xe */}
+                  {!calculatedFee ? (
+                    <div className="pt-4">
+                      <button
+                        type="button"
+                        disabled={!isPlateMatched || isSubmitting}
+                        onClick={() => void handleStartCheckout()}
+                        className="flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-600 py-4 text-base font-black text-white shadow-lg shadow-emerald-600/20 hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+                      >
+                        <span className="material-symbols-outlined">calculate</span>
+                        {isSubmitting ? 'Calculating...' : 'Calculate Fee'}
+                      </button>
+                    </div>
+                  ) : (
+                    /* Phân đoạn 2: Sau khi đã tính phí đỗ xe thành công, hiện hóa đơn chi tiết */
+                    <div className="space-y-4 border-t border-slate-100 pt-4">
+                      <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100 space-y-2">
+                        <p className="text-xs font-black uppercase tracking-wider text-slate-400 mb-2">Parking Bill Details</p>
+                        <div className="flex justify-between text-xs">
+                          <span className="font-semibold text-slate-500">Checkout Time:</span>
+                          <span className="font-mono font-bold text-slate-900">{formatDateTime(lockedCheckoutTime)}</span>
+                        </div>
+                        <div className="flex justify-between text-xs">
+                          <span className="font-semibold text-slate-500">Base Parking Fee:</span>
+                          <span className="font-bold text-slate-900">{formatCurrency(calculatedFee.totalFee)}</span>
+                        </div>
+                        {calculatedFee.penaltyFee > 0 && (
+                          <div className="flex justify-between text-xs text-red-600">
+                            <span className="font-semibold">Penalty Fee:</span>
+                            <span className="font-bold">{formatCurrency(calculatedFee.penaltyFee)}</span>
+                          </div>
+                        )}
+                        <div className="flex justify-between border-t border-slate-200/60 pt-2 mt-2 text-sm">
+                          <span className="font-black text-slate-900">Total Amount Due:</span>
+                          <span className="font-black text-emerald-600 text-base">{formatCurrency(calculatedFee.amountDue)}</span>
+                        </div>
+                      </div>
+
+                      {/* Chọn phương thức thanh toán */}
+                      <div>
+                        <label className="text-xs font-black uppercase tracking-wider text-slate-500">
+                          Payment method
+                        </label>
+                        <div className="mt-2 grid grid-cols-2 gap-3">
+                          {(['CASH', 'ONLINE_BANKING'] as CheckoutPaymentMethod[]).map((method) => (
+                            <button
+                              key={method}
+                              type="button"
+                              onClick={() => setPaymentMethod(method)}
+                              className={`rounded-2xl border px-4 py-3.5 text-sm font-black transition ${
+                                paymentMethod === method
+                                  ? 'border-emerald-500 bg-emerald-50 text-emerald-700'
+                                  : 'border-slate-200 bg-white text-slate-500 hover:bg-slate-50'
+                                }`}
+                            >
+                              {method === 'CASH' ? 'Cash' : 'Online banking'}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Nút thanh toán và các nút điều khiển */}
+                      <div className="flex flex-col gap-2 pt-2">
+                        <button
+                          type="button"
+                          disabled={isSubmitting}
+                          onClick={() => void handleCompleteCheckout()}
+                          className="flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-600 py-4 text-base font-black text-white shadow-lg shadow-emerald-600/20 hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+                        >
+                          <span className="material-symbols-outlined">payments</span>
+                          {isSubmitting ? 'Confirming...' : 'Confirm Payment & Exit'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setCalculatedFee(null);
+                            setLockedCheckoutTime(null);
+                          }}
+                          className="text-xs font-black text-slate-400 hover:text-slate-600 text-center py-2 transition"
+                        >
+                          Recalculate Fee / Re-scan Plate
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
             ) : (
               <EmptyState icon="logout" text="Checkout confirmation appears after loading a vehicle." />
@@ -925,10 +1049,8 @@ export default function VehicleCheckout() {
               </div>
 
               <div className="mt-5 min-h-0 flex-1 overflow-y-auto pr-1">
-                {isHistoryLoading ? (
-                  <EmptyState icon="progress_activity" text="Loading checkout history from system..." />
-                ) : history.length === 0 ? (
-                  <EmptyState icon="history" text="No checkout history returned by the system yet." />
+                {history.length === 0 ? (
+                  <EmptyState icon="history" text="No checkout history in this browser yet." />
                 ) : (
                   <div className="grid gap-3 md:grid-cols-2">
                     {history.map((item) => (
@@ -946,7 +1068,7 @@ export default function VehicleCheckout() {
                             </p>
                           </div>
                           <p className="text-right text-lg font-black text-emerald-700">
-                            {item.amount == null ? '—' : formatCurrency(item.amount)}
+                            {formatCurrency(item.amount)}
                           </p>
                         </div>
                         <div className="mt-4 grid grid-cols-2 gap-2 text-xs font-semibold text-slate-600">
@@ -968,45 +1090,18 @@ export default function VehicleCheckout() {
       {isMounted &&
         overlay &&
         createPortal(
-          <div className="fixed inset-0 z-[100000] overflow-y-auto bg-emerald-700 p-4 text-white sm:p-6">
-            <div className="mx-auto my-4 flex min-h-[calc(100vh-2rem)] w-full max-w-5xl items-center sm:my-6 sm:min-h-[calc(100vh-3rem)]">
-              <div className="w-full rounded-[1.75rem] bg-white/15 p-5 text-center shadow-2xl backdrop-blur-sm sm:p-6 lg:p-7">
-              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-white/20 sm:h-20 sm:w-20">
-                <span className="material-symbols-outlined text-4xl sm:text-5xl">paid</span>
+          <div className="fixed inset-0 z-[100000] flex items-center justify-center bg-emerald-700 p-6 text-white">
+            <div className="w-full max-w-4xl rounded-[2rem] bg-white/15 p-8 text-center shadow-2xl backdrop-blur-sm">
+              <div className="mx-auto flex h-24 w-24 items-center justify-center rounded-full bg-white/20">
+                <span className="material-symbols-outlined text-6xl">paid</span>
               </div>
-              <p className="mt-4 text-[10px] font-black uppercase tracking-[0.35em] text-white/70 sm:text-xs">
+              <p className="mt-6 text-xs font-black uppercase tracking-[0.4em] text-white/70">
                 Checkout summary
               </p>
-              <h2 className="mt-2 break-all font-mono text-4xl font-black tracking-widest sm:text-5xl">
+              <h2 className="mt-2 font-mono text-5xl font-black tracking-widest">
                 {overlay.session.licensePlate}
               </h2>
-              <div className="mx-auto mt-5 max-w-3xl rounded-[1.75rem] bg-white px-5 py-5 text-emerald-800 shadow-2xl shadow-emerald-950/10">
-                <p className="text-xs font-black uppercase tracking-[0.35em] text-emerald-600">
-                  Total to pay
-                </p>
-                <p className="mt-2 break-words text-5xl font-black tracking-tight sm:text-6xl">
-                  {formatCurrency(overlay.payment.amount)}
-                </p>
-                <div className="mt-4 grid gap-2 text-left text-sm font-black sm:grid-cols-2">
-                  <div className="rounded-2xl bg-emerald-50 px-4 py-3">
-                    <p className="text-[10px] uppercase tracking-wider text-emerald-500">
-                      Parking fee
-                    </p>
-                    <p className="mt-1 text-lg text-slate-900">
-                      {formatCurrency(getBaseAmount(overlay.payment.amount, overlay.incidentTotal))}
-                    </p>
-                  </div>
-                  <div className="rounded-2xl bg-red-50 px-4 py-3">
-                    <p className="text-[10px] uppercase tracking-wider text-red-500">
-                      Incident fees
-                    </p>
-                    <p className="mt-1 text-lg text-red-700">
-                      {formatCurrency(overlay.incidentTotal)}
-                    </p>
-                  </div>
-                </div>
-              </div>
-              <div className="mt-5 grid gap-3 text-left md:grid-cols-2 xl:grid-cols-3">
+              <div className="mt-8 grid gap-3 text-left md:grid-cols-2">
                 <OverlayInfo label="Card code" value={overlay.session.cardCode ?? '—'} />
                 <OverlayInfo label="Exit plate" value={overlay.exitPlate} />
                 <OverlayInfo label="Check-in time" value={formatDateTime(overlay.session.checkInTime)} />
@@ -1014,27 +1109,8 @@ export default function VehicleCheckout() {
                 <OverlayInfo label="Duration" value={overlay.duration} />
                 <OverlayInfo label="Payment method" value={String(overlay.payment.paymentMethod || paymentMethod)} />
                 <OverlayInfo label="Payment status" value={String(overlay.payment.paymentStatus)} />
+                <OverlayInfo label="Amount due" value={formatCurrency(overlay.payment.amount)} strong />
               </div>
-              {overlay.incidents.length > 0 && (
-                <div className="mt-4 rounded-3xl bg-white/15 p-4 text-left">
-                  <p className="text-xs font-black uppercase tracking-wider text-white/70">
-                    Added incident fees
-                  </p>
-                  <div className="mt-3 max-h-40 space-y-2 overflow-y-auto pr-1">
-                    {overlay.incidents.map((incident) => (
-                      <div
-                        key={incident.id}
-                        className="flex items-center justify-between gap-4 rounded-2xl bg-white/10 px-4 py-3 text-sm font-black"
-                      >
-                        <span className="truncate">
-                          {incident.incidentName || incident.incidentCode || `Incident #${incident.id}`}
-                        </span>
-                        <span>{formatCurrency(incident.penaltyFee)}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
               {overlay.payment.paymentUrl && (
                 <a
                   href={overlay.payment.paymentUrl}
@@ -1045,15 +1121,28 @@ export default function VehicleCheckout() {
                   Open online payment URL
                 </a>
               )}
-              <div className="mt-5 flex flex-col justify-center gap-3 sm:flex-row">
+              <div className="mt-6 flex flex-col justify-center gap-3 sm:flex-row">
                 {String(overlay.payment.paymentStatus).toUpperCase() !== 'PAID' && (
                   <button
                     type="button"
-                    disabled={isSubmitting}
-                    onClick={() => void handleBackToCheckout()}
+                    onClick={() => {
+                      setSessions((current) =>
+                        current.some((session) => session.id === overlay.session.id)
+                          ? current
+                          : [overlay.session, ...current]
+                      );
+                      setSelectedSessionId(overlay.session.id);
+                      setExitPlate(overlay.exitPlate);
+                      setSearchQuery(overlay.session.cardCode || overlay.session.licensePlate);
+                      setOverlay(null);
+                      showToast(
+                        'Returned to checkout screen. Current pending payment is still open until Backend supports cancel/change payment.',
+                        'info'
+                      );
+                    }}
                     className="rounded-2xl border border-white/40 px-5 py-3 text-sm font-black text-white hover:bg-white/10"
                   >
-                    {isSubmitting ? 'Rolling back...' : 'Back to checkout'}
+                    Back to checkout
                   </button>
                 )}
                 <button
@@ -1072,167 +1161,10 @@ export default function VehicleCheckout() {
                   Ready for next vehicle
                 </button>
               </div>
-              </div>
             </div>
           </div>,
           document.body
         )}
-    </div>
-  );
-}
-
-function IncidentSelectionPanel({
-  incidentTypes,
-  incidents,
-  selectedIncidentIds,
-  total,
-  isOpen,
-  isLoading,
-  onToggleOpen,
-  onSelectIncidentType,
-  onToggleIncident,
-  onRemoveIncident,
-}: {
-  incidentTypes: IncidentType[];
-  incidents: Incident[];
-  selectedIncidentIds: number[];
-  total: number;
-  isOpen: boolean;
-  isLoading: boolean;
-  onToggleOpen: () => void;
-  onSelectIncidentType: (incidentType: IncidentType) => void;
-  onToggleIncident: (incident: Incident) => void;
-  onRemoveIncident: (incident: Incident) => void;
-}) {
-  const selectedIncidents = incidents.filter((incident) =>
-    selectedIncidentIds.includes(incident.id)
-  );
-  const selectedIncidentTypeIds = new Set(
-    selectedIncidents.map((incident) => incident.incidentTypeId)
-  );
-
-  return (
-    <div className="rounded-3xl border border-orange-100 bg-orange-50/60 p-4">
-      <button
-        type="button"
-        onClick={onToggleOpen}
-        className="flex w-full items-center justify-between gap-3 text-left"
-      >
-        <div>
-          <p className="text-xs font-black uppercase tracking-wider text-orange-700">
-            Incidents
-          </p>
-          <p className="mt-1 text-sm font-bold text-slate-800">
-            {isLoading
-              ? 'Loading incidents...'
-              : selectedIncidents.length > 0
-                ? `${selectedIncidents.length} selected · ${formatCurrency(total)}`
-                : 'Tap to choose incident types'}
-          </p>
-        </div>
-        <span className="material-symbols-outlined text-orange-700">
-          {isOpen ? 'expand_less' : 'expand_more'}
-        </span>
-      </button>
-
-      {selectedIncidents.length > 0 && (
-        <div className="mt-3 flex flex-wrap gap-2">
-          {selectedIncidents.map((incident) => (
-            <span
-              key={incident.id}
-              className="inline-flex items-center gap-2 rounded-full bg-white px-3 py-2 text-xs font-black text-slate-700 ring-1 ring-orange-100"
-            >
-              {incident.incidentName || incident.incidentCode || `Incident #${incident.id}`}
-              <span className="text-red-600">{formatCurrency(incident.penaltyFee)}</span>
-              <button
-                type="button"
-                onClick={() => onRemoveIncident(incident)}
-                className="rounded-full bg-slate-100 p-0.5 text-slate-500 hover:bg-red-100 hover:text-red-600"
-                aria-label="Remove selected incident"
-              >
-                <span className="material-symbols-outlined text-sm">close</span>
-              </button>
-            </span>
-          ))}
-        </div>
-      )}
-
-      {isOpen && (
-        <div className="mt-3 max-h-56 overflow-y-auto rounded-2xl border border-orange-100 bg-white p-2">
-          {isLoading ? (
-            <p className="p-3 text-xs font-bold text-slate-400">
-              Loading incidents...
-            </p>
-          ) : incidentTypes.length === 0 ? (
-            <p className="p-3 text-xs font-bold text-slate-400">
-              No incident types returned by the system.
-            </p>
-          ) : (
-            <div className="space-y-2">
-              {incidentTypes.map((incidentType) => {
-                const existingIncident = incidents.find(
-                  (incident) =>
-                    incident.incidentTypeId === incidentType.id &&
-                    incident.status === 'OPEN'
-                );
-                const isSelected = selectedIncidentTypeIds.has(incidentType.id);
-                const displayFee =
-                  existingIncident?.penaltyFee ?? incidentType.defaultPenaltyFee ?? 0;
-
-                return (
-                  <div
-                    key={incidentType.id}
-                    className={`flex items-center justify-between gap-3 rounded-2xl border p-3 ${
-                      isSelected
-                        ? 'border-orange-200 bg-orange-50'
-                        : 'border-slate-100 bg-white'
-                    }`}
-                  >
-                    <button
-                      type="button"
-                      onClick={() =>
-                        existingIncident
-                          ? onToggleIncident(existingIncident)
-                          : onSelectIncidentType(incidentType)
-                      }
-                      className="min-w-0 flex-1 text-left"
-                    >
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="truncate text-sm font-black text-slate-900">
-                          {incidentType.incidentName || incidentType.incidentCode || `Type #${incidentType.id}`}
-                        </span>
-                        <span
-                          className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-black text-slate-500"
-                        >
-                          {incidentType.incidentCode || 'NO_CODE'}
-                        </span>
-                        {isSelected && (
-                          <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-black text-emerald-700">
-                            selected
-                          </span>
-                        )}
-                      </div>
-                      <p className="mt-1 text-xs font-bold text-slate-500">
-                        {formatCurrency(displayFee)}
-                      </p>
-                    </button>
-                    {existingIncident && (
-                      <button
-                        type="button"
-                        onClick={() => onRemoveIncident(existingIncident)}
-                        className="rounded-xl bg-slate-100 p-2 text-slate-500 hover:bg-red-50 hover:text-red-600"
-                        aria-label="Delete incident"
-                      >
-                        <span className="material-symbols-outlined text-base">close</span>
-                      </button>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      )}
     </div>
   );
 }
@@ -1271,7 +1203,7 @@ function InfoBox({
       <p
         className={`mt-1 truncate text-sm font-black text-slate-800 ${
           mono ? 'font-mono' : ''
-        }`}
+          }`}
         title={value}
       >
         {value}
@@ -1290,13 +1222,9 @@ function OverlayInfo({
   strong?: boolean;
 }) {
   return (
-    <div className="min-w-0 rounded-2xl bg-white/15 p-3 sm:p-4">
+    <div className="rounded-2xl bg-white/15 p-4">
       <p className="text-xs font-black uppercase text-white/60">{label}</p>
-      <p
-        className={`mt-1 break-words font-black ${
-          strong ? 'text-2xl sm:text-3xl' : 'text-lg sm:text-xl'
-        }`}
-      >
+      <p className={`mt-1 font-black ${strong ? 'text-3xl' : 'text-xl'}`}>
         {value}
       </p>
     </div>

@@ -44,6 +44,7 @@ interface PendingBookingRecord {
   plannedCheckinTime: string;
   plannedCheckoutTime: string;
   depositAmount: number;
+  totalAmount?: number;
   bookingStatus: string;
   paymentDeadline: string;
   vehicleId: number;
@@ -410,15 +411,26 @@ export default function DriverPayments() {
 
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-2">
                   <div className="text-left">
-                    <span className="text-xs text-slate-400 font-semibold block">Required Deposit Amount</span>
-                    <span className="text-2xl font-black font-mono text-emerald-600">{booking.depositAmount.toLocaleString('vi-VN')} đ</span>
+                    <span className="text-xs text-slate-400 font-semibold block">
+                      Tổng thanh toán ·{' '}
+                      {(() => {
+                        const s = new Date(booking.plannedCheckinTime);
+                        const e = new Date(booking.plannedCheckoutTime);
+                        const hrs = (e.getTime() - s.getTime()) / 3600000;
+                        if (hrs <= 0) return '';
+                        const h = Math.floor(hrs);
+                        const m = Math.round((hrs - h) * 60);
+                        return m > 0 ? `${h} giờ ${m} phút` : `${h} giờ`;
+                      })()}
+                    </span>
+                    <span className="text-2xl font-black font-mono text-emerald-600">{(booking.totalAmount ?? booking.depositAmount ?? 0).toLocaleString('vi-VN')} đ</span>
                   </div>
                   <button 
                     onClick={() => handleOpenDepositModal(booking)}
                     className="px-6 py-3 bg-amber-600 hover:bg-amber-700 active:scale-[0.98] text-white text-xs font-bold rounded-xl shadow-md shadow-amber-600/10 transition-all flex items-center justify-center gap-2"
                   >
                     <CreditCard className="w-4 h-4" />
-                    <span>Pay Deposit via VNPAY</span>
+                    <span>Thanh toán ngay (VNPAY)</span>
                   </button>
                 </div>
               </div>
@@ -520,11 +532,24 @@ export default function DriverPayments() {
                 Pay the reservation deposit to confirm your parking space slot.
               </p>
 
-              {/* Price Details */}
-              <div className="w-full bg-slate-50 border border-slate-100 rounded-2xl p-4 my-6 flex justify-between items-center text-xs">
-                <span className="font-bold text-slate-400 uppercase tracking-wider">Deposit Due</span>
-                <span className="text-base font-black text-emerald-700">
-                  {Math.round(selectedBookingForDeposit.depositAmount).toLocaleString('vi-VN')} đ
+              {/* Single total amount = depositAmount from API (full booking cost) */}
+              <div className="w-full bg-emerald-50 border border-emerald-200 rounded-2xl p-4 my-6 flex justify-between items-center text-xs">
+                <div className="text-left">
+                  <span className="font-bold text-emerald-800 uppercase tracking-wider">Tổng thanh toán (Total Payment)</span>
+                  <p className="text-[10px] text-emerald-600 mt-1">
+                    {(() => {
+                      const s = new Date(selectedBookingForDeposit.plannedCheckinTime);
+                      const e = new Date(selectedBookingForDeposit.plannedCheckoutTime);
+                      const hrs = (e.getTime() - s.getTime()) / 3600000;
+                      if (hrs <= 0) return 'Booking duration';
+                      const h = Math.floor(hrs);
+                      const m = Math.round((hrs - h) * 60);
+                      return m > 0 ? `${h} giờ ${m} phút` : `${h} giờ`;
+                    })()}
+                  </p>
+                </div>
+                <span className="text-base font-black text-[#006d43]">
+                  {Math.round(selectedBookingForDeposit.totalAmount ?? selectedBookingForDeposit.depositAmount ?? 0).toLocaleString('vi-VN')} đ
                 </span>
               </div>
 

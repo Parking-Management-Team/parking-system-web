@@ -29,6 +29,7 @@ interface BookingRecord {
   plannedCheckinTime: string;
   plannedCheckoutTime: string;
   depositAmount: number;
+  totalAmount?: number;
   bookingStatus: string;
   createdAt: string;
 }
@@ -202,17 +203,20 @@ export default function DriverSessions() {
     setModifyingBooking(booking);
     const dt = new Date(booking.plannedCheckinTime);
     
-    // Convert to local date YYYY-MM-DD
-    const year = dt.getFullYear();
-    const month = String(dt.getMonth() + 1).padStart(2, '0');
-    const date = String(dt.getDate()).padStart(2, '0');
-    setNewCheckinDate(`${year}-${month}-${date}`);
+    const parts = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'Asia/Ho_Chi_Minh',
+      year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit', hour12: false,
+    }).formatToParts(dt);
+    const year = parts.find(p => p.type === 'year')?.value ?? '';
+    const month = parts.find(p => p.type === 'month')?.value ?? '';
+    const day = parts.find(p => p.type === 'day')?.value ?? '';
+    let hour = parts.find(p => p.type === 'hour')?.value ?? '00';
+    if (hour === '24') hour = '00';
+    const minute = parts.find(p => p.type === 'minute')?.value ?? '00';
     
-    // Convert to local time HH:MM
-    const hours = String(dt.getHours()).padStart(2, '0');
-    const minutes = String(dt.getMinutes()).padStart(2, '0');
-    setNewCheckinTime(`${hours}:${minutes}`);
-    
+    setNewCheckinDate(`${year}-${month}-${day}`);
+    setNewCheckinTime(`${hour}:${minute}`);
     setShowModifyModal(true);
   };
 
@@ -248,7 +252,7 @@ export default function DriverSessions() {
         return `${y}-${m}-${d}T${hr}:${min}:${sec}+07:00`;
       };
 
-      const checkinDate = new Date(`${newCheckinDate}T${newCheckinTime}:00`);
+      const checkinDate = new Date(`${newCheckinDate}T${newCheckinTime}:00+07:00`);
       
       // Tính toán khoảng thời gian đỗ xe ban đầu, tối thiểu là 4 tiếng
       const originalDurationMs = modifyingBooking.plannedCheckoutTime 
@@ -278,23 +282,28 @@ export default function DriverSessions() {
   const openExtendModal = (booking: BookingRecord) => {
     setExtendingBooking(booking);
     
-    // Set default value: current planned checkout time plus 1 hour
+    // Set default: current planned checkout time plus 1 hour (in VN timezone)
     const currentCheckout = new Date(booking.plannedCheckoutTime);
     const dt = new Date(currentCheckout.getTime() + 60 * 60 * 1000);
     
-    const year = dt.getFullYear();
-    const month = String(dt.getMonth() + 1).padStart(2, '0');
-    const date = String(dt.getDate()).padStart(2, '0');
-    setNewCheckoutDate(`${year}-${month}-${date}`);
+    const parts = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'Asia/Ho_Chi_Minh',
+      year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit', hour12: false,
+    }).formatToParts(dt);
+    const year = parts.find(p => p.type === 'year')?.value ?? '';
+    const month = parts.find(p => p.type === 'month')?.value ?? '';
+    const day = parts.find(p => p.type === 'day')?.value ?? '';
+    let hour = parts.find(p => p.type === 'hour')?.value ?? '00';
+    if (hour === '24') hour = '00';
+    const minute = parts.find(p => p.type === 'minute')?.value ?? '00';
     
-    const hours = String(dt.getHours()).padStart(2, '0');
-    const minutes = String(dt.getMinutes()).padStart(2, '0');
-    setNewCheckoutTime(`${hours}:${minutes}`);
-    
+    setNewCheckoutDate(`${year}-${month}-${day}`);
+    setNewCheckoutTime(`${hour}:${minute}`);
     setShowExtendModal(true);
   };
 
-  const handleSaveExtend = async () => {
+  const handleSaveExtend = async (payLater: boolean = false) => {
     if (!extendingBooking) return;
     if (!newCheckoutDate || !newCheckoutTime) {
       showToast('Please select a valid date and time.', 'error');
@@ -326,9 +335,9 @@ export default function DriverSessions() {
         return `${y}-${m}-${d}T${hr}:${min}:${sec}+07:00`;
       };
 
-      const checkoutDate = new Date(`${newCheckoutDate}T${newCheckoutTime}:00`);
+      const checkoutDate = new Date(`${newCheckoutDate}T${newCheckoutTime}:00+07:00`);
       
-      const res = await api.post<any>(`/bookings/${extendingBooking.id}/extend?requestedNewEndTime=${encodeURIComponent(formatLocalVNTime(checkoutDate))}`, null);
+      const res = await api.post<any>(`/bookings/${extendingBooking.id}/extend?requestedNewEndTime=${encodeURIComponent(formatLocalVNTime(checkoutDate))}&payLater=${payLater}`, null);
       
       if (res.success && res.data) {
         const extResult = res.data;
@@ -456,9 +465,19 @@ export default function DriverSessions() {
                         <div className="flex items-start gap-3">
                           <CreditCard className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
                           <div>
-                            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wide">Deposit Amount</h3>
-                            <p className="text-sm font-bold text-slate-700 mt-0.5">{(booking.depositAmount || 0).toLocaleString('vi-VN')} đ</p>
-                            <p className="text-xs text-slate-400">Paid securely online</p>
+                            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wide">Tổng thanh toán</h3>
+                            <p className="text-sm font-bold text-slate-700 mt-0.5">{(booking.totalAmount ?? booking.depositAmount ?? 0).toLocaleString('vi-VN')} đ</p>
+                            <p className="text-xs text-slate-400">
+                              {(() => {
+                                const s = new Date(booking.plannedCheckinTime);
+                                const e = new Date(booking.plannedCheckoutTime);
+                                const hrs = (e.getTime() - s.getTime()) / 3600000;
+                                if (hrs <= 0) return '';
+                                const h = Math.floor(hrs);
+                                const m = Math.round((hrs - h) * 60);
+                                return m > 0 ? `${h} giờ ${m} phút` : `${h} giờ`;
+                              })()}
+                            </p>
                           </div>
                         </div>
                       </div>
@@ -677,10 +696,8 @@ export default function DriverSessions() {
                   value={newCheckinDate}
                   min={(() => {
                     const d = new Date();
-                    const y = d.getFullYear();
-                    const m = String(d.getMonth() + 1).padStart(2, '0');
-                    const date = String(d.getDate()).padStart(2, '0');
-                    return `${y}-${m}-${date}`;
+                    const p = new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Ho_Chi_Minh', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(d);
+                    return `${p.find(x => x.type === 'year')?.value}-${p.find(x => x.type === 'month')?.value}-${p.find(x => x.type === 'day')?.value}`;
                   })()}
                   onChange={(e) => setNewCheckinDate(e.target.value)}
                   className="w-full px-4 py-2.5 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 text-sm rounded-xl"
@@ -741,7 +758,7 @@ export default function DriverSessions() {
               <div className="space-y-1">
                 <label className="block text-xs font-bold text-slate-400 uppercase tracking-wide">Current Checkout Time</label>
                 <div className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 text-sm rounded-xl text-slate-600 font-semibold">
-                  {new Date(extendingBooking.plannedCheckoutTime).toLocaleString()}
+                  {new Date(extendingBooking.plannedCheckoutTime).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}
                 </div>
               </div>
               <div className="space-y-1">
@@ -751,10 +768,8 @@ export default function DriverSessions() {
                   value={newCheckoutDate}
                   min={(() => {
                     const d = new Date(extendingBooking.plannedCheckoutTime);
-                    const y = d.getFullYear();
-                    const m = String(d.getMonth() + 1).padStart(2, '0');
-                    const date = String(d.getDate()).padStart(2, '0');
-                    return `${y}-${m}-${date}`;
+                    const p = new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Ho_Chi_Minh', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(d);
+                    return `${p.find(x => x.type === 'year')?.value}-${p.find(x => x.type === 'month')?.value}-${p.find(x => x.type === 'day')?.value}`;
                   })()}
                   onChange={(e) => setNewCheckoutDate(e.target.value)}
                   className="w-full px-4 py-2.5 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 text-sm rounded-xl"
@@ -778,17 +793,36 @@ export default function DriverSessions() {
               <button
                 onClick={() => setShowExtendModal(false)}
                 disabled={isSavingExtend}
-                className="flex-1 py-2.5 border border-slate-200 hover:bg-slate-50 text-slate-600 text-xs font-bold rounded-xl transition-all"
+                className="py-2.5 px-4 border border-slate-200 hover:bg-slate-50 text-slate-600 text-xs font-bold rounded-xl transition-all"
               >
                 Cancel
               </button>
-              <button
-                onClick={handleSaveExtend}
-                disabled={isSavingExtend}
-                className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 disabled:opacity-50"
-              >
-                {isSavingExtend ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Saving...</> : 'Confirm Extension'}
-              </button>
+              {extendingBooking.bookingStatus === 'Pending' ? (
+                <>
+                  <button
+                    onClick={() => handleSaveExtend(true)}
+                    disabled={isSavingExtend}
+                    className="flex-1 py-2.5 bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 disabled:opacity-50"
+                  >
+                    Pay Later
+                  </button>
+                  <button
+                    onClick={() => handleSaveExtend(false)}
+                    disabled={isSavingExtend}
+                    className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 disabled:opacity-50"
+                  >
+                    {isSavingExtend ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Saving...</> : 'Pay Now'}
+                  </button>
+                </>
+              ) : (
+                <button
+                  onClick={() => handleSaveExtend(false)}
+                  disabled={isSavingExtend}
+                  className="flex-grow py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 disabled:opacity-50"
+                >
+                  {isSavingExtend ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Saving...</> : 'Confirm Extension'}
+                </button>
+              )}
             </div>
           </div>
         </div>,

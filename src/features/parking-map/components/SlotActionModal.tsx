@@ -39,16 +39,6 @@ export function SlotActionModal({
     vehicleTypeId?: number;
   } | null>(null);
 
-  const [allocationType, setAllocationType] = useState<'monthly' | 'short'>('monthly');
-  const [startDate, setStartDate] = useState(() => {
-    const d = new Date();
-    return d.toISOString().slice(0, 16);
-  });
-  const [endDate, setEndDate] = useState(() => {
-    const d = new Date();
-    d.setMonth(d.getMonth() + 1);
-    return d.toISOString().slice(0, 16);
-  });
   const [allocationNotes, setAllocationNotes] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -67,15 +57,6 @@ export function SlotActionModal({
       setActiveSlot(slot);
       setVehicleSearchQuery('');
       setSearchedVehicle(null);
-      setAllocationType('monthly');
-      
-      const d = new Date();
-      setStartDate(d.toISOString().slice(0, 16));
-      
-      const d2 = new Date();
-      d2.setMonth(d2.getMonth() + 1);
-      setEndDate(d2.toISOString().slice(0, 16));
-      
       setAllocationNotes('');
       setIsSubmitting(false);
     }
@@ -248,8 +229,7 @@ export function SlotActionModal({
         model: searchedVehicle.model,
         ownerName: searchedVehicle.ownerName,
         memberId: searchedVehicle.memberId,
-        startDate,
-        endDate,
+        startDate: new Date().toISOString(),
         notes: allocationNotes
       });
       
@@ -467,46 +447,13 @@ export function SlotActionModal({
                 )}
 
                 {/* Allocation parameters */}
-                <div className="grid grid-cols-2 gap-4 pt-2">
-                  <div className="flex flex-col gap-1">
-                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">Allocation Type</label>
-                    <select
-                      value={allocationType}
-                      onChange={(e) => setAllocationType(e.target.value as 'monthly' | 'short')}
-                      className="w-full border border-slate-200 rounded-lg py-2 px-3 text-sm focus:ring-1 focus:ring-emerald-500/30 focus:border-emerald-500 text-slate-600 focus:outline-none"
-                    >
-                      <option value="monthly">Monthly Pass</option>
-                      <option value="short">Short stay</option>
-                    </select>
-                  </div>
-
-                  <div className="flex flex-col gap-1">
-                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">Priority</label>
-                    <select className="w-full border border-slate-200 rounded-lg py-2 px-3 text-sm focus:ring-1 focus:ring-emerald-500/30 focus:border-emerald-500 text-slate-600 focus:outline-none">
-                      <option>Normal</option>
-                      <option>High</option>
-                      <option>Critical</option>
-                    </select>
-                  </div>
-                </div>
-
                 <div className="flex flex-col gap-1 pt-2">
-                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">Date Range</label>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="datetime-local"
-                      value={startDate}
-                      onChange={(e) => setStartDate(e.target.value)}
-                      className="w-full border border-slate-200 rounded-lg py-2 px-3 text-xs focus:ring-1 focus:ring-emerald-500/30 focus:border-emerald-500 focus:outline-none text-slate-600"
-                    />
-                    <span className="text-slate-400 text-xs font-bold">to</span>
-                    <input
-                      type="datetime-local"
-                      value={endDate}
-                      onChange={(e) => setEndDate(e.target.value)}
-                      className="w-full border border-slate-200 rounded-lg py-2 px-3 text-xs focus:ring-1 focus:ring-emerald-500/30 focus:border-emerald-500 focus:outline-none text-slate-600"
-                    />
-                  </div>
+                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">Priority</label>
+                  <select className="w-full border border-slate-200 rounded-lg py-2 px-3 text-sm focus:ring-1 focus:ring-emerald-500/30 focus:border-emerald-500 text-slate-600 focus:outline-none">
+                    <option>Normal</option>
+                    <option>High</option>
+                    <option>Critical</option>
+                  </select>
                 </div>
 
                 <div className="flex flex-col gap-1 pt-2">

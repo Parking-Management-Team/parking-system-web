@@ -11,15 +11,12 @@ export default function PricingWorkspace() {
     activeTab,
     setActiveTab,
     tariffs,
-    memberships,
     fees,
     incidentTypes,
     showToast,
     toastMessage,
     toastType,
     handleOpenEditTariff,
-    handleOpenEditMembership,
-    handleOpenAddMembership,
     handleOpenAddFee,
     handleOpenEditFee,
     handleOpenCreatePolicy,
@@ -44,8 +41,6 @@ export default function PricingWorkspace() {
   const handlePrimaryAction = () => {
     if (activeTab === 'standard') {
       handleOpenCreatePolicy();
-    } else if (activeTab === 'memberships') {
-      handleOpenAddMembership();
     } else if (activeTab === 'incident-types') {
       handleOpenAddIncidentType();
     } else {
@@ -57,8 +52,6 @@ export default function PricingWorkspace() {
     switch (activeTab) {
       case 'standard':
         return 'Create New Pricing Policy';
-      case 'memberships':
-        return 'Add Monthly Membership';
       case 'incident-types':
         return 'Add Incident Type';
       default:
@@ -93,7 +86,7 @@ export default function PricingWorkspace() {
             <div>
               <h1 className="text-2xl font-bold text-[#111c2d]">Pricing Management</h1>
               <p className="text-sm text-slate-500 mt-1">
-                Configure baseline tariffs, monthly pass subscriptions, and service fee penalties for NexPark facility.
+                Configure baseline tariffs, incident types, and service fee penalties for NexPark facility.
               </p>
             </div>
             <button 
@@ -118,16 +111,7 @@ export default function PricingWorkspace() {
               >
                 Standard Tariffs
               </button>
-              <button
-                onClick={() => setActiveTab('memberships')}
-                className={`py-4 px-1 border-b-2 font-bold text-sm transition-all whitespace-nowrap ${
-                  activeTab === 'memberships'
-                    ? 'border-[#006d43] text-[#006d43]'
-                    : 'border-transparent text-slate-400 hover:text-slate-600 hover:border-slate-300'
-                }`}
-              >
-                Monthly Memberships
-              </button>
+
               <button
                 onClick={() => setActiveTab('incident-types')}
                 className={`py-4 px-1 border-b-2 font-bold text-sm transition-all whitespace-nowrap ${
@@ -451,76 +435,7 @@ export default function PricingWorkspace() {
               </div>
             )}
 
-            {/* TAB 2: MONTHLY MEMBERSHIPS */}
-            {activeTab === 'memberships' && (
-              <div className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {memberships.map((membership) => (
-                    <div 
-                      key={membership.id} 
-                      className={`bg-white border rounded-2xl p-6 relative group hover:shadow-md transition-all flex flex-col justify-between ${
-                        membership.hasConfig ? 'border-slate-200' : 'border-dashed border-slate-350 bg-slate-50/30'
-                      }`}
-                    >
-                      <div className="flex justify-between items-start">
-                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
-                          membership.hasConfig ? 'bg-emerald-50 text-[#006d43]' : 'bg-slate-100 text-slate-400'
-                        }`}>
-                          <span className="material-symbols-outlined text-[28px]">
-                            {membership.vehicleType.toLowerCase().includes('motorbike') ? 'two_wheeler' : 'directions_car'}
-                          </span>
-                        </div>
-                        {membership.hasConfig && (
-                          <button 
-                            onClick={() => handleOpenEditMembership(membership)}
-                            className="h-8 w-8 flex items-center justify-center rounded-full hover:bg-slate-100 text-slate-400 hover:text-[#006d43] transition-colors"
-                            title="Edit subscription rate"
-                          >
-                            <span className="material-symbols-outlined text-[18px]">edit</span>
-                          </button>
-                        )}
-                      </div>
 
-                      <div className="mt-6">
-                        <h5 className="text-slate-800 text-base font-bold">{membership.vehicleType} Passes</h5>
-                        <div className="flex items-baseline gap-1 mt-2">
-                          {membership.hasConfig ? (
-                            <>
-                              <span className="text-3xl font-black text-slate-800 tracking-tight">
-                                {membership.priceNum.toLocaleString('en-US')}
-                              </span>
-                              <span className="text-xs text-slate-400 font-bold uppercase tracking-wider">VND / month</span>
-                            </>
-                          ) : (
-                            <div className="flex flex-col gap-2 w-full mt-1">
-                              <span className="text-slate-400 font-medium text-sm italic">No configuration</span>
-                              <button
-                                onClick={() => handleOpenEditMembership(membership)}
-                                className="w-full mt-2 inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-sm transition-all"
-                              >
-                                <span className="material-symbols-outlined text-[16px]">add_circle</span>
-                                Create configuration
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Information Callout */}
-                <div className="bg-[#F4FBF3] border border-emerald-500/10 p-5 rounded-2xl flex items-start gap-4 shadow-inner">
-                  <span className="material-symbols-outlined text-[#006d43] text-[20px] mt-0.5">info</span>
-                  <div>
-                    <h6 className="text-sm font-bold text-slate-800">Downgrade Rule Policy</h6>
-                    <p className="text-xs text-slate-500 font-semibold mt-1">
-                      Upon subscription expiry, accounts are automatically downgraded to standard parking rate schemas unless auto-renewal is enabled and successfully processed.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
 
             {/* TAB 3: INCIDENT TYPES */}
             {activeTab === 'incident-types' && (

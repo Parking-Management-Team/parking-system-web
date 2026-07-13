@@ -222,7 +222,7 @@ export default function ManagerCardWorkspace() {
 
       {/* FILTER PANEL */}
       <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm space-y-4">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="relative">
             <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
             <input
@@ -234,24 +234,9 @@ export default function ManagerCardWorkspace() {
             />
           </div>
 
-          <div className="relative">
-            <select
-              value={typeFilter}
-              onChange={(e) => setTypeFilter(e.target.value)}
-              className="w-full px-4 py-3 bg-slate-50 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-600 text-xs font-semibold rounded-xl text-slate-600 appearance-none cursor-pointer"
-            >
-              <option value="ALL">All Card Types</option>
-              <option value="PARKING_CARD">PARKING_CARD</option>
-              <option value="MONTHLY">MONTHLY</option>
-            </select>
-            <div className="absolute right-4 top-4 pointer-events-none text-slate-400">
-              <Filter className="w-3.5 h-3.5" />
-            </div>
-          </div>
-
           <div className="bg-slate-50 border border-slate-100 rounded-xl px-4 py-2.5 flex items-center gap-2 text-[10px] text-slate-500 leading-normal">
             <Lock className="w-4 h-4 text-[#006d43] shrink-0" />
-            <span>Cards registered under AVAILABLE status are ready to be distributed to walk-in drivers or monthly subscribers.</span>
+            <span>Cards registered under AVAILABLE status are ready to be distributed to walk-in drivers and booking customers.</span>
           </div>
         </div>
 
@@ -391,18 +376,6 @@ export default function ManagerCardWorkspace() {
                   onChange={(e) => setNewCardCode(e.target.value)}
                   className="w-full mt-2 px-3 py-2 bg-slate-50 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-600 text-xs font-semibold rounded-xl font-mono uppercase"
                 />
-              </div>
-
-              <div>
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Card Type</label>
-                <select
-                  value={newCardType}
-                  onChange={(e) => setNewCardType(e.target.value)}
-                  className="w-full mt-2 px-3 py-2 bg-slate-50 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-600 text-xs font-semibold rounded-xl text-slate-600 appearance-none cursor-pointer"
-                >
-                  <option value="PARKING_CARD">PARKING_CARD (Walk-In)</option>
-                  <option value="MONTHLY">MONTHLY (Subscription)</option>
-                </select>
               </div>
 
               <div className="flex gap-3 pt-2">

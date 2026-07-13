@@ -165,11 +165,9 @@ export const mapActiveParkingSession = (
     vehicleType: session.vehicleType
       ? (String(session.vehicleType).toUpperCase().includes('CAR') ? 'CAR' : 'MOTORCYCLE')
       : 'UNKNOWN',
-    customerType: session.monthlySubscriptionId
-      ? 'MONTHLY'
-      : session.bookingId
-        ? 'BOOKING'
-        : 'WALK_IN',
+    customerType: session.bookingId
+      ? 'BOOKING'
+      : 'WALK_IN',
     vehicleId: session.vehicleId ?? null,
     buildingId: session.buildingId ?? null,
     cardId,

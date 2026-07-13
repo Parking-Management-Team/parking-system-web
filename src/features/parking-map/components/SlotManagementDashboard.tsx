@@ -116,7 +116,7 @@ export function SlotManagementDashboard() {
           }
         };
         const mapAccessTypeToZone = (accessType?: number): 'GENERAL' | 'MONTHLY' => {
-          return accessType === 1 ? 'MONTHLY' : 'GENERAL';
+          return 'GENERAL';
         };
         loadedZones = resZones.data.map(item => ({
           id: item.id,
@@ -200,22 +200,12 @@ export function SlotManagementDashboard() {
               const session = activeSess.find(s => s.slotId === item.id);
               
               let assignedVehicle = undefined;
-              if (item.subscription) {
-                assignedVehicle = {
-                  plate: item.subscription.licensePlate || item.occupiedLicensePlate || 'Subscription Vehicle',
-                  model: 'Monthly Subscription',
-                  ownerName: item.subscription.accountName || `Driver #${item.subscription.accountId}`,
-                  memberId: `SUB-${item.subscription.subscriptionId}`,
-                  startDate: item.subscription.activatedAt || undefined,
-                  endDate: item.subscription.expiredAt || undefined,
-                  notes: `Status: ${item.subscription.status}. Price: ${item.subscription.monthlyPrice?.toLocaleString()} VND`
-                };
-              } else if (session) {
+              if (session) {
                 assignedVehicle = {
                   plate: session.licensePlateIn,
                   model: 'Registered Vehicle',
-                  ownerName: session.monthlySubscriptionId ? `Subscriber (Sub ID: ${session.monthlySubscriptionId})` : 'Visitor / Short-term',
-                  memberId: session.monthlySubscriptionId ? `SUB-${session.monthlySubscriptionId}` : 'WALK-IN',
+                  ownerName: session.bookingId ? `Booking Customer` : 'Visitor / Short-term',
+                  memberId: session.bookingId ? `BK-${session.bookingId}` : 'WALK-IN',
                   startDate: session.checkInTime,
                   endDate: session.checkOutTime || undefined,
                   notes: session.bookingId ? `Booking #${session.bookingId}` : 'Check-in via staff'
@@ -305,22 +295,12 @@ export function SlotManagementDashboard() {
             return res.data.map(item => {
               const session = activeSess.find(s => s.slotId === item.id);
               let assignedVehicle = undefined;
-              if (item.subscription) {
-                assignedVehicle = {
-                  plate: item.subscription.licensePlate || item.occupiedLicensePlate || 'Subscription Vehicle',
-                  model: 'Monthly Subscription',
-                  ownerName: item.subscription.accountName || `Driver #${item.subscription.accountId}`,
-                  memberId: `SUB-${item.subscription.subscriptionId}`,
-                  startDate: item.subscription.activatedAt || undefined,
-                  endDate: item.subscription.expiredAt || undefined,
-                  notes: `Status: ${item.subscription.status}. Price: ${item.subscription.monthlyPrice?.toLocaleString()} VND`
-                };
-              } else if (session) {
+              if (session) {
                 assignedVehicle = {
                   plate: session.licensePlateIn,
                   model: 'Registered Vehicle',
-                  ownerName: session.monthlySubscriptionId ? `Subscriber (Sub ID: ${session.monthlySubscriptionId})` : 'Visitor / Short-term',
-                  memberId: session.monthlySubscriptionId ? `SUB-${session.monthlySubscriptionId}` : 'WALK-IN',
+                  ownerName: session.bookingId ? `Booking Customer` : 'Visitor / Short-term',
+                  memberId: session.bookingId ? `BK-${session.bookingId}` : 'WALK-IN',
                   startDate: session.checkInTime,
                   endDate: session.checkOutTime || undefined,
                   notes: session.bookingId ? `Booking #${session.bookingId}` : 'Check-in via staff'
@@ -472,7 +452,7 @@ export function SlotManagementDashboard() {
       const slot = slots.find(s => s.id === session.slotId);
       const slotCode = slot ? slot.slotCode : '';
       const plate = session.licensePlateIn || '';
-      const subText = session.monthlySubscriptionId ? `SUB-${session.monthlySubscriptionId}` : 'WALK-IN';
+      const subText = session.bookingId ? `BOOKING-${session.bookingId}` : 'WALK-IN';
       
       const searchMatch = 
         slotCode.toLowerCase().includes(tableSearchQuery.toLowerCase()) ||
@@ -794,12 +774,8 @@ export function SlotManagementDashboard() {
                           <span className="text-[11px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-slate-100 text-slate-600">
                             {zone.vehicleType}
                           </span>
-                          <span className={`text-[11px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md ${
-                            zone.zoneAccessType === 'MONTHLY' 
-                              ? 'bg-blue-100 text-blue-700' 
-                              : 'bg-emerald-100 text-emerald-700'
-                          }`}>
-                            {zone.zoneAccessType === 'MONTHLY' ? 'Monthly' : 'General'}
+                          <span className="text-[11px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-700">
+                            General
                           </span>
                         </div>
                       </div>
@@ -991,9 +967,9 @@ export function SlotManagementDashboard() {
                             </td>
                             <td className="px-6 py-4 text-sm font-semibold text-slate-600 font-mono">#{session.cardId}</td>
                             <td className="px-6 py-4">
-                              {session.monthlySubscriptionId ? (
+                              {session.bookingId ? (
                                 <span className="inline-flex px-2 py-0.5 bg-blue-50 text-blue-700 border border-blue-100 rounded-md text-[10px] font-bold uppercase tracking-wide">
-                                  Member (Sub #{session.monthlySubscriptionId})
+                                  Booking (#{session.bookingId})
                                 </span>
                               ) : (
                                 <span className="inline-flex px-2 py-0.5 bg-slate-100 text-slate-600 rounded-md text-[10px] font-bold uppercase tracking-wide">
@@ -1103,7 +1079,7 @@ export function SlotManagementDashboard() {
                 <div className="bg-slate-50/50 p-3 rounded-xl border border-slate-100">
                   <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Member Classification</p>
                   <p className="font-extrabold text-slate-700 mt-1">
-                    {selectedSessionDetails.monthlySubscriptionId ? 'Monthly Subscriber' : 'Visitor / Walk-in'}
+                    {selectedSessionDetails.bookingId ? 'Booking Customer' : 'Visitor / Walk-in'}
                   </p>
                 </div>
 

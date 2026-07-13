@@ -648,20 +648,7 @@ export default function FacilitiesModals({
                   ))}
                 </select>
               </div>
-              <div>
-                <label className="block text-xs font-semibold text-[#3d4a41] mb-1">Zone Access Type *</label>
-                <select
-                  value={formZoneAccessType}
-                  onChange={(e) => setFormZoneAccessType(e.target.value as 'GENERAL' | 'MONTHLY')}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm text-[#111c2d] focus:outline-none focus:border-[#006d43]"
-                >
-                  <option value="GENERAL">General (Walk-in / Booking)</option>
-                  <option value="MONTHLY">Monthly Subscription Only</option>
-                </select>
-                <p className="text-[10px] text-slate-400 mt-1">
-                  GENERAL: For walk-in and booking vehicles. MONTHLY: Reserved for monthly subscribers only.
-                </p>
-              </div>
+
               <div>
                 <label className="block text-xs font-semibold text-[#3d4a41] mb-1">Slot Capacity Allocation *</label>
                 <input 
@@ -747,20 +734,7 @@ export default function FacilitiesModals({
                   ))}
                 </select>
               </div>
-              <div>
-                <label className="block text-xs font-semibold text-[#3d4a41] mb-1">Zone Access Type *</label>
-                <select
-                  value={formZoneAccessType}
-                  onChange={(e) => setFormZoneAccessType(e.target.value as 'GENERAL' | 'MONTHLY')}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm text-[#111c2d] focus:outline-none focus:border-[#006d43]"
-                >
-                  <option value="GENERAL">General (Walk-in / Booking)</option>
-                  <option value="MONTHLY">Monthly Subscription Only</option>
-                </select>
-                <p className="text-[10px] text-slate-400 mt-1">
-                  GENERAL: For walk-in and booking vehicles. MONTHLY: Reserved for monthly subscribers only.
-                </p>
-              </div>
+
               <div>
                 <label className="block text-xs font-semibold text-[#3d4a41] mb-1">Slot Capacity Allocation *</label>
                 <input 

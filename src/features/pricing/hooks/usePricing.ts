@@ -75,7 +75,6 @@ import {
   StandardTariff, 
   PricingWindow, 
   TariffRow, 
-  MonthlyMembership, 
   ServiceFeeOrPenalty, 
   CreatePricingWindowRequest,
   VehicleType,
@@ -192,18 +191,10 @@ interface PolicyApiResponse {
     }
   }, []);
 
-  const [memberships, setMemberships] = useState<MonthlyMembership[]>([]);
   const [fees, setFees] = useState<ServiceFeeOrPenalty[]>([]);
   const [incidentTypes, setIncidentTypes] = useState<IncidentType[]>([]);
 
   const loadAllData = useCallback(async () => {
-    interface SubscriptionPriceConfig {
-      id: number;
-      vehicleTypeId: number;
-      price: number;
-      isActive: boolean;
-    }
-
     interface PenaltyConfig {
       id: number;
       incidentTypeId: number;
@@ -242,38 +233,7 @@ interface PolicyApiResponse {
     }
     setIncidentTypes(loadedIncidentTypes);
 
-    // Step 2: Load subscription and penalty configs independently
-    try {
-      const subRes = await api.get<{ data?: SubscriptionPriceConfig[]; success: boolean }>('/subscription-price-configs?onlyActive=true');
-      if (subRes && Array.isArray(subRes.data)) {
-        const configs = subRes.data;
-        const mappedSub = loadedVehicleTypes.map((vt) => {
-          const activeConfig = configs.find((c) => c.vehicleTypeId === vt.id && c.isActive);
-          if (activeConfig) {
-            return {
-              id: activeConfig.id.toString(),
-              vehicleTypeId: vt.id,
-              vehicleType: vt.name,
-              price: `${activeConfig.price.toLocaleString('en-US')} VND / month`,
-              priceNum: activeConfig.price,
-              hasConfig: true
-            };
-          } else {
-            return {
-              id: `vt-${vt.id}`,
-              vehicleTypeId: vt.id,
-              vehicleType: vt.name,
-              price: 'No config',
-              priceNum: 0,
-              hasConfig: false
-            };
-          }
-        });
-        setMemberships(mappedSub);
-      }
-    } catch (error) {
-      console.error('Failed to fetch subscription price configs:', error);
-    }
+    // Step 2: Load penalty configs independently
 
     try {
       const penRes = await api.get<{ data?: PenaltyConfig[]; success?: boolean }>('/penalty-configs?onlyActive=true');
@@ -364,7 +324,7 @@ interface PolicyApiResponse {
   }, [tariffs, vehicleTypes]);
 
   // UI state variables
-  const [activeTab, setActiveTab] = useState<'standard' | 'memberships' | 'incident-types' | 'fees'>('standard');
+  const [activeTab, setActiveTab] = useState<'standard' | 'incident-types' | 'fees'>('standard');
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
   const [toastType, setToastType] = useState<'success' | 'error'>('success');
@@ -378,13 +338,11 @@ interface PolicyApiResponse {
 
     // Modals Visibility
   const [isEditTariffOpen, setIsEditTariffOpen] = useState(false);
-  const [isEditMembershipOpen, setIsEditMembershipOpen] = useState(false);
   const [isFeeModalOpen, setIsFeeModalOpen] = useState(false); // Handles both Add and Edit
   const [submitError, setSubmitError] = useState<string | null>(null);
 
   // Currently editing objects - stored as a tariff row format to bind with Modal forms
   const [editingTariff, setEditingTariff] = useState<TariffRow | null>(null);
-  const [editingMembership, setEditingMembership] = useState<MonthlyMembership | null>(null);
   const [editingFee, setEditingFee] = useState<ServiceFeeOrPenalty | null>(null);
 
   // Form Inputs for Standard Tariffs (S3 Edit)
@@ -438,10 +396,7 @@ interface PolicyApiResponse {
   const [formAddWindowGraceVal, setFormAddWindowGraceVal] = useState('15');
 
 
-  // Form Inputs for Membership
-  const [formMembershipVehicleTypeId, setFormMembershipVehicleTypeId] = useState<number>(1);
-  const [formMembershipVehicleType, setFormMembershipVehicleType] = useState('Motorbike');
-  const [formMembershipPrice, setFormMembershipPrice] = useState(0);
+
 
   // Form Inputs for Service Fees & Penalties
   const [formFeeIncidentTypeId, setFormFeeIncidentTypeId] = useState<number>(1);
@@ -617,91 +572,7 @@ interface PolicyApiResponse {
     }
   };
 
-  // === MEMBERSHIP HANDLERS ===
-  const handleOpenEditMembership = (membership: MonthlyMembership) => {
-    setEditingMembership(membership);
-    setFormMembershipVehicleTypeId(membership.vehicleTypeId);
-    setFormMembershipVehicleType(membership.vehicleType);
-    setFormMembershipPrice(membership.hasConfig ? membership.priceNum : 0);
-    setIsEditMembershipOpen(true);
-  };
 
-  const handleOpenAddMembership = () => {
-    setEditingMembership(null);
-    const firstUnconfigured = vehicleTypes.find(vt => !memberships.some(m => m.vehicleTypeId === vt.id && m.hasConfig));
-    const defaultVt = firstUnconfigured || vehicleTypes[0];
-    if (defaultVt) {
-      setFormMembershipVehicleTypeId(defaultVt.id);
-      setFormMembershipVehicleType(defaultVt.name);
-    }
-    setFormMembershipPrice(0);
-    setIsEditMembershipOpen(true);
-  };
-
-  const handleCloseEditMembership = () => {
-    setIsEditMembershipOpen(false);
-    setEditingMembership(null);
-  };
-
-  const handleSaveMembership = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (formMembershipPrice <= 0) {
-      triggerToast('Price must be a positive number.', 'error');
-      return;
-    }
-
-    try {
-      const requestBody = {
-        vehicleTypeId: formMembershipVehicleTypeId,
-        price: formMembershipPrice
-      };
-
-      const res = await api.post<{ success: boolean; data?: { id: number } }>('/subscription-price-configs', requestBody);
-      if (res) {
-        await loadAllData();
-        triggerToast('Monthly Membership fee updated successfully!', 'success');
-        handleCloseEditMembership();
-      } else {
-        triggerToast('Failed to update Monthly Membership fee.', 'error');
-      }
-    } catch (error) {
-      console.error('Failed to update membership pricing via API:', error);
-      const errorMsg = extractErrorMessage(error);
-      triggerToast(errorMsg, 'error');
-    }
-  };
-
-  const handleDeactivateMembership = async (configId: number) => {
-    try {
-      const res = await api.put<{ success: boolean }>(`/subscription-price-configs/${configId}/deactivate`, {});
-      if (res) {
-        await loadAllData();
-        triggerToast('Membership deactivated successfully!', 'success');
-      } else {
-        triggerToast('Failed to deactivate membership.', 'error');
-      }
-    } catch (error) {
-      console.error('Failed to deactivate membership:', error);
-      const errorMsg = extractErrorMessage(error);
-      triggerToast(errorMsg, 'error');
-    }
-  };
-
-  const handleDeleteMembership = async (configId: number) => {
-    try {
-      const res = await api.delete<{ success: boolean }>(`/subscription-price-configs/${configId}`);
-      if (res) {
-        await loadAllData();
-        triggerToast('Membership deleted successfully!', 'success');
-      } else {
-        triggerToast('Failed to delete membership.', 'error');
-      }
-    } catch (error) {
-      console.error('Failed to delete membership:', error);
-      const errorMsg = extractErrorMessage(error);
-      triggerToast(errorMsg, 'error');
-    }
-  };
 
   // === FEES & PENALTIES HANDLERS ===
   const handleOpenAddFee = () => {
@@ -1233,7 +1104,7 @@ interface PolicyApiResponse {
     setActiveTab,
     tariffs, // Dữ liệu StandardTariff[] gốc cho Policy Card View
     tariffRows, // flat rows nếu các component khác cần dùng
-    memberships,
+
     fees,
     vehicleTypes,
     fetchVehicleTypes,
@@ -1246,7 +1117,6 @@ interface PolicyApiResponse {
 
     // Modal control toggles
     isEditTariffOpen,
-    isEditMembershipOpen,
     isFeeModalOpen,
 
     // S1, S2, S5 control toggles
@@ -1257,7 +1127,6 @@ interface PolicyApiResponse {
 
     // Editing targets
     editingTariff,
-    editingMembership,
     editingFee,
     activatingPolicy,
     editPolicyTarget,
@@ -1322,13 +1191,7 @@ interface PolicyApiResponse {
     formAddWindowGraceVal,
     setFormAddWindowGraceVal,
 
-    // Membership form fields
-    formMembershipVehicleTypeId,
-    setFormMembershipVehicleTypeId,
-    formMembershipVehicleType,
-    setFormMembershipVehicleType,
-    formMembershipPrice,
-    setFormMembershipPrice,
+
 
     // Fees form fields
     incidentTypes,
@@ -1386,12 +1249,7 @@ interface PolicyApiResponse {
     handleCloseAddWindow,
     handleSaveAddWindow,
 
-    handleOpenAddMembership,
-    handleOpenEditMembership,
-    handleCloseEditMembership,
-    handleSaveMembership,
-    handleDeactivateMembership,
-    handleDeleteMembership,
+
 
     handleOpenAddFee,
     handleOpenEditFee,

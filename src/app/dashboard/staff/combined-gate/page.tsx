@@ -114,6 +114,7 @@ export default function CombinedGatePage() {
   const [checkoutIsSubmitting, setCheckoutIsSubmitting] = useState(false);
   const [checkoutOverlay, setCheckoutOverlay] = useState<any | null>(null);
   const [checkoutSearchQuery, setCheckoutSearchQuery] = useState('');
+  const [checkoutExitCardCode, setCheckoutExitCardCode] = useState('');
 
   // Selected session mapping
   const selectedCheckoutSession = useMemo(() => {
@@ -137,6 +138,11 @@ export default function CombinedGatePage() {
     if (!checkoutExitPlate.trim()) return true;
     return normalizeComparable(selectedCheckoutSession.licensePlate) === normalizeComparable(checkoutExitPlate);
   }, [selectedCheckoutSession, checkoutExitPlate]);
+
+  const isCheckoutCardMatched = useMemo(() => {
+    if (!selectedCheckoutSession) return false;
+    return normalizeComparable(selectedCheckoutSession.cardCode) === normalizeComparable(checkoutExitCardCode);
+  }, [selectedCheckoutSession, checkoutExitCardCode]);
 
   // Load gate data
   const loadGateData = useCallback(async () => {
@@ -281,15 +287,45 @@ export default function CombinedGatePage() {
     if (plate) {
       if (gateMode === 'IN') {
         setCheckinPlate(plate);
+        console.log('Combined Check-in scan: availableCards =', availableCards);
+        if (availableCards.length > 0) {
+          const randomCard = availableCards[Math.floor(Math.random() * availableCards.length)];
+          setCheckinCardCode(randomCard.cardCode);
+        } else {
+          console.warn('Combined Check-in scan: No available cards found!');
+        }
       } else {
         setCheckoutExitPlate(plate);
+        // Automatically search and assign session for comparison
+        const queryKey = normalizeComparable(plate);
+        const matched = activeSessions.find(
+          s => normalizeComparable(s.cardCode) === queryKey || normalizeComparable(s.licensePlate) === queryKey
+        );
+        if (matched) {
+          setCheckoutSelectedSessionId(matched.id);
+          setCheckoutSearchQuery(matched.cardCode || matched.licensePlate);
+          setCheckoutCalculatedFee(null);
+          setCheckoutLockedTime(null);
+          showToast(`Tự động khớp phiên đỗ của xe: ${plate}`, 'success');
+        } else {
+          showToast(`Không tìm thấy phiên đỗ cho xe: ${plate}`, 'error');
+        }
       }
     }
-  }, [captureFrame, performOCR, gateMode]);
+  }, [captureFrame, performOCR, gateMode, availableCards, activeSessions, showToast]);
 
   const handleMockScan = useCallback(() => {
     const mockPlates = ['51A-999.99', '29G1-888.88', '43B-777.77', '59S3-555.55'];
-    const randomPlate = mockPlates[Math.floor(Math.random() * mockPlates.length)];
+    let randomPlate = mockPlates[Math.floor(Math.random() * mockPlates.length)];
+
+    if (gateMode === 'OUT') {
+      if (selectedCheckoutSession) {
+        randomPlate = selectedCheckoutSession.licensePlate;
+      } else if (activeSessions.length > 0) {
+        const randomSession = activeSessions[Math.floor(Math.random() * activeSessions.length)];
+        randomPlate = randomSession.licensePlate;
+      }
+    }
 
     const canvas = document.createElement('canvas');
     canvas.width = 300;
@@ -309,13 +345,32 @@ export default function CombinedGatePage() {
       if (gateMode === 'IN') {
         setCheckinPlate(randomPlate);
         setCapturedImageIn(dataUrl);
+        console.log('Combined mock Check-in scan: availableCards =', availableCards);
+        if (availableCards.length > 0) {
+          const randomCard = availableCards[Math.floor(Math.random() * availableCards.length)];
+          setCheckinCardCode(randomCard.cardCode);
+        } else {
+          console.warn('Combined mock Check-in scan: No available cards found!');
+        }
       } else {
         setCheckoutExitPlate(randomPlate);
         setCapturedImageOut(dataUrl);
+
+        // Automatically search and assign session for comparison
+        const queryKey = normalizeComparable(randomPlate);
+        const matched = activeSessions.find(
+          s => normalizeComparable(s.cardCode) === queryKey || normalizeComparable(s.licensePlate) === queryKey
+        );
+        if (matched) {
+          setCheckoutSelectedSessionId(matched.id);
+          setCheckoutSearchQuery(matched.cardCode || matched.licensePlate);
+          setCheckoutCalculatedFee(null);
+          setCheckoutLockedTime(null);
+        }
       }
     }
     showToast(`Giả lập quét biển số (${gateMode}): ${randomPlate}`, 'success');
-  }, [gateMode, showToast]);
+  }, [gateMode, showToast, availableCards, activeSessions, selectedCheckoutSession]);
 
   // Checkin Submit Handler
   const handleCheckinSubmit = async (e: React.FormEvent) => {
@@ -382,7 +437,6 @@ export default function CombinedGatePage() {
     }
   };
 
-  // Search Session for Checkout
   const handleCheckoutSearch = (e: React.FormEvent) => {
     e.preventDefault();
     const query = normalizeComparable(checkoutSearchQuery);
@@ -398,6 +452,7 @@ export default function CombinedGatePage() {
     if (session) {
       setCheckoutSelectedSessionId(session.id);
       setCheckoutExitPlate('');
+      setCheckoutExitCardCode('');
       setCheckoutCalculatedFee(null);
       setCheckoutLockedTime(null);
       setCapturedImageOut(null);
@@ -417,6 +472,17 @@ export default function CombinedGatePage() {
     }
     if (!isCheckoutPlateMatched) {
       showToast('Cảnh báo: Biển số ra không khớp biển số vào!', 'error');
+      return;
+    }
+
+    // Verify checkout card code and handle lost card confirmation simulation
+    if (!checkoutExitCardCode.trim()) {
+      const confirmLost = window.confirm("Xác nhận mất thẻ?");
+      if (!confirmLost) {
+        return;
+      }
+    } else if (!isCheckoutCardMatched) {
+      showToast('Thẻ ra không khớp với thẻ vào! Vui lòng kiểm tra lại.', 'error');
       return;
     }
 
@@ -485,6 +551,7 @@ export default function CombinedGatePage() {
 
       setCheckoutSelectedSessionId(null);
       setCheckoutExitPlate('');
+      setCheckoutExitCardCode('');
       setCheckoutCalculatedFee(null);
       setCheckoutLockedTime(null);
       setCapturedImageOut(null);
@@ -524,7 +591,7 @@ export default function CombinedGatePage() {
             <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm flex flex-col">
               <div className="flex items-center justify-between border-b border-slate-100 px-5 py-3">
                 <div className="flex items-center gap-2">
-                  <span className={`h-2.5 w-2.5 rounded-full ${gateMode === 'IN' ? 'bg-emerald-500' : 'bg-rose-500'}`} />
+                  <span className={`material-symbols-outlined text-sm ${gateMode === 'IN' ? 'text-emerald-500' : 'text-rose-500'} animate-pulse`}>videocam</span>
                   <span className="text-xs font-bold text-slate-700">CAMERA CỔNG CHUNG</span>
                 </div>
                 {/* Gate switch toggles */}
@@ -693,10 +760,19 @@ export default function CombinedGatePage() {
                       <input
                         type="text"
                         value={checkinCardCode}
-                        onChange={(e) => setCheckinCardCode(e.target.value)}
+                        onChange={(e) => setCheckinCardCode(e.target.value.toUpperCase())}
                         placeholder="Quét thẻ từ"
+                        list="combined-available-checkin-cards"
                         className="mt-1.5 w-full rounded-xl border border-slate-200 px-3 py-2.5 font-mono text-sm font-bold outline-none focus:border-emerald-500"
                       />
+                      <datalist id="combined-available-checkin-cards">
+                        {availableCards.map((card) => (
+                          <option key={card.id} value={card.cardCode} />
+                        ))}
+                      </datalist>
+                      <p className="mt-1.5 text-[10px] font-semibold text-slate-400">
+                        Thẻ trống khả dụng: {availableCards.length}
+                      </p>
                     </div>
                   </div>
 
@@ -777,6 +853,10 @@ export default function CombinedGatePage() {
                         <span className="font-mono text-slate-900">{selectedCheckoutSession.licensePlate}</span>
                       </div>
                       <div className="flex justify-between font-bold">
+                        <span className="text-slate-500">Mã thẻ vào:</span>
+                        <span className="font-mono text-slate-900">{selectedCheckoutSession.cardCode ?? '—'}</span>
+                      </div>
+                      <div className="flex justify-between font-bold">
                         <span className="text-slate-500">Thời gian vào:</span>
                         <span>{formatDateTime(selectedCheckoutSession.checkInTime)}</span>
                       </div>
@@ -786,27 +866,74 @@ export default function CombinedGatePage() {
                       </div>
                     </div>
 
+                    {selectedCheckoutSession.imageIn && (
+                      <div className="bg-slate-50 rounded-2xl p-2 border border-slate-200">
+                        <p className="text-[9px] font-black uppercase text-slate-400 mb-1.5">Ảnh chụp lúc vào</p>
+                        <div className="aspect-video bg-slate-950 rounded-lg overflow-hidden flex items-center justify-center border border-slate-800">
+                          <img
+                            src={selectedCheckoutSession.imageIn}
+                            alt="Check-in snapshot"
+                            className="h-full w-full object-contain"
+                          />
+                        </div>
+                      </div>
+                    )}
+
                     {/* Exit plate comparison input */}
-                    <div>
-                      <label className="text-xs font-bold text-slate-500">Biển số lối ra</label>
-                      <input
-                        type="text"
-                        value={checkoutExitPlate}
-                        onChange={(e) => setCheckoutExitPlate(e.target.value.toUpperCase())}
-                        placeholder="Nhập hoặc quét biển số ra"
-                        className="mt-1.5 w-full rounded-xl border border-slate-200 px-3.5 py-2.5 font-mono text-sm font-bold outline-none focus:border-emerald-500"
-                      />
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="text-xs font-bold text-slate-500">Biển số lối ra</label>
+                        <input
+                          type="text"
+                          value={checkoutExitPlate}
+                          onChange={(e) => setCheckoutExitPlate(e.target.value.toUpperCase())}
+                          placeholder="Biển số ra"
+                          className="mt-1.5 w-full rounded-xl border border-slate-200 px-3 py-2 font-mono text-sm font-bold outline-none focus:border-emerald-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs font-bold text-slate-500 flex justify-between">
+                          <span>Mã thẻ ra</span>
+                          <span className="text-[9px] text-slate-400 font-bold lowercase">(trống = mất)</span>
+                        </label>
+                        <input
+                          type="text"
+                          value={checkoutExitCardCode}
+                          onChange={(e) => setCheckoutExitCardCode(e.target.value.toUpperCase())}
+                          placeholder="Mã thẻ ra"
+                          list="checkout-gate-available-cards"
+                          className="mt-1.5 w-full rounded-xl border border-slate-200 px-3 py-2 font-mono text-sm font-bold outline-none focus:border-emerald-500"
+                        />
+                        <datalist id="checkout-gate-available-cards">
+                          {cards.map((c) => (
+                            <option key={c.id} value={c.cardCode} />
+                          ))}
+                        </datalist>
+                      </div>
                     </div>
 
                     {/* Biển số khớp status block */}
-                    <div className={`rounded-xl border px-3 py-2 text-xs font-bold ${
-                      !checkoutExitPlate ? 'bg-amber-50 border-amber-200 text-amber-700' : isCheckoutPlateMatched ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-red-50 border-red-200 text-red-700'
-                    }`}>
-                      <div className="flex items-center gap-1.5">
-                        <span className="material-symbols-outlined text-base">
-                          {!checkoutExitPlate ? 'visibility' : isCheckoutPlateMatched ? 'check_circle' : 'error'}
-                        </span>
-                        {!checkoutExitPlate ? 'Đang đợi biển số ra...' : isCheckoutPlateMatched ? 'Biển số trùng khớp' : 'Biển số KHÔNG khớp! Kiểm tra lại.'}
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className={`rounded-xl border px-3 py-2 text-[10px] font-bold ${
+                        !checkoutExitPlate ? 'bg-amber-50 border-amber-200 text-amber-700' : isCheckoutPlateMatched ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-red-50 border-red-200 text-red-700'
+                      }`}>
+                        <div className="flex items-center gap-1">
+                          <span className="material-symbols-outlined text-sm">
+                            {!checkoutExitPlate ? 'visibility' : isCheckoutPlateMatched ? 'check_circle' : 'error'}
+                          </span>
+                          {!checkoutExitPlate ? 'Đợi biển ra...' : isCheckoutPlateMatched ? 'Biển khớp' : 'Biển KHÔNG khớp'}
+                        </div>
+                      </div>
+
+                      <div className={`rounded-xl border px-3 py-2 text-[10px] font-bold ${
+                        !checkoutExitCardCode ? 'bg-amber-50 border-amber-200 text-amber-700' : isCheckoutCardMatched ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-red-50 border-red-200 text-red-700'
+                      }`}>
+                        <div className="flex items-center gap-1">
+                          <span className="material-symbols-outlined text-sm">
+                            {!checkoutExitCardCode ? 'warning' : isCheckoutCardMatched ? 'check_circle' : 'error'}
+                          </span>
+                          {!checkoutExitCardCode ? 'Mô phỏng mất thẻ' : isCheckoutCardMatched ? 'Thẻ khớp' : 'Thẻ KHÔNG khớp'}
+                        </div>
                       </div>
                     </div>
 

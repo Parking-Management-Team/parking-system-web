@@ -513,7 +513,7 @@ export default function VehicleCheckout() {
     try {
       const payment = await createCheckoutPayment(selectedSession, paymentMethod);
       await completeCheckout(selectedSession.id);
-      
+
       const duration = getDurationLabel(selectedSession.checkInTime, lockedCheckoutTime);
 
       const nextHistory: CheckoutHistoryItem = {
@@ -623,7 +623,7 @@ export default function VehicleCheckout() {
                 isFilterActive
                   ? 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200'
                   : 'bg-white text-slate-700 ring-1 ring-slate-200'
-              }`}
+                }`}
             >
               <span className="material-symbols-outlined text-lg">filter_alt</span>
               Filter
@@ -795,7 +795,7 @@ export default function VehicleCheckout() {
                         cameraActive
                           ? 'bg-red-50 border-red-200 text-red-700 hover:bg-red-100'
                           : 'bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100'
-                      }`}
+                        }`}
                     >
                       {cameraActive ? 'Stop Cam' : 'Start Cam'}
                     </button>
@@ -889,10 +889,10 @@ export default function VehicleCheckout() {
 
           {/* CỘT PHẢI: XÁC NHẬN THANH TOÁN VÀ THANH TOÁN */}
           <section className="min-h-0 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm flex flex-col justify-start">
-            <h2 className="text-base font-black text-slate-900">Check-out confirmation</h2>
+              <h2 className="text-base font-black text-slate-900">Check-out confirmation</h2>
             <p className="text-xs font-semibold text-slate-500 mb-4">
-              Compare plate at exit before creating payment.
-            </p>
+                Compare plate at exit before creating payment.
+              </p>
 
             {selectedSession ? (
               <div className="space-y-5 flex-1 flex flex-col justify-between">
@@ -918,7 +918,7 @@ export default function VehicleCheckout() {
                         : isPlateMatched
                           ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
                           : 'border-red-200 bg-red-50 text-red-700'
-                    }`}
+                      }`}
                   >
                     <div className="flex items-center gap-2 text-sm font-black">
                       <span className="material-symbols-outlined">
@@ -985,7 +985,7 @@ export default function VehicleCheckout() {
                                 paymentMethod === method
                                   ? 'border-emerald-500 bg-emerald-50 text-emerald-700'
                                   : 'border-slate-200 bg-white text-slate-500 hover:bg-slate-50'
-                              }`}
+                                }`}
                             >
                               {method === 'CASH' ? 'Cash' : 'Online banking'}
                             </button>
@@ -1203,7 +1203,7 @@ function InfoBox({
       <p
         className={`mt-1 truncate text-sm font-black text-slate-800 ${
           mono ? 'font-mono' : ''
-        }`}
+          }`}
         title={value}
       >
         {value}

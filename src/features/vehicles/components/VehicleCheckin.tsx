@@ -25,19 +25,19 @@ type VehicleType = 'CAR' | 'MOTORCYCLE';
 
 type GateOverlay =
   | {
-      type: 'success';
-      title: string;
-      message: string;
-      session?: VehicleCheckinSession;
-      vehicleType: VehicleType;
-      cardCode: string;
-      checkInTime: string;
-    }
+    type: 'success';
+    title: string;
+    message: string;
+    session?: VehicleCheckinSession;
+    vehicleType: VehicleType;
+    cardCode: string;
+    checkInTime: string;
+  }
   | {
-      type: 'error';
-      title: string;
-      message: string;
-    };
+    type: 'error';
+    title: string;
+    message: string;
+  };
 
 const BUILDING_ID = 3;
 const STAFF_ID = 2;
@@ -105,6 +105,16 @@ export default function VehicleCheckin() {
   const [isReallocateModalOpen, setIsReallocateModalOpen] = useState(false);
   const [availableSlots, setAvailableSlots] = useState<ReallocateSlotDto[]>([]);
   const [selectedSlotId, setSelectedSlotId] = useState<number | null>(null);
+
+  const availableCards = useMemo(
+    () =>
+      cards.filter(
+        (card) =>
+          card.cardType === 'PARKING_CARD' &&
+          card.cardStatus === 'AVAILABLE'
+      ),
+    [cards]
+  );
 
   // Webcam & LPR states
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -227,14 +237,29 @@ export default function VehicleCheckin() {
     const plate = await performOCR(base64);
     if (plate) {
       setLicensePlate(plate);
+      console.log('Check-in scan: availableCards =', availableCards);
+      if (availableCards.length > 0) {
+        const randomCard = availableCards[Math.floor(Math.random() * availableCards.length)];
+        setCardCode(randomCard.cardCode);
+      } else {
+        console.warn('Check-in scan: No available cards found!');
+      }
     }
-  }, [captureFrame, performOCR]);
+  }, [captureFrame, performOCR, availableCards]);
 
   const handleMockScanCheckin = useCallback(() => {
     const mockPlates = ['51A-999.99', '29G1-888.88', '43B-777.77', '59S3-555.55'];
     const randomPlate = mockPlates[Math.floor(Math.random() * mockPlates.length)];
     setLicensePlate(randomPlate);
-    
+
+    console.log('Check-in mock scan: availableCards =', availableCards);
+    if (availableCards.length > 0) {
+      const randomCard = availableCards[Math.floor(Math.random() * availableCards.length)];
+      setCardCode(randomCard.cardCode);
+    } else {
+      console.warn('Check-in mock scan: No available cards found!');
+    }
+
     const canvas = document.createElement('canvas');
     canvas.width = 300;
     canvas.height = 150;
@@ -253,20 +278,10 @@ export default function VehicleCheckin() {
       setCapturedImage(dataUrl);
     }
     showToast(`Giả lập quét biển số vào: ${randomPlate}`, 'success');
-  }, [showToast]);
+  }, [showToast, availableCards]);
 
   const formattedPlate = normalizeText(licensePlate);
   const normalizedCardCode = normalizeText(cardCode);
-
-  const availableCards = useMemo(
-    () =>
-      cards.filter(
-        (card) =>
-          card.cardType === 'PARKING_CARD' &&
-          card.cardStatus === 'AVAILABLE'
-      ),
-    [cards]
-  );
 
   const selectedCard = useMemo(
     () =>
@@ -296,11 +311,11 @@ export default function VehicleCheckin() {
   const loadGateData = useCallback(async () => {
     let currentBuildingId = buildingId;
     try {
-      const buildingsRes = await api.get<any>('/Buildings/paged?pageSize=100');
+      const buildingsRes = await api.get<any>('/Buildings/paged?pageIndex=1&pageSize=100');
       if (buildingsRes.success && buildingsRes.data?.items && Array.isArray(buildingsRes.data.items)) {
         const mapped = buildingsRes.data.items.map((b: any) => ({ id: b.id, name: b.name }));
         setBuildings(mapped);
-        
+
         if (mapped.length > 0) {
           const hasCurrent = mapped.some((b: any) => b.id === buildingId);
           if (!hasCurrent) {
@@ -649,11 +664,10 @@ export default function VehicleCheckin() {
                       key={type}
                       type="button"
                       onClick={() => setVehicleType(type)}
-                      className={`rounded-2xl border px-4 py-3 text-sm font-black transition ${
-                        vehicleType === type
+                      className={`rounded-2xl border px-4 py-3 text-sm font-black transition ${vehicleType === type
                           ? 'border-emerald-500 bg-emerald-50 text-emerald-700'
                           : 'border-slate-200 bg-white text-slate-500 hover:bg-slate-50'
-                      }`}
+                        }`}
                     >
                       <span className="material-symbols-outlined mr-2 align-middle text-lg">
                         {type === 'CAR' ? 'directions_car' : 'two_wheeler'}
@@ -753,12 +767,11 @@ export default function VehicleCheckin() {
           <div className="overflow-hidden rounded-3xl border border-slate-900 bg-slate-950 shadow-2xl flex flex-col">
             <div className="flex items-center justify-between border-b border-white/10 px-5 py-3">
               <div className="flex items-center gap-2">
-                <span className="h-3 w-3 rounded-full bg-red-500" />
-                <span className="h-3 w-3 rounded-full bg-amber-400" />
-                <span className="h-3 w-3 rounded-full bg-emerald-500" />
+                <span className="material-symbols-outlined text-emerald-500 text-sm animate-pulse">videocam</span>
+                <span className="text-xs font-bold text-slate-400">GATE-IN-01</span>
               </div>
               <p className="font-mono text-xs font-bold text-emerald-400">
-                LIVE CAMERA · GATE-IN-01
+                LIVE CAMERA
               </p>
             </div>
 
@@ -823,11 +836,10 @@ export default function VehicleCheckin() {
                   <button
                     type="button"
                     onClick={cameraActive ? stopCamera : startCamera}
-                    className={`flex-1 rounded-xl py-2.5 text-xs font-bold transition flex items-center justify-center gap-2 border ${
-                      cameraActive
+                    className={`flex-1 rounded-xl py-2.5 text-xs font-bold transition flex items-center justify-center gap-2 border ${cameraActive
                         ? 'bg-red-950 border-red-800 text-red-400 hover:bg-red-900'
                         : 'bg-emerald-950 border-emerald-800 text-emerald-400 hover:bg-emerald-900'
-                    }`}
+                      }`}
                   >
                     {cameraActive ? 'Stop Cam' : 'Start Cam'}
                   </button>
@@ -949,9 +961,8 @@ export default function VehicleCheckin() {
         overlay &&
         createPortal(
           <div
-            className={`fixed inset-0 z-[100000] flex flex-col items-center justify-center px-6 text-center text-white ${
-              overlay.type === 'success' ? 'bg-emerald-600' : 'bg-red-600'
-            }`}
+            className={`fixed inset-0 z-[100000] flex flex-col items-center justify-center px-6 text-center text-white ${overlay.type === 'success' ? 'bg-emerald-600' : 'bg-red-600'
+              }`}
           >
             <div className="flex h-28 w-28 items-center justify-center rounded-full bg-white/20 shadow-2xl">
               <span className="material-symbols-outlined text-7xl">
@@ -1028,11 +1039,10 @@ export default function VehicleCheckin() {
                         key={slot.id}
                         type="button"
                         onClick={() => setSelectedSlotId(slot.id)}
-                        className={`flex flex-col items-start rounded-2xl border p-3 text-left transition ${
-                          selectedSlotId === slot.id
+                        className={`flex flex-col items-start rounded-2xl border p-3 text-left transition ${selectedSlotId === slot.id
                             ? 'border-emerald-500 bg-emerald-50 text-emerald-950 ring-2 ring-emerald-500'
                             : 'border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700'
-                        }`}
+                          }`}
                       >
                         <span className="font-mono text-sm font-black">{slot.code}</span>
                         <span className="mt-1 text-[10px] font-bold text-slate-400">

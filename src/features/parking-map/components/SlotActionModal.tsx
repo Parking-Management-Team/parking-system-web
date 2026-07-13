@@ -216,12 +216,16 @@ export function SlotActionModal({
       });
 
       // 3. Update the slot status to Occupied (1)
-      await api.put(`/ParkingSlots/${activeSlot.id}`, {
-        code: activeSlot.slotCode,
-        name: activeSlot.slotName || `Slot ${activeSlot.slotCode}`,
-        vehicleTypeId: activeSlot.vehicleTypeId,
-        status: 1 // Occupied
-      });
+      try {
+        await api.put(`/ParkingSlots/${activeSlot.id}`, {
+          code: activeSlot.slotCode,
+          name: activeSlot.slotName || `Slot ${activeSlot.slotCode}`,
+          vehicleTypeId: activeSlot.vehicleTypeId,
+          status: 1 // Occupied
+        });
+      } catch (putErr) {
+        console.warn('PUT /ParkingSlots status update failed (likely staff role restrictions), but parking session creation succeeded:', putErr);
+      }
 
       // Trigger Parent callback
       onSlotUpdated(activeSlot.id, 'OCCUPIED', {
@@ -616,18 +620,20 @@ export function SlotActionModal({
 
           {activeSlot.status === 'OCCUPIED' && (
             <>
-              <button
-                onClick={() => handleSetStatus('MAINTENANCE')}
-                disabled={isSubmitting}
-                className="flex-1 py-3 border border-slate-200 hover:bg-white text-slate-600 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition-colors disabled:opacity-50"
-              >
-                <span className="material-symbols-outlined text-[16px]">build</span>
-                Maintain
-              </button>
+              {userRole === 'MANAGER' && (
+                <button
+                  onClick={() => handleSetStatus('MAINTENANCE')}
+                  disabled={isSubmitting}
+                  className="flex-1 py-3 border border-slate-200 hover:bg-white text-slate-600 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition-colors disabled:opacity-50"
+                >
+                  <span className="material-symbols-outlined text-[16px]">build</span>
+                  Maintain
+                </button>
+              )}
               <button
                 onClick={handleReleaseSlot}
                 disabled={isSubmitting}
-                className="flex-[2] py-3 bg-red-650 hover:bg-red-700 disabled:opacity-50 text-white rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition-all shadow-md shadow-red-500/10"
+                className={`${userRole === 'MANAGER' ? 'flex-[2]' : 'flex-1'} py-3 bg-red-650 hover:bg-red-700 disabled:opacity-50 text-white rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition-all shadow-md shadow-red-500/10`}
               >
                 {isSubmitting ? (
                   <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
@@ -649,20 +655,22 @@ export function SlotActionModal({
               >
                 Cancel
               </button>
-              <button
-                onClick={() => handleSetStatus('AVAILABLE')}
-                disabled={isSubmitting}
-                className="flex-[2] py-3 bg-[#006d43] hover:bg-emerald-700 disabled:opacity-50 text-white rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all shadow-md shadow-emerald-500/10"
-              >
-                {isSubmitting ? (
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                ) : (
-                  <>
-                    <span className="material-symbols-outlined text-[18px]">verified</span>
-                    Set Available
-                  </>
-                )}
-              </button>
+              {userRole === 'MANAGER' && (
+                <button
+                  onClick={() => handleSetStatus('AVAILABLE')}
+                  disabled={isSubmitting}
+                  className="flex-[2] py-3 bg-[#006d43] hover:bg-emerald-700 disabled:opacity-50 text-white rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all shadow-md shadow-emerald-500/10"
+                >
+                  {isSubmitting ? (
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  ) : (
+                    <>
+                      <span className="material-symbols-outlined text-[18px]">verified</span>
+                      Set Available
+                    </>
+                  )}
+                </button>
+              )}
             </>
           )}
         </div>

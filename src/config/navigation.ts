@@ -113,11 +113,6 @@ export const ROLE_NAVIGATION: Record<string, NavigationItem[]> = {
       icon: 'report_problem',
     },
     {
-      label: 'Shift Reports',
-      href: '/dashboard/staff/reports',
-      icon: 'assignment',
-    },
-    {
       label: 'My Profile',
       href: '/dashboard/profile',
       icon: 'person',

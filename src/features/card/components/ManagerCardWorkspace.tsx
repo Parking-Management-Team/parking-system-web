@@ -27,7 +27,9 @@ interface ParkingCard {
 }
 
 export default function ManagerCardWorkspace() {
-  const { showToast } = useAuth();
+  const { user, showToast } = useAuth();
+  const userRole = user?.role?.toUpperCase();
+  const isManager = userRole === 'MANAGER';
   const [activeTab, setActiveTab] = useState<'available' | 'assigned'>('available');
   const [cards, setCards] = useState<ParkingCard[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -184,13 +186,15 @@ export default function ManagerCardWorkspace() {
           </p>
         </div>
         <div className="flex gap-2">
-          <button
-            onClick={() => setIsCreateOpen(true)}
-            className="flex items-center gap-2 px-4 py-2.5 bg-[#006d43] hover:bg-[#005c38] text-white text-xs font-bold rounded-xl shadow-md transition-all"
-          >
-            <Plus className="w-4 h-4" />
-            Create Card
-          </button>
+          {isManager && (
+            <button
+              onClick={() => setIsCreateOpen(true)}
+              className="flex items-center gap-2 px-4 py-2.5 bg-[#006d43] hover:bg-[#005c38] text-white text-xs font-bold rounded-xl shadow-md transition-all"
+            >
+              <Plus className="w-4 h-4" />
+              Create Card
+            </button>
+          )}
           <button
             onClick={fetchCards}
             disabled={isLoading}
@@ -271,7 +275,7 @@ export default function ManagerCardWorkspace() {
                   <th className="px-6 py-4">Card Type</th>
                   <th className="px-6 py-4">Date Added</th>
                   <th className="px-6 py-4">Status</th>
-                  <th className="px-6 py-4 text-center">Manage</th>
+                  {isManager && <th className="px-6 py-4 text-center">Manage</th>}
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-xs">
@@ -314,35 +318,37 @@ export default function ManagerCardWorkspace() {
                           {card.cardStatus}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-center flex justify-center gap-2">
-                        {status === 'AVAILABLE' && (
-                          <button
-                            onClick={() => handleUpdateStatus(card.id, 'Blocked')}
-                            className="px-2 py-1 text-slate-500 hover:text-slate-700 font-semibold text-[10px] rounded hover:bg-slate-100"
-                          >
-                            Block
-                          </button>
-                        )}
-                        {status === 'BLOCKED' && (
-                          <button
-                            onClick={() => handleUpdateStatus(card.id, 'Available')}
-                            className="px-2 py-1 text-emerald-600 hover:text-emerald-700 font-semibold text-[10px] rounded hover:bg-emerald-50"
-                          >
-                            Unblock
-                          </button>
-                        )}
-                        {status !== 'LOST' && (
-                          <button
-                            onClick={() => handleMarkLost(card.id)}
-                            className="px-2 py-1 text-rose-600 hover:text-rose-700 font-semibold text-[10px] rounded hover:bg-rose-50"
-                          >
-                            Mark Lost
-                          </button>
-                        )}
-                        {status === 'LOST' && (
-                          <span className="text-[10px] text-slate-400 italic">No actions</span>
-                        )}
-                      </td>
+                      {isManager && (
+                        <td className="px-6 py-4 text-center flex justify-center gap-2">
+                          {status === 'AVAILABLE' && (
+                            <button
+                              onClick={() => handleUpdateStatus(card.id, 'Blocked')}
+                              className="px-2 py-1 text-slate-500 hover:text-slate-700 font-semibold text-[10px] rounded hover:bg-slate-100"
+                            >
+                              Block
+                            </button>
+                          )}
+                          {status === 'BLOCKED' && (
+                            <button
+                              onClick={() => handleUpdateStatus(card.id, 'Available')}
+                              className="px-2 py-1 text-emerald-600 hover:text-emerald-700 font-semibold text-[10px] rounded hover:bg-emerald-50"
+                            >
+                              Unblock
+                            </button>
+                          )}
+                          {status !== 'LOST' && (
+                            <button
+                              onClick={() => handleMarkLost(card.id)}
+                              className="px-2 py-1 text-rose-600 hover:text-rose-700 font-semibold text-[10px] rounded hover:bg-rose-50"
+                            >
+                              Mark Lost
+                            </button>
+                          )}
+                          {status === 'LOST' && (
+                            <span className="text-[10px] text-slate-400 italic">No actions</span>
+                          )}
+                        </td>
+                      )}
                     </tr>
                   );
                 })}

@@ -39,39 +39,80 @@ export function SlotActionModal({
     vehicleTypeId?: number;
   } | null>(null);
 
-  const [allocationType, setAllocationType] = useState<'monthly' | 'short'>('monthly');
-  const [startDate, setStartDate] = useState(() => {
-    const d = new Date();
-    return d.toISOString().slice(0, 16);
-  });
-  const [endDate, setEndDate] = useState(() => {
-    const d = new Date();
-    d.setMonth(d.getMonth() + 1);
-    return d.toISOString().slice(0, 16);
-  });
   const [allocationNotes, setAllocationNotes] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const [activeSlot, setActiveSlot] = useState<Slot | null>(null);
+  const [futureBookingsData, setFutureBookingsData] = useState<{
+    slotId: number;
+    slotCode: string;
+    futureBookings: any[];
+    recommendedSlots: any[];
+  } | null>(null);
+  const [loadingFutureBookings, setLoadingFutureBookings] = useState(false);
 
   // Reset form states on open or slot change
   useEffect(() => {
     if (isOpen && slot) {
+      setActiveSlot(slot);
       setVehicleSearchQuery('');
       setSearchedVehicle(null);
-      setAllocationType('monthly');
-      
-      const d = new Date();
-      setStartDate(d.toISOString().slice(0, 16));
-      
-      const d2 = new Date();
-      d2.setMonth(d2.getMonth() + 1);
-      setEndDate(d2.toISOString().slice(0, 16));
-      
       setAllocationNotes('');
       setIsSubmitting(false);
     }
   }, [isOpen, slot]);
 
-  if (!isOpen || !slot) return null;
+  // Fetch future bookings when activeSlot changes to AVAILABLE
+  useEffect(() => {
+    if (isOpen && activeSlot && activeSlot.status === 'AVAILABLE') {
+      setLoadingFutureBookings(true);
+      setFutureBookingsData(null);
+      api.get<BaseResponse<any>>(`/parking-slots/${activeSlot.id}/future-bookings`)
+        .then((res) => {
+          if (res.success && res.data) {
+            setFutureBookingsData(res.data);
+          }
+        })
+        .catch((err) => console.error('Error fetching future bookings', err))
+        .finally(() => setLoadingFutureBookings(false));
+    } else {
+      setFutureBookingsData(null);
+    }
+  }, [isOpen, activeSlot]);
+
+  const handleSwitchSlot = async (newSlotId: number) => {
+    try {
+      setLoadingFutureBookings(true);
+      const res = await api.get<BaseResponse<any>>(`/ParkingSlots/${newSlotId}`);
+      if (res.success && res.data) {
+        const s = res.data;
+        const newSlot: Slot = {
+          id: s.id,
+          slotCode: s.code || `SLOT-${s.id}`,
+          slotName: s.name,
+          status: s.status === 0 || s.status === 'Available' ? 'AVAILABLE' :
+                  s.status === 1 || s.status === 'Occupied' ? 'OCCUPIED' :
+                  s.status === 2 || s.status === 'Blocked' ? 'BLOCKED' :
+                  s.status === 3 || s.status === 'Maintenance' ? 'MAINTENANCE' :
+                  'AVAILABLE',
+          zoneId: s.zoneId,
+          vehicleTypeId: s.vehicleTypeId,
+          zoneName: activeSlot?.zoneName || '',
+          slotType: activeSlot?.slotType || 'Standard',
+          floorId: activeSlot?.floorId || 0,
+          buildingId: activeSlot?.buildingId || 0
+        };
+        setActiveSlot(newSlot);
+        showToastMessage(`Đã đổi sang vị trí đỗ ${newSlot.slotCode}`);
+      }
+    } catch (err) {
+      showToastMessage('Không thể chuyển sang slot mới.', 'error');
+    } finally {
+      setLoadingFutureBookings(false);
+    }
+  };
+
+  if (!isOpen || !slot || !activeSlot) return null;
 
   // Search vehicle helper
   const handleVehicleSearch = async (e: React.FormEvent) => {
@@ -168,32 +209,35 @@ export function SlotActionModal({
         vehicleId: searchedVehicle.id,
         buildingId: selectedBuildingId,
         cardId: cardId,
-        zoneId: slot.zoneId,
-        slotId: slot.id,
+        zoneId: activeSlot.zoneId,
+        slotId: activeSlot.id,
         licensePlateIn: searchedVehicle.plate,
         checkInTime: new Date().toISOString()
       });
 
       // 3. Update the slot status to Occupied (1)
-      await api.put(`/ParkingSlots/${slot.id}`, {
-        code: slot.slotCode,
-        name: slot.slotName || `Slot ${slot.slotCode}`,
-        vehicleTypeId: slot.vehicleTypeId,
-        status: 1 // Occupied
-      });
+      try {
+        await api.put(`/ParkingSlots/${activeSlot.id}`, {
+          code: activeSlot.slotCode,
+          name: activeSlot.slotName || `Slot ${activeSlot.slotCode}`,
+          vehicleTypeId: activeSlot.vehicleTypeId,
+          status: 1 // Occupied
+        });
+      } catch (putErr) {
+        console.warn('PUT /ParkingSlots status update failed (likely staff role restrictions), but parking session creation succeeded:', putErr);
+      }
 
       // Trigger Parent callback
-      onSlotUpdated(slot.id, 'OCCUPIED', {
+      onSlotUpdated(activeSlot.id, 'OCCUPIED', {
         plate: searchedVehicle.plate,
         model: searchedVehicle.model,
         ownerName: searchedVehicle.ownerName,
         memberId: searchedVehicle.memberId,
-        startDate,
-        endDate,
+        startDate: new Date().toISOString(),
         notes: allocationNotes
       });
       
-      showToastMessage(`Successfully allocated slot ${slot.slotCode}!`);
+      showToastMessage(`Successfully allocated slot ${activeSlot.slotCode}!`);
       onClose();
     } catch (err) {
       console.error(err);
@@ -210,7 +254,7 @@ export function SlotActionModal({
       // 1. Fetch active session for this slot and complete it
       const activeRes = await api.get<BaseResponse<ParkingSessionDto[]>>('/parking-sessions/active');
       if (activeRes.success && activeRes.data) {
-        const session = activeRes.data.find(s => s.slotId === slot.id);
+        const session = activeRes.data.find(s => s.slotId === activeSlot.id);
         if (session) {
           await apiClient(`/parking-sessions/${session.id}/complete`, { method: 'PATCH' });
         } else {
@@ -221,8 +265,8 @@ export function SlotActionModal({
       }
 
       // Trigger Parent callback
-      onSlotUpdated(slot.id, 'AVAILABLE', undefined);
-      showToastMessage(`Slot ${slot.slotCode} is now Available.`);
+      onSlotUpdated(activeSlot.id, 'AVAILABLE', undefined);
+      showToastMessage(`Slot ${activeSlot.slotCode} is now Available.`);
       onClose();
     } catch (err) {
       console.error(err);
@@ -240,16 +284,16 @@ export function SlotActionModal({
       if (newStatus === 'BLOCKED') statusVal = 2;
       else if (newStatus === 'MAINTENANCE') statusVal = 3;
 
-      await api.put(`/ParkingSlots/${slot.id}`, {
-        code: slot.slotCode,
-        name: slot.slotName || `Slot ${slot.slotCode}`,
-        vehicleTypeId: slot.vehicleTypeId,
+      await api.put(`/ParkingSlots/${activeSlot.id}`, {
+        code: activeSlot.slotCode,
+        name: activeSlot.slotName || `Slot ${activeSlot.slotCode}`,
+        vehicleTypeId: activeSlot.vehicleTypeId,
         status: statusVal
       });
 
       // Trigger Parent callback
-      onSlotUpdated(slot.id, newStatus, newStatus === 'AVAILABLE' ? undefined : slot.assignedVehicle);
-      showToastMessage(`Slot ${slot.slotCode} status updated to ${newStatus}.`);
+      onSlotUpdated(activeSlot.id, newStatus, newStatus === 'AVAILABLE' ? undefined : activeSlot.assignedVehicle);
+      showToastMessage(`Slot ${activeSlot.slotCode} status updated to ${newStatus}.`);
       onClose();
     } catch (err) {
       console.error(err);
@@ -281,10 +325,10 @@ export function SlotActionModal({
         <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-emerald-50/30">
           <div>
             <h2 className="text-lg font-extrabold text-slate-800">
-              Slot {slot.slotCode}
+              Slot {activeSlot.slotCode}
             </h2>
             <p className="text-xs text-slate-500 font-semibold mt-0.5">
-              {slot.zoneName} • {slot.slotType}
+              {activeSlot.zoneName} • {activeSlot.slotType}
             </p>
           </div>
           <button
@@ -299,8 +343,50 @@ export function SlotActionModal({
         <div className="p-6 flex-grow overflow-y-auto space-y-6">
           
           {/* Drawer Mode: AVAILABLE -> New Allocation Form */}
-          {slot.status === 'AVAILABLE' && (
+          {activeSlot.status === 'AVAILABLE' && (
             <div className="space-y-6 animate-in fade-in duration-150">
+              {loadingFutureBookings && (
+                <div className="flex items-center justify-center p-4">
+                  <div className="w-5 h-5 border-2 border-emerald-650 border-t-transparent rounded-full animate-spin"></div>
+                  <span className="ml-2 text-xs font-semibold text-slate-500">Checking future bookings...</span>
+                </div>
+              )}
+
+              {/* Warning Banner & Recommendations */}
+              {!loadingFutureBookings && futureBookingsData?.futureBookings && futureBookingsData.futureBookings.length > 0 && (
+                <div className="rounded-2xl border border-amber-100 bg-amber-50/70 p-4 text-xs text-amber-800 space-y-3">
+                  <div className="flex items-center gap-2 font-bold text-amber-900">
+                    <span className="material-symbols-outlined text-[18px] text-amber-600">warning</span>
+                    Cảnh báo: Vị trí đỗ này đã có lịch đặt trước trong tương lai!
+                  </div>
+                  <ul className="list-disc pl-4 space-y-1 font-semibold text-amber-700">
+                    {futureBookingsData.futureBookings.map((b: any) => (
+                      <li key={b.id}>
+                        {new Date(b.plannedCheckinTime).toLocaleString('vi-VN')} - {new Date(b.plannedCheckoutTime).toLocaleString('vi-VN')}
+                      </li>
+                    ))}
+                  </ul>
+                  {futureBookingsData.recommendedSlots && futureBookingsData.recommendedSlots.length > 0 && (
+                    <div className="pt-2 border-t border-amber-200/50">
+                      <p className="font-bold text-amber-900 mb-2">Đề xuất các vị trí trống khác an toàn hơn:</p>
+                      <div className="flex flex-wrap gap-2">
+                        {futureBookingsData.recommendedSlots.map((rec: any) => (
+                          <button
+                            key={rec.slotId}
+                            type="button"
+                            onClick={() => handleSwitchSlot(rec.slotId)}
+                            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-white border border-amber-250 hover:border-amber-400 hover:bg-amber-100/55 transition font-black text-amber-900 shadow-sm"
+                          >
+                            <span className="material-symbols-outlined text-sm text-amber-650">swap_horiz</span>
+                            {rec.slotCode}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
               <div className="bg-emerald-50/50 p-4 rounded-xl border border-emerald-500/10 flex items-start gap-3">
                 <span className="material-symbols-outlined text-emerald-600 mt-0.5">add_circle</span>
                 <div>
@@ -365,46 +451,13 @@ export function SlotActionModal({
                 )}
 
                 {/* Allocation parameters */}
-                <div className="grid grid-cols-2 gap-4 pt-2">
-                  <div className="flex flex-col gap-1">
-                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">Allocation Type</label>
-                    <select
-                      value={allocationType}
-                      onChange={(e) => setAllocationType(e.target.value as 'monthly' | 'short')}
-                      className="w-full border border-slate-200 rounded-lg py-2 px-3 text-sm focus:ring-1 focus:ring-emerald-500/30 focus:border-emerald-500 text-slate-600 focus:outline-none"
-                    >
-                      <option value="monthly">Monthly Pass</option>
-                      <option value="short">Short stay</option>
-                    </select>
-                  </div>
-
-                  <div className="flex flex-col gap-1">
-                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">Priority</label>
-                    <select className="w-full border border-slate-200 rounded-lg py-2 px-3 text-sm focus:ring-1 focus:ring-emerald-500/30 focus:border-emerald-500 text-slate-600 focus:outline-none">
-                      <option>Normal</option>
-                      <option>High</option>
-                      <option>Critical</option>
-                    </select>
-                  </div>
-                </div>
-
                 <div className="flex flex-col gap-1 pt-2">
-                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">Date Range</label>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="datetime-local"
-                      value={startDate}
-                      onChange={(e) => setStartDate(e.target.value)}
-                      className="w-full border border-slate-200 rounded-lg py-2 px-3 text-xs focus:ring-1 focus:ring-emerald-500/30 focus:border-emerald-500 focus:outline-none text-slate-600"
-                    />
-                    <span className="text-slate-400 text-xs font-bold">to</span>
-                    <input
-                      type="datetime-local"
-                      value={endDate}
-                      onChange={(e) => setEndDate(e.target.value)}
-                      className="w-full border border-slate-200 rounded-lg py-2 px-3 text-xs focus:ring-1 focus:ring-emerald-500/30 focus:border-emerald-500 focus:outline-none text-slate-600"
-                    />
-                  </div>
+                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">Priority</label>
+                  <select className="w-full border border-slate-200 rounded-lg py-2 px-3 text-sm focus:ring-1 focus:ring-emerald-500/30 focus:border-emerald-500 text-slate-600 focus:outline-none">
+                    <option>Normal</option>
+                    <option>High</option>
+                    <option>Critical</option>
+                  </select>
                 </div>
 
                 <div className="flex flex-col gap-1 pt-2">
@@ -451,14 +504,14 @@ export function SlotActionModal({
           )}
 
           {/* Drawer Mode: OCCUPIED -> Details and Actions */}
-          {slot.status === 'OCCUPIED' && slot.assignedVehicle && (
+          {activeSlot.status === 'OCCUPIED' && activeSlot.assignedVehicle && (
             <div className="space-y-6 animate-in fade-in duration-150">
               <div className="bg-slate-50 border border-slate-200/60 rounded-2xl p-5 space-y-4">
                 <div className="flex justify-between items-start">
                   <div>
                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Parked Vehicle</p>
-                    <h3 className="text-xl font-black text-slate-800 tracking-tight mt-0.5">{slot.assignedVehicle.plate}</h3>
-                    <p className="text-xs text-slate-500 font-semibold">{slot.assignedVehicle.model}</p>
+                    <h3 className="text-xl font-black text-slate-800 tracking-tight mt-0.5">{activeSlot.assignedVehicle.plate}</h3>
+                    <p className="text-xs text-slate-500 font-semibold">{activeSlot.assignedVehicle.model}</p>
                   </div>
                   <span className="px-2.5 py-1 bg-slate-200/60 text-slate-700 font-bold rounded-lg text-[10px] uppercase tracking-wide">
                     Occupied
@@ -468,26 +521,26 @@ export function SlotActionModal({
                 <div className="border-t border-slate-200/50 pt-4 grid grid-cols-2 gap-y-3 gap-x-4 text-xs">
                   <div>
                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Driver / Owner</p>
-                    <p className="font-semibold text-slate-700 mt-0.5">{slot.assignedVehicle.ownerName}</p>
+                    <p className="font-semibold text-slate-700 mt-0.5">{activeSlot.assignedVehicle.ownerName}</p>
                   </div>
                   <div>
                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Member ID</p>
-                    <p className="font-semibold text-slate-700 mt-0.5">{slot.assignedVehicle.memberId}</p>
+                    <p className="font-semibold text-slate-700 mt-0.5">{activeSlot.assignedVehicle.memberId}</p>
                   </div>
                   <div className="col-span-2">
                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Parked Since</p>
                     <p className="font-semibold text-slate-700 mt-0.5">
-                      {slot.assignedVehicle.startDate
-                        ? new Date(slot.assignedVehicle.startDate).toLocaleString()
+                      {activeSlot.assignedVehicle.startDate
+                        ? new Date(activeSlot.assignedVehicle.startDate).toLocaleString()
                         : 'N/A'}
                     </p>
                   </div>
                 </div>
 
-                {slot.assignedVehicle.notes && (
+                {activeSlot.assignedVehicle.notes && (
                   <div className="bg-amber-50/30 border border-amber-200/20 p-4 rounded-xl">
                     <p className="text-[10px] font-bold text-amber-700 uppercase tracking-wider">Staff Note</p>
-                    <p className="text-xs text-slate-600 mt-1 italic">{slot.assignedVehicle.notes}</p>
+                    <p className="text-xs text-slate-600 mt-1 italic">{activeSlot.assignedVehicle.notes}</p>
                   </div>
                 )}
               </div>
@@ -495,15 +548,15 @@ export function SlotActionModal({
           )}
 
           {/* Drawer Mode: BLOCKED or MAINTENANCE -> Action Panel */}
-          {(slot.status === 'BLOCKED' || slot.status === 'MAINTENANCE') && (
+          {(activeSlot.status === 'BLOCKED' || activeSlot.status === 'MAINTENANCE') && (
             <div className="space-y-6 animate-in fade-in duration-150">
               <div className="bg-red-50/30 p-5 rounded-2xl border border-red-500/10 flex items-start gap-4">
-                <span className={`material-symbols-outlined text-2xl mt-0.5 ${slot.status === 'BLOCKED' ? 'text-red-650' : 'text-amber-500'}`}>
-                  {slot.status === 'BLOCKED' ? 'block' : 'lock_clock'}
+                <span className={`material-symbols-outlined text-2xl mt-0.5 ${activeSlot.status === 'BLOCKED' ? 'text-red-650' : 'text-amber-500'}`}>
+                  {activeSlot.status === 'BLOCKED' ? 'block' : 'lock_clock'}
                 </span>
                 <div>
                   <h4 className="text-sm font-extrabold text-slate-800 uppercase tracking-wide">
-                    Slot currently {slot.status}
+                    Slot currently {activeSlot.status}
                   </h4>
                   <p className="text-xs text-slate-500 mt-1">
                     This parking bay has been marked out of service for operations/maintenance. It cannot be assigned or utilized by check-in sessions.
@@ -519,18 +572,18 @@ export function SlotActionModal({
                   </label>
                   <button
                     type="button"
-                    onClick={() => handleSetStatus(slot.status === 'BLOCKED' ? 'MAINTENANCE' : 'BLOCKED')}
+                    onClick={() => handleSetStatus(activeSlot.status === 'BLOCKED' ? 'MAINTENANCE' : 'BLOCKED')}
                     disabled={isSubmitting}
                     className={`w-full py-2.5 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition-all text-white hover:brightness-110 shadow-md disabled:opacity-50 ${
-                      slot.status === 'BLOCKED'
+                      activeSlot.status === 'BLOCKED'
                         ? 'bg-[#d97706] hover:bg-amber-700 shadow-amber-500/10'
                         : 'bg-[#ba1a1a] hover:bg-red-700 shadow-red-500/10'
                     }`}
                   >
                     <span className="material-symbols-outlined text-[16px]">
-                      {slot.status === 'BLOCKED' ? 'build' : 'block'}
+                      {activeSlot.status === 'BLOCKED' ? 'build' : 'block'}
                     </span>
-                    Change to {slot.status === 'BLOCKED' ? 'MAINTENANCE' : 'BLOCKED'}
+                    Change to {activeSlot.status === 'BLOCKED' ? 'MAINTENANCE' : 'BLOCKED'}
                   </button>
                 </div>
               )}
@@ -541,7 +594,7 @@ export function SlotActionModal({
 
         {/* Footer Actions */}
         <div className="p-6 border-t border-slate-100 bg-slate-50/70 flex gap-3">
-          {slot.status === 'AVAILABLE' && (
+          {activeSlot.status === 'AVAILABLE' && (
             <>
               <button
                 type="button"
@@ -565,20 +618,22 @@ export function SlotActionModal({
             </>
           )}
 
-          {slot.status === 'OCCUPIED' && (
+          {activeSlot.status === 'OCCUPIED' && (
             <>
-              <button
-                onClick={() => handleSetStatus('MAINTENANCE')}
-                disabled={isSubmitting}
-                className="flex-1 py-3 border border-slate-200 hover:bg-white text-slate-600 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition-colors disabled:opacity-50"
-              >
-                <span className="material-symbols-outlined text-[16px]">build</span>
-                Maintain
-              </button>
+              {userRole === 'MANAGER' && (
+                <button
+                  onClick={() => handleSetStatus('MAINTENANCE')}
+                  disabled={isSubmitting}
+                  className="flex-1 py-3 border border-slate-200 hover:bg-white text-slate-600 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition-colors disabled:opacity-50"
+                >
+                  <span className="material-symbols-outlined text-[16px]">build</span>
+                  Maintain
+                </button>
+              )}
               <button
                 onClick={handleReleaseSlot}
                 disabled={isSubmitting}
-                className="flex-[2] py-3 bg-red-650 hover:bg-red-700 disabled:opacity-50 text-white rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition-all shadow-md shadow-red-500/10"
+                className={`${userRole === 'MANAGER' ? 'flex-[2]' : 'flex-1'} py-3 bg-red-650 hover:bg-red-700 disabled:opacity-50 text-white rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition-all shadow-md shadow-red-500/10`}
               >
                 {isSubmitting ? (
                   <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
@@ -592,7 +647,7 @@ export function SlotActionModal({
             </>
           )}
 
-          {(slot.status === 'BLOCKED' || slot.status === 'MAINTENANCE') && (
+          {(activeSlot.status === 'BLOCKED' || activeSlot.status === 'MAINTENANCE') && (
             <>
               <button
                 onClick={onClose}
@@ -600,20 +655,22 @@ export function SlotActionModal({
               >
                 Cancel
               </button>
-              <button
-                onClick={() => handleSetStatus('AVAILABLE')}
-                disabled={isSubmitting}
-                className="flex-[2] py-3 bg-[#006d43] hover:bg-emerald-700 disabled:opacity-50 text-white rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all shadow-md shadow-emerald-500/10"
-              >
-                {isSubmitting ? (
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                ) : (
-                  <>
-                    <span className="material-symbols-outlined text-[18px]">verified</span>
-                    Set Available
-                  </>
-                )}
-              </button>
+              {userRole === 'MANAGER' && (
+                <button
+                  onClick={() => handleSetStatus('AVAILABLE')}
+                  disabled={isSubmitting}
+                  className="flex-[2] py-3 bg-[#006d43] hover:bg-emerald-700 disabled:opacity-50 text-white rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all shadow-md shadow-emerald-500/10"
+                >
+                  {isSubmitting ? (
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  ) : (
+                    <>
+                      <span className="material-symbols-outlined text-[18px]">verified</span>
+                      Set Available
+                    </>
+                  )}
+                </button>
+              )}
             </>
           )}
         </div>

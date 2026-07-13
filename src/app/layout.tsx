@@ -15,6 +15,7 @@ import './globals.css'
 import type { Metadata } from 'next'
 import { Inter, Plus_Jakarta_Sans } from 'next/font/google'
 import { AuthProvider } from '@/features/auth'
+import { SidebarProvider } from '@/components/layout/SidebarContext'
 import Script from 'next/script'
 
 // Font chính cho body text (nội dung thường)
@@ -31,8 +32,8 @@ const plusJakartaSans = Plus_Jakarta_Sans({
 
 // SEO - hiển thị trên tab trình duyệt và kết quả tìm kiếm Google
 export const metadata: Metadata = {
-  title: 'NexPark - Smart Parking Management',
-  description: 'Modern smart parking solution for buildings with real-time allocation, booking, and monthly passes',
+  title: 'NexPark - Smart Parking',
+  description: 'Modern smart parking solution for buildings with real-time allocation, bookings',
 }
 
 /**
@@ -59,7 +60,9 @@ export default function RootLayout({
       <body className={`${inter.className} ${plusJakartaSans.variable} bg-gray-50 text-gray-900 antialiased`}>
         {/* AuthProvider bọc quanh toàn bộ app để mọi component đều kiểm tra được user đã đăng nhập chưa */}
         <AuthProvider>
-          {children}
+          <SidebarProvider>
+            {children}
+          </SidebarProvider>
         </AuthProvider>
         {/* Load Google Identity Services SDK */}
         <Script src="https://accounts.google.com/gsi/client" strategy="afterInteractive" />

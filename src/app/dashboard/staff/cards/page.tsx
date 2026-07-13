@@ -1,5 +1,5 @@
-import { CardManager } from "@/features/card";
+import { ManagerCardWorkspace } from "@/features/card";
 
 export default function StaffCardManagerPage() {
-  return <CardManager />;
+  return <ManagerCardWorkspace />;
 }

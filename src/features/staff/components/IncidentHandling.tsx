@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { useAuth } from '@/features/auth/context/AuthContext';
+import { useAuth } from '@/features/auth';
 import { useIncidents } from '@/features/incident';
 import { penaltyConfigService } from '@/features/incident-type/services/incident-type.service';
 import type { PenaltyConfig } from '@/features/incident-type/types';

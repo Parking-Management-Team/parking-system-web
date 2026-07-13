@@ -38,11 +38,6 @@ export const ROLE_NAVIGATION: Record<string, NavigationItem[]> = {
       icon: 'payments',
     },
     {
-      label: 'Monthly Subscriptions',
-      href: '/dashboard/manager/subscriptions',
-      icon: 'card_membership',
-    },
-    {
       label: 'Incident Tracking',
       href: '/dashboard/manager/incidents',
       icon: 'report_problem',
@@ -113,6 +108,11 @@ export const ROLE_NAVIGATION: Record<string, NavigationItem[]> = {
       icon: 'calendar_month',
     },
     {
+      label: 'Combined Gate',
+      href: '/dashboard/staff/combined-gate',
+      icon: 'sync_alt',
+    },
+    {
       label: 'Slot Monitoring',
       href: '/dashboard/staff/monitoring',
       icon: 'sensors',
@@ -121,11 +121,6 @@ export const ROLE_NAVIGATION: Record<string, NavigationItem[]> = {
       label: 'Incident Handling',
       href: '/dashboard/staff/incident',
       icon: 'report_problem',
-    },
-    {
-      label: 'Shift Reports',
-      href: '/dashboard/staff/reports',
-      icon: 'assignment',
     },
     {
       label: 'My Profile',

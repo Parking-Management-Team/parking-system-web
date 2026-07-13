@@ -12,11 +12,9 @@ interface PricingModalsProps {
 export default function PricingModals({ pricing }: PricingModalsProps) {
   const {
     isEditTariffOpen,
-    isEditMembershipOpen,
     isFeeModalOpen,
 
     editingTariff,
-    editingMembership,
     editingFee,
 
     // Tariff States
@@ -45,13 +43,7 @@ export default function PricingModals({ pricing }: PricingModalsProps) {
     removeWindowCap,
     setRemoveWindowCap,
 
-    // Membership States
-    formMembershipVehicleTypeId,
-    setFormMembershipVehicleTypeId,
-    formMembershipVehicleType,
-    setFormMembershipVehicleType,
-    formMembershipPrice,
-    setFormMembershipPrice,
+
 
     // Fee States
     incidentTypes,
@@ -82,8 +74,7 @@ export default function PricingModals({ pricing }: PricingModalsProps) {
     handleCloseEditTariff,
     handleSaveTariff,
 
-    handleCloseEditMembership,
-    handleSaveMembership,
+
 
     handleCloseFeeModal,
     handleSaveFee,
@@ -353,91 +344,7 @@ export default function PricingModals({ pricing }: PricingModalsProps) {
     );
   }
 
-  {/* Render Add/Edit Membership Modal */}
-  if (isEditMembershipOpen) {
-    return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 overflow-y-auto">
-        <div className="bg-white w-full max-w-md rounded-2xl shadow-xl flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-          
-          <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
-            <h2 className="text-xl font-bold text-slate-800">
-              {editingMembership ? 'Edit Membership Price' : 'Add Monthly Subscription Price'}
-            </h2>
-            <button 
-              onClick={handleCloseEditMembership}
-              className="h-9 w-9 flex items-center justify-center rounded-full hover:bg-slate-100 transition-colors text-slate-400 hover:text-slate-600"
-            >
-              <span className="material-symbols-outlined text-[20px]">close</span>
-            </button>
-          </div>
 
-          <form onSubmit={handleSaveMembership} className="p-6 space-y-4 bg-slate-50/50">
-            <div>
-              <label className="block text-xs font-bold text-slate-500 mb-1.5 uppercase tracking-wide">Vehicle Type</label>
-              {editingMembership ? (
-                <input 
-                  type="text" 
-                  value={formMembershipVehicleType} 
-                  disabled
-                  className="w-full bg-slate-100 border border-slate-200 rounded-xl px-4 py-2 text-sm font-semibold text-slate-500 outline-none cursor-not-allowed"
-                />
-              ) : (
-                <div className="relative">
-                  <select 
-                    value={formMembershipVehicleTypeId}
-                    onChange={(e) => {
-                      const selectedId = Number(e.target.value);
-                      setFormMembershipVehicleTypeId(selectedId);
-                      const vt = vehicleTypes.find(v => v.id === selectedId);
-                      if (vt) {
-                        setFormMembershipVehicleType(vt.name);
-                      }
-                    }}
-                    className="w-full bg-white border border-slate-200 rounded-xl pl-4 pr-10 py-2.5 text-sm font-medium text-slate-800 appearance-none focus:outline-none focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all cursor-pointer"
-                  >
-                    {vehicleTypes.map(vt => (
-                      <option key={vt.id} value={vt.id}>{vt.name}</option>
-                    ))}
-                  </select>
-                  <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">expand_more</span>
-                </div>
-              )}
-            </div>
-            
-            <div>
-              <label className="block text-xs font-bold text-slate-500 mb-1.5 uppercase tracking-wide">Monthly Price (VND)</label>
-              <div className="relative">
-                <input 
-                  type="number" 
-                  value={formMembershipPrice === 0 ? '' : formMembershipPrice}
-                  onChange={(e) => setFormMembershipPrice(Number(e.target.value))}
-                  className="w-full bg-white border border-slate-200 rounded-xl pl-4 pr-12 py-2.5 text-sm font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all"
-                  placeholder="0"
-                />
-                <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">VND</span>
-              </div>
-            </div>
-
-            <div className="pt-4 border-t border-slate-100 flex items-center justify-end gap-3 bg-white">
-              <button 
-                type="button"
-                onClick={handleCloseEditMembership}
-                className="px-5 py-2.5 rounded-xl border border-slate-200 text-slate-500 hover:bg-slate-50 font-semibold text-xs transition-all"
-              >
-                Cancel
-              </button>
-              <button 
-                type="submit"
-                className="px-5 py-2.5 rounded-xl bg-[#006d43] hover:bg-[#005c38] text-white font-semibold text-xs transition-all shadow-md"
-              >
-                Save
-              </button>
-            </div>
-          </form>
-        </div>
-      </div>
-    );
-  }
 
   {/* Render Add/Edit Service Fee Modal */}
   if (isFeeModalOpen) {

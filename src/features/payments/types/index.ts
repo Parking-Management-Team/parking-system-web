@@ -1,20 +1,37 @@
-export interface PaymentTransaction {
+export interface RevenueItem {
   id: number;
-  amount: number;
-  paymentDate: string;
-  paymentMethod: string; // CASH, ONLINE_BANKING, etc.
-  status: string; // SUCCESS, PENDING, FAILED
-  licensePlate?: string | null;
-  referenceCode?: string | null;
-  sessionId?: number | null;
-  accountId?: number | null;
-  fullName?: string | null;
+  buildingId: number;
+  buildingName: string;
+  startDate: string;
+  endDate: string;
+  periodType: string; // DAILY, MONTHLY, YEARLY
+  vehicleTypeId?: number | null;
+  vehicleTypeName: string;
+  totalRevenue: number;
+  totalBookings: number;
+  totalSessions: number;
+  totalSubscriptions: number;
 }
 
-export interface PaymentFilter {
+export interface RevenueDetailPayment {
+  paymentId: number;
+  amount: number;
+  paymentMethod: string; // VNPAY, CASH, etc.
+  paymentTime: string; // ISO date or local format
+  sourceType: string; // Session, Booking
+  licensePlate?: string | null;
+}
+
+export interface RevenueDetail extends RevenueItem {
+  payments: RevenueDetailPayment[];
+}
+
+export interface RevenueFilter {
   pageIndex: number;
   pageSize: number;
-  fromDate?: string;
-  toDate?: string;
-  method?: string; // CASH, ONLINE_BANKING
+  buildingId?: number | null;
+  startDate?: string;
+  endDate?: string;
+  periodType?: string; // DAILY, MONTHLY, YEARLY
 }
+

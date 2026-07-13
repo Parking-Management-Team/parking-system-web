@@ -55,6 +55,52 @@ export default function ManagerDashboard() {
     return () => clearInterval(timer);
   }, []);
 
+  // Fetch active sessions only
+  const fetchActiveSessions = async () => {
+    try {
+      const sessionRes = await api.get<any>('/parking-sessions/active').catch(() => null);
+      let loadedSessions: ParkingSessionDto[] = [];
+      if (sessionRes) {
+        if (sessionRes.success && Array.isArray(sessionRes.data)) {
+          loadedSessions = sessionRes.data;
+        } else if (Array.isArray(sessionRes)) {
+          loadedSessions = sessionRes;
+        } else if (sessionRes.data && Array.isArray(sessionRes.data)) {
+          loadedSessions = sessionRes.data;
+        }
+      }
+      setActiveSessions(loadedSessions);
+    } catch (err) {
+      console.error('Failed to fetch active sessions:', err);
+    }
+  };
+
+  // Fetch daily revenue stats
+  const fetchRevenue = async (buildingId: number | null) => {
+    if (!buildingId) return;
+    try {
+      const res = await api.get<any>(
+        `/Revenue?BuildingId=${buildingId}&PeriodType=DAILY&pageIndex=1&pageSize=30`
+      );
+      
+      let data: any = null;
+      if (res && res.success && res.data) {
+        data = res.data;
+      } else if (res && res.items) {
+        data = res;
+      }
+
+      if (data && data.items) {
+        setRevenueList(data.items);
+      } else {
+        setRevenueList([]);
+      }
+    } catch (err) {
+      console.error('Failed to fetch revenue stats:', err);
+      setRevenueList([]);
+    }
+  };
+
   // Fetch initial infrastructure and live sessions
   const fetchDashboardData = async () => {
     setLoading(true);
@@ -84,14 +130,14 @@ export default function ManagerDashboard() {
       }
 
       // 4. Fetch Active Sessions
-      const sessionRes = await api.get<BaseResponse<ParkingSessionDto[]>>('/parking-sessions/active').catch(() => null);
-      if (sessionRes?.success && sessionRes.data) {
-        setActiveSessions(sessionRes.data);
-      }
+      await fetchActiveSessions();
 
       // Set default selected building
       if (loadedBuildings.length > 0) {
-        setSelectedBuildingId(loadedBuildings[0].id);
+        const defaultBldId = loadedBuildings[0].id;
+        setSelectedBuildingId(defaultBldId);
+        // Fetch revenue for this default building immediately
+        await fetchRevenue(defaultBldId);
       }
     } catch (err) {
       console.error('Failed to load dashboard data:', err);
@@ -106,25 +152,20 @@ export default function ManagerDashboard() {
 
   // Fetch daily revenue stats when building selection changes
   useEffect(() => {
-    if (!selectedBuildingId) return;
+    if (selectedBuildingId) {
+      fetchRevenue(selectedBuildingId);
+    }
+  }, [selectedBuildingId]);
 
-    const fetchRevenue = async () => {
-      try {
-        const res = await api.get<BaseResponse<PagedResult<RevenueStatisticDto>>>(
-          `/revenue?BuildingId=${selectedBuildingId}&PeriodType=DAILY`
-        );
-        if (res.success && res.data?.items) {
-          setRevenueList(res.data.items);
-        } else {
-          setRevenueList([]);
-        }
-      } catch (err) {
-        console.error('Failed to fetch revenue stats:', err);
-        setRevenueList([]);
+  // Polling active sessions and revenue every 30 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchActiveSessions();
+      if (selectedBuildingId) {
+        fetchRevenue(selectedBuildingId);
       }
-    };
-
-    fetchRevenue();
+    }, 30000);
+    return () => clearInterval(interval);
   }, [selectedBuildingId]);
 
   // Dynamic calculations based on selected building
@@ -147,8 +188,11 @@ export default function ManagerDashboard() {
 
     const occupancyRate = totalCapacity > 0 ? Math.round((occupiedCount / totalCapacity) * 1000) / 10 : 0;
 
-    // Total daily revenue from API
-    const latestRevenueDto = revenueList.find(r => r.vehicleTypeId === null || r.vehicleTypeId === undefined);
+    // Total daily revenue from API (find the total revenue record with the most recent date)
+    const latestRevenueDto = revenueList
+      .filter(r => r.vehicleTypeId === null || r.vehicleTypeId === undefined || r.vehicleTypeName === 'Total Revenue')
+      .sort((a, b) => b.startDate.localeCompare(a.startDate))[0];
+
     const revenue = latestRevenueDto ? latestRevenueDto.totalRevenue : 0;
 
     return {
@@ -164,8 +208,9 @@ export default function ManagerDashboard() {
 
   // Daily revenue chart data (filter total revenue records and sort chronologically)
   const chartData = useMemo(() => {
+    // Group and aggregate by date for Total Revenue
     const dailyTotals = revenueList
-      .filter(r => r.vehicleTypeId === null || r.vehicleTypeName === 'Total Revenue')
+      .filter(r => r.vehicleTypeId === null || r.vehicleTypeId === undefined || r.vehicleTypeName === 'Total Revenue')
       .map(r => ({
         date: new Date(r.startDate).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' }),
         rawDate: r.startDate,
@@ -182,8 +227,9 @@ export default function ManagerDashboard() {
   const activities = useMemo<ActivityLog[]>(() => {
     if (!selectedBuildingId) return [];
     
-    return activeSessions
+    return [...activeSessions]
       .filter(s => s.buildingId === selectedBuildingId)
+      .sort((a, b) => new Date(b.checkInTime).getTime() - new Date(a.checkInTime).getTime())
       .slice(0, 5) // Show top 5 active parking sessions
       .map(s => {
         const sessionZone = s.zoneId ? zones.find(z => z.id === s.zoneId) : null;
@@ -194,9 +240,9 @@ export default function ManagerDashboard() {
           id: s.id.toString(),
           time: new Date(s.checkInTime).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
           plate: s.licensePlateIn,
-          type: s.monthlySubscriptionId ? 'subscription' : 'walkin',
-          message: s.monthlySubscriptionId ? 'Monthly Subscriber Check-in' : 'Visitor Check-in',
-          details: `Vehicle ${s.licensePlateIn} entered floor ${floorName} via Card #${s.cardId}.`
+          type: 'walkin',
+          message: 'Visitor Check-in',
+          details: `Vehicle ${s.licensePlateIn} entered floor ${floorName} via Card ${s.cardCode || '#' + s.cardId}.`
         };
       });
   }, [selectedBuildingId, activeSessions, floors, zones]);

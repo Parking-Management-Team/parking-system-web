@@ -340,20 +340,22 @@ export default function BookingWorkspace({
                         {booking.depositAmount.toLocaleString()} đ
                       </td>
                       <td className="px-6 py-4">
-                        <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold capitalize ${
-                          status === 'CONFIRMED'
-                            ? 'bg-emerald-50 text-emerald-700'
-                            : status === 'PENDING'
-                            ? 'bg-amber-50 text-amber-700'
-                            : status === 'CHECKEDIN'
-                            ? 'bg-blue-50 text-blue-700'
-                            : 'bg-rose-50 text-rose-700'
-                        }`}>
-                          <span className={`w-1 h-1 rounded-full ${
-                            status === 'CONFIRMED' ? 'bg-emerald-600' : status === 'PENDING' ? 'bg-amber-600' : status === 'CHECKEDIN' ? 'bg-blue-600' : 'bg-rose-600'
-                          }`} />
-                          {booking.bookingStatus}
-                        </span>
+                        {(() => {
+                          const cfg: Record<string, { bg: string; text: string; dot: string; label: string }> = {
+                            PENDING:   { bg: 'bg-amber-50',   text: 'text-amber-700',   dot: 'bg-amber-500',   label: 'Pending' },
+                            CONFIRMED: { bg: 'bg-emerald-50', text: 'text-emerald-700', dot: 'bg-emerald-500', label: 'Confirmed' },
+                            CHECKEDIN: { bg: 'bg-blue-50',    text: 'text-blue-700',    dot: 'bg-blue-500',    label: 'Checked In' },
+                            CANCELLED: { bg: 'bg-slate-100',  text: 'text-slate-500',   dot: 'bg-slate-400',   label: 'Cancelled' },
+                            EXPIRED:   { bg: 'bg-rose-50',    text: 'text-rose-600',    dot: 'bg-rose-500',    label: 'Expired' },
+                          };
+                          const c = cfg[status] ?? { bg: 'bg-slate-100', text: 'text-slate-500', dot: 'bg-slate-400', label: booking.bookingStatus };
+                          return (
+                            <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold ${c.bg} ${c.text}`}>
+                              <span className={`w-1.5 h-1.5 rounded-full ${c.dot}`} />
+                              {c.label}
+                            </span>
+                          );
+                        })()}
                       </td>
                       <td className="px-6 py-4 text-center">
                         {canCancel ? (

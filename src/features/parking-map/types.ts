@@ -36,6 +36,7 @@ export interface ParkingSessionDto {
   licensePlateIn: string;
   licensePlateOut?: string;
   sessionStatus: string;
+  cardCode?: string;
 }
 
 export interface CardDto {

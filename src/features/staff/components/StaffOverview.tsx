@@ -25,6 +25,8 @@ type ActiveSession = {
   zoneCode?: string | null;
   zoneName?: string | null;
   sessionStatus?: string | null;
+  bookingId?: number | null;
+  monthlySubscriptionId?: number | null;
 };
 
 type PaymentItem = {
@@ -41,16 +43,6 @@ type IncidentItem = {
   incidentName?: string | null;
   licensePlate?: string | null;
   createdAt?: string | null;
-};
-
-type ShiftStats = {
-  vehiclesInParking: number;
-  cashRevenue: number;
-  onlineRevenue: number;
-  openIncidents: number;
-  confirmedBookings: number;
-  upcomingBookings: number;
-  gracePeriodBookings: number;
 };
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -77,23 +69,22 @@ const fmtDate = (iso?: string | null) => {
 const fmtCurrency = (amount: number) =>
   amount.toLocaleString('vi-VN', { style: 'currency', currency: 'VND' });
 
-const getBookingTimeStatus = (booking: Booking): 'upcoming' | 'grace' | 'soon' | 'other' => {
+const getBookingTimeStatus = (booking: Booking): 'grace' | 'soon' | 'upcoming' | 'other' => {
   const now = Date.now();
   const checkin = booking.plannedCheckinTime ? new Date(booking.plannedCheckinTime).getTime() : null;
   const graceUntil = booking.checkinGraceUntil ? new Date(booking.checkinGraceUntil).getTime() : null;
-
   if (checkin === null) return 'other';
-
-  // Đang trong grace period (đã qua giờ checkin nhưng chưa EXPIRED)
   if (graceUntil && now > checkin && now <= graceUntil) return 'grace';
-
-  // Sắp đến giờ (<= 60 phút tới)
   if (checkin > now && checkin - now <= 60 * 60 * 1000) return 'soon';
-
-  // Trong vòng 3 tiếng tới
   if (checkin > now && checkin - now <= 3 * 60 * 60 * 1000) return 'upcoming';
-
   return 'other';
+};
+
+// Xác định loại khách theo session
+const getSessionType = (session: ActiveSession): string => {
+  if (session.monthlySubscriptionId) return 'Monthly';
+  if (session.bookingId) return 'Booking';
+  return 'Walk-in';
 };
 
 // ─── Stat Card ────────────────────────────────────────────────────────────────
@@ -103,6 +94,7 @@ function StatCard({
   label,
   value,
   sub,
+  badge,
   color,
   href,
 }: {
@@ -110,44 +102,43 @@ function StatCard({
   label: string;
   value: string | number;
   sub?: string;
+  badge?: { text: string; color: string } | null;
   color: string;
   href?: string;
 }) {
   const inner = (
-    <div
-      className={`group flex flex-col gap-3 rounded-3xl border bg-white p-5 shadow-sm transition hover:shadow-md ${href ? 'cursor-pointer' : ''}`}
-    >
-      <div className={`flex h-11 w-11 items-center justify-center rounded-2xl ${color}`}>
+    <div className={`group relative flex flex-col gap-3 rounded-2xl border bg-white p-5 shadow-sm transition hover:shadow-md ${href ? 'cursor-pointer' : ''}`}>
+      {badge && (
+        <span className={`absolute right-3 top-3 rounded-full px-2 py-0.5 text-[10px] font-black ${badge.color}`}>
+          {badge.text}
+        </span>
+      )}
+      <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${color}`}>
         <span className="material-symbols-outlined text-xl text-white">{icon}</span>
       </div>
       <div>
-        <p className="text-3xl font-black text-[#111c2d]">{value}</p>
-        <p className="mt-0.5 text-xs font-black uppercase tracking-wider text-slate-400">{label}</p>
+        <p className="text-2xl font-black text-[#111c2d]">{value}</p>
+        <p className="mt-0.5 text-[10px] font-black uppercase tracking-wider text-slate-400">{label}</p>
         {sub && <p className="mt-1 text-xs font-semibold text-slate-500">{sub}</p>}
       </div>
     </div>
   );
-
   return href ? <Link href={href}>{inner}</Link> : inner;
 }
 
-// ─── Booking Review Card ──────────────────────────────────────────────────────
+// ─── Booking Card ─────────────────────────────────────────────────────────────
 
 function BookingCard({ booking }: { booking: Booking }) {
   const status = getBookingTimeStatus(booking);
-
-  const badgeClass =
-    status === 'grace'
-      ? 'bg-red-100 text-red-700 border-red-200'
-      : status === 'soon'
-        ? 'bg-amber-100 text-amber-700 border-amber-200'
-        : 'bg-emerald-100 text-emerald-700 border-emerald-200';
-
-  const badgeLabel =
-    status === 'grace' ? '⚠ In grace period' : status === 'soon' ? '⏰ Coming soon' : '📅 Upcoming';
+  const badgeConfig = {
+    grace:    { cls: 'bg-red-100 text-red-700 border-red-200',    label: '⚠ Grace Period' },
+    soon:     { cls: 'bg-amber-100 text-amber-700 border-amber-200', label: '⏰ Within 1h' },
+    upcoming: { cls: 'bg-emerald-100 text-emerald-700 border-emerald-200', label: '📅 Upcoming' },
+    other:    { cls: 'bg-slate-100 text-slate-600 border-slate-200', label: 'Scheduled' },
+  }[status];
 
   return (
-    <div className="flex flex-col gap-3 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm transition hover:border-slate-200 hover:shadow-md">
+    <div className="flex flex-col gap-3 rounded-xl border border-slate-100 bg-white p-4 shadow-sm transition hover:shadow-md">
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <p className="font-mono text-base font-black text-[#111c2d] truncate">
@@ -157,100 +148,74 @@ function BookingCard({ booking }: { booking: Booking }) {
             {booking.vehicleTypeName || booking.vehicleType || 'Vehicle'} · {booking.buildingName || 'Facility'}
           </p>
         </div>
-        <span className={`shrink-0 rounded-full border px-2.5 py-1 text-[10px] font-black ${badgeClass}`}>
-          {badgeLabel}
+        <span className={`shrink-0 rounded-full border px-2.5 py-1 text-[10px] font-black ${badgeConfig.cls}`}>
+          {badgeConfig.label}
         </span>
       </div>
 
       <div className="grid grid-cols-2 gap-2">
-        <div className="rounded-xl bg-slate-50 p-2.5">
-          <p className="text-[10px] font-black uppercase text-slate-400">Check-in Time</p>
-          <p className="mt-0.5 text-xs font-black text-[#111c2d]">
-            {booking.plannedCheckinTime ? fmtDate(booking.plannedCheckinTime) : '—'}
-          </p>
+        <div className="rounded-lg bg-slate-50 p-2.5">
+          <p className="text-[10px] font-black uppercase text-slate-400">Check-in</p>
+          <p className="mt-0.5 text-xs font-black text-[#111c2d]">{fmtDate(booking.plannedCheckinTime)}</p>
         </div>
-        <div className="rounded-xl bg-slate-50 p-2.5">
-          <p className="text-[10px] font-black uppercase text-slate-400">Check-out Time</p>
-          <p className="mt-0.5 text-xs font-black text-[#111c2d]">
-            {booking.plannedCheckoutTime ? fmtDate(booking.plannedCheckoutTime) : '—'}
-          </p>
+        <div className="rounded-lg bg-slate-50 p-2.5">
+          <p className="text-[10px] font-black uppercase text-slate-400">Check-out</p>
+          <p className="mt-0.5 text-xs font-black text-[#111c2d]">{fmtDate(booking.plannedCheckoutTime)}</p>
         </div>
         {booking.depositAmount > 0 && (
-          <div className="rounded-xl bg-emerald-50 p-2.5">
+          <div className="col-span-2 rounded-lg bg-emerald-50 p-2.5">
             <p className="text-[10px] font-black uppercase text-emerald-500">Deposit Paid</p>
             <p className="mt-0.5 text-xs font-black text-emerald-700">{fmtCurrency(booking.depositAmount)}</p>
           </div>
         )}
         {booking.checkinGraceUntil && (
-          <div className="rounded-xl bg-amber-50 p-2.5">
-            <p className="text-[10px] font-black uppercase text-amber-500">Grace Until</p>
+          <div className="col-span-2 rounded-lg bg-amber-50 p-2.5">
+            <p className="text-[10px] font-black uppercase text-amber-500">Grace Deadline</p>
             <p className="mt-0.5 text-xs font-black text-amber-700">{fmt(booking.checkinGraceUntil)}</p>
           </div>
         )}
       </div>
 
       <p className="text-[10px] font-bold text-slate-400">
-        Booking #{booking.code || `BK-${booking.id}`} · {booking.bookingStatus}
+        {booking.code || `BK-${booking.id}`} · {booking.bookingStatus}
       </p>
     </div>
   );
 }
 
-// ─── Active Session Row ───────────────────────────────────────────────────────
+// ─── Session Row ──────────────────────────────────────────────────────────────
 
 function SessionRow({ session }: { session: ActiveSession }) {
+  const typeLabel = getSessionType(session);
+  const typeBadge: Record<string, string> = {
+    Monthly: 'bg-violet-100 text-violet-700',
+    Booking: 'bg-blue-100 text-blue-700',
+    'Walk-in': 'bg-slate-100 text-slate-600',
+  };
+
   return (
-    <div className="flex items-center gap-3 rounded-2xl border border-slate-100 bg-slate-50/60 px-4 py-3 transition hover:bg-white hover:shadow-sm">
-      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-slate-800 text-white">
-        <span className="material-symbols-outlined text-base">directions_car</span>
+    <div className="flex items-center gap-3 rounded-xl border border-slate-100 bg-slate-50/50 px-4 py-3 transition hover:bg-white hover:shadow-sm">
+      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#111c2d] text-white">
+        <span className="material-symbols-outlined text-sm">directions_car</span>
       </div>
       <div className="min-w-0 flex-1">
-        <p className="font-mono text-sm font-black text-[#111c2d] truncate">
+        <p className="font-mono text-sm font-black text-[#111c2d]">
           {session.licensePlateIn || '—'}
         </p>
         <p className="text-[11px] font-bold text-slate-400 truncate">
-          {session.cardCode || 'No card'} · {session.vehicleTypeName || session.vehicleType || 'Vehicle'}
+          {/* Hiển thị card code nếu có, nếu không thì ẩn */}
+          {session.cardCode ? `${session.cardCode}` : 'No card code'}
+          {' · '}
+          {session.slotCode || session.zoneCode || '—'}
         </p>
       </div>
-      <div className="shrink-0 text-right">
-        <p className="text-xs font-black text-slate-600">{fmt(session.checkInTime)}</p>
-        <p className="text-[10px] font-bold text-slate-400">{session.slotCode || session.zoneCode || '—'}</p>
+      <div className="shrink-0 flex flex-col items-end gap-1">
+        <p className="text-xs font-black text-slate-600">In {fmt(session.checkInTime)}</p>
+        <span className={`rounded-full px-2 py-0.5 text-[9px] font-black ${typeBadge[typeLabel]}`}>
+          {typeLabel}
+        </span>
       </div>
     </div>
-  );
-}
-
-// ─── Quick Action Button ──────────────────────────────────────────────────────
-
-function QuickAction({
-  icon,
-  label,
-  desc,
-  href,
-  color,
-}: {
-  icon: string;
-  label: string;
-  desc: string;
-  href: string;
-  color: string;
-}) {
-  return (
-    <Link
-      href={href}
-      className="group flex items-center gap-4 rounded-3xl border border-slate-100 bg-white p-4 shadow-sm transition hover:shadow-md hover:border-slate-200"
-    >
-      <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl ${color} transition group-hover:scale-110`}>
-        <span className="material-symbols-outlined text-2xl text-white">{icon}</span>
-      </div>
-      <div className="min-w-0">
-        <p className="text-sm font-black text-[#111c2d]">{label}</p>
-        <p className="text-xs font-medium text-slate-500 truncate">{desc}</p>
-      </div>
-      <span className="material-symbols-outlined ml-auto text-slate-300 text-lg group-hover:text-slate-500 transition">
-        arrow_forward
-      </span>
-    </Link>
   );
 }
 
@@ -276,20 +241,21 @@ export default function StaffOverview() {
         api.get<BaseResponse<Booking[]> | Booking[]>('/bookings'),
       ]);
 
-      if (sessionRes.status === 'fulfilled') {
-        setActiveSessions(unwrap(sessionRes.value, []));
-      }
+      if (sessionRes.status === 'fulfilled') setActiveSessions(unwrap(sessionRes.value, []));
+
       if (paymentRes.status === 'fulfilled') {
         const raw = unwrap(paymentRes.value, []);
         setPayments(Array.isArray(raw) ? raw : []);
       }
+
       if (incidentRes.status === 'fulfilled') {
         const raw = unwrap(incidentRes.value, []);
         setIncidents(Array.isArray(raw) ? raw : []);
       }
+
       if (bookingRes.status === 'fulfilled') {
         const raw = unwrap(bookingRes.value, []);
-        const mapped = (Array.isArray(raw) ? raw : []).map((item: any) => ({
+        const mapped = (Array.isArray(raw) ? raw : []).map((item: any): Booking => ({
           id: item.id,
           code: item.code || `BK-${item.id}`,
           accountId: item.accountId,
@@ -329,128 +295,98 @@ export default function StaffOverview() {
 
   useEffect(() => {
     void loadDashboard();
-    // Auto-refresh mỗi 2 phút
     const interval = setInterval(() => void loadDashboard(), 2 * 60 * 1000);
     return () => clearInterval(interval);
   }, [loadDashboard]);
 
-  // ── Computed stats ────────────────────────────────────────────────────────
+  // ── Shift detection ───────────────────────────────────────────────────────
 
-  const shiftStart = useMemo(() => {
+  const { shiftStart, shiftLabel } = useMemo(() => {
     const now = new Date();
     const h = now.getHours();
-    // Ca sáng: 06-14, Ca chiều: 14-22, Ca đêm: 22-06
+    let label: string;
+    let start: Date;
     if (h >= 6 && h < 14) {
-      return new Date(now.getFullYear(), now.getMonth(), now.getDate(), 6, 0, 0);
+      label = 'Morning Shift (06:00 – 14:00)';
+      start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 6, 0, 0);
     } else if (h >= 14 && h < 22) {
-      return new Date(now.getFullYear(), now.getMonth(), now.getDate(), 14, 0, 0);
+      label = 'Afternoon Shift (14:00 – 22:00)';
+      start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 14, 0, 0);
     } else {
-      const d = h >= 22 ? new Date(now) : new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
+      label = 'Night Shift (22:00 – 06:00)';
+      const d = new Date(now);
       if (h < 6) d.setDate(d.getDate() - 1);
-      return new Date(d.getFullYear(), d.getMonth(), d.getDate(), 22, 0, 0);
+      start = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 22, 0, 0);
     }
+    return { shiftStart: start, shiftLabel: label };
   }, []);
 
-  const shiftLabel = useMemo(() => {
-    const h = new Date().getHours();
-    if (h >= 6 && h < 14) return 'Morning (06:00 – 14:00)';
-    if (h >= 14 && h < 22) return 'Afternoon (14:00 – 22:00)';
-    return 'Night (22:00 – 06:00)';
-  }, []);
+  // ── Computed ──────────────────────────────────────────────────────────────
 
-  const stats = useMemo<ShiftStats>(() => {
-    const shiftPayments = payments.filter(p => {
-      if (!p.paymentTime) return false;
-      return new Date(p.paymentTime) >= shiftStart && p.paymentStatus === 'PAID';
-    });
-
-    const cashRevenue = shiftPayments
-      .filter(p => p.paymentMethod?.toLowerCase().includes('cash'))
-      .reduce((sum, p) => sum + (p.amount || 0), 0);
-
-    const onlineRevenue = shiftPayments
-      .filter(p => !p.paymentMethod?.toLowerCase().includes('cash'))
-      .reduce((sum, p) => sum + (p.amount || 0), 0);
-
-    const confirmedBookings = bookings.filter(
-      b => b.bookingStatus?.toUpperCase() === 'CONFIRMED'
-    ).length;
-
-    const upcomingBookings = bookings.filter(
-      b => b.bookingStatus?.toUpperCase() === 'CONFIRMED' && ['soon', 'upcoming'].includes(getBookingTimeStatus(b))
-    ).length;
-
-    const gracePeriodBookings = bookings.filter(
-      b => b.bookingStatus?.toUpperCase() === 'CONFIRMED' && getBookingTimeStatus(b) === 'grace'
-    ).length;
-
+  const { cashRevenue, onlineRevenue } = useMemo(() => {
+    const shiftPayments = payments.filter(
+      p => p.paymentStatus === 'PAID' && p.paymentTime && new Date(p.paymentTime) >= shiftStart
+    );
     return {
-      vehiclesInParking: activeSessions.length,
-      cashRevenue,
-      onlineRevenue,
-      openIncidents: incidents.filter(i => i.status === 'OPEN').length,
-      confirmedBookings,
-      upcomingBookings,
-      gracePeriodBookings,
+      cashRevenue: shiftPayments
+        .filter(p => p.paymentMethod?.toLowerCase().includes('cash'))
+        .reduce((s, p) => s + (p.amount || 0), 0),
+      onlineRevenue: shiftPayments
+        .filter(p => !p.paymentMethod?.toLowerCase().includes('cash'))
+        .reduce((s, p) => s + (p.amount || 0), 0),
     };
-  }, [activeSessions, payments, incidents, bookings, shiftStart]);
+  }, [payments, shiftStart]);
 
-  // Bookings cần Staff chú ý: grace period + sắp đến giờ (1h)
-  const priorityBookings = useMemo(
-    () =>
-      bookings
-        .filter(b => {
-          const st = getBookingTimeStatus(b);
-          return (
-            b.bookingStatus?.toUpperCase() === 'CONFIRMED' && (st === 'grace' || st === 'soon' || st === 'upcoming')
-          );
-        })
-        .sort((a, b) => {
-          const order = { grace: 0, soon: 1, upcoming: 2, other: 3 };
-          return order[getBookingTimeStatus(a)] - order[getBookingTimeStatus(b)];
-        }),
-    [bookings]
+  const openIncidents = useMemo(
+    () => incidents.filter(i => i.status === 'OPEN' || i.status === 'PROCESSING'),
+    [incidents]
   );
 
-  const displayedSessions = showAllSessions ? activeSessions : activeSessions.slice(0, 5);
+  const { priorityBookings, confirmedCount, graceCount, soonCount } = useMemo(() => {
+    const confirmed = bookings.filter(b => b.bookingStatus?.toUpperCase() === 'CONFIRMED');
+    const priority = confirmed
+      .filter(b => getBookingTimeStatus(b) !== 'other')
+      .sort((a, b) => {
+        const o = { grace: 0, soon: 1, upcoming: 2, other: 3 };
+        return o[getBookingTimeStatus(a)] - o[getBookingTimeStatus(b)];
+      });
+    const grace = confirmed.filter(b => getBookingTimeStatus(b) === 'grace').length;
+    const soon = confirmed.filter(b => getBookingTimeStatus(b) === 'soon').length;
+    return { priorityBookings: priority, confirmedCount: confirmed.length, graceCount: grace, soonCount: soon };
+  }, [bookings]);
+
+  const displayedSessions = showAllSessions ? activeSessions : activeSessions.slice(0, 6);
   const displayedBookings = showAllBookings ? priorityBookings : priorityBookings.slice(0, 4);
 
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-5 p-6">
+
       {/* ── Header ── */}
-      <div className="flex flex-col gap-3 rounded-3xl border border-slate-100 bg-white p-5 shadow-sm lg:flex-row lg:items-center lg:justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <p className="text-xs font-black uppercase tracking-[0.2em] text-[#006d43]">Staff Portal</p>
-          <h1 className="mt-1 text-2xl font-black text-[#111c2d]">Operational Dashboard</h1>
-          <p className="mt-1 text-sm font-medium text-slate-500">
-            Theo dõi vận hành và điều phối cổng vào/ra theo thời gian thực.
-          </p>
+          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#006d43]">Staff Portal</p>
+          <h1 className="mt-0.5 text-xl font-black text-[#111c2d]">Operational Dashboard</h1>
+          <p className="mt-0.5 text-sm font-medium text-slate-500">{shiftLabel}</p>
         </div>
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="flex items-center gap-2 rounded-2xl border border-slate-100 bg-slate-50 px-4 py-2.5 text-sm">
-            <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
-            <span className="font-bold text-slate-700">{shiftLabel}</span>
-          </div>
-          <button
-            type="button"
-            onClick={() => void loadDashboard()}
-            disabled={loading}
-            className="inline-flex items-center gap-2 rounded-2xl bg-[#111c2d] px-4 py-2.5 text-sm font-black text-white transition hover:bg-[#263143] disabled:opacity-60"
-          >
-            <span className={`material-symbols-outlined text-lg ${loading ? 'animate-spin' : ''}`}>refresh</span>
-            Refresh
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={() => void loadDashboard()}
+          disabled={loading}
+          className="inline-flex items-center gap-2 rounded-xl bg-[#111c2d] px-4 py-2 text-sm font-black text-white transition hover:bg-[#263143] disabled:opacity-60 self-start sm:self-auto"
+        >
+          <span className={`material-symbols-outlined text-base ${loading ? 'animate-spin' : ''}`}>refresh</span>
+          Refresh
+        </button>
       </div>
 
-      {/* ── Stats Cards ── */}
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+      {/* ── Stats Row ── */}
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <StatCard
           icon="directions_car"
           label="In Parking Now"
-          value={stats.vehiclesInParking}
+          value={activeSessions.length}
           sub="Active sessions"
           color="bg-[#111c2d]"
           href="/dashboard/staff/monitoring"
@@ -458,254 +394,195 @@ export default function StaffOverview() {
         <StatCard
           icon="event_available"
           label="Confirmed Bookings"
-          value={stats.confirmedBookings}
-          sub={
-            stats.gracePeriodBookings > 0
-              ? `${stats.gracePeriodBookings} in grace!`
-              : stats.upcomingBookings > 0
-                ? `${stats.upcomingBookings} within 3h`
-                : 'No upcoming soon'
-          }
-          color={stats.gracePeriodBookings > 0 ? 'bg-red-500' : stats.upcomingBookings > 0 ? 'bg-amber-500' : 'bg-[#006d43]'}
+          value={confirmedCount}
+          sub={graceCount > 0 ? `${graceCount} in grace!` : soonCount > 0 ? `${soonCount} within 1h` : 'No urgent bookings'}
+          badge={graceCount > 0 ? { text: '!', color: 'bg-red-500 text-white' } : null}
+          color={graceCount > 0 ? 'bg-red-500' : soonCount > 0 ? 'bg-amber-500' : 'bg-[#006d43]'}
         />
         <StatCard
           icon="warning"
           label="Open Incidents"
-          value={stats.openIncidents}
-          sub={stats.openIncidents > 0 ? 'Need attention' : 'All clear'}
-          color={stats.openIncidents > 0 ? 'bg-red-500' : 'bg-[#006d43]'}
+          value={openIncidents.length}
+          sub={openIncidents.length > 0 ? 'Need attention' : 'All clear'}
+          color={openIncidents.length > 0 ? 'bg-red-500' : 'bg-[#006d43]'}
           href="/dashboard/staff/incident"
         />
         <StatCard
           icon="payments"
           label="Shift Revenue"
-          value={fmtCurrency(stats.cashRevenue + stats.onlineRevenue)}
-          sub={`Cash: ${fmtCurrency(stats.cashRevenue)}`}
+          value={fmtCurrency(cashRevenue + onlineRevenue)}
+          sub={`Cash ${fmtCurrency(cashRevenue)} · Online ${fmtCurrency(onlineRevenue)}`}
           color="bg-violet-500"
         />
       </div>
 
-      {/* ── Main content: 2 columns ── */}
-      <div className="grid gap-6 lg:grid-cols-[1fr_340px]">
-        {/* Left: Booking Review + Active Sessions */}
-        <div className="space-y-6">
-          {/* ── Booking Review ── */}
-          <div className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <p className="text-xs font-black uppercase tracking-[0.18em] text-[#006d43]">Booking Review</p>
-                <h2 className="mt-1 text-lg font-black text-[#111c2d]">
-                  Incoming Reservations
-                </h2>
-                <p className="mt-0.5 text-sm font-medium text-slate-500">
-                  Booking CONFIRMED sắp đến giờ hoặc đang trong grace period.
-                </p>
-              </div>
-              <div className="flex items-center gap-2">
-                {stats.gracePeriodBookings > 0 && (
-                  <span className="rounded-full bg-red-100 px-3 py-1 text-xs font-black text-red-700">
-                    {stats.gracePeriodBookings} Grace
-                  </span>
-                )}
-                {stats.upcomingBookings > 0 && (
-                  <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-black text-amber-700">
-                    {stats.upcomingBookings} Soon
-                  </span>
-                )}
-              </div>
+      {/* ── Main 2-col ── */}
+      <div className="grid gap-5 lg:grid-cols-[1fr_340px]">
+
+        {/* Left: Booking Review */}
+        <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
+          <div className="flex items-center justify-between gap-2 mb-4">
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#006d43]">Booking Review</p>
+              <h2 className="mt-0.5 text-base font-black text-[#111c2d]">Incoming Reservations</h2>
+              <p className="mt-0.5 text-xs font-medium text-slate-400">
+                Booking CONFIRMED sắp đến giờ hoặc đang trong grace period
+              </p>
             </div>
-
-            <div className="mt-4">
-              {loading && priorityBookings.length === 0 ? (
-                <div className="flex flex-col items-center gap-3 py-10">
-                  <div className="h-8 w-8 animate-spin rounded-full border-4 border-slate-200 border-t-[#006d43]"></div>
-                  <p className="text-sm font-bold text-slate-400">Loading bookings...</p>
-                </div>
-              ) : displayedBookings.length === 0 ? (
-                <div className="rounded-2xl border border-dashed border-slate-200 py-10 text-center">
-                  <span className="material-symbols-outlined text-5xl text-slate-300">event_available</span>
-                  <p className="mt-2 text-sm font-bold text-slate-400">Không có booking nào cần chú ý ngay lúc này.</p>
-                  <p className="mt-1 text-xs font-medium text-slate-400">
-                    {stats.confirmedBookings > 0
-                      ? `${stats.confirmedBookings} booking CONFIRMED nhưng chưa đến giờ.`
-                      : 'Không có booking nào đang CONFIRMED.'}
-                  </p>
-                </div>
-              ) : (
-                <>
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    {displayedBookings.map(b => (
-                      <BookingCard key={b.id} booking={b} />
-                    ))}
-                  </div>
-
-                  {priorityBookings.length > 4 && (
-                    <button
-                      type="button"
-                      onClick={() => setShowAllBookings(prev => !prev)}
-                      className="mt-3 w-full rounded-2xl border border-slate-200 bg-slate-50 py-2.5 text-sm font-black text-slate-600 transition hover:bg-slate-100"
-                    >
-                      {showAllBookings
-                        ? 'Show less'
-                        : `Show ${priorityBookings.length - 4} more bookings`}
-                    </button>
-                  )}
-                </>
+            <div className="flex gap-1.5 shrink-0">
+              {graceCount > 0 && (
+                <span className="rounded-full bg-red-100 px-2.5 py-1 text-[10px] font-black text-red-700">
+                  {graceCount} Grace
+                </span>
+              )}
+              {soonCount > 0 && (
+                <span className="rounded-full bg-amber-100 px-2.5 py-1 text-[10px] font-black text-amber-700">
+                  {soonCount} Soon
+                </span>
               )}
             </div>
+          </div>
 
+          {loading && priorityBookings.length === 0 ? (
+            <div className="flex flex-col items-center gap-2 py-10">
+              <div className="h-7 w-7 animate-spin rounded-full border-4 border-slate-200 border-t-[#006d43]"></div>
+              <p className="text-xs font-bold text-slate-400">Loading...</p>
+            </div>
+          ) : displayedBookings.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-slate-200 py-10 text-center">
+              <span className="material-symbols-outlined text-4xl text-slate-300">event_available</span>
+              <p className="mt-2 text-sm font-bold text-slate-400">Không có booking nào cần xử lý ngay.</p>
+              <p className="mt-1 text-xs text-slate-400">
+                {confirmedCount > 0 ? `${confirmedCount} booking đang CONFIRMED nhưng chưa đến giờ.` : 'Không có booking CONFIRMED.'}
+              </p>
+            </div>
+          ) : (
+            <>
+              <div className="grid gap-3 sm:grid-cols-2">
+                {displayedBookings.map(b => <BookingCard key={b.id} booking={b} />)}
+              </div>
+              {priorityBookings.length > 4 && (
+                <button
+                  type="button"
+                  onClick={() => setShowAllBookings(p => !p)}
+                  className="mt-3 w-full rounded-xl border border-slate-200 bg-slate-50 py-2 text-xs font-black text-slate-600 hover:bg-slate-100 transition"
+                >
+                  {showAllBookings ? 'Show less' : `+${priorityBookings.length - 4} more bookings`}
+                </button>
+              )}
+            </>
+          )}
+
+          <Link
+            href="/dashboard/staff/bookings"
+            className="mt-4 flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 py-2 text-xs font-black text-slate-500 hover:bg-slate-50 transition"
+          >
+            View all bookings
+            <span className="material-symbols-outlined text-sm">arrow_forward</span>
+          </Link>
+        </div>
+
+        {/* Right: Live Sessions */}
+        <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
+          <div className="flex items-center justify-between gap-2 mb-4">
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#006d43]">Live</p>
+              <h2 className="mt-0.5 text-base font-black text-[#111c2d]">
+                Vehicles In Parking
+                <span className="ml-2 rounded-full bg-slate-100 px-2 py-0.5 text-sm font-black text-slate-600">
+                  {activeSessions.length}
+                </span>
+              </h2>
+            </div>
             <Link
-              href="/dashboard/staff/bookings"
-              className="mt-4 flex items-center justify-center gap-2 rounded-2xl border border-slate-200 py-2.5 text-sm font-black text-slate-600 transition hover:bg-slate-50"
+              href="/dashboard/staff/monitoring"
+              className="text-xs font-black text-[#006d43] hover:underline"
             >
-              View all bookings
-              <span className="material-symbols-outlined text-base">arrow_forward</span>
+              Slot map →
             </Link>
           </div>
 
-          {/* ── Active Sessions ── */}
-          <div className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <p className="text-xs font-black uppercase tracking-[0.18em] text-[#006d43]">Live</p>
-                <h2 className="mt-1 text-lg font-black text-[#111c2d]">
-                  Vehicles In Parking
-                  <span className="ml-2 rounded-full bg-slate-100 px-2.5 py-0.5 text-sm font-black text-slate-600">
-                    {activeSessions.length}
-                  </span>
-                </h2>
+          {/* Breakdown mini stats */}
+          <div className="mb-3 grid grid-cols-3 gap-2">
+            {[
+              { label: 'Walk-in', count: activeSessions.filter(s => !s.bookingId && !s.monthlySubscriptionId).length, color: 'text-slate-600 bg-slate-50' },
+              { label: 'Booking', count: activeSessions.filter(s => s.bookingId).length, color: 'text-blue-600 bg-blue-50' },
+              { label: 'Monthly', count: activeSessions.filter(s => s.monthlySubscriptionId).length, color: 'text-violet-600 bg-violet-50' },
+            ].map(g => (
+              <div key={g.label} className={`rounded-lg px-2 py-2 text-center ${g.color}`}>
+                <p className="text-base font-black">{g.count}</p>
+                <p className="text-[10px] font-black uppercase">{g.label}</p>
               </div>
-              <Link
-                href="/dashboard/staff/monitoring"
-                className="text-xs font-black text-[#006d43] hover:underline"
-              >
-                Full monitoring →
-              </Link>
-            </div>
-
-            <div className="mt-4 space-y-2">
-              {loading && activeSessions.length === 0 ? (
-                <div className="flex items-center justify-center py-8">
-                  <div className="h-7 w-7 animate-spin rounded-full border-4 border-slate-200 border-t-[#006d43]"></div>
-                </div>
-              ) : displayedSessions.length === 0 ? (
-                <div className="rounded-2xl border border-dashed border-slate-200 py-8 text-center">
-                  <span className="material-symbols-outlined text-4xl text-slate-300">garage</span>
-                  <p className="mt-2 text-sm font-bold text-slate-400">Bãi xe đang trống.</p>
-                </div>
-              ) : (
-                <>
-                  {displayedSessions.map(s => (
-                    <SessionRow key={s.id} session={s} />
-                  ))}
-                  {activeSessions.length > 5 && (
-                    <button
-                      type="button"
-                      onClick={() => setShowAllSessions(p => !p)}
-                      className="w-full rounded-2xl border border-slate-200 bg-slate-50 py-2.5 text-sm font-black text-slate-600 transition hover:bg-slate-100"
-                    >
-                      {showAllSessions
-                        ? 'Show less'
-                        : `Show ${activeSessions.length - 5} more vehicles`}
-                    </button>
-                  )}
-                </>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Right: Shift Summary + Quick Actions */}
-        <div className="space-y-6">
-          {/* ── Shift Summary ── */}
-          <div className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
-            <p className="text-xs font-black uppercase tracking-[0.18em] text-[#006d43]">Shift Summary</p>
-            <h2 className="mt-1 text-lg font-black text-[#111c2d]">{shiftLabel}</h2>
-
-            <div className="mt-4 space-y-3">
-              {[
-                { label: 'Vehicles In Parking', value: String(stats.vehiclesInParking), icon: 'directions_car', color: 'text-[#111c2d]' },
-                { label: 'Open Incidents', value: String(stats.openIncidents), icon: 'warning', color: stats.openIncidents > 0 ? 'text-red-600' : 'text-slate-600' },
-                { label: 'Confirmed Bookings', value: String(stats.confirmedBookings), icon: 'event_available', color: 'text-[#006d43]' },
-                { label: 'In Grace Period', value: String(stats.gracePeriodBookings), icon: 'schedule', color: stats.gracePeriodBookings > 0 ? 'text-amber-600' : 'text-slate-600' },
-              ].map(row => (
-                <div key={row.label} className="flex items-center gap-3 rounded-2xl bg-slate-50 px-4 py-3">
-                  <span className={`material-symbols-outlined text-xl ${row.color}`}>{row.icon}</span>
-                  <span className="flex-1 text-sm font-bold text-slate-600">{row.label}</span>
-                  <span className={`text-xl font-black ${row.color}`}>{row.value}</span>
-                </div>
-              ))}
-            </div>
-
-            <div className="mt-4 rounded-2xl bg-[#006d43]/5 border border-[#006d43]/10 p-4">
-              <p className="text-[10px] font-black uppercase tracking-wider text-[#006d43]">Shift Revenue</p>
-              <p className="mt-1 text-2xl font-black text-[#111c2d]">
-                {fmtCurrency(stats.cashRevenue + stats.onlineRevenue)}
-              </p>
-              <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
-                <div>
-                  <p className="font-bold text-slate-400">Cash</p>
-                  <p className="font-black text-slate-700">{fmtCurrency(stats.cashRevenue)}</p>
-                </div>
-                <div>
-                  <p className="font-bold text-slate-400">Online</p>
-                  <p className="font-black text-slate-700">{fmtCurrency(stats.onlineRevenue)}</p>
-                </div>
-              </div>
-            </div>
+            ))}
           </div>
 
-          {/* ── Quick Actions ── */}
-          <div className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
-            <p className="text-xs font-black uppercase tracking-[0.18em] text-[#006d43]">Quick Actions</p>
-            <h2 className="mt-1 text-lg font-black text-[#111c2d]">Jump To</h2>
-            <div className="mt-4 space-y-2">
-              <QuickAction
-                icon="login"
-                label="Vehicle Check-in"
-                desc="Ghi nhận xe vào cổng"
-                href="/dashboard/staff/check-in"
-                color="bg-emerald-500"
-              />
-              <QuickAction
-                icon="logout"
-                label="Vehicle Check-out"
-                desc="Thanh toán & cho xe ra"
-                href="/dashboard/staff/check-out"
-                color="bg-[#111c2d]"
-              />
-              <QuickAction
-                icon="grid_view"
-                label="Slot Monitoring"
-                desc="Xem tình trạng chỗ đỗ"
-                href="/dashboard/staff/monitoring"
-                color="bg-blue-500"
-              />
-              <QuickAction
-                icon="warning"
-                label="Incident Reports"
-                desc="Xử lý sự cố và báo cáo"
-                href="/dashboard/staff/incident"
-                color="bg-red-500"
-              />
-              <QuickAction
-                icon="event_available"
-                label="Bookings"
-                desc="Danh sách đặt chỗ trước"
-                href="/dashboard/staff/bookings"
-                color="bg-violet-500"
-              />
-              <QuickAction
-                icon="credit_card"
-                label="Card Management"
-                desc="Quản lý thẻ gửi xe"
-                href="/dashboard/staff/cards"
-                color="bg-amber-500"
-              />
+          <div className="space-y-2">
+            {loading && activeSessions.length === 0 ? (
+              <div className="flex items-center justify-center py-8">
+                <div className="h-6 w-6 animate-spin rounded-full border-4 border-slate-200 border-t-[#006d43]"></div>
+              </div>
+            ) : displayedSessions.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-slate-200 py-8 text-center">
+                <span className="material-symbols-outlined text-4xl text-slate-300">garage</span>
+                <p className="mt-2 text-sm font-bold text-slate-400">Bãi xe đang trống.</p>
+              </div>
+            ) : (
+              <>
+                {displayedSessions.map(s => <SessionRow key={s.id} session={s} />)}
+                {activeSessions.length > 6 && (
+                  <button
+                    type="button"
+                    onClick={() => setShowAllSessions(p => !p)}
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2 text-xs font-black text-slate-600 hover:bg-slate-100 transition"
+                  >
+                    {showAllSessions ? 'Show less' : `+${activeSessions.length - 6} more`}
+                  </button>
+                )}
+              </>
+            )}
+          </div>
+
+          {/* Revenue summary nhỏ gọn dưới session list */}
+          <div className="mt-4 rounded-xl bg-[#006d43]/5 border border-[#006d43]/10 p-3">
+            <p className="text-[10px] font-black uppercase tracking-wider text-[#006d43]">Shift Revenue</p>
+            <p className="mt-1 text-lg font-black text-[#111c2d]">
+              {fmtCurrency(cashRevenue + onlineRevenue)}
+            </p>
+            <div className="mt-1.5 flex gap-4 text-[10px]">
+              <span><span className="font-bold text-slate-400">Cash</span> <span className="font-black text-slate-600">{fmtCurrency(cashRevenue)}</span></span>
+              <span><span className="font-bold text-slate-400">Online</span> <span className="font-black text-slate-600">{fmtCurrency(onlineRevenue)}</span></span>
             </div>
           </div>
         </div>
       </div>
+
+      {/* ── Open Incidents strip ── */}
+      {openIncidents.length > 0 && (
+        <div className="rounded-2xl border border-red-100 bg-red-50 p-4">
+          <div className="flex items-center justify-between gap-2 mb-3">
+            <div className="flex items-center gap-2">
+              <span className="material-symbols-outlined text-xl text-red-600">warning</span>
+              <p className="text-sm font-black text-red-700">
+                {openIncidents.length} Incident{openIncidents.length > 1 ? 's' : ''} cần xử lý
+              </p>
+            </div>
+            <Link href="/dashboard/staff/incident" className="text-xs font-black text-red-600 hover:underline">
+              Xem tất cả →
+            </Link>
+          </div>
+          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            {openIncidents.slice(0, 3).map(inc => (
+              <div key={inc.id} className="flex items-center gap-2 rounded-xl bg-white border border-red-100 px-3 py-2.5">
+                <div className="h-2 w-2 rounded-full bg-red-500 animate-pulse shrink-0"></div>
+                <div className="min-w-0">
+                  <p className="text-xs font-black text-[#111c2d] truncate">{inc.incidentName || 'Incident'}</p>
+                  <p className="text-[10px] font-bold text-slate-500">{inc.licensePlate || '—'} · {fmt(inc.createdAt)}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

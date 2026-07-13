@@ -1,187 +1,153 @@
-# Staff Portal - Backend API Requests for BE Team
+# Staff Portal - Backend API Requests
 
-Date: 2026-07-14
-Priority: P1 = Critical, P2 = Important, P3 = Nice to have
-
-## Summary
-
-List of missing APIs/fields that the Staff Portal Frontend needs in order to function fully.
+> **Ngày:** 2026-07-14  
+> **Người yêu cầu:** FE Staff Team  
+> **Mục tiêu:** Liệt kê các **chức năng trên màn hình Staff** đang bị thiếu hoặc không hoạt động đúng vì BE chưa hỗ trợ.
 
 ---
 
-## P1 - Critical (Needs to be done immediately)
+## 🔴 P1 – Chức năng bị ảnh hưởng ngay, cần làm trước
 
-### 1. Add fields to ParkingSessionDto
+### 1. Màn Check-in – Staff không biết booking có còn trong thời hạn check-in không
 
-Endpoints affected:
-- `GET /api/parking-sessions/active`
-- `GET /api/parking-sessions`
-- `POST /api/parking-sessions/check-in` (response)
-- `PATCH /api/parking-sessions/{id}/slot` (response)
+**Màn hình:** `/dashboard/staff/check-in`  
+**Vấn đề:** Khi Staff quét biển số xe và tra cứu booking, API hiện tại không trả về:
+- `plannedCheckinTime` — giờ check-in dự kiến của booking
+- `checkinGraceUntil` — deadline cuối cùng để check-in (= plannedCheckinTime + grace minutes)
+- `depositAmount` — số tiền cọc khách đã nộp
 
-Fields to add:
-```csharp
-public int? VehicleTypeId { get; set; }
-public string? VehicleTypeName { get; set; }
-public DateTime? PlannedCheckoutTime { get; set; }
-public string? ZoneName { get; set; }
-public string? CardStatus { get; set; }
+**Hậu quả:** Staff không biết booking còn hợp lệ không, không thấy được thông tin cọc để thông báo cho khách. Các field này hiện hiển thị `—` hoặc `0`.
+
+**API cần sửa:**
+```
+GET /api/parking-sessions/check-in/booking?licensePlate={plate}&buildingId={buildingId}
 ```
 
-Desired response example:
+**Fields cần thêm vào response:**
 ```json
 {
-  "id": 1,
-  "vehicleTypeId": 1,
-  "vehicleTypeName": "Car",
-  "plannedCheckoutTime": "2026-07-14T18:00:00Z",
-  "zoneCode": "CZ-F1",
-  "zoneName": "Car Zone F1",
-  "cardId": 1,
-  "cardCode": "CARD001",
-  "cardStatus": "ASSIGNED"
+  "plannedCheckinTime": "2026-07-14T10:00:00Z",
+  "checkinGraceUntil": "2026-07-14T10:30:00Z",
+  "depositAmount": 50000,
+  "bookingStatus": "Confirmed"
 }
 ```
 
-**Reason:** FE currently has to call additional `/vehicle-types` and `/cards` endpoints to map data, which is error-prone and wastes extra requests.
-
 ---
 
-### 2. Add fields to BookingDto
+### 2. Màn Bookings – Danh sách booking thiếu thông tin thời gian và cọc
 
-Endpoints affected:
-- `GET /api/bookings`
-- `GET /api/bookings/by-building/{buildingId}`
-- `GET /api/parking-sessions/check-in/booking?licensePlate=&buildingId=`
+**Màn hình:** `/dashboard/staff/bookings`  
+**Vấn đề:** API `/api/bookings` hiện không trả `plannedCheckinTime`, `checkinGraceUntil`, `depositAmount`. Staff không thể:
+- Biết booking nào sắp đến giờ (trong 1 tiếng)
+- Biết booking nào đang trong grace period (quá giờ nhưng chưa EXPIRED)
+- Thấy số tiền cọc đã thanh toán
 
-Fields to add:
-```csharp
-public DateTime? PlannedCheckinTime { get; set; }
-public decimal DepositAmount { get; set; }
-public DateTime? CheckinGraceUntil { get; set; }  // = plannedCheckinTime + checkinGraceMinutes
-public bool IsWithinGrace { get; set; }  // server-computed: now <= checkinGraceUntil
+**Hậu quả:** Dashboard Booking Review không hiển thị được trạng thái ưu tiên xử lý. Toàn bộ badge "Grace Period / Within 1h / Upcoming" không hoạt động.
+
+**API cần sửa:**
+```
+GET /api/bookings
 ```
 
-Desired response example:
+**Fields cần thêm:**
 ```json
 {
-  "id": 1,
-  "bookingStatus": "Confirmed",
   "plannedCheckinTime": "2026-07-14T10:00:00Z",
   "plannedCheckoutTime": "2026-07-14T18:00:00Z",
-  "depositAmount": 50000,
   "checkinGraceUntil": "2026-07-14T10:30:00Z",
-  "isWithinGrace": false
+  "depositAmount": 50000
 }
 ```
 
-**Reason:** Staff Dashboard Booking Review needs to display upcoming bookings and bookings currently within their grace period. Currently FE does not have enough data to compute this.
-
 ---
 
-## P2 - Important (Needs to be done next sprint)
+## 🟡 P2 – Chức năng bị hạn chế, cần làm trong sprint tới
 
-### 3. Fee Preview API (no side-effect)
+### 3. Màn Slot Monitoring – Staff không xem được phí xe đang trong bãi
 
-New endpoint:
+**Màn hình:** `/dashboard/staff/monitoring` → modal xem slot đang có xe  
+**Vấn đề:** Staff muốn xem phí hiện tại của xe đang gửi (để báo cho khách trước khi checkout). Nhưng API duy nhất tính phí hiện tại là:
+```
+PATCH /api/parking-sessions/{id}/checkout/start
+```
+API này **có side-effect** (ghi nhận giờ ra thật), nên FE không được gọi chỉ để xem tiền.
+
+**Hậu quả:** Modal slot detail không hiển thị phí dự kiến. FE đã chuẩn bị UI nhưng bị comment out vì không có API an toàn.
+
+**API mới cần tạo:**
 ```
 GET /api/parking-sessions/{id}/fee-preview
 ```
 
-**IMPORTANT: This endpoint MUST NOT:**
-- Update `checkOutTime`
-- Change session status
-- Create a payment record
-- Release the card or slot
+**Yêu cầu quan trọng:** Endpoint này KHÔNG ĐƯỢC làm bất kỳ thay đổi nào:
+- ❌ Không ghi `checkOutTime`
+- ❌ Không đổi trạng thái session
+- ❌ Không tạo payment
+- ❌ Không release card/slot
 
-Desired response:
+**Response mong muốn:**
 ```json
 {
-  "success": true,
-  "data": {
-    "sessionId": 1,
-    "parkingFee": 30000,
-    "incidentFeeTotal": 100000,
-    "totalAmount": 130000,
-    "calculatedAt": "2026-07-14T10:00:00Z",
-    "breakdown": [
-      { "name": "Parking fee", "amount": 30000, "type": "PARKING" },
-      { "name": "Lost card", "amount": 100000, "type": "INCIDENT", "incidentId": 1 }
-    ]
-  }
-}
-```
-
-**Reason:** Staff Slot Monitoring wants to display the current parking fee for an occupied slot but cannot call checkout/start because those have side-effects (recording check-out time, releasing resources, etc.).
-
----
-
-### 4. Add fields to IncidentDto
-
-Endpoints affected:
-- `GET /api/Incident`
-- `GET /api/Incident/{id}`
-- `GET /api/Incident/session/{sessionId}`
-
-Fields to add:
-```csharp
-public string? IncidentCode { get; set; }
-public int? CardId { get; set; }
-public string? CardCode { get; set; }
-public int? VehicleId { get; set; }
-public int? VehicleTypeId { get; set; }
-public string? VehicleTypeName { get; set; }
-```
-
-**Reason:** Staff Incident view currently cannot display card and vehicle information associated with an incident without additional API calls.
-
----
-
-### 5. Payment Response - Fee Breakdown
-
-Endpoints affected:
-- `POST /api/payments` (response)
-
-Fields to add:
-```csharp
-public decimal ParkingFee { get; set; }
-public decimal IncidentFees { get; set; }
-public List<PaymentBreakdownItem> Details { get; set; }
-```
-
-Desired response addition:
-```json
-{
-  "amount": 130000,
+  "sessionId": 1,
   "parkingFee": 30000,
-  "incidentFees": 100000,
-  "details": [
-    { "name": "Parking fee", "amount": 30000 },
-    { "name": "Lost card", "amount": 100000, "incidentId": 1 }
+  "incidentFeeTotal": 100000,
+  "totalAmount": 130000,
+  "calculatedAt": "2026-07-14T10:00:00Z",
+  "breakdown": [
+    { "name": "Parking fee", "amount": 30000, "type": "PARKING" },
+    { "name": "Lost card penalty", "amount": 100000, "type": "INCIDENT", "incidentId": 1 }
   ]
 }
 ```
 
-**Reason:** Staff checkout flow needs to show a clear breakdown of what was charged so the staff can confirm with the customer before payment.
+---
+
+### 4. Màn Check-in – Không kiểm tra được blacklist theo biển số/thẻ một cách chính xác
+
+**Màn hình:** `/dashboard/staff/check-in`  
+**Vấn đề:** FE hiện load toàn bộ blacklist (`GET /api/Blacklist`) rồi tự lọc client-side theo biển số. Cách này:
+- Chậm (load cả nghìn record)
+- Không kiểm tra được card code
+- Không biết lý do bị block để thông báo cho khách
+
+**Hậu quả:** Staff thấy "blocked" nhưng không biết lý do, không biết xe hay thẻ bị chặn.
+
+**API mới cần tạo:**
+```
+GET /api/Blacklist/check?licensePlate={plate}&cardCode={code}
+```
+
+**Response mong muốn:**
+```json
+{
+  "blocked": true,
+  "targetType": "VEHICLE",
+  "reason": "Unpaid parking fee reported",
+  "incidentId": 3,
+  "blacklistId": 1
+}
+```
 
 ---
 
-### 6. Atomic Lost Card Endpoints
+### 5. Màn Slot Monitoring – Không xử lý được trường hợp mất thẻ ngay tại chỗ
 
-New endpoints:
+**Màn hình:** `/dashboard/staff/monitoring` → modal slot có xe  
+**Vấn đề:** FE đã viết service wrappers cho lost card flow nhưng chưa thêm UI vì chưa xác nhận atomic endpoints hoạt động. Cần confirm 3 endpoints sau đã được implement và test:
 ```
 POST /api/parking-sessions/{id}/lost-card
 POST /api/parking-sessions/{id}/lost-card/rollback
 PATCH /api/parking-sessions/{id}/replace-card?newCardCode={code}
 ```
 
-Desired response for `POST /lost-card`:
+**Hậu quả:** Staff không có nút "Report Lost Card" trong UI. Phải xử lý thủ công qua incident thông thường.
+
+**Response mong muốn cho `lost-card`:**
 ```json
 {
   "sessionId": 1,
-  "oldCardId": 10,
   "oldCardCode": "CARD001",
-  "newCardId": null,
   "newCardCode": null,
   "cardStatus": "LOST",
   "incidentId": 5,
@@ -190,42 +156,21 @@ Desired response for `POST /lost-card`:
 }
 ```
 
-**Reason:** The current flow requires FE to call multiple endpoints (create incident -> update card -> update session) which is not atomic and can leave data in an inconsistent state if any step fails.
-
 ---
 
-## P3 - Nice to Have
+## 🟢 P3 – Cải thiện trải nghiệm, làm sau khi P1/P2 xong
 
-### 7. Blacklist Check by LicensePlate / CardCode
+### 6. Dashboard Staff – Không có tổng hợp ca làm việc từ BE
 
-New endpoint:
-```
-GET /api/Blacklist/check?licensePlate={plate}&cardCode={code}
-```
+**Màn hình:** `/dashboard/staff` (Shift Revenue card)  
+**Vấn đề:** Dashboard hiện tính doanh thu ca bằng cách load toàn bộ `/api/payments` rồi lọc FE-side theo giờ bắt đầu ca. Tốn bandwidth và dễ sai nếu có nhiều payment.
 
-Desired response:
-```json
-{
-  "blocked": true,
-  "targetType": "VEHICLE",
-  "reason": "Reported for unpaid parking",
-  "incidentId": 3,
-  "blacklistId": 1
-}
-```
-
-**Reason:** Staff Check-in currently loads the entire blacklist and filters on the FE side. This dedicated endpoint enables fast, accurate checks and reduces payload size.
-
----
-
-### 8. Shift Summary Stats
-
-New endpoint:
+**API mới cần tạo (optional):**
 ```
 GET /api/parking-sessions/shift-summary?from={datetime}&to={datetime}
 ```
 
-Desired response:
+**Response mong muốn:**
 ```json
 {
   "totalVehiclesIn": 45,
@@ -234,45 +179,19 @@ Desired response:
   "cashRevenue": 450000,
   "onlineRevenue": 320000,
   "totalRevenue": 770000,
-  "openIncidents": 2,
-  "resolvedIncidents": 1
+  "openIncidents": 2
 }
 ```
 
-**Reason:** Staff Dashboard Shift Summary currently has to aggregate data from multiple separate APIs, which is slow and prone to race conditions.
-
 ---
 
-## Enum Standards (Please standardize these)
+## Tóm tắt
 
-We request that BE returns status values as consistent strings:
-
-**ParkingSlot status:**
-```
-"Available" | "Occupied" | "Blocked" | "Maintenance"
-```
-Do **NOT** use `"Reserved"` for slots — bookings only hold capacity at the Building level per SRS.
-
-**ParkingSession status:**
-```
-"ACTIVE" | "COMPLETED" | "CANCELLED" | "LOST_CARD_REPORTED"
-```
-
-**Incident status:**
-```
-"OPEN" | "PROCESSING" | "RESOLVED" | "CANCELLED"
-```
-
-**Booking status:**
-```
-"PENDING" | "CONFIRMED" | "CANCELLED" | "EXPIRED"
-```
-
----
-
-## Notes for BE Team
-
-- FE has already mapped the new fields with fallback logic. Once BE adds them, FE will pick them up automatically with no further changes needed on the FE side.
-- **Fee Preview API** is a high-priority ask because FE cannot use `checkout` or `start` endpoints just to preview a fee — those endpoints have irreversible side-effects.
-- `PlannedCheckinTime` and `DepositAmount` in `BookingDto` are required for the Staff Dashboard Booking Review feature.
-- For the Lost Card flow, atomic endpoints are strongly preferred over the current multi-step approach to ensure data consistency.
+| Priority | Màn hình | Chức năng bị thiếu |
+|---|---|---|
+| 🔴 P1 | Check-in | Không hiển thị plannedCheckinTime, checkinGraceUntil, depositAmount của booking |
+| 🔴 P1 | Bookings list | Không phân biệt được booking Grace/Soon/Upcoming |
+| 🟡 P2 | Slot Monitoring | Không xem được phí hiện tại của xe đang gửi |
+| 🟡 P2 | Check-in | Blacklist check không chính xác, không có lý do |
+| 🟡 P2 | Slot Monitoring | Không có nút Report Lost Card |
+| 🟢 P3 | Dashboard | Shift revenue tính client-side, không hiệu quả |

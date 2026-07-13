@@ -5,22 +5,11 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/features/auth';
 import { api } from '@/lib/api/client';
 import { 
-  FileText, 
-  HelpCircle, 
-  Star, 
   Upload, 
-  AlertTriangle, 
-  DollarSign, 
-  Car, 
   CheckCircle, 
   Clock, 
   Phone, 
   Mail, 
-  MessageSquare,
-  ArrowRight,
-  ShieldCheck,
-  X,
-  FileCheck,
   Loader2
 } from 'lucide-react';
 
@@ -58,7 +47,8 @@ export default function DriverReports() {
   
   // Real DB data states
   const [reports, setReports] = useState<IncidentReport[]>([]);
-  const [activeSession, setActiveSession] = useState<any>(null);
+  const [activeSessions, setActiveSessions] = useState<any[]>([]);
+  const [selectedSession, setSelectedSession] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -74,12 +64,14 @@ export default function DriverReports() {
         userPlates = vehRes.data.map((v: any) => v.licensePlate);
       }
 
-      // 2. Fetch active session for this user
+      // 2. Fetch active sessions for this user
       const activeRes = await api.get<any>('/parking-sessions/active');
-      let foundActive: any = null;
+      let foundSessions: any[] = [];
       if (activeRes.success && Array.isArray(activeRes.data)) {
-        foundActive = activeRes.data.find((s: any) => userPlates.includes(s.licensePlateIn));
-        setActiveSession(foundActive);
+        foundSessions = activeRes.data.filter((s: any) => userPlates.includes(s.licensePlateIn));
+        setActiveSessions(foundSessions);
+        // Auto-select if only 1 session
+        setSelectedSession(foundSessions.length === 1 ? foundSessions[0] : null);
       }
 
       // 3. Fetch Incident Types from DB
@@ -126,13 +118,6 @@ export default function DriverReports() {
     fetchReportData();
   }, [fetchReportData]);
 
-  const handleTileClick = (code: string) => {
-    const matched = incidentTypes.find(t => t.incidentCode === code);
-    if (matched) {
-      setSelectedTypeId(matched.id);
-      showToast(`Đã chọn loại sự cố: ${matched.incidentName}`, 'info');
-    }
-  };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -153,15 +138,15 @@ export default function DriverReports() {
       return;
     }
 
-    if (!activeSession) {
-      showToast('Bạn phải có một phiên đỗ xe đang hoạt động (đã check-in) để báo cáo sự cố.', 'error');
+    if (!selectedSession) {
+      showToast('Vui lòng chọn phiên đỗ xe cần báo cáo sự cố.', 'error');
       return;
     }
 
     setIsSubmitting(true);
     try {
       const payload = {
-        sessionId: activeSession.id,
+        sessionId: selectedSession.id,
         incidentTypeId: Number(selectedTypeId),
         description: description.trim()
       };
@@ -204,59 +189,38 @@ export default function DriverReports() {
           {/* LEFT COLUMN: FORM & ACTIVITY */}
           <div className="lg:col-span-8 space-y-6">
             
-            {/* QUICK TILES */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <button 
-                onClick={() => handleTileClick('LOST_CARD')}
-                className={`group flex flex-col p-4 rounded-xl border text-left transition-all active:scale-[0.98] ${
-                  incidentTypes.find(t => t.id === selectedTypeId)?.incidentCode === 'LOST_CARD'
-                    ? 'border-emerald-600 bg-emerald-50/20 shadow-xs' 
-                    : 'border-slate-200 bg-white hover:border-emerald-500/50 hover:shadow-xs'
-                }`}
-              >
-                <FileText className={`w-5 h-5 mb-2 ${incidentTypes.find(t => t.id === selectedTypeId)?.incidentCode === 'LOST_CARD' ? 'text-emerald-600' : 'text-slate-400 group-hover:text-emerald-600'}`} />
-                <span className="text-xs font-bold text-slate-700">Mất thẻ gửi xe</span>
-                <span className="text-[10px] text-slate-400 mt-1">Báo mất thẻ vật lý</span>
-              </button>
-
-              <button 
-                onClick={() => handleTileClick('LATE_CHECKOUT')}
-                className={`group flex flex-col p-4 rounded-xl border text-left transition-all active:scale-[0.98] ${
-                  incidentTypes.find(t => t.id === selectedTypeId)?.incidentCode === 'LATE_CHECKOUT'
-                    ? 'border-emerald-600 bg-emerald-50/20 shadow-xs' 
-                    : 'border-slate-200 bg-white hover:border-emerald-500/50 hover:shadow-xs'
-                }`}
-              >
-                <DollarSign className={`w-5 h-5 mb-2 ${incidentTypes.find(t => t.id === selectedTypeId)?.incidentCode === 'LATE_CHECKOUT' ? 'text-emerald-600' : 'text-slate-400 group-hover:text-emerald-600'}`} />
-                <span className="text-xs font-bold text-slate-700">Đỗ xe quá giờ</span>
-                <span className="text-[10px] text-slate-400 mt-1">Gia hạn/Phí quá giờ</span>
-              </button>
-
-              <button 
-                onClick={() => handleTileClick('VEHICLE_CRASH')}
-                className={`group flex flex-col p-4 rounded-xl border text-left transition-all active:scale-[0.98] ${
-                  incidentTypes.find(t => t.id === selectedTypeId)?.incidentCode === 'VEHICLE_CRASH'
-                    ? 'border-emerald-600 bg-emerald-50/20 shadow-xs' 
-                    : 'border-slate-200 bg-white hover:border-emerald-500/50 hover:shadow-xs'
-                }`}
-              >
-                <Car className={`w-5 h-5 mb-2 ${incidentTypes.find(t => t.id === selectedTypeId)?.incidentCode === 'VEHICLE_CRASH' ? 'text-emerald-600' : 'text-slate-400 group-hover:text-emerald-600'}`} />
-                <span className="text-xs font-bold text-slate-700">Va chạm xe</span>
-                <span className="text-[10px] text-slate-400 mt-1">Báo cáo tai nạn bãi xe</span>
-              </button>
-            </div>
 
             {/* MAIN FORM */}
             <div className="bg-white border border-[#e2e8f0] rounded-2xl p-6 shadow-sm space-y-5">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
                 <h2 className="text-sm font-bold text-slate-800 uppercase tracking-wider">Submit Report</h2>
                 
-                {/* Active Session Info */}
+                {/* Active Session Info / Selector */}
                 <div className="flex items-center gap-2">
                   <span className="text-xs text-slate-400 font-semibold">Active Session:</span>
-                  <span className={`text-xs font-bold px-2 py-0.5 rounded-lg ${activeSession ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-600'}`}>
-                    {activeSession ? `${activeSession.licensePlateIn} (${activeSession.slotCode || 'Đang đỗ'})` : 'Không tìm thấy'}
-                  </span>
+                  {activeSessions.length === 0 ? (
+                    <span className="text-xs font-bold px-2 py-0.5 rounded-lg bg-red-50 text-red-600">Không tìm thấy</span>
+                  ) : activeSessions.length === 1 ? (
+                    <span className="text-xs font-bold px-2 py-0.5 rounded-lg bg-emerald-50 text-emerald-700">
+                      {activeSessions[0].licensePlateIn} ({activeSessions[0].slotCode || 'Đang đỗ'})
+                    </span>
+                  ) : (
+                    <select
+                      value={selectedSession?.id ?? ''}
+                      onChange={(e) => {
+                        const s = activeSessions.find(x => String(x.id) === e.target.value);
+                        setSelectedSession(s ?? null);
+                      }}
+                      className="text-xs font-bold px-2 py-1 rounded-lg border border-emerald-300 bg-emerald-50 text-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
+                    >
+                      <option value="">-- Chọn phương tiện --</option>
+                      {activeSessions.map(s => (
+                        <option key={s.id} value={s.id}>
+                          {s.licensePlateIn} ({s.slotCode || 'Đang đỗ'})
+                        </option>
+                      ))}
+                    </select>
+                  )}
                 </div>
               </div>
 
@@ -269,9 +233,11 @@ export default function DriverReports() {
                       onChange={(e) => setSelectedTypeId(Number(e.target.value))}
                       className="w-full px-4 py-2.5 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 text-xs font-bold rounded-xl bg-white text-slate-700"
                     >
-                      {incidentTypes.map((type) => (
-                        <option key={type.id} value={type.id}>{type.incidentName}</option>
-                      ))}
+                      {incidentTypes
+                        .filter(t => ['LOST_CARD_1', 'WRONG_SLOT'].includes(t.incidentCode))
+                        .map((type) => (
+                          <option key={type.id} value={type.id}>{type.incidentName}</option>
+                        ))}
                     </select>
                   </div>
                 </div>
@@ -308,7 +274,7 @@ export default function DriverReports() {
                 <div className="flex justify-end pt-2 border-t border-slate-100">
                   <button
                     type="submit"
-                    disabled={isSubmitting || !activeSession}
+                    disabled={isSubmitting || !selectedSession}
                     className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-sm transition-all disabled:opacity-50 flex items-center gap-2"
                   >
                     {isSubmitting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}

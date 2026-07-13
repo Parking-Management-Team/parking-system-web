@@ -107,18 +107,6 @@ type StaffSlot = {
   plannedCheckoutTime: string | null;
 };
 
-type SlotConfirmationSession = {
-  id: number;
-  licensePlate: string;
-  cardCode: string | null;
-  vehicleTypeName: string | null;
-  checkInTime: string | null;
-  zoneId: number | null;
-  vehicleId: number | null;
-  cardId: number | null;
-  cardStatus: string | null;
-};
-
 const unwrap = <T,>(response: BaseResponse<T> | T, fallback: T): T => {
   if (response && typeof response === 'object' && 'success' in response) {
     const wrapped = response as BaseResponse<T>;
@@ -154,12 +142,7 @@ const normalizeSlotStatus = (status: SlotDto['status']): StaffSlotStatus => {
   return 'AVAILABLE';
 };
 
-const formatTime = (iso?: string | null) => {
-  if (!iso) return '—';
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return '—';
-  return date.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
-};
+
 
 const formatDateTime = (iso?: string | null) => {
   if (!iso) return '—';
@@ -191,16 +174,11 @@ export default function StaffSlotMonitoring() {
   const [floors, setFloors] = useState<FloorDto[]>([]);
   const [zones, setZones] = useState<ZoneDto[]>([]);
   const [slots, setSlots] = useState<StaffSlot[]>([]);
-  const [sessionsNeedingSlot, setSessionsNeedingSlot] = useState<SlotConfirmationSession[]>([]);
   const [selectedBuildingId, setSelectedBuildingId] = useState<number | null>(null);
   const [selectedFloorId, setSelectedFloorId] = useState<number | null>(null);
-  const [selectedSessionId, setSelectedSessionId] = useState<number | null>(null);
-  const [selectedSlotId, setSelectedSlotId] = useState<number | null>(null);
   const [selectedOccupiedSlotId, setSelectedOccupiedSlotId] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
-  const [assigning, setAssigning] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
-  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
   const activeFloors = useMemo(
     () => floors.filter((floor) => floor.buildingId === selectedBuildingId),
@@ -212,44 +190,10 @@ export default function StaffSlotMonitoring() {
     [zones, selectedFloorId]
   );
 
-  const selectedSession = useMemo(
-    () => sessionsNeedingSlot.find((session) => session.id === selectedSessionId) ?? null,
-    [sessionsNeedingSlot, selectedSessionId]
-  );
-
   const selectedOccupiedSlot = useMemo(
     () => slots.find((slot) => slot.id === selectedOccupiedSlotId) ?? null,
     [selectedOccupiedSlotId, slots]
   );
-
-  const availableSlotsForSelectedSession = useMemo(() => {
-    const source = selectedSession?.zoneId
-      ? slots.filter((slot) => slot.zoneId === selectedSession.zoneId)
-      : slots;
-    return source.filter((slot) => slot.status === 'AVAILABLE');
-  }, [selectedSession, slots]);
-
-  const loadAvailableSlotsForSession = useCallback(async (
-    session: SlotConfirmationSession | null
-  ) => {
-    if (!session?.zoneId) return;
-
-    try {
-      const slotRes = await api.get<BaseResponse<SlotDto[]> | SlotDto[]>(
-        `/ParkingSlots/zone/${session.zoneId}?statuses=Available`
-      );
-      const availableSlotIds = new Set(unwrap(slotRes, []).map((slot) => slot.id));
-      setSlots((current) =>
-        current.map((slot) =>
-          slot.zoneId === session.zoneId && slot.status === 'AVAILABLE'
-            ? { ...slot, status: availableSlotIds.has(slot.id) ? 'AVAILABLE' : slot.status }
-            : slot
-        )
-      );
-    } catch (error) {
-      console.warn('Available-slot filter endpoint failed; using loaded slot status fallback.', error);
-    }
-  }, []);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -345,26 +289,6 @@ export default function StaffSlotMonitoring() {
       );
 
       setSlots(slotViews);
-      setSessionsNeedingSlot(
-        activeSessions
-          .filter((session) => session.slotId == null)
-          .map((session) => ({
-            id: session.id,
-            licensePlate: session.licensePlateIn || 'Unknown plate',
-            cardCode: session.cardCode ?? null,
-            vehicleTypeName:
-              session.vehicleTypeName ??
-              session.vehicleType ??
-              vehicleTypeById.get(Number(session.vehicleTypeId ?? 0)) ??
-              null,
-            checkInTime: session.checkInTime ?? null,
-            zoneId: session.zoneId ?? null,
-            vehicleId: session.vehicleId ?? null,
-            cardId: session.cardId ?? null,
-            cardStatus: session.cardStatus ?? (session.cardId ? cardById.get(Number(session.cardId))?.cardStatus ?? null : null),
-          }))
-      );
-      setLastUpdated(new Date());
     } catch (error) {
       showToast(getErrorMessage(error, 'Không tải được dữ liệu slot.'), 'error');
     } finally {
@@ -391,45 +315,10 @@ export default function StaffSlotMonitoring() {
     };
   }, [selectedOccupiedSlot]);
 
-  useEffect(() => {
-    setSelectedSlotId(null);
-    void loadAvailableSlotsForSession(selectedSession);
-  }, [loadAvailableSlotsForSession, selectedSession]);
-
   const handleBuildingChange = (buildingId: number) => {
     const nextFloorId = floors.find((floor) => floor.buildingId === buildingId)?.id ?? null;
     setSelectedBuildingId(buildingId);
     setSelectedFloorId(nextFloorId);
-  };
-
-  const handleAssignSlot = async () => {
-    if (!selectedSession || !selectedSlotId) {
-      showToast('Chọn session và slot trống trước khi xác nhận.', 'error');
-      return;
-    }
-
-    const targetSlot = slots.find((slot) => slot.id === selectedSlotId);
-    if (!targetSlot) {
-      showToast('Slot đã chọn không còn trong danh sách hiện tại.', 'error');
-      return;
-    }
-
-    setAssigning(true);
-    try {
-      await api.patch<BaseResponse<unknown>>(`/parking-sessions/${selectedSession.id}/slot`, {
-        zoneId: targetSlot.zoneId,
-        slotId: targetSlot.id,
-      });
-
-      showToast(`Đã xác nhận ${selectedSession.licensePlate} vào slot ${targetSlot.code}.`, 'success');
-      setSelectedSessionId(null);
-      setSelectedSlotId(null);
-      await loadData();
-    } catch (error) {
-      showToast(getErrorMessage(error, 'Không xác nhận được slot cho session.'), 'error');
-    } finally {
-      setAssigning(false);
-    }
   };
 
   const totals = useMemo(() => ({
@@ -465,206 +354,129 @@ export default function StaffSlotMonitoring() {
         </div>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_360px]">
-        <section className="space-y-4">
-          <div className="rounded-3xl border border-slate-100 bg-white p-4 shadow-sm">
-            <div className="grid gap-3 md:grid-cols-2">
-              <label className="space-y-1">
-                <span className="text-xs font-black uppercase text-slate-400">Building</span>
-                <select
-                  value={selectedBuildingId ?? ''}
-                  onChange={(event) => handleBuildingChange(Number(event.target.value))}
-                  className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-700 outline-none focus:border-[#006d43]"
-                >
-                  {buildings.map((building) => (
-                    <option key={building.id} value={building.id}>
-                      {building.name || building.code || `Building #${building.id}`}
-                    </option>
-                  ))}
-                </select>
-              </label>
+      <div className="space-y-4">
+        <div className="rounded-3xl border border-slate-100 bg-white p-4 shadow-sm">
+          <div className="grid gap-3 md:grid-cols-2">
+            <label className="space-y-1">
+              <span className="text-xs font-black uppercase text-slate-400">Building</span>
+              <select
+                value={selectedBuildingId ?? ''}
+                onChange={(event) => handleBuildingChange(Number(event.target.value))}
+                className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-700 outline-none focus:border-[#006d43]"
+              >
+                {buildings.map((building) => (
+                  <option key={building.id} value={building.id}>
+                    {building.name || building.code || `Building #${building.id}`}
+                  </option>
+                ))}
+              </select>
+            </label>
 
-              <label className="space-y-1">
-                <span className="text-xs font-black uppercase text-slate-400">Floor</span>
-                <select
-                  value={selectedFloorId ?? ''}
-                  onChange={(event) => setSelectedFloorId(Number(event.target.value))}
-                  className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-700 outline-none focus:border-[#006d43]"
-                >
-                  {activeFloors.map((floor) => (
-                    <option key={floor.id} value={floor.id}>
-                      {floor.name || `Floor ${floor.floorNumber ?? floor.id}`}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            </div>
-
-            <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-5">
-              {[
-                ['Total', totals.total, 'text-slate-800'],
-                ['Available', totals.available, 'text-[#006d43]'],
-                ['Occupied', totals.occupied, 'text-[#111c2d]'],
-                ['Blocked', totals.blocked, 'text-red-600'],
-                ['Maintenance', totals.maintenance, 'text-amber-600'],
-              ].map(([label, value, color]) => (
-                <div key={String(label)} className="rounded-2xl bg-slate-50 p-3 text-center">
-                  <p className={`text-2xl font-black ${color}`}>{value}</p>
-                  <p className="mt-1 text-[10px] font-black uppercase text-slate-400">{label}</p>
-                </div>
-              ))}
-            </div>
+            <label className="space-y-1">
+              <span className="text-xs font-black uppercase text-slate-400">Floor</span>
+              <select
+                value={selectedFloorId ?? ''}
+                onChange={(event) => setSelectedFloorId(Number(event.target.value))}
+                className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-700 outline-none focus:border-[#006d43]"
+              >
+                {activeFloors.map((floor) => (
+                  <option key={floor.id} value={floor.id}>
+                    {floor.name || `Floor ${floor.floorNumber ?? floor.id}`}
+                  </option>
+                ))}
+              </select>
+            </label>
           </div>
 
-          {activeZones.length === 0 ? (
-            <div className="rounded-3xl border border-dashed border-slate-200 bg-white p-10 text-center">
-              <span className="material-symbols-outlined text-5xl text-slate-300">grid_view</span>
-              <p className="mt-2 text-sm font-bold text-slate-500">Không có zone cho floor đang chọn.</p>
-            </div>
-          ) : (
-            activeZones.map((zone) => {
-              const zoneSlots = slots.filter((slot) => slot.zoneId === zone.id);
-              return (
-                <div key={zone.id} className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
-                  <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div>
-                      <h2 className="text-base font-black text-[#111c2d]">{zone.name || `Zone #${zone.id}`}</h2>
-                      <p className="text-xs font-bold text-slate-400">
-                        {zoneSlots.filter((slot) => slot.status === 'AVAILABLE').length} available / {zoneSlots.length} slots
-                      </p>
-                    </div>
-                    <div className="flex flex-wrap gap-2 text-[11px] font-black">
-                      {(['AVAILABLE', 'OCCUPIED', 'BLOCKED', 'MAINTENANCE'] as StaffSlotStatus[]).map((status) => (
-                        <span key={status} className={`rounded-full border px-3 py-1 ${statusStyle[status]}`}>
-                          {statusLabel[status]}
-                        </span>
-                      ))}
-                    </div>
+          <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-5">
+            {[
+              ['Total', totals.total, 'text-slate-800'],
+              ['Available', totals.available, 'text-[#006d43]'],
+              ['Occupied', totals.occupied, 'text-[#111c2d]'],
+              ['Blocked', totals.blocked, 'text-red-600'],
+              ['Maintenance', totals.maintenance, 'text-amber-600'],
+            ].map(([label, value, color]) => (
+              <div key={String(label)} className="rounded-2xl bg-slate-50 p-3 text-center">
+                <p className={`text-2xl font-black ${color}`}>{value}</p>
+                <p className="mt-1 text-[10px] font-black uppercase text-slate-400">{label}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {activeZones.length === 0 ? (
+          <div className="rounded-3xl border border-dashed border-slate-200 bg-white p-10 text-center">
+            <span className="material-symbols-outlined text-5xl text-slate-300">grid_view</span>
+            <p className="mt-2 text-sm font-bold text-slate-500">Không có zone cho floor đang chọn.</p>
+          </div>
+        ) : (
+          activeZones.map((zone) => {
+            const zoneSlots = slots.filter((slot) => slot.zoneId === zone.id);
+            return (
+              <div key={zone.id} className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <h2 className="text-base font-black text-[#111c2d]">{zone.name || `Zone #${zone.id}`}</h2>
+                    <p className="text-xs font-bold text-slate-400">
+                      {zoneSlots.filter((slot) => slot.status === 'AVAILABLE').length} available / {zoneSlots.length} slots
+                    </p>
                   </div>
-
-                  <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-6">
-                    {zoneSlots.map((slot) => (
-                      <button
-                        key={slot.id}
-                        type="button"
-                        onClick={() => {
-                          if (slot.status === 'AVAILABLE') {
-                            setSelectedSlotId(slot.id);
-                            return;
-                          }
-
-                          if (slot.status === 'OCCUPIED') {
-                            setSelectedOccupiedSlotId(slot.id);
-                          }
-                        }}
-                        className={`min-h-28 rounded-2xl border p-3 text-left transition ${
-                          selectedSlotId === slot.id
-                            ? 'ring-4 ring-[#006d43]/20'
-                            : selectedOccupiedSlotId === slot.id
-                              ? 'ring-4 ring-orange-400/30'
-                            : ''
-                        } ${statusStyle[slot.status]} ${
-                          slot.status === 'AVAILABLE' || slot.status === 'OCCUPIED'
-                            ? 'hover:scale-[1.02]'
-                            : 'cursor-default'
-                        }`}
-                      >
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="font-mono text-sm font-black">{slot.code}</span>
-                          <span className="material-symbols-outlined text-lg">
-                            {slot.status === 'AVAILABLE'
-                              ? 'check_circle'
-                              : slot.status === 'OCCUPIED'
-                                ? 'directions_car'
-                                : slot.status === 'MAINTENANCE'
-                                  ? 'construction'
-                                  : 'block'}
-                          </span>
-                        </div>
-                        <p className="mt-1 text-[10px] font-black uppercase opacity-70">{statusLabel[slot.status]}</p>
-                        {slot.status === 'OCCUPIED' && (
-                          <div className="mt-3 space-y-1 text-xs font-bold">
-                            <p className="truncate">{slot.licensePlate || 'Unknown plate'}</p>
-                            <p className="truncate opacity-70">{slot.cardCode || 'No card code'}</p>
-                            <p className="opacity-70">In {formatDateTime(slot.checkInTime)}</p>
-                          </div>
-                        )}
-                      </button>
+                  <div className="flex flex-wrap gap-2 text-[11px] font-black">
+                    {(['AVAILABLE', 'OCCUPIED', 'BLOCKED', 'MAINTENANCE'] as StaffSlotStatus[]).map((status) => (
+                      <span key={status} className={`rounded-full border px-3 py-1 ${statusStyle[status]}`}>
+                        {statusLabel[status]}
+                      </span>
                     ))}
                   </div>
                 </div>
-              );
-            })
-          )}
-        </section>
 
-        <aside className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <p className="text-xs font-black uppercase tracking-[0.18em] text-[#006d43]">Need slot</p>
-              <h2 className="mt-1 text-lg font-black text-[#111c2d]">Confirm actual slot</h2>
-            </div>
-            <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-slate-600">
-              {sessionsNeedingSlot.length}
-            </span>
-          </div>
-
-          <p className="mt-2 text-sm font-medium text-slate-500">
-            Dành cho xe đã check-in nhưng chưa ghi nhận slot thực tế. Xe máy có thể không cần slot theo SRS.
-          </p>
-
-          <div className="mt-4 space-y-2">
-            {sessionsNeedingSlot.length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-slate-200 p-6 text-center text-sm font-bold text-slate-400">
-                Không có session cần xác nhận slot.
+                <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-6">
+                  {zoneSlots.map((slot) => (
+                    <button
+                      key={slot.id}
+                      type="button"
+                      onClick={() => {
+                        if (slot.status === 'OCCUPIED') {
+                          setSelectedOccupiedSlotId(slot.id);
+                        }
+                      }}
+                      className={`min-h-28 rounded-2xl border p-3 text-left transition ${
+                        selectedOccupiedSlotId === slot.id
+                          ? 'ring-4 ring-orange-400/30'
+                          : ''
+                      } ${statusStyle[slot.status]} ${
+                        slot.status === 'OCCUPIED'
+                          ? 'hover:scale-[1.02]'
+                          : 'cursor-default'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-mono text-sm font-black">{slot.code}</span>
+                        <span className="material-symbols-outlined text-lg">
+                          {slot.status === 'AVAILABLE'
+                            ? 'check_circle'
+                            : slot.status === 'OCCUPIED'
+                              ? 'directions_car'
+                              : slot.status === 'MAINTENANCE'
+                                ? 'construction'
+                                : 'block'}
+                        </span>
+                      </div>
+                      <p className="mt-1 text-[10px] font-black uppercase opacity-70">{statusLabel[slot.status]}</p>
+                      {slot.status === 'OCCUPIED' && (
+                        <div className="mt-3 space-y-1 text-xs font-bold">
+                          <p className="truncate">{slot.licensePlate || 'Unknown plate'}</p>
+                          <p className="truncate opacity-70">{slot.cardCode || 'No card code'}</p>
+                          <p className="opacity-70">In {formatDateTime(slot.checkInTime)}</p>
+                        </div>
+                      )}
+                    </button>
+                  ))}
+                </div>
               </div>
-            ) : (
-              sessionsNeedingSlot.map((session) => (
-                <button
-                  key={session.id}
-                  type="button"
-                  onClick={() => setSelectedSessionId(session.id)}
-                  className={`w-full rounded-2xl border p-3 text-left transition ${
-                    selectedSessionId === session.id
-                      ? 'border-[#006d43] bg-emerald-50'
-                      : 'border-slate-100 bg-slate-50 hover:border-emerald-200'
-                  }`}
-                >
-                  <p className="font-mono text-base font-black text-[#111c2d]">{session.licensePlate}</p>
-                  <p className="mt-1 text-xs font-bold text-slate-500">
-                    {session.cardCode || 'No card'} · {session.vehicleTypeName || 'Vehicle'} · In {formatTime(session.checkInTime)}
-                  </p>
-                </button>
-              ))
-            )}
-          </div>
-
-          <div className="mt-5 rounded-2xl bg-slate-50 p-4">
-            <p className="text-xs font-black uppercase text-slate-400">Selected available slot</p>
-            <p className="mt-1 text-lg font-black text-[#111c2d]">
-              {selectedSlotId
-                ? slots.find((slot) => slot.id === selectedSlotId)?.code ?? 'Unknown slot'
-                : 'Chưa chọn'}
-            </p>
-            {selectedSession && (
-              <p className="mt-1 text-xs font-bold text-slate-500">
-                For {selectedSession.licensePlate}
-              </p>
-            )}
-            <p className="mt-2 text-xs font-semibold text-slate-400">
-              Slot có thể chọn: {availableSlotsForSelectedSession.length}
-            </p>
-          </div>
-
-          <button
-            type="button"
-            disabled={!selectedSession || !selectedSlotId || assigning}
-            onClick={() => void handleAssignSlot()}
-            className="mt-4 w-full rounded-2xl bg-[#006d43] px-5 py-3 text-sm font-black text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {assigning ? 'Confirming...' : 'Confirm actual slot'}
-          </button>
-        </aside>
+            );
+          })
+        )}
       </div>
 
       {isMounted &&
@@ -722,7 +534,7 @@ function OccupiedSlotDetailModal({
         </div>
 
         <div className="mt-5 grid gap-4 lg:grid-cols-[minmax(0,1fr)_360px]">
-          <section className="space-y-4">
+          <section>
             <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
               <DetailItem label="Slot" value={slot.code} />
               <DetailItem label="Zone" value={slot.zoneName} />
@@ -730,18 +542,6 @@ function OccupiedSlotDetailModal({
               <DetailItem label="Card status" value={slot.cardStatus || '—'} />
               <DetailItem label="Vehicle type" value={slot.vehicleTypeName || '—'} />
               <DetailItem label="Check-in" value={formatDateTime(slot.checkInTime)} />
-            </div>
-
-            <div className="rounded-3xl bg-slate-50 p-4">
-              <div className="flex items-center gap-2">
-                <span className="material-symbols-outlined text-[#006d43]">payments</span>
-                <p className="text-xs font-black uppercase tracking-wider text-slate-400">
-                  Parking fee
-                </p>
-              </div>
-              <p className="mt-2 text-sm font-bold leading-relaxed text-slate-600">
-                Chưa có API preview fee an toàn cho màn slot. Không gọi checkout/start ở đây để tránh ghi nhận giờ ra.
-              </p>
             </div>
           </section>
 

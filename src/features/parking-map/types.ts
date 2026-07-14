@@ -108,9 +108,9 @@ export interface Slot {
   vehicleTypeId: number;
   assignedVehicle?: {
     plate: string;
-    model: string;
-    ownerName: string;
-    memberId: string;
+    model?: string;
+    ownerName?: string;
+    memberId?: string;
     startDate?: string;
     endDate?: string;
     notes?: string;

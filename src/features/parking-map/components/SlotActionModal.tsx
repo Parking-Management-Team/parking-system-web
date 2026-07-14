@@ -33,13 +33,9 @@ export function SlotActionModal({
   const [searchedVehicle, setSearchedVehicle] = useState<{
     id?: number;
     plate: string;
-    model: string;
-    ownerName: string;
-    memberId: string;
     vehicleTypeId?: number;
   } | null>(null);
 
-  const [allocationNotes, setAllocationNotes] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [activeSlot, setActiveSlot] = useState<Slot | null>(null);
@@ -57,7 +53,6 @@ export function SlotActionModal({
       setActiveSlot(slot);
       setVehicleSearchQuery('');
       setSearchedVehicle(null);
-      setAllocationNotes('');
       setIsSubmitting(false);
     }
   }, [isOpen, slot]);
@@ -134,9 +129,6 @@ export function SlotActionModal({
         setSearchedVehicle({
           id: foundVehicle.id,
           plate: foundVehicle.licensePlate,
-          model: foundVehicle.vehicleTypeName || 'Registered Vehicle',
-          ownerName: foundVehicle.accountId ? `Member #${foundVehicle.accountId}` : 'Registered Guest',
-          memberId: foundVehicle.accountId ? `MEM-${foundVehicle.accountId}` : 'WALK-IN',
           vehicleTypeId: foundVehicle.vehicleTypeId
         });
         showToastMessage('Vehicle found successfully!');
@@ -154,9 +146,6 @@ export function SlotActionModal({
           setSearchedVehicle({
             id: created.id,
             plate: created.licensePlate,
-            model: created.vehicleTypeName || 'Pre-Registered Vehicle',
-            ownerName: 'Walk-in Customer',
-            memberId: 'WALK-IN',
             vehicleTypeId: created.vehicleTypeId
           });
           showToastMessage('Vehicle not in database. Auto-registered walk-in vehicle.', 'success');
@@ -216,14 +205,9 @@ export function SlotActionModal({
         checkInTime: new Date().toISOString()
       });
 
-      // Trigger Parent callback
       onSlotUpdated(activeSlot.id, 'OCCUPIED', {
         plate: searchedVehicle.plate,
-        model: searchedVehicle.model,
-        ownerName: searchedVehicle.ownerName,
-        memberId: searchedVehicle.memberId,
-        startDate: new Date().toISOString(),
-        notes: allocationNotes
+        startDate: new Date().toISOString()
       });
       
       showToastMessage(`Successfully allocated slot ${activeSlot.slotCode}!`);
@@ -432,11 +416,6 @@ export function SlotActionModal({
                     <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider">Target Vehicle</p>
                     <div>
                       <h4 className="text-sm font-extrabold text-slate-800">{searchedVehicle.plate}</h4>
-                      <p className="text-xs text-slate-500">{searchedVehicle.model}</p>
-                    </div>
-                    <div className="flex gap-4 pt-2 border-t border-slate-100 text-xs text-slate-600">
-                      <span>Owner: <strong>{searchedVehicle.ownerName}</strong></span>
-                      <span>ID: <strong>{searchedVehicle.memberId}</strong></span>
                     </div>
                   </div>
                 ) : (
@@ -445,19 +424,6 @@ export function SlotActionModal({
                     <p className="text-xs text-slate-400 font-medium">Please search a vehicle to assign this slot.</p>
                   </div>
                 )}
-
-
-
-                <div className="flex flex-col gap-1 pt-2">
-                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">Operational Notes</label>
-                  <textarea
-                    value={allocationNotes}
-                    onChange={(e) => setAllocationNotes(e.target.value)}
-                    placeholder="Add any specific requirements or remarks..."
-                    rows={3}
-                    className="w-full border border-slate-200 rounded-lg py-2.5 px-3 text-sm focus:ring-1 focus:ring-emerald-500/30 focus:border-emerald-500 focus:outline-none resize-none text-slate-700"
-                  />
-                </div>
                 
                 {/* Administrative Actions */}
                 {userRole === 'MANAGER' && (
@@ -499,23 +465,14 @@ export function SlotActionModal({
                   <div>
                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Parked Vehicle</p>
                     <h3 className="text-xl font-black text-slate-800 tracking-tight mt-0.5">{activeSlot.assignedVehicle.plate}</h3>
-                    <p className="text-xs text-slate-500 font-semibold">{activeSlot.assignedVehicle.model}</p>
                   </div>
                   <span className="px-2.5 py-1 bg-slate-200/60 text-slate-700 font-bold rounded-lg text-[10px] uppercase tracking-wide">
                     Occupied
                   </span>
                 </div>
 
-                <div className="border-t border-slate-200/50 pt-4 grid grid-cols-2 gap-y-3 gap-x-4 text-xs">
+                <div className="border-t border-slate-200/50 pt-4 text-xs">
                   <div>
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Driver / Owner</p>
-                    <p className="font-semibold text-slate-700 mt-0.5">{activeSlot.assignedVehicle.ownerName}</p>
-                  </div>
-                  <div>
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Member ID</p>
-                    <p className="font-semibold text-slate-700 mt-0.5">{activeSlot.assignedVehicle.memberId}</p>
-                  </div>
-                  <div className="col-span-2">
                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Parked Since</p>
                     <p className="font-semibold text-slate-700 mt-0.5">
                       {activeSlot.assignedVehicle.startDate
@@ -524,13 +481,6 @@ export function SlotActionModal({
                     </p>
                   </div>
                 </div>
-
-                {activeSlot.assignedVehicle.notes && (
-                  <div className="bg-amber-50 border border-amber-200/20 p-4 rounded-xl">
-                    <p className="text-[10px] font-bold text-amber-700 uppercase tracking-wider">Staff Note</p>
-                    <p className="text-xs text-slate-600 mt-1 italic">{activeSlot.assignedVehicle.notes}</p>
-                  </div>
-                )}
               </div>
             </div>
           )}

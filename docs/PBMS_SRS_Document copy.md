@@ -1,103 +1,146 @@
-# Table of Contents
+---
+title: "PBMS - Software Requirements Specification"
+aliases:
+  - "PBMS SRS"
+document_type: srs
+srs_schema_version: "1.1"
+project: "PBMS"
+version: "1.1"
+status: REVIEW
+authors:
+  - "Collaborative"
+reviewers: []
+approvers: []
+created: 2026-06-18
+last_updated: 2026-07-12
+tags:
+  - srs
+  - requirements
+---
 
+# Software Requirements Specification
+
+## Table Of Contents
+
+- [0. Document Control](#0-document-control)
+  - [0.1 Document Information](#01-document-information)
+  - [0.2 Revision History](#02-revision-history)
+  - [0.3 Review And Approval](#03-review-and-approval)
 - [1. Introduction](#1-introduction)
   - [1.1 Purpose](#11-purpose)
   - [1.2 Scope](#12-scope)
-  - [1.3 Definitions, Acronyms, Abbreviations](#13-definitions-acronyms-abbreviations)
-  - [1.4 References](#14-references)
-  - [1.5 Document Overview](#15-document-overview)
-
+  - [1.3 Intended Audience](#13-intended-audience)
+  - [1.4 Definitions, Acronyms And Abbreviations](#14-definitions-acronyms-and-abbreviations)
+  - [1.5 References](#15-references)
+  - [1.6 Document Overview](#16-document-overview)
 - [2. Overall Description](#2-overall-description)
   - [2.1 Product Perspective](#21-product-perspective)
   - [2.2 Product Functions](#22-product-functions)
-  - [2.3 User Classes and Characteristics](#23-user-classes-and-characteristics)
+  - [2.3 User Classes And Characteristics](#23-user-classes-and-characteristics)
   - [2.4 Operating Environment](#24-operating-environment)
-  - [2.5 Constraints](#25-constraints)
-  - [2.6 Assumptions and Dependencies](#26-assumptions-and-dependencies)
-
-- [3. Stakeholders & Actors](#3-stakeholders--actors)
+  - [2.5 Design And Implementation Constraints](#25-design-and-implementation-constraints)
+  - [2.6 Assumptions And Dependencies](#26-assumptions-and-dependencies)
+- [3. Stakeholders, Actors And External Systems](#3-stakeholders-actors-and-external-systems)
   - [3.1 Stakeholders](#31-stakeholders)
   - [3.2 Actors](#32-actors)
   - [3.3 Actor Permission Overview](#33-actor-permission-overview)
-
+  - [3.4 External Systems](#34-external-systems)
 - [4. Business Context](#4-business-context)
   - [4.1 Problem Statement](#41-problem-statement)
   - [4.2 Business Goals](#42-business-goals)
   - [4.3 Success Criteria](#43-success-criteria)
   - [4.4 Current Workflow](#44-current-workflow)
   - [4.5 Target Workflow](#45-target-workflow)
-    - [4.5.1 Booking Workflow](#451-booking-workflow)
-    - [4.5.2 Monthly Subscription Workflow](#452-monthly-subscription-workflow)
-    - [4.5.3 Check-in Workflow](#453-check-in-workflow)
-    - [4.5.4 Check-out & Payment Workflow](#454-check-out--payment-workflow)
-
-- [5. Functional Requirements](#5-functional-requirements)
-  - [Feature List](#feature-list)
-  - [FR-001: Parking Structure Management](#fr-001-parking-structure-management)
-  - [FR-002: Driver Account & Vehicle Management](#fr-002-driver-account--vehicle-management)
-  - [FR-003: Vehicle Check-in](#fr-003-vehicle-check-in)
-  - [FR-004: Parking Allocation](#fr-004-parking-allocation)
-  - [FR-005: Booking Management](#fr-005-booking-management)
-  - [FR-006: Monthly Subscription Management](#fr-006-monthly-subscription-management)
-  - [FR-007: Parking Session Tracking](#fr-007-parking-session-tracking)
-  - [FR-008: Vehicle Check-out](#fr-008-vehicle-check-out)
-  - [FR-009: Payment Management](#fr-009-payment-management)
-  - [FR-010: Fee Calculation](#fr-010-fee-calculation)
-  - [FR-011: Exception Handling](#fr-011-exception-handling)
-  - [FR-012: Operation Monitoring](#fr-012-operation-monitoring)
-  - [FR-013: Pricing Policy Management](#fr-013-pricing-policy-management)
-
-- [6. Business Rules](#6-business-rules)
-  - [6.1 Parking Structure Rules](#61-parking-structure-rules)
-  - [6.2 Hardware Simulation Rules](#62-hardware-simulation-rules)
-  - [6.3 Driver Account & Vehicle Rules](#63-driver-account--vehicle-rules)
-  - [6.4 Parking Allocation Rules](#64-parking-allocation-rules)
-  - [6.5 Booking Rules](#65-booking-rules)
-  - [6.6 Monthly Subscription Rules](#66-monthly-subscription-rules)
-  - [6.7 Payment Rules](#67-payment-rules)
-  - [6.8 Fee Calculation Rules](#68-fee-calculation-rules)
-  - [6.9 Parking Session Rules](#69-parking-session-rules)
-  - [6.10 Vehicle Check-out Rules](#610-vehicle-check-out-rules)
-  - [6.11 Exception Handling Rules](#611-exception-handling-rules)
-  - [6.12 Operation Monitoring Rules](#612-operation-monitoring-rules)
-  - [6.13 System State Rules](#613-system-state-rules)
-    - [Permission Status](#permission-status)
-    - [Account Status](#account-status)
-    - [Building Status](#building-status)
-    - [Floor Status](#floor-status)
-    - [Zone Status](#zone-status)
-    - [Slot Status](#slot-status)
-    - [Vehicle Type Status](#vehicle-type-status)
-    - [Vehicle Status](#vehicle-status)
-    - [Card Status](#card-status)
-    - [Parking Session Status](#parking-session-status)
-    - [Booking Status](#booking-status)
-    - [Incident Status](#incident-status)
-    - [Monthly Subscription Status](#monthly-subscription-status)
-    - [Pricing Policy Status](#pricing-policy-status)
-  - [6.14 Configurable Variables Rules](#614-configurable-variables-rules)
-  - [6.15 Business Rules Summary](#615-business-rules-summary)
-
-- [7. Finalized Policy Decisions](#7-finalized-policy-decisions)
-
-- [8. Concept, Entity & Physical Model](#8-concept-entity--physical-model)
-  - [8.1 Modeling Scope](#81-modeling-scope)
-  - [8.2 Entity Summary](#82-entity-summary)
-  - [8.3 Physical Model Normalized](#83-physical-model-normalized)
-    - [8.3.1 Modeling Rules](#831-modeling-rules)
-      - [8.3.1.1 Database-Agnostic Rule](#8311-database-agnostic-rule)
-      - [8.3.1.2 Naming Convention](#8312-naming-convention)
-      - [8.3.1.3 Allowed Data Types](#8313-allowed-data-types)
-      - [8.3.1.4 Generic Constraints](#8314-generic-constraints)
-    - [8.3.2 Relationship Summary From Conceptual Model](#832-relationship-summary-from-conceptual-model)
-    - [8.3.3 Physical Tables](#833-physical-tables)
-    - [8.3.4 Mermaid ERD With Physical Tables](#834-mermaid-erd-with-physical-tables)
-    - [8.3.5 Cross-Domain Constraints](#835-cross-domain-constraints)
-    - [8.3.6 Notes / Deviations From Previous Version](#836-notes--deviations-from-previous-version)
-    - [8.3.7 Verification Checklist](#837-verification-checklist)
+- [5. Product Features](#5-product-features)
+  - [5.1 Feature List](#51-feature-list)
+  - [5.2 Feature Details](#52-feature-details)
+- [6. Use Case Specifications](#6-use-case-specifications)
+  - [6.1 Use Case Overview](#61-use-case-overview)
+  - [6.2 Use Case Details](#62-use-case-details)
+- [7. Business Rules](#7-business-rules)
+  - [7.1 Business Rule Catalogue](#71-business-rule-catalogue)
+  - [7.2 Business Rule Details](#72-business-rule-details)
+- [8. Functional Requirements](#8-functional-requirements)
+  - [8.1 Functional Requirement Catalogue](#81-functional-requirement-catalogue)
+  - [8.2 Functional Requirement Details](#82-functional-requirement-details)
+- [9. Data Requirements And Data Model](#9-data-requirements-and-data-model)
+  - [9.1 Modeling Scope](#91-modeling-scope)
+  - [9.2 Conceptual Data Model](#92-conceptual-data-model)
+  - [9.3 Logical And Physical Model](#93-logical-and-physical-model)
+  - [9.4 Entity Attributes](#94-entity-attributes)
+  - [9.5 Data Dictionary](#95-data-dictionary)
+  - [9.6 Data Constraints And Validation Rules](#96-data-constraints-and-validation-rules)
+- [10. External Interface Requirements](#10-external-interface-requirements)
+  - [10.1 User Interface Requirements](#101-user-interface-requirements)
+  - [10.2 Software Interface Requirements](#102-software-interface-requirements)
+  - [10.3 Hardware Interface Requirements](#103-hardware-interface-requirements)
+  - [10.4 Communication Interface Requirements](#104-communication-interface-requirements)
+- [11. Non-Functional Requirements](#11-non-functional-requirements)
+  - [11.1 Non-Functional Requirement Catalogue](#111-non-functional-requirement-catalogue)
+  - [11.2 Non-Functional Requirement Details](#112-non-functional-requirement-details)
+- [12. Access Control Requirements](#12-access-control-requirements)
+  - [12.1 Authentication Requirements](#121-authentication-requirements)
+  - [12.2 Authorization Requirements](#122-authorization-requirements)
+  - [12.3 Access Control Matrix](#123-access-control-matrix)
+- [13. State Models](#13-state-models)
+  - [13.1 State Definitions](#131-state-definitions)
+  - [13.2 State Transitions](#132-state-transitions)
+- [14. Error Handling And Edge Cases](#14-error-handling-and-edge-cases)
+  - [14.1 Error Catalogue](#141-error-catalogue)
+  - [14.2 Edge Cases](#142-edge-cases)
+- [15. Acceptance Criteria And Verification](#15-acceptance-criteria-and-verification)
+  - [15.1 Acceptance Criteria Catalogue](#151-acceptance-criteria-catalogue)
+  - [15.2 Verification Methods](#152-verification-methods)
+- [16. Requirements Traceability](#16-requirements-traceability)
+  - [16.1 Requirements Traceability Matrix](#161-requirements-traceability-matrix)
+- [17. Open Questions, Decisions And Risks](#17-open-questions-decisions-and-risks)
+  - [17.1 Open Questions](#171-open-questions)
+  - [17.2 Decisions](#172-decisions)
+  - [17.3 Requirement-Related Risks](#173-requirement-related-risks)
+- [18. Appendices](#18-appendices)
+  - [18.1 Glossary](#181-glossary)
+- [19. Requirement Identification Convention](#19-requirement-identification-convention)
+- [20. Requirement Status Convention](#20-requirement-status-convention)
+- [21. SRS Review Checklist](#21-srs-review-checklist)
+- [22. Approval](#22-approval)
 
 ---
-# 1. Introduction
+
+## 0. Document Control
+
+**Last Updated**: 2026-07-12  
+**Status**: REVIEW  
+**Author**: Collaborative  
+
+### 0.1 Document Information
+
+| Tiêu chí | Nội dung |
+|---|---|
+| Tên dự án | Parking Building Management System (PBMS) / NexPark |
+| Loại tài liệu | Software Requirements Specification (SRS) |
+| Phiên bản | 1.1 |
+| Trạng thái | REVIEW |
+
+### 0.2 Revision History
+
+| Phiên bản | Ngày | Tác giả | Mô tả thay đổi |
+|---|---|---|---|
+| 1.0 | 2026-06-18 | BA Team | Bản thảo SRS đầu tiên đầy đủ nghiệp vụ bãi xe. |
+| 1.1 | 2026-07-12 | Collaborative | Nâng cấp SRS khớp codebase: Tích hợp Camera/LPR Base64, API check capacity theo thời gian thực, cơ chế bảo vệ slot check-in, cập nhật Pricing Engine và Background Worker dọn dẹp chính sách giá hết hạn. |
+
+### 0.3 Review And Approval
+
+| Vai trò | Tên | Chức vụ | Ngày | Chữ ký / Trạng thái |
+|---|---|---|---|---|
+| Reviewer | [TBD] | BA Lead | | REVIEW |
+| Approver | [TBD] | Project Manager | | REVIEW |
+
+---
+
+
+## 1. Introduction
+
+Introduction
 
 ## 1.1 Purpose
 
@@ -205,7 +248,13 @@ nghiệm thu hệ thống.
 - Chương 8 mô tả Concept, Entity và Physical Model đã đồng bộ với SRS.
 
 ---
-# 2. Overall Description
+
+
+---
+
+## 2. Overall Description
+
+Overall Description
 
 ## 2.1 Product Perspective
 
@@ -345,7 +394,13 @@ Có thể triển khai theo hướng:
 | A-038 | Thời điểm check-out được ghi nhận khi bắt đầu check-out và dùng làm mốc kết thúc tính phí; thời gian thanh toán trong cùng quá trình không làm phí tăng thêm. |
 
 ---
-# 3. Stakeholders & Actors
+
+
+---
+
+## 3. Stakeholders, Actors And External Systems
+
+Stakeholders & Actors
 
 ## 3.1 Stakeholders
 
@@ -385,7 +440,19 @@ Có thể triển khai theo hướng:
 | Bank Payment Gateway | Xác nhận kết quả thanh toán online.                                      |
 
 ---
-# 4. Business Context
+
+### 3.4 External Systems
+
+- **EXT-PAY-001 (VNPay)**: Hệ thống xử lý thanh toán trực tuyến.
+- **EXT-OCR-001 (Plate Recognizer)**: Dịch vụ đám mây API bên ngoài phục vụ nhận diện biển số xe (LPR).
+
+
+
+---
+
+## 4. Business Context
+
+Business Context
 
 ## 4.1 Problem Statement
 
@@ -681,29 +748,45 @@ sức chứa, xe ra phải được thanh toán và cập nhật trạng thái.
 | Có phí phát sinh           | Cộng vào tổng phí trước khi thanh toán.    |
 
 ---
-# 5. Functional Requirements
 
-## Feature List
-
-| Feature ID | Feature Name                        | Priority | Description                                                                                |
-|------------|-------------------------------------|----------|--------------------------------------------------------------------------------------------|
-| F-001      | Parking Structure Management        | Must     | Quản lý Building, Floor, Zone, Slot để hệ thống có thể mở rộng.                            |
-| F-002      | Driver Account & Vehicle Management | Must     | Cho phép tạo tài khoản Driver không cần có xe ban đầu; một tài khoản có thể thêm nhiều xe. |
-| F-003      | Vehicle Check-in                    | Must     | Tạo lượt gửi xe bằng nhập liệu thủ công trên web.                                          |
-| F-004      | Parking Allocation                  | Must     | Xe máy được gợi ý Zone/Area; ô tô Walk-in/Booking được gợi ý Zone `GENERAL` trước và ghi nhận Slot thực tế sau khi đậu; ô tô thẻ tháng dùng Slot đã cấp trong Zone `MONTHLY`. |
-| F-005      | Booking Management                  | Must     | Booking yêu cầu chọn Building trước, nhập biển số, thanh toán Deposit Fee bằng Base Price của block đầu tiên theo Booking Policy trong main flow và chỉ giữ general capacity ở Building. |
-| F-006      | Monthly Subscription Management     | Must     | Đăng ký/gia hạn quyền lợi gửi xe tháng gắn với Vehicle, đảm bảo luôn còn chỗ bằng capacity/slot riêng. |
-| F-007      | Parking Session Tracking            | Must     | Theo dõi lượt gửi xe từ check-in đến check-out.                                            |
-| F-008      | Vehicle Check-out                   | Must     | Tính phí, xác nhận thanh toán và kết thúc lượt gửi xe.                                     |
-| F-009      | Payment Management                  | Must     | Hỗ trợ tiền mặt và thanh toán online thật qua ngân hàng; không hỗ trợ thanh toán thẻ.      |
-| F-010      | Fee Calculation                     | Must     | Tính phí theo giờ, loại xe, khung giờ, qua đêm và nhiều ngày.                              |
-| F-011      | Exception Handling                  | Should   | Xử lý mất mã, sai biển số, quá hạn, gửi sai khu vực, chưa thanh toán.                      |
-| F-012      | Operation Monitoring                | Should   | Manager xem trạng thái bãi, doanh thu, lượt xe, tỷ lệ lấp đầy.                             |
-| F-013      | Pricing Policy Management           | Must     | Manager cấu hình Pricing Policy dùng chung toàn hệ thống theo Vehicle Type, không theo Building. |
 
 ---
 
-## FR-001: Parking Structure Management
+## 5. Product Features
+
+### 5.1 Feature List
+
+| Feature ID | Feature Name                        | Priority | Description                                                                                |
+|------------|-------------------------------------|----------|--------------------------------------------------------------------------------------------|
+| F-STR-001      | Parking Structure Management        | Must     | Quản lý Building, Floor, Zone, Slot để hệ thống có thể mở rộng.                            |
+| F-DRV-001      | Driver Account & Vehicle Management | Must     | Cho phép tạo tài khoản Driver không cần có xe ban đầu; một tài khoản có thể thêm nhiều xe. |
+| F-OPS-001      | Vehicle Check-in                    | Must     | Tạo lượt gửi xe bằng nhập liệu thủ công trên web.                                          |
+| F-ALLOC-001      | Parking Allocation                  | Must     | Xe máy được gợi ý Zone/Area; ô tô Walk-in/Booking được gợi ý Zone `GENERAL` trước và ghi nhận Slot thực tế sau khi đậu; ô tô thẻ tháng dùng Slot đã cấp trong Zone `MONTHLY`. |
+| F-BOOK-001      | Booking Management                  | Must     | Booking yêu cầu chọn Building trước, nhập biển số, thanh toán Deposit Fee bằng Base Price của block đầu tiên theo Booking Policy trong main flow và chỉ giữ general capacity ở Building. |
+| F-MONTH-001      | Monthly Subscription Management     | Must     | Đăng ký/gia hạn quyền lợi gửi xe tháng gắn với Vehicle, đảm bảo luôn còn chỗ bằng capacity/slot riêng. |
+| F-SESSION-001      | Parking Session Tracking            | Must     | Theo dõi lượt gửi xe từ check-in đến check-out.                                            |
+| F-OPS-002      | Vehicle Check-out                   | Must     | Tính phí, xác nhận thanh toán và kết thúc lượt gửi xe.                                     |
+| F-PAY-001      | Payment Management                  | Must     | Hỗ trợ tiền mặt và thanh toán online thật qua ngân hàng; không hỗ trợ thanh toán thẻ.      |
+| F-PRICE-002      | Fee Calculation                     | Must     | Tính phí theo giờ, loại xe, khung giờ, qua đêm và nhiều ngày.                              |
+| F-INC-002      | Exception Handling                  | Should   | Xử lý mất mã, sai biển số, quá hạn, gửi sai khu vực, chưa thanh toán.                      |
+| F-MON-001      | Operation Monitoring                | Should   | Manager xem trạng thái bãi, doanh thu, lượt xe, tỷ lệ lấp đầy.                             |
+| F-PRICE-001      | Pricing Policy Management           | Must     | Manager cấu hình Pricing Policy dùng chung toàn hệ thống theo Vehicle Type, không theo Building. |
+
+
+### 5.2 Feature Details
+*(Chi tiết các luồng xử lý và logic nghiệp vụ của từng Feature được đặc tả qua Use Case ở Chương 6 và Business Rules ở Chương 7).*
+
+
+---
+
+## 6. Use Case Specifications
+
+### 6.1 Use Case Overview
+*(Xem danh sách Use Case tương ứng với Feature List ở Chương 5).*
+
+### 6.2 Use Case Details
+
+### UC-STR-001 - Parking Structure Management
 
 ### Description
 
@@ -770,7 +853,7 @@ Hệ thống cho phép Manager cấu hình cấu trúc bãi xe để phục vụ
 
 ---
 
-## FR-002: Driver Account & Vehicle Management
+### UC-DRV-001 - Driver Account & Vehicle Management
 
 ### Description
 
@@ -841,7 +924,7 @@ hoặc nhiều xe sau này.
 
 ---
 
-## FR-003: Vehicle Check-in
+### UC-OPS-001 - Vehicle Check-in
 
 ### Description
 
@@ -963,7 +1046,7 @@ Hệ thống cho phép Staff tạo lượt gửi xe khi xe vào bãi bằng các
 
 ---
 
-## FR-004: Parking Allocation
+### UC-ALLOC-001 - Parking Allocation
 
 ### Description
 
@@ -1052,7 +1135,7 @@ Hệ thống phân bổ chỗ đỗ theo loại xe và theo trạng thái khách
 
 ---
 
-## FR-005: Booking Management
+### UC-BOOK-001 - Booking Management
 
 ### Description
 
@@ -1224,7 +1307,7 @@ Driver không chọn Zone/Slot khi Booking. Booking chỉ giữ general capacity
 
 ---
 
-## FR-006: Monthly Subscription Management
+### UC-MONTH-001 - Monthly Subscription Management
 
 ### Description
 
@@ -1356,7 +1439,7 @@ Quyền lợi tháng áp dụng cho Vehicle đăng ký cố định, được th
 
 ---
 
-## FR-007: Parking Session Tracking
+### UC-SESSION-001 - Parking Session Tracking
 
 ### Description
 
@@ -1426,7 +1509,7 @@ Hệ thống theo dõi một lượt gửi xe từ lúc check-in đến lúc che
 
 ---
 
-## FR-008: Vehicle Check-out
+### UC-OPS-002 - Vehicle Check-out
 
 ### Description
 
@@ -1595,7 +1678,7 @@ Hệ thống cho phép Staff xử lý xe ra bãi, tính phí, thanh toán và c�
 
 ---
 
-## FR-009: Payment Management
+### UC-PAY-001 - Payment Management
 
 ### Description
 
@@ -1736,7 +1819,7 @@ Hệ thống hỗ trợ thanh toán tiền mặt và thanh toán online thật q
 
 ---
 
-## FR-010: Fee Calculation
+### UC-PRICE-002 - Fee Calculation
 
 ### Description
 
@@ -1939,7 +2022,7 @@ Ranh giới Pricing Window được xử lý như sau: thời điểm bắt đ�
 
 ---
 
-## FR-011: Exception Handling
+### UC-INC-002 - Exception Handling
 
 ### Description
 
@@ -2027,7 +2110,7 @@ Hệ thống hỗ trợ Staff xử lý các tình huống ngoại lệ trong v�
 
 ---
 
-## FR-012: Operation Monitoring
+### UC-MON-001 - Operation Monitoring
 
 ### Description
 
@@ -2090,7 +2173,7 @@ Hệ thống cho phép Manager theo dõi tình trạng vận hành của bãi xe
 
 ---
 
-## FR-013: Pricing Policy Management
+### UC-PRICE-001 - Pricing Policy Management
 
 ### Description
 
@@ -2229,7 +2312,19 @@ Pricing Policy áp dụng cho Parking Session được xác định bằng Vehic
   And không cho thay đổi cấu hình giá hoặc Pricing Window trong thao tác đó.
 
 ---
-# 6. Business Rules
+
+
+
+---
+
+## 7. Business Rules
+
+### 7.1 Business Rule Catalogue
+*(Xem chi tiết danh mục quy tắc nghiệp vụ bên dưới).*
+
+### 7.2 Business Rule Details
+
+Business Rules
 
 ## 6.1 Parking Structure Rules
 
@@ -2652,79 +2747,126 @@ Các biến cấu hình dưới đây phải được quản lý động ở t�
 | Configurable Rules | Các biến pricing, booking payment timeout, monthly subscription payment timeout, grace period, penalty và rounding phải được cấu hình động ở tầng nghiệp vụ/application/admin configuration, không hard-code và không tạo thêm table riêng trong physical model hiện tại. |
 
 ---
-# 7. Finalized Policy Decisions
 
-| Policy Area                                    | Final Decision                                                                                                                                 |
-|------------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------|
-| Check-in Allocation                            | Khi check-in, xe máy được gợi ý Zone còn capacity; ô tô Walk-in/Booking chỉ được gợi ý Zone thuộc nhóm `GENERAL`, chưa gán Slot tại thời điểm gợi ý; ô tô thẻ tháng dùng Slot đã cấp trong Zone `MONTHLY`. |
-| Monthly Subscription - Motorcycle              | Xe máy thẻ tháng được đảm bảo có chỗ bằng capacity động: mỗi subscription `ACTIVE` làm giảm capacity Walk-in/Booking một đơn vị. |
-| Monthly Subscription - Car                     | Ô tô thẻ tháng được cấp Slot riêng trong Zone `MONTHLY`; quyền giữ Slot nằm ở `monthly_subscription.assigned_slot_id`. |
-| Monthly Subscription - Vehicle Binding         | Mỗi vé tháng chỉ áp dụng cho một xe đã đăng ký; không dùng `max_registered_plate`.                                                             |
-| Card vs Monthly Subscription                   | Card có `card_type = NORMAL, MONTHLY`; Card `MONTHLY` gắn với Monthly Subscription, nhưng quyền lợi tháng vẫn do Monthly Subscription hợp lệ quyết định. |
-| Booking - Motorcycle                           | Xe máy booking phải chọn Building và Vehicle/biển số; Driver không chọn Zone/Slot, hệ thống gán Zone khi check-in. |
-| Booking - Car                                  | Ô tô booking phải chọn Building và Vehicle/biển số; Driver không chọn Zone/Slot; Booking chỉ giữ general car capacity tại Building, actual Zone/Slot được xác định khi check-in/đỗ xe. |
-| Booking Time Limit                             | Booking phải được đặt trước tối thiểu 1 tiếng và tối đa 8 tiếng tính từ thời điểm thanh toán cọc thành công.                                   |
-| Booking Deposit                                | Deposit Fee bằng Base Price của block đầu tiên theo Booking Policy áp dụng tại thời điểm Booking được tạo và thanh toán; Payment deposit lưu `pricing_policy_id` của Booking Policy và không tính lại Deposit khi xe check-in. |
-| Booking Cancellation                           | Khách hủy trước giờ booking ít nhất 1 tiếng thì được hoàn cọc.                                                                                 |
-| Booking No-show                                | Nếu `current_time > scheduled_check_in_time + checkin_grace_minutes` và Booking chưa được dùng để check-in, Booking chuyển sang `EXPIRED`, Deposit Fee không hoàn, general capacity được giải phóng và không cập nhật `slot_status`. |
-| Early Arrival                                  | Nếu khách đến sớm hơn giờ booking, hệ thống cho check-in sớm nếu còn chỗ phù hợp; thời gian gửi xe bắt đầu tính từ lúc khách thực tế check-in. |
-| Booking Final Payment                          | Số tiền còn phải trả bằng `max(0, total_actual_fee - paid_deposit_fee)`, trong đó `total_actual_fee = actual_parking_fee + penalties + surcharges`; chỉ Deposit Payment `PAID`, đúng Booking, chưa `REFUNDED` và chưa khấu trừ lần khác mới được trừ. |
-| Booking Deposit Exceeds Actual Fee             | Nếu Deposit Fee lớn hơn Tổng phí thực tế, `amount_due = 0`, Driver không phải thanh toán thêm và check-out tiếp tục theo flow hiện tại; hệ thống không hoàn phần chênh lệch, không lưu/xử lý riêng phần chênh lệch, không tạo credit/wallet/account balance, không tạo Payment âm và không thay đổi Deposit Payment đã tồn tại. |
-| Overtime After Booking                         | Overtime có thể hiển thị như breakdown riêng nhưng không được tính hai lần; tổng phí được tính một lần trên thời gian thực tế theo Pricing Window. |
-| Pricing Model | Hệ thống tính phí theo từng Pricing Window; session được chia tại ranh giới Pricing Window và mỗi đoạn áp dụng Base Duration, Base Price, Increment Block, Increment Price, Grace Period và Window Cap. |
-| Window Cap | `window_cap` áp dụng cho từng đoạn/lần xuất hiện của Pricing Window tương ứng, không áp dụng cho toàn bộ Parking Session. |
-| 24/7 Session | Hệ thống không reset session khi qua ngày mới. |
-| Pricing Policy at Check-in | Pricing Policy của Parking Session được xác định bằng Vehicle Type và `check_in_time`; không bắt buộc lưu `pricing_policy_id` trên Parking Session; không xác định lại theo `check_out_time` hoặc khi Manager kích hoạt policy mới. |
-| Pricing Policy Scope | Pricing Policy có phạm vi toàn hệ thống theo Vehicle Type trong phiên bản hiện tại; không cấu hình riêng theo Building và `pricing_policy` không có `building_id`. |
-| Pricing Policy Timeline | Với cùng Vehicle Type, các khoảng `effective_start` - `effective_end` không được overlap; tại một thời điểm chỉ có tối đa một Policy áp dụng; khoảng trống được phép tồn tại nhưng check-in trong khoảng trống bị từ chối. |
-| Pricing Policy Lock | Policy đã `ACTIVE` hoặc đã từng được dùng để chấp nhận Parking Session không được sửa Vehicle Type, Pricing Window, Base Duration, Base Price, Increment Block, Increment Price, Grace Period, Window Cap hoặc dữ liệu làm đổi kết quả tính phí. |
-| Pricing Policy Effective Time Edit | `effective_start` của Policy `ACTIVE` không được đổi; Policy tương lai có thể đổi `effective_start` nếu vẫn hợp lệ. `effective_end` của Policy tương lai hoặc `ACTIVE` có thể đổi nếu ở tương lai, không overlap và không làm mất hiệu lực hồi tố; Policy `EXPIRED` không được đổi `effective_end`. |
-| Pricing Window Coverage | Mỗi Pricing Policy phải có ít nhất một Pricing Window, các Window không overlap và phủ đủ 24 giờ; cho phép Window đi qua nửa đêm. |
-| Pricing Window Short Segment | Nếu Parking Session có một đoạn thời gian lớn hơn 0 trong một Pricing Window, đoạn đó chịu ít nhất Base Price của Window tương ứng. |
-| Pricing Window Boundary | Thời điểm bắt đầu Window thuộc Window đó; thời điểm kết thúc Window thuộc Window tiếp theo; đoạn thời lượng bằng 0 không tính phí. |
-| Monthly Subscription Downgrade | Nếu vé tháng hết hạn và xe vẫn còn trong bãi, hệ thống downgrade và tính phí vãng lai từ thời điểm hết hạn. |
-| Monthly Subscription Checkout Evaluation | Quyền lợi Monthly Subscription trong một lần checkout được đánh giá tại `check_out_time` đã ghi nhận; nếu Payment Pending kéo dài qua `expired_at`, hệ thống không tính thêm phí sau `check_out_time`. |
-| System State Management | Trạng thái hệ thống được quản lý bằng các status riêng cho Building, Floor, Zone, Slot, Vehicle, Card, Parking Session, Booking, Incident, Monthly Subscription và Pricing Policy. |
-| Booking Payment Timeout | Nếu booking chưa thanh toán sau `booking_payment_timeout_minutes`, Booking hết hiệu lực hoặc bị hủy theo status model; general capacity đã tạm giữ được giải phóng và không cập nhật `slot_status`. |
-| Monthly Subscription Payment Timeout | Thanh toán online khi đăng ký/gia hạn Monthly Subscription dùng `monthly_subscription_payment_timeout_minutes`; nếu hết timeout mà Payment chưa `PAID`, Payment chuyển `FAILED` và subscription không được kích hoạt/gia hạn. |
-| Booking Check-in Grace | `checkin_grace_minutes` là biến cấu hình động; không hard-code giá trị mặc định trong SRS. |
-| Monthly Zero Checkout | Với Monthly Subscription còn `ACTIVE`, đúng Vehicle/biển số, đúng Building, không downgrade, không phụ phí/phí phạt, `actual_parking_fee = 0` và `amount_due = 0`; hệ thống bỏ qua bước thu tiền nhưng vẫn hoàn tất toàn bộ logic check-out. |
-| Payment Status Semantics | `PENDING` nghĩa là quy trình thanh toán còn mở; `FAILED` chỉ khi quy trình đã kết thúc không thành công; `PAID` chỉ khi ngân hàng hoặc Staff xác nhận đã nhận tiền. |
-| Payment Source | Mỗi Payment phải có đúng một nguồn nghiệp vụ chính trong `session_id`, `booking_id`, `monthly_subscription_id`. |
-| Checkout Time Capture | Hệ thống ghi nhận `check_out_time` ngay khi Driver tap Card hoặc Staff tiếp nhận yêu cầu check-out; phí tính từ `check_in_time` đến `check_out_time` đã ghi nhận. |
-| Checkout Pending Payment | Nếu Payment vẫn `PENDING`, Parking Session chưa `COMPLETED`, Zone/Slot/Card chưa được giải phóng và phí không tăng thêm trong cùng quá trình thanh toán. |
-| Checkout Payment Timeout | Checkout Payment không có automatic timeout; Payment giữ `PENDING` cho đến khi `PAID`, Driver hủy, Staff xác nhận không thể tiếp tục hoặc Staff kết thúc/đánh dấu `FAILED`. |
-| Payment Retry | Payment đã `FAILED` không được đổi lại `PENDING`; lần thử mới tạo Payment mới, giữ Payment cũ để audit và không được có hai Payment `PAID` cho cùng một nghĩa vụ thanh toán. |
-| Change Payment Method During Checkout | Đổi từ online sang tiền mặt hoặc ngược lại trong cùng lần checkout giữ nguyên `check_out_time`, không tính lại phí và không tạo lần check-out mới. |
-| Checkout Failed Rollback | Một Payment cụ thể có thể `FAILED` mà checkout vẫn tiếp tục; chỉ khi toàn bộ checkout bị kết thúc `FAILED`/bị hủy, hệ thống rollback nghiệp vụ của lần check-out, hủy `check_out_time`, giữ session tiếp tục đang gửi và giữ Payment `FAILED` để audit. |
-| Time Rounding | Nếu thời gian phát sinh nhỏ hơn hoặc bằng grace_period_minutes thì không tính block mới; nếu lớn hơn thì tính block mới. |
-| Cash Rounding | Thanh toán tiền mặt làm tròn theo cash_rounding_unit và rounding_threshold trên số tiền cuối cùng sau phí gửi xe, phụ phí/phí phạt và Booking Deposit hợp lệ. |
-| Online Rounding | Thanh toán online không làm tròn. |
-| Lost Card Penalty | Khi Staff xử lý Card bị mất, khách phải trả phí gửi xe hiện tại và `lost_card_penalty`; Card giữ trạng thái `LOST` cho đến khi Manager xử lý. |
-| Wrong Zone Penalty | Xe đỗ sai khu vực có thể bị áp dụng wrong_zone_penalty khi được Staff xác nhận. |
-| Configurable Variables Storage | Các biến giá tiền, timeout, grace period, penalty và rounding được cấu hình động ở tầng nghiệp vụ/application/admin configuration; không tạo thêm table riêng trong physical model hiện tại. |
 
 ---
 
-## Pricing Window Multi-day Example
+## 8. Functional Requirements
 
-Ví dụ minh họa dựa trên một cấu hình bảng giá giả định.
+### 8.1 Functional Requirement Catalogue
 
-Xe đậu từ 20:00 ngày 14/02 đến 12:00 ngày 16/02.
+| Requirement ID | Module | Title | Priority | Status |
+|---|---|---|---|---|
+| **FR-OPS-001** | Operations | Camera Base64 Image Capture at Check-in | Must | REVIEW |
+| **FR-OPS-002** | Operations | Camera Base64 Image Capture at Check-out | Must | REVIEW |
+| **FR-OPS-003** | Operations | Double Active Session Protection | Must | REVIEW |
+| **FR-BOOK-001** | Booking | Time-based Building Capacity API Query | Must | REVIEW |
+| **FR-BOOK-002** | Booking | Automatic Overdue Unpaid Booking Cleanup | Must | REVIEW |
+| **FR-MONTH-001** | Monthly | Filter Unassigned Slots for Car Subscription | Must | REVIEW |
+| **FR-PAY-001** | Payment | VNPay Redirect & Browser Return Integration | Must | REVIEW |
+| **FR-PRICE-001** | Pricing | Expired Pricing Policy Cleanup Job | Must | REVIEW |
+| **FR-INC-001** | Incident | Lock Physical Card on Loss Report | Must | REVIEW |
 
-Hệ thống chia thành:
+### 8.2 Functional Requirement Details
 
-1. Night Window: 20:00 ngày 14/02 → 06:00 ngày 15/02.
-2. Day Window: 06:00 ngày 15/02 → 18:00 ngày 15/02.
-3. Night Window: 18:00 ngày 15/02 → 06:00 ngày 16/02.
-4. Day Window: 06:00 ngày 16/02 → 12:00 ngày 16/02.
+#### FR-OPS-001 Camera Base64 Image Capture at Check-in
+- **Priority**: Must
+- **Status**: REVIEW
+- **Source**: Codebase Audit (2026-07-07)
+- **Rationale**: Lưu trữ bằng chứng hình ảnh xe cổng vào hỗ trợ đối soát ngoại lệ và biển số thực tế.
+- **Acceptance Criteria**:
+  1. Given nhân viên bấm nút xác nhận Check-in, when hệ thống thực hiện đăng ký xe vào bãi, then hệ thống phải nhận chuỗi Base64 hình ảnh xe cổng vào và lưu vào trường `image_in` trong bảng `parking_session`.
+- **Dependencies**: None
+- **Notes**: Ảnh chụp được nén dưới dạng Base64 phía client trước khi gửi qua API body.
 
-Mỗi đoạn được tính theo rule của Pricing Window tương ứng và áp dụng `window_cap` của chính đoạn đó.
+#### FR-OPS-002 Camera Base64 Image Capture at Check-out
+- **Priority**: Must
+- **Status**: REVIEW
+- **Source**: Codebase Audit (2026-07-07)
+- **Rationale**: Lưu trữ bằng chứng hình ảnh xe cổng ra phục vụ kiểm tra an ninh chéo.
+- **Acceptance Criteria**:
+  1. Given nhân viên bấm nút bắt đầu Check-out, when hệ thống tải lên thông tin thanh toán, then hệ thống phải chụp ảnh xe cổng ra bằng webcam và lưu chuỗi Base64 vào trường `image_out` của phiên gửi xe.
+- **Dependencies**: FR-OPS-001
+- **Notes**: None
 
-Parking Session vẫn là một session duy nhất và không bị reset tại 00:00 hoặc khi chuyển sang ngày mới.
-# 8. Concept, Entity & Physical Model
+#### FR-OPS-003 Double Active Session Protection
+- **Priority**: Must
+- **Status**: REVIEW
+- **Source**: Codebase Audit (2026-06-18)
+- **Rationale**: Ngăn chặn gian lận vòng lặp thẻ (một thẻ cứng check-in 2 lần liên tục mà không checkout).
+- **Acceptance Criteria**:
+  1. Given xe hoặc thẻ gửi xe đã có một phiên gửi xe đang hoạt động (`session_status = 'ACTIVE'`), when nhân viên thực hiện check-in cho xe/thẻ đó, then hệ thống phải từ chối yêu cầu và báo lỗi trùng phiên gửi xe.
+- **Dependencies**: None
+- **Notes**: None
 
-## 8.1 Modeling Scope
+#### FR-BOOK-001 Time-based Building Capacity API Query
+- **Priority**: Must
+- **Status**: REVIEW
+- **Source**: Codebase Audit (2026-06-27)
+- **Rationale**: Người dùng cần kiểm tra bãi còn chỗ trống hay không trong suốt khoảng thời gian định đặt xe.
+- **Acceptance Criteria**:
+  1. Given người dùng nhập tòa nhà, thời gian check-in dự kiến và checkout dự kiến, when người dùng gửi yêu cầu tìm chỗ đỗ, then hệ thống phải tính toán trừ đi lượng booking trùng lịch và trả về sức chứa trống khả dụng qua endpoint `/api/buildings/{id}/available-capacity`.
+- **Dependencies**: None
+- **Notes**: None
+
+#### FR-BOOK-002 Automatic Overdue Unpaid Booking Cleanup
+- **Priority**: Must
+- **Status**: REVIEW
+- **Source**: Codebase Audit (2026-07-12)
+- **Rationale**: Giải phóng các chỗ đỗ đã được đặt nhưng người dùng không thanh toán cọc đúng hạn.
+- **Acceptance Criteria**:
+  1. Given một đặt chỗ (booking) đang ở trạng thái `Pending` (chờ thanh toán cọc), when thời gian hiện tại vượt quá `payment_deadline` (15 phút kể từ khi tạo), then hệ thống phải tự động hủy booking và cập nhật trạng thái thành `Expired` thông qua background worker chạy định kỳ mỗi 5 phút.
+- **Dependencies**: None
+- **Notes**: Xử lý bằng `ExpiredBookingCleanupWorker`.
+
+#### FR-MONTH-001 Filter Unassigned Slots for Car Subscription
+- **Priority**: Must
+- **Status**: REVIEW
+- **Source**: Codebase Audit (2026-07-12)
+- **Rationale**: Tự động gán slot đỗ xe cố định trống thuộc zone MONTHLY cho tài xế khi đăng ký vé tháng ô tô.
+- **Acceptance Criteria**:
+  1. Given một yêu cầu đăng ký vé tháng ô tô mới, when hệ thống thực hiện kiểm tra chỗ đỗ, then hệ thống phải lọc các slot đỗ xe trống chưa được gán cho bất kỳ subscription nào trong cùng tòa nhà thuộc các zone `MONTHLY` và tự động gán slot đó vào `assigned_slot_id`.
+- **Dependencies**: None
+- **Notes**: Thực hiện thông qua phương thức `FindAvailableMonthlySlotAsync`.
+
+#### FR-PAY-001 VNPay Redirect & Browser Return Integration
+- **Priority**: Must
+- **Status**: REVIEW
+- **Source**: Codebase Audit (2026-07-12)
+- **Rationale**: Hỗ trợ khách hàng thanh toán trực tuyến qua cổng thanh toán VNPay.
+- **Acceptance Criteria**:
+  1. Given người dùng chọn phương thức thanh toán `ONLINE_BANKING`, when hệ thống tạo yêu cầu thanh toán, then hệ thống phải sinh URL thanh toán VNPay (HMAC-SHA512) để chuyển hướng người dùng, và xử lý callback (IPN/Return URL) để cập nhật trạng thái payment thành `PAID` hoặc `FAILED` tương ứng.
+- **Dependencies**: None
+- **Notes**: Thực hiện thông qua dịch vụ `VNPayGateway` trên Backend.
+
+#### FR-PRICE-001 Expired Pricing Policy Cleanup Job
+- **Priority**: Must
+- **Status**: REVIEW
+- **Source**: Codebase Audit (2026-07-12)
+- **Rationale**: Tự động chuyển đổi các chính sách giá đã hết hạn sử dụng để làm sạch dữ liệu.
+- **Acceptance Criteria**:
+  1. Given các chính sách giá đang hoạt động (`Active`), when ngày hiện tại vượt quá ngày kết thúc hiệu lực `effective_end`, then hệ thống phải cập nhật trạng thái chính sách giá thành `Expired` thông qua background worker chạy định kỳ mỗi 12 giờ.
+- **Dependencies**: None
+- **Notes**: Xử lý bằng `ExpiredPricingPolicyCleanupWorker`.
+
+#### FR-INC-001 Lock Physical Card on Loss Report
+- **Priority**: Must
+- **Status**: REVIEW
+- **Source**: Codebase Audit (2026-07-12)
+- **Rationale**: Ngăn chặn người nhặt được thẻ sử dụng trái phép khi tài xế báo mất thẻ tháng.
+- **Acceptance Criteria**:
+  1. Given tài xế hoặc Staff báo mất thẻ tháng đang gán cho một đăng ký active, when Staff thực hiện thay thế thẻ tháng bằng mã thẻ mới, then hệ thống phải tự động đổi trạng thái thẻ cũ thành `Lost` và lưu thời điểm báo mất vào cột `LostAt` để khóa thẻ ngay lập tức.
+- **Dependencies**: None
+- **Notes**: Thực hiện thông qua phương thức `ReplaceSubscriptionCardAsync`.
+
+
+---
+
+## 9. Data Requirements And Data Model
+
+Concept, Entity & Physical Model
+
+## 9.1 Modeling Scope
 
 Phần này đồng bộ SRS với concept relationship, entity list và physical table model. Mục tiêu là để nghiệp vụ, ERD và thiết kế database không bị tách rời.
 
@@ -2749,7 +2891,7 @@ Các quyết định đã chốt trong SRS được phản ánh trong model:
 - `check_out_time` được ghi nhận khi bắt đầu check-out; nếu Payment còn `PENDING`, session chưa `COMPLETED`; nếu check-out `FAILED`, `check_out_time` của lần thất bại bị hủy.
 - Các biến pricing, timeout, grace period, penalty và rounding được cấu hình động ở tầng nghiệp vụ/application/admin configuration, không hard-code và không tạo thêm table riêng trong physical model hiện tại.
 
-## 8.2 Entity Summary
+## 9.2 Entity Summary
 
 | Entity/Table | Purpose |
 |---|---|
@@ -2777,16 +2919,26 @@ Các quyết định đã chốt trong SRS được phản ánh trong model:
 | `revenue_statistic_payment` | bảng nối để truy vết payment được aggregate vào revenue statistic. |
 | `notification` | lưu thông báo gửi đến account. |
 | `audit_log` | lưu log thao tác để truy vết. |
+| `pricing_rule` | lưu các quy tắc tính phí đỗ xe liên kết với chính sách giá. |
+| `base_pricing_rule_config` | cấu hình chi tiết cho quy tắc tính giá cơ bản (BasePricing). |
+| `increment_pricing_rule_config` | cấu hình chi tiết cho quy tắc tính giá lũy tiến tiếp theo (IncrementPricing). |
+| `daily_cap_rule_config` | cấu hình giá trần tối đa trong 24 giờ của một ngày (DailyCap). |
+| `grace_period_rule_config` | cấu hình thời gian ân hạn sau khi check-in hoặc thanh toán (GracePeriod). |
+| `pricing_calculation_log` | nhật ký ghi nhận chi tiết tính toán phí cho mỗi giao dịch đỗ xe nhằm đối soát tài chính. |
+| `SubscriptionPriceConfigs` | lưu trữ các cấu hình bảng giá vé tháng của hệ thống (Monthly Subscription Price Configs) kèm theo hiệu lực lịch sử. |
+| `PenaltyConfigs` | cấu hình chi tiết bảng giá phạt sự cố phát sinh trong lượt đỗ xe (mất thẻ, đỗ sai zone). |
+| `shift_report` | báo cáo ca trực của nhân viên cổng (Staff) phục vụ kiểm toán tài chính và tiền mặt. |
 
-#### 8.3 Physical Model Normalized
+
+### 9.3 Physical Model Normalized
 
 > Mục tiêu: chỉnh sửa physical/logical model để AI CLI đọc được, bám theo relationship của `PBMS_Conceptual_Model.md`, đồng thời chuẩn hóa attribute/datatype từ các physical ERD đã cung cấp.
 
 ---
 
-### 8.3.1 Modeling Rules
+### 9.3.1 Modeling Rules
 
-#### 8.3.1.1 Database-Agnostic Rule
+#### 9.3.1.1 Database-Agnostic Rule
 
 File này không viết theo một database cụ thể.
 
@@ -2810,7 +2962,7 @@ Các datatype trong tài liệu là kiểu trung lập để AI/Developer có th
 
 ---
 
-#### 8.3.1.2 Naming Convention
+#### 9.3.1.2 Naming Convention
 
 | Item | Convention |
 |---|---|
@@ -2825,7 +2977,7 @@ Các datatype trong tài liệu là kiểu trung lập để AI/Developer có th
 
 ---
 
-#### 8.3.1.3 Allowed Data Types
+#### 9.3.1.3 Allowed Data Types
 
 | Data Type | Usage |
 |---|---|
@@ -2847,7 +2999,7 @@ Quy ước chuẩn hóa:
 
 ---
 
-#### 8.3.1.4 Generic Constraints
+#### 9.3.1.4 Generic Constraints
 
 | Constraint | Meaning |
 |---|---|
@@ -2862,7 +3014,7 @@ Quy ước chuẩn hóa:
 
 ---
 
-### 8.3.2 Relationship Summary From Conceptual Model
+### 9.3.2 Relationship Summary From Conceptual Model
 
 | ID | Relationship | Cardinality | Physical Direction |
 |---|---|---|---|
@@ -2900,10 +3052,26 @@ Quy ước chuẩn hóa:
 | R-PRICE-001 | Vehicle Type applies Pricing Policy | 1 - 0..N | `pricing_policy.vehicle_type_id -> vehicle_type.vehicle_type_id` |
 | R-PRICE-002 | Pricing Policy applies Payment | 1 - 0..N | `payment.pricing_policy_id -> pricing_policy.pricing_policy_id` |
 | R-PRICE-003 | Pricing Policy has Pricing Window | 1 - 1..N | `pricing_window.pricing_policy_id -> pricing_policy.pricing_policy_id` |
+| R-PRICE-004 | Pricing Policy has Pricing Rule | 1 - N | `pricing_rule.pricing_policy_id -> pricing_policy.pricing_policy_id` |
+| R-PRICE-005 | Pricing Rule has Base Pricing Config | 1 - 0..1 | `base_pricing_rule_config.pricing_rule_id -> pricing_rule.pricing_rule_id` |
+| R-PRICE-006 | Pricing Rule has Increment Pricing Config | 1 - 0..1 | `increment_pricing_rule_config.pricing_rule_id -> pricing_rule.pricing_rule_id` |
+| R-PRICE-007 | Pricing Rule has Daily Cap Config | 1 - 0..1 | `daily_cap_rule_config.pricing_rule_id -> pricing_rule.pricing_rule_id` |
+| R-PRICE-008 | Pricing Rule has Grace Period Config | 1 - 0..1 | `grace_period_rule_config.pricing_rule_id -> pricing_rule.pricing_rule_id` |
+| R-PRICE-009 | Pricing Calculation Log belongs to Vehicle Type | 1 - 0..N | `pricing_calculation_log.vehicle_type_id -> vehicle_type.vehicle_type_id` |
+| R-PRICE-010 | Pricing Calculation Log matches Pricing Policy | 1 - 0..N | `pricing_calculation_log.matched_policy_id -> pricing_policy.pricing_policy_id` |
+| R-PRICE-011 | Pricing Calculation Log relates to Parking Session | 0..1 - 0..N | `pricing_calculation_log.parking_session_id -> parking_session.session_id` |
+| R-PRICE-012 | Pricing Calculation Log relates to Booking | 0..1 - 0..N | `pricing_calculation_log.booking_id -> booking.booking_id` |
+| R-PRICE-013 | Vehicle Type has Subscription Price Configs | 1 - 0..N | `SubscriptionPriceConfigs.VehicleTypeId -> vehicle_type.vehicle_type_id` |
+| R-MONTH-007 | Monthly Subscription applies Subscription Price Config | 0..1 - 0..N | `monthly_subscription.SubscriptionPriceConfigId -> SubscriptionPriceConfigs.Id` |
+| R-INC-003 | Incident Type has Penalty Configs | 1 - 0..N | `PenaltyConfigs.IncidentTypeId -> incident_type.incident_type_id` |
+| R-INC-004 | Incident applies Penalty Config | 0..1 - 0..N | `incident.PenaltyConfigId -> PenaltyConfigs.Id` |
+| R-REP-001 | Staff submits Shift Report | 1 - 0..N | `shift_report.staff_id -> account.account_id` |
+| R-REP-002 | Manager approves Shift Report | 0..1 - 0..N | `shift_report.approved_by_id -> account.account_id` |
+
 
 ---
 
-### 8.3.3 Physical Tables
+### 9.3.3 Physical Tables
 
 #### 3.1 `role`
 
@@ -3113,7 +3281,10 @@ Purpose: lưu lượt gửi xe từ check-in đến check-out.
 | check_out_time | timestamp | NULL | Thời điểm check-out được ghi nhận ngay khi Driver/Staff bắt đầu check-out; dùng làm mốc kết thúc tính phí nếu cùng quá trình check-out tiếp tục |
 | license_plate_in | varchar(20) | NOT NULL | Biển số lúc vào |
 | license_plate_out | varchar(20) | NULL | Biển số lúc ra |
+| image_in | text | NULL | Ảnh Base64 chụp xe cổng vào |
+| image_out | text | NULL | Ảnh Base64 chụp xe cổng ra |
 | session_status | varchar(20) | NOT NULL | Trạng thái vòng đời lượt gửi xe |
+| xmin | RowVersion | NOT NULL | Token concurrency kiểm soát tranh chấp đồng thời |
 
 Generic constraints:
 
@@ -3434,7 +3605,202 @@ Purpose: lưu log thao tác để truy vết.
 
 ---
 
-### 8.3.4 Mermaid ERD With Physical Tables
+#### 3.25 `pricing_rule`
+
+Purpose: lưu các quy tắc tính phí đỗ xe liên kết với chính sách giá (Pricing Policy).
+
+| Column | Type | Constraints | Meaning |
+|---|---|---|---|
+| pricing_rule_id | int | PK, AUTO GENERATED, NOT NULL | ID quy tắc |
+| pricing_policy_id | int | FK -> pricing_policy.pricing_policy_id, NOT NULL | Chính sách giá áp dụng |
+| rule_type | varchar(50) | NOT NULL | Loại quy tắc (BasePricing, IncrementPricing, DailyCap, GracePeriod) |
+| execution_order | int | NOT NULL | Thứ tự thực hiện quy tắc |
+| is_active | boolean | NOT NULL, DEFAULT true | Đánh dấu quy tắc đang hoạt động |
+| created_at | timestamp | NOT NULL, DEFAULT CURRENT_TIMESTAMP | Thời điểm tạo |
+| xmin | RowVersion | NOT NULL | Token concurrency kiểm soát tranh chấp đồng thời |
+
+Generic constraints:
+- `pricing_rule_id` liên kết 1-1 với các cấu hình tương ứng dựa trên `rule_type`.
+
+---
+
+#### 3.26 `base_pricing_rule_config`
+
+Purpose: cấu hình chi tiết cho quy tắc tính giá cơ bản (BasePricing).
+
+| Column | Type | Constraints | Meaning |
+|---|---|---|---|
+| base_pricing_rule_config_id | int | PK, AUTO GENERATED, NOT NULL | ID cấu hình |
+| pricing_rule_id | int | FK -> pricing_rule.pricing_rule_id, NOT NULL, UNIQUE | Quy tắc tính giá cha |
+| base_duration_minutes | int | NOT NULL | Thời lượng block đầu tiên (phút) |
+| base_price_amount | decimal(18,2) | NOT NULL | Giá của block đầu tiên |
+| currency_code | varchar(10) | NOT NULL, DEFAULT 'VND' | Mã tiền tệ |
+| created_at | timestamp | NOT NULL, DEFAULT CURRENT_TIMESTAMP | Thời điểm tạo |
+| xmin | RowVersion | NOT NULL | Token concurrency kiểm soát tranh chấp đồng thời |
+
+Generic constraints:
+- Quan hệ 1-1 với `pricing_rule`.
+
+---
+
+#### 3.27 `increment_pricing_rule_config`
+
+Purpose: cấu hình chi tiết cho quy tắc tính giá lũy tiến tiếp theo (IncrementPricing).
+
+| Column | Type | Constraints | Meaning |
+|---|---|---|---|
+| increment_pricing_rule_config_id | int | PK, AUTO GENERATED, NOT NULL | ID cấu hình |
+| pricing_rule_id | int | FK -> pricing_rule.pricing_rule_id, NOT NULL, UNIQUE | Quy tắc tính giá cha |
+| increment_interval_minutes | int | NOT NULL | Kích thước block lũy tiến tiếp theo (phút) |
+| increment_price_amount | decimal(18,2) | NOT NULL | Đơn giá cho mỗi block tiếp theo |
+| threshold_percentage | int | NOT NULL | Ngưỡng phần trăm tính phí block mới (0-100%) |
+| currency_code | varchar(10) | NOT NULL, DEFAULT 'VND' | Mã tiền tệ |
+| created_at | timestamp | NOT NULL, DEFAULT CURRENT_TIMESTAMP | Thời điểm tạo |
+| xmin | RowVersion | NOT NULL | Token concurrency kiểm soát tranh chấp đồng thời |
+
+Generic constraints:
+- Quan hệ 1-1 với `pricing_rule`.
+
+---
+
+#### 3.28 `daily_cap_rule_config`
+
+Purpose: cấu hình giá trần tối đa trong 24 giờ của một ngày (DailyCap).
+
+| Column | Type | Constraints | Meaning |
+|---|---|---|---|
+| daily_cap_rule_config_id | int | PK, AUTO GENERATED, NOT NULL | ID cấu hình |
+| pricing_rule_id | int | FK -> pricing_rule.pricing_rule_id, NOT NULL, UNIQUE | Quy tắc tính giá cha |
+| maximum_daily_amount | decimal(18,2) | NOT NULL | Giá trần tối đa trong ngày |
+| currency_code | varchar(10) | NOT NULL, DEFAULT 'VND' | Mã tiền tệ |
+| created_at | timestamp | NOT NULL, DEFAULT CURRENT_TIMESTAMP | Thời điểm tạo |
+| xmin | RowVersion | NOT NULL | Token concurrency kiểm soát tranh chấp đồng thời |
+
+Generic constraints:
+- Quan hệ 1-1 với `pricing_rule`.
+
+---
+
+#### 3.29 `grace_period_rule_config`
+
+Purpose: cấu hình thời gian ân hạn sau khi check-in hoặc thanh toán (GracePeriod).
+
+| Column | Type | Constraints | Meaning |
+|---|---|---|---|
+| grace_period_rule_config_id | int | PK, AUTO GENERATED, NOT NULL | ID cấu hình |
+| pricing_rule_id | int | FK -> pricing_rule.pricing_rule_id, NOT NULL, UNIQUE | Quy tắc tính giá cha |
+| grace_period_minutes | int | NOT NULL | Thời gian ân hạn (phút) |
+| created_at | timestamp | NOT NULL, DEFAULT CURRENT_TIMESTAMP | Thời điểm tạo |
+| xmin | RowVersion | NOT NULL | Token concurrency kiểm soát tranh chấp đồng thời |
+
+Generic constraints:
+- Quan hệ 1-1 với `pricing_rule`.
+
+---
+
+#### 3.30 `pricing_calculation_log`
+
+Purpose: nhật ký ghi nhận chi tiết tính toán phí cho mỗi giao dịch đỗ xe nhằm đối soát tài chính.
+
+| Column | Type | Constraints | Meaning |
+|---|---|---|---|
+| pricing_calculation_log_id | int | PK, AUTO GENERATED, NOT NULL | ID nhật ký |
+| booking_id | int | FK -> booking.booking_id, NULL | ID đặt chỗ liên quan |
+| parking_session_id | int | FK -> parking_session.session_id, NULL | ID lượt gửi xe liên quan |
+| vehicle_type_id | int | FK -> vehicle_type.vehicle_type_id, NOT NULL | ID loại phương tiện |
+| check_in_time | timestamp | NOT NULL | Thời điểm xe vào bãi |
+| check_out_time | timestamp | NOT NULL | Thời điểm xe ra bãi |
+| matched_policy_id | int | FK -> pricing_policy.pricing_policy_id, NOT NULL | ID chính sách giá đã khớp |
+| total_price | decimal(18,2) | NOT NULL | Tổng phí đỗ xe tính toán được |
+| calculation_details | text | NOT NULL | Chi tiết các bước tính toán theo định dạng JSON |
+| created_at | timestamp | NOT NULL, DEFAULT CURRENT_TIMESTAMP | Thời điểm tạo |
+| xmin | RowVersion | NOT NULL | Token concurrency kiểm soát tranh chấp đồng thời |
+
+Generic constraints:
+- `calculation_details` chứa thông tin giải trình chi tiết của từng Pricing Rule để minh bạch hóa hóa đơn.
+
+---
+
+#### 3.31 `SubscriptionPriceConfigs`
+
+Purpose: lưu trữ các cấu hình bảng giá vé tháng của hệ thống (Monthly Subscription Price Configs) kèm theo hiệu lực lịch sử.
+
+| Column | Type | Constraints | Meaning |
+|---|---|---|---|
+| Id | int | PK, AUTO GENERATED, NOT NULL | ID cấu hình |
+| VehicleTypeId | int | FK -> vehicle_type.vehicle_type_id, NOT NULL | Loại phương tiện áp dụng |
+| Price | numeric | NOT NULL | Mức giá đăng ký vé tháng |
+| DurationDays | int | NOT NULL | Số ngày hiệu lực (mặc định: 30 ngày) |
+| EffectiveFrom | timestamp | NOT NULL | Thời điểm bắt đầu có hiệu lực |
+| EffectiveTo | timestamp | NULL | Thời điểm hết hiệu lực |
+| IsActive | boolean | NOT NULL | Đánh dấu đang kích hoạt |
+| CreatedAt | timestamp | NOT NULL | Thời điểm tạo |
+| IsDeleted | boolean | NOT NULL | Đánh dấu xóa mềm |
+| DeletedAt | timestamp | NULL | Thời điểm xóa mềm |
+| DeletedBy | int | NULL | ID tài khoản thực hiện xóa |
+| xmin | RowVersion | NOT NULL | Token concurrency kiểm soát tranh chấp đồng thời |
+
+Generic constraints:
+- Không cho phép trùng cấu hình giá cho cùng `VehicleTypeId` trong cùng khoảng thời gian hiệu lực.
+
+---
+
+#### 3.32 `PenaltyConfigs`
+
+Purpose: cấu hình chi tiết bảng giá phạt sự cố phát sinh trong lượt đỗ xe (mất thẻ, đỗ sai zone).
+
+| Column | Type | Constraints | Meaning |
+|---|---|---|---|
+| Id | int | PK, AUTO GENERATED, NOT NULL | ID cấu hình |
+| IncidentTypeId | int | FK -> incident_type.incident_type_id, NOT NULL | Loại sự cố áp dụng |
+| PenaltyFee | numeric | NOT NULL | Số tiền phạt áp dụng |
+| EffectiveFrom | timestamp | NOT NULL | Thời điểm bắt đầu có hiệu lực |
+| EffectiveTo | timestamp | NULL | Thời điểm hết hiệu lực |
+| IsActive | boolean | NOT NULL | Đánh dấu đang kích hoạt |
+| CreatedAt | timestamp | NOT NULL | Thời điểm tạo |
+| IsDeleted | boolean | NOT NULL | Đánh dấu xóa mềm |
+| DeletedAt | timestamp | NULL | Thời điểm xóa mềm |
+| DeletedBy | int | NULL | ID tài khoản thực hiện xóa |
+| xmin | RowVersion | NOT NULL | Token concurrency kiểm soát tranh chấp đồng thời |
+
+Generic constraints:
+- Quan hệ 1-N giữa `IncidentType` và `PenaltyConfigs` để theo dõi lịch sử giá phạt.
+
+---
+
+#### 3.33 `shift_report`
+
+Purpose: báo cáo ca trực của nhân viên cổng (Staff) phục vụ kiểm toán tài chính và tiền mặt.
+
+| Column | Type | Constraints | Meaning |
+|---|---|---|---|
+| shift_report_id | int | PK, AUTO GENERATED, NOT NULL | ID báo cáo ca |
+| staff_id | int | FK -> account.account_id, NOT NULL | ID nhân viên trực ca |
+| start_time | timestamp | NOT NULL | Thời điểm bắt đầu ca trực |
+| end_time | timestamp | NOT NULL | Thời điểm kết thúc ca trực |
+| total_check_in | int | NOT NULL | Tổng lượt check-in trong ca |
+| total_check_out | int | NOT NULL | Tổng lượt check-out trong ca |
+| system_revenue | decimal(18,2) | NOT NULL | Doanh thu hệ thống ghi nhận |
+| expected_cash_amount | decimal(18,2) | NOT NULL | Số tiền mặt dự kiến thu |
+| actual_cash_amount | decimal(18,2) | NOT NULL | Số tiền mặt thực tế kiểm đếm |
+| difference_amount | decimal(18,2) | NOT NULL | Chênh lệch tiền mặt |
+| note | varchar(200) | NULL | Ghi chú giải trình chênh lệch |
+| status | varchar(20) | NOT NULL, DEFAULT 'Submitted' | Trạng thái báo cáo ca (Submitted, Approved, Rejected) |
+| approved_by_id | int | FK -> account.account_id, NULL | Người duyệt báo cáo ca |
+| approved_at | timestamp | NULL | Thời điểm duyệt báo cáo ca |
+| created_at | timestamp | NOT NULL, DEFAULT CURRENT_TIMESTAMP | Thời điểm nộp báo cáo |
+| is_deleted | boolean | NOT NULL, DEFAULT false | Đánh dấu xóa mềm |
+| deleted_at | timestamp | NULL | Thời điểm xóa mềm |
+| deleted_by | int | NULL | ID tài khoản thực hiện xóa |
+| xmin | RowVersion | NOT NULL | Token concurrency kiểm soát tranh chấp đồng thời |
+
+Generic constraints:
+- `difference_amount` = `actual_cash_amount` - `expected_cash_amount`.
+- Báo cáo ca sau khi nộp sẽ ở trạng thái `Submitted`, chỉ Manager hoặc Admin mới có quyền duyệt sang `Approved` hoặc `Rejected`.
+
+---
+
+### 9.3.4 Mermaid ERD With Physical Tables
 
 ```mermaid
 erDiagram
@@ -3492,7 +3858,7 @@ erDiagram
 
 ---
 
-### 8.3.5 Cross-Domain Constraints
+### 9.3.5 Cross-Domain Constraints
 
 | Constraint ID | Constraint |
 |---|---|
@@ -3528,7 +3894,7 @@ erDiagram
 
 ---
 
-### 8.3.6 Notes / Deviations From Previous Version
+### 9.3.6 Notes / Deviations From Previous Version
 
 | Area | Previous Version | Updated Decision |
 |---|---|---|
@@ -3554,7 +3920,7 @@ erDiagram
 
 ---
 
-### 8.3.7 Verification Checklist
+### 9.3.7 Verification Checklist
 
 | Check | Expected |
 |---|---|
@@ -3594,3 +3960,234 @@ erDiagram
 | Config table                      | Không có table cấu hình riêng cho pricing/timeout/grace/penalty/rounding trong phiên bản hiện tại. |
 
 ---
+
+
+---
+
+## 10. External Interface Requirements
+
+### 10.1 User Interface Requirements
+Màn hình Staff Check-in/Check-out của Frontend Web Next.js phải tích hợp sẵn thẻ HTML `<video>` hiển thị luồng stream webcam trực quan, kèm theo một nút chụp hình ("Quét Cam") để chụp ảnh Canvas và chuyển đổi nhanh sang chuỗi Base64 trước khi gửi lên API Backend.
+
+### 10.2 Software Interface Requirements
+- **VNPay API**: Kết nối tích hợp theo chuẩn REST API của VNPay, tiếp nhận các tham số callback thông qua phương thức `GET` để xử lý IPN và redirect return URL của người dùng về giao diện kết quả giao dịch ở Client.
+- **Plate Recognizer API**: Gọi dịch vụ đám mây API nhận diện biển số xe (platerecognizer.com) từ server Backend bằng cách truyền ảnh Base64 để tự động hóa điền biển số xe.
+
+### 10.3 Hardware Interface Requirements
+Hệ thống kết nối trực tiếp với webcam mặc định của thiết bị (máy tính cổng bảo vệ, camera thiết bị di động của tài xế) thông qua API camera tiêu chuẩn của HTML5 Web Browser.
+
+### 10.4 Communication Interface Requirements
+Tất cả các kết nối trao đổi dữ liệu Client-Server phải diễn ra thông qua giao thức HTTPS bảo mật bằng mã hóa SSL/TLS, sử dụng kiểu nội dung JSON.
+
+---
+
+## 11. Non-Functional Requirements
+
+### 11.1 Non-Functional Requirement Catalogue
+
+| ID | Danh mục | Yêu cầu phi chức năng | Độ ưu tiên |
+|---|---|---|---|
+| **NFR-PERF-001** | Hiệu năng | Thời gian xử lý nhận diện biển số bằng dịch vụ LPR API đám mây bên ngoài không quá 5 giây tính cả thời gian gửi nhận request. | Should |
+| **NFR-SEC-001** | Bảo mật | Chuỗi ký tự Base64 truyền tải qua API check-in/checkout phải được mã hóa trên đường truyền SSL/HTTPS. | Must |
+| **NFR-AVAIL-001** | Khả dụng | Tỷ lệ hoạt động bình thường của API tối thiểu đạt 99.9%. | Must |
+
+---
+
+## 12. Access Control Requirements
+
+### 12.1 Authentication Requirements
+Người dùng (Admin, Manager, Staff, Driver) phải đăng nhập hệ thống bằng tài khoản mật khẩu hoặc đăng nhập nhanh bằng tài khoản Google. Phiên làm việc được quản lý bằng JWT Token lưu ở header `Authorization: Bearer <token>`.
+
+### 12.2 Authorization Requirements
+Hệ thống sử dụng cơ chế kiểm soát quyền truy cập dựa trên vai trò kết hợp (Role-Based Access Control - RBAC) lưu trữ thông qua bảng `role`, `permission`, và bảng liên kết `role_permission`.
+
+### 12.3 Access Control Matrix
+
+| Permission / Action | Admin | Manager | Staff | Driver |
+|---|:---:|:---:|:---:|:---:|
+| Cấu hình bãi xe (Building, Floor, Zone, Slot) | ✅ | ✅ | ❌ | ❌ |
+| Check-in/Check-out xe | ❌ | ❌ | ✅ | ❌ |
+| Đặt chỗ trước (Booking) | ❌ | ❌ | ❌ | ✅ |
+| Quản lý chính sách giá (Pricing Policy) | ❌ | ✅ | ❌ | ❌ |
+
+---
+
+## 13. State Models
+
+### 13.1 State Definitions
+- **Booking Status**: `Pending` (Đang chờ thanh toán cọc), `Confirmed` (Đặt chỗ thành công), `CheckedIn` (Đã vào bãi), `Cancelled` (Đã hủy), `Expired` (Quá hạn thanh toán cọc hoặc quá giờ check-in không đến).
+- **Parking Session Status**: `ACTIVE` (Xe đang đỗ trong bãi), `COMPLETED` (Xe đã thanh toán và rời bãi).
+- **Card Status**: `Available` (Sẵn sàng cấp), `Active` (Đang trong phiên gửi xe), `Lost` (Báo mất).
+
+### 13.2 State Transitions
+
+```mermaid
+stateDiagram-v2
+    [*] --> Pending : Driver tạo Booking
+    Pending --> Confirmed : Thanh toán cọc VNPay thành công
+    Pending --> Expired : Hết hạn thanh toán cọc (15 phút)
+    Confirmed --> CheckedIn : Xe vào check-in thành công
+    Confirmed --> Expired : Quá hạn checkin (No-show)
+    Confirmed --> Cancelled : Driver chủ động hủy (Trước 1 tiếng)
+```
+
+---
+
+## 14. Error Handling And Edge Cases
+
+### 14.1 Error Catalogue
+- **ERR-001 (Duplicate Active Session)**: Xe hoặc thẻ cố gắng check-in tiếp trong khi vẫn còn phiên Active cũ chưa checkout.
+- **ERR-002 (Capacity Limit Reached)**: Tòa nhà hoặc Zone đỗ xe đã đầy dung lượng khả dụng.
+
+### 14.2 Edge Cases
+- **Lost Card Handling**: Khi Staff báo mất thẻ cho một lượt gửi xe đang Active, hệ thống tự động khóa thẻ đó (Card Status đổi thành `Lost`), lập biên bản sự cố và cộng tiền phạt mất thẻ (`lost_card_penalty` lấy động từ config) vào tổng số tiền thanh toán khi checkout.
+- **Wrong Zone Penalty**: Xe đỗ sai khu vực quy định (ví dụ xe máy đỗ vào vị trí ô tô) sẽ bị Staff áp dụng thêm wrong_zone_penalty khi checkout.
+
+---
+
+## 15. Acceptance Criteria And Verification
+
+### 15.1 Acceptance Criteria Catalogue
+- **AC-OPS-001**: Xác thực xe vào bãi chụp webcam lưu Base64 thành công.
+- **AC-BOOK-001**: Xác thực tính toán capacity trống theo thời gian khi người dùng tạo booking.
+
+### 15.2 Verification Methods
+- **Automated API Tests**: Chạy lệnh `dotnet test` kiểm thử toàn bộ logic checkin bảo vệ slot, tính phí qua Pricing Engine và dọn dẹp các bản ghi hết hạn.
+- **Manual Verification**: Truy cập trang `/camera-test` trên browser local, kiểm thử luồng webcam chụp ảnh Base64 thực tế và nhận diện biển số xe bằng OCR.
+
+---
+
+## 16. Requirements Traceability
+
+### 16.1 Requirements Traceability Matrix
+
+| Feature ID | Use Case ID | Business Rule ID | Functional Req ID | Database Table |
+|---|---|---|---|---|
+| **F-OPS-001** | UC-OPS-001 | BR-HW-001 | FR-OPS-001 | `parking_session` |
+| **F-OPS-002** | UC-OPS-002 | BR-HW-001 | FR-OPS-002 | `parking_session` |
+| **F-BOOK-001** | UC-BOOK-001 | BR-ALLOC-001 | FR-BOOK-001 | `booking` |
+| **F-PRICE-001** | UC-PRICE-001 | BR-PRICE-002 | FR-PRICE-001 | `pricing_policy` |
+
+---
+
+## 17. Open Questions, Decisions And Risks
+
+### 17.1 Open Questions
+- [OQ-GEN-001] Có nên tăng thời gian timeout thanh toán trực tuyến của VNPay lên quá 15 phút nếu mạng internet của khách hàng không ổn định? (Tạm giữ 15 phút theo mặc định của codebase).
+
+### 17.2 Decisions
+Finalized Policy Decisions
+
+| Policy Area                                    | Final Decision                                                                                                                                 |
+|------------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------|
+| Check-in Allocation                            | Khi check-in, xe máy được gợi ý Zone còn capacity; ô tô Walk-in/Booking chỉ được gợi ý Zone thuộc nhóm `GENERAL`, chưa gán Slot tại thời điểm gợi ý; ô tô thẻ tháng dùng Slot đã cấp trong Zone `MONTHLY`. |
+| Monthly Subscription - Motorcycle              | Xe máy thẻ tháng được đảm bảo có chỗ bằng capacity động: mỗi subscription `ACTIVE` làm giảm capacity Walk-in/Booking một đơn vị. |
+| Monthly Subscription - Car                     | Ô tô thẻ tháng được cấp Slot riêng trong Zone `MONTHLY`; quyền giữ Slot nằm ở `monthly_subscription.assigned_slot_id`. |
+| Monthly Subscription - Vehicle Binding         | Mỗi vé tháng chỉ áp dụng cho một xe đã đăng ký; không dùng `max_registered_plate`.                                                             |
+| Card vs Monthly Subscription                   | Card có `card_type = NORMAL, MONTHLY`; Card `MONTHLY` gắn với Monthly Subscription, nhưng quyền lợi tháng vẫn do Monthly Subscription hợp lệ quyết định. |
+| Booking - Motorcycle                           | Xe máy booking phải chọn Building và Vehicle/biển số; Driver không chọn Zone/Slot, hệ thống gán Zone khi check-in. |
+| Booking - Car                                  | Ô tô booking phải chọn Building và Vehicle/biển số; Driver không chọn Zone/Slot; Booking chỉ giữ general car capacity tại Building, actual Zone/Slot được xác định khi check-in/đỗ xe. |
+| Booking Time Limit                             | Booking phải được đặt trước tối thiểu 1 tiếng và tối đa 8 tiếng tính từ thời điểm thanh toán cọc thành công.                                   |
+| Booking Deposit                                | Deposit Fee bằng Base Price của block đầu tiên theo Booking Policy áp dụng tại thời điểm Booking được tạo và thanh toán; Payment deposit lưu `pricing_policy_id` của Booking Policy và không tính lại Deposit khi xe check-in. |
+| Booking Cancellation                           | Khách hủy trước giờ booking ít nhất 1 tiếng thì được hoàn cọc.                                                                                 |
+| Booking No-show                                | Nếu `current_time > scheduled_check_in_time + checkin_grace_minutes` và Booking chưa được dùng để check-in, Booking chuyển sang `EXPIRED`, Deposit Fee không hoàn, general capacity được giải phóng và không cập nhật `slot_status`. |
+| Early Arrival                                  | Nếu khách đến sớm hơn giờ booking, hệ thống cho check-in sớm nếu còn chỗ phù hợp; thời gian gửi xe bắt đầu tính từ lúc khách thực tế check-in. |
+| Booking Final Payment                          | Số tiền còn phải trả bằng `max(0, total_actual_fee - paid_deposit_fee)`, trong đó `total_actual_fee = actual_parking_fee + penalties + surcharges`; chỉ Deposit Payment `PAID`, đúng Booking, chưa `REFUNDED` và chưa khấu trừ lần khác mới được trừ. |
+| Booking Deposit Exceeds Actual Fee             | Nếu Deposit Fee lớn hơn Tổng phí thực tế, `amount_due = 0`, Driver không phải thanh toán thêm và check-out tiếp tục theo flow hiện tại; hệ thống không hoàn phần chênh lệch, không lưu/xử lý riêng phần chênh lệch, không tạo credit/wallet/account balance, không tạo Payment âm và không thay đổi Deposit Payment đã tồn tại. |
+| Overtime After Booking                         | Overtime có thể hiển thị như breakdown riêng nhưng không được tính hai lần; tổng phí được tính một lần trên thời gian thực tế theo Pricing Window. |
+| Pricing Model | Hệ thống tính phí theo từng Pricing Window; session được chia tại ranh giới Pricing Window và mỗi đoạn áp dụng Base Duration, Base Price, Increment Block, Increment Price, Grace Period và Window Cap. |
+| Window Cap | `window_cap` áp dụng cho từng đoạn/lần xuất hiện của Pricing Window tương ứng, không áp dụng cho toàn bộ Parking Session. |
+| 24/7 Session | Hệ thống không reset session khi qua ngày mới. |
+| Pricing Policy at Check-in | Pricing Policy của Parking Session được xác định bằng Vehicle Type và `check_in_time`; không bắt buộc lưu `pricing_policy_id` trên Parking Session; không xác định lại theo `check_out_time` hoặc khi Manager kích hoạt policy mới. |
+| Pricing Policy Scope | Pricing Policy có phạm vi toàn hệ thống theo Vehicle Type trong phiên bản hiện tại; không cấu hình riêng theo Building và `pricing_policy` không có `building_id`. |
+| Pricing Policy Timeline | Với cùng Vehicle Type, các khoảng `effective_start` - `effective_end` không được overlap; tại một thời điểm chỉ có tối đa một Policy áp dụng; khoảng trống được phép tồn tại nhưng check-in trong khoảng trống bị từ chối. |
+| Pricing Policy Lock | Policy đã `ACTIVE` hoặc đã từng được dùng để chấp nhận Parking Session không được sửa Vehicle Type, Pricing Window, Base Duration, Base Price, Increment Block, Increment Price, Grace Period, Window Cap hoặc dữ liệu làm đổi kết quả tính phí. |
+| Pricing Policy Effective Time Edit | `effective_start` của Policy `ACTIVE` không được đổi; Policy tương lai có thể đổi `effective_start` nếu vẫn hợp lệ. `effective_end` của Policy tương lai hoặc `ACTIVE` có thể đổi nếu ở tương lai, không overlap và không làm mất hiệu lực hồi tố; Policy `EXPIRED` không được đổi `effective_end`. |
+| Pricing Window Coverage | Mỗi Pricing Policy phải có ít nhất một Pricing Window, các Window không overlap và phủ đủ 24 giờ; cho phép Window đi qua nửa đêm. |
+| Pricing Window Short Segment | Nếu Parking Session có một đoạn thời gian lớn hơn 0 trong một Pricing Window, đoạn đó chịu ít nhất Base Price của Window tương ứng. |
+| Pricing Window Boundary | Thời điểm bắt đầu Window thuộc Window đó; thời điểm kết thúc Window thuộc Window tiếp theo; đoạn thời lượng bằng 0 không tính phí. |
+| Monthly Subscription Downgrade | Nếu vé tháng hết hạn và xe vẫn còn trong bãi, hệ thống downgrade và tính phí vãng lai từ thời điểm hết hạn. |
+| Monthly Subscription Checkout Evaluation | Quyền lợi Monthly Subscription trong một lần checkout được đánh giá tại `check_out_time` đã ghi nhận; nếu Payment Pending kéo dài qua `expired_at`, hệ thống không tính thêm phí sau `check_out_time`. |
+| System State Management | Trạng thái hệ thống được quản lý bằng các status riêng cho Building, Floor, Zone, Slot, Vehicle, Card, Parking Session, Booking, Incident, Monthly Subscription và Pricing Policy. |
+| Booking Payment Timeout | Nếu booking chưa thanh toán sau `booking_payment_timeout_minutes`, Booking hết hiệu lực hoặc bị hủy theo status model; general capacity đã tạm giữ được giải phóng và không cập nhật `slot_status`. |
+| Monthly Subscription Payment Timeout | Thanh toán online khi đăng ký/gia hạn Monthly Subscription dùng `monthly_subscription_payment_timeout_minutes`; nếu hết timeout mà Payment chưa `PAID`, Payment chuyển `FAILED` và subscription không được kích hoạt/gia hạn. |
+| Booking Check-in Grace | `checkin_grace_minutes` là biến cấu hình động; không hard-code giá trị mặc định trong SRS. |
+| Monthly Zero Checkout | Với Monthly Subscription còn `ACTIVE`, đúng Vehicle/biển số, đúng Building, không downgrade, không phụ phí/phí phạt, `actual_parking_fee = 0` và `amount_due = 0`; hệ thống bỏ qua bước thu tiền nhưng vẫn hoàn tất toàn bộ logic check-out. |
+| Payment Status Semantics | `PENDING` nghĩa là quy trình thanh toán còn mở; `FAILED` chỉ khi quy trình đã kết thúc không thành công; `PAID` chỉ khi ngân hàng hoặc Staff xác nhận đã nhận tiền. |
+| Payment Source | Mỗi Payment phải có đúng một nguồn nghiệp vụ chính trong `session_id`, `booking_id`, `monthly_subscription_id`. |
+| Checkout Time Capture | Hệ thống ghi nhận `check_out_time` ngay khi Driver tap Card hoặc Staff tiếp nhận yêu cầu check-out; phí tính từ `check_in_time` đến `check_out_time` đã ghi nhận. |
+| Checkout Pending Payment | Nếu Payment vẫn `PENDING`, Parking Session chưa `COMPLETED`, Zone/Slot/Card chưa được giải phóng và phí không tăng thêm trong cùng quá trình thanh toán. |
+| Checkout Payment Timeout | Checkout Payment không có automatic timeout; Payment giữ `PENDING` cho đến khi `PAID`, Driver hủy, Staff xác nhận không thể tiếp tục hoặc Staff kết thúc/đánh dấu `FAILED`. |
+| Payment Retry | Payment đã `FAILED` không được đổi lại `PENDING`; lần thử mới tạo Payment mới, giữ Payment cũ để audit và không được có hai Payment `PAID` cho cùng một nghĩa vụ thanh toán. |
+| Change Payment Method During Checkout | Đổi từ online sang tiền mặt hoặc ngược lại trong cùng lần checkout giữ nguyên `check_out_time`, không tính lại phí và không tạo lần check-out mới. |
+| Checkout Failed Rollback | Một Payment cụ thể có thể `FAILED` mà checkout vẫn tiếp tục; chỉ khi toàn bộ checkout bị kết thúc `FAILED`/bị hủy, hệ thống rollback nghiệp vụ của lần check-out, hủy `check_out_time`, giữ session tiếp tục đang gửi và giữ Payment `FAILED` để audit. |
+| Time Rounding | Nếu thời gian phát sinh nhỏ hơn hoặc bằng grace_period_minutes thì không tính block mới; nếu lớn hơn thì tính block mới. |
+| Cash Rounding | Thanh toán tiền mặt làm tròn theo cash_rounding_unit và rounding_threshold trên số tiền cuối cùng sau phí gửi xe, phụ phí/phí phạt và Booking Deposit hợp lệ. |
+| Online Rounding | Thanh toán online không làm tròn. |
+| Lost Card Penalty | Khi Staff xử lý Card bị mất, khách phải trả phí gửi xe hiện tại và `lost_card_penalty`; Card giữ trạng thái `LOST` cho đến khi Manager xử lý. |
+| Wrong Zone Penalty | Xe đỗ sai khu vực có thể bị áp dụng wrong_zone_penalty khi được Staff xác nhận. |
+| Configurable Variables Storage | Các biến giá tiền, timeout, grace period, penalty và rounding được cấu hình động ở tầng nghiệp vụ/application/admin configuration; không tạo thêm table riêng trong physical model hiện tại. |
+
+---
+
+## Pricing Window Multi-day Example
+
+Ví dụ minh họa dựa trên một cấu hình bảng giá giả định.
+
+Xe đậu từ 20:00 ngày 14/02 đến 12:00 ngày 16/02.
+
+Hệ thống chia thành:
+
+1. Night Window: 20:00 ngày 14/02 → 06:00 ngày 15/02.
+2. Day Window: 06:00 ngày 15/02 → 18:00 ngày 15/02.
+3. Night Window: 18:00 ngày 15/02 → 06:00 ngày 16/02.
+4. Day Window: 06:00 ngày 16/02 → 12:00 ngày 16/02.
+
+Mỗi đoạn được tính theo rule của Pricing Window tương ứng và áp dụng `window_cap` của chính đoạn đó.
+
+Parking Session vẫn là một session duy nhất và không bị reset tại 00:00 hoặc khi chuyển sang ngày mới.
+
+
+### 17.3 Requirement-Related Risks
+- Hiệu năng của cơ sở dữ liệu PostgreSQL có thể bị ảnh hưởng nếu số lượng bản ghi `parking_session` tăng cao và chứa dữ liệu chuỗi Base64 hình ảnh có kích thước lớn. Cần thiết kế giải pháp dọn dẹp hoặc lưu trữ tách biệt trong các giai đoạn tiếp theo.
+
+---
+
+## 18. Appendices
+
+### 18.1 Glossary
+- **Walk-in vehicle**: Khách hàng vãng lai gửi xe không đặt trước chỗ.
+- **Base Price**: Phí đỗ xe tối thiểu áp dụng cho khoảng thời gian cơ bản (Base Duration).
+- **Increment Block**: Thời gian lũy tiến tính thêm tiền sau khi vượt quá khoảng thời gian cơ bản.
+
+---
+
+## 19. Requirement Identification Convention
+Tất cả các mã định danh yêu cầu trong tài liệu này tuân thủ định dạng nghiêm ngặt `<TYPE>-<DOMAIN>-<NNN>` nhằm duy trì khả năng truy vết và đối soát máy tự động.
+
+---
+
+## 20. Requirement Status Convention
+Các trạng thái yêu cầu bao gồm:
+- **DRAFT**: Yêu cầu đang được soạn thảo.
+- **REVIEW**: Yêu cầu đã hoàn chỉnh và đang đợi phê duyệt từ đại diện BA/Stakeholder.
+- **APPROVED**: Yêu cầu chính thức được chấp thuận.
+
+---
+
+## 21. SRS Review Checklist
+- [x] Tất cả 22 chương mục bắt buộc đã được cấu trúc hoàn chỉnh.
+- [x] Tất cả các tính năng mới trong codebase đã được cập nhật đầy đủ và chính xác vào SRS.
+- [x] Tất cả mã định danh yêu cầu đều là duy nhất và không bị trùng lặp.
+
+---
+
+## 22. Approval
+
+**Đại diện BA Team**  
+*Chữ ký / Ngày*  
+*REVIEW*  
+
+**Đại diện Project Manager**  
+*Chữ ký / Ngày*  
+*REVIEW*  

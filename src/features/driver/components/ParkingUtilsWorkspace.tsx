@@ -118,9 +118,10 @@ function normalizeSession(raw: any) {
   const fee = raw.totalFee ?? raw.fee ?? 0;
 
   const rawStatus = (raw.sessionStatus || raw.status || '').toLowerCase();
-  let status: 'completed' | 'cancelled' | 'active' = 'active';
+  let status: 'completed' | 'cancelled' | 'pending' = 'pending';
   if (rawStatus === 'completed' || rawStatus === 'checkout' || rawStatus === 'done' || rawStatus === 'finished') status = 'completed';
   else if (rawStatus === 'cancelled' || rawStatus === 'canceled') status = 'cancelled';
+  // 'active' và các status chưa checkout đều map thành 'pending' (màu vàng)
 
   const formatDt = (dt: string) => {
     if (!dt) return '—';
@@ -181,7 +182,7 @@ export default function ParkingUtilsWorkspace() {
   const [historySessions, setHistorySessions] = useState<any[]>([]);
   const [isLoadingHistory, setIsLoadingHistory] = useState<boolean>(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'completed' | 'cancelled'>('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'completed' | 'cancelled' | 'pending'>('all');
   const [currentHistoryPage, setCurrentHistoryPage] = useState(1);
   const ITEMS_PER_PAGE = 10;
 
@@ -195,6 +196,7 @@ export default function ParkingUtilsWorkspace() {
   const [selectedFloor, setSelectedFloor] = useState<string>('');
   const [selectedSlotCode, setSelectedSlotCode] = useState<string>('');
   const [selectedSlotId, setSelectedSlotId] = useState<number | null>(null);
+  const [urlPreselectedSlot, setUrlPreselectedSlot] = useState<{ id: number; code: string; floorId: number; buildingId: number } | null>(null);
   const [bookingDate, setBookingDate] = useState<string>('');
   const [endBookingDate, setEndBookingDate] = useState<string>('');
   const [startTime, setStartTime] = useState<string>('');
@@ -269,7 +271,7 @@ export default function ParkingUtilsWorkspace() {
         const bookRes = await api.get<any>(`/bookings/by-account/${user.id}`);
         if (bookRes.success && bookRes.data) {
           const activeBookings = bookRes.data.filter((b: any) =>
-            b.bookingStatus === 'Pending' || b.bookingStatus === 'Confirmed' || b.bookingStatus === 'CheckedIn'
+            b.bookingStatus === 'Pending' || b.bookingStatus === 'Confirmed'
           );
           setBookings(activeBookings);
         } else {
@@ -342,7 +344,7 @@ export default function ParkingUtilsWorkspace() {
 
       const normalized = rawSessions
         .map(normalizeSession)
-        .filter(s => s.status === 'completed' || s.status === 'cancelled');
+        .filter(s => s.status === 'completed' || s.status === 'cancelled' || s.status === 'pending');
 
       normalized.sort((a, b) => {
         const da = a.checkInTime ? new Date(a.checkInTime).getTime() : 0;
@@ -468,13 +470,8 @@ export default function ParkingUtilsWorkspace() {
           (s: any) => s.code?.toUpperCase() === slotParam.toUpperCase()
         );
         if (!matchedSlot) {
-          setSelectedSlotCode(slotParam);
-          setSelectedSlotId(null);
           return;
         }
-
-        setSelectedSlotCode(matchedSlot.code);
-        setSelectedSlotId(matchedSlot.id);
 
         // Fetch zone to get floorId
         const zoneRes = await api.get<any>(`/Zones/${matchedSlot.zoneId}`);
@@ -486,7 +483,15 @@ export default function ParkingUtilsWorkspace() {
         if (!floorRes.success || !floorRes.data) return;
         const buildingId: number = floorRes.data.buildingId;
 
-        // Apply selections
+        // Save pre-selected slot state to restore later in Step 4
+        setUrlPreselectedSlot({
+          id: matchedSlot.id,
+          code: matchedSlot.code,
+          floorId: floorId,
+          buildingId: buildingId
+        });
+
+        // Apply building and floor selections
         setSelectedBuilding(buildingId.toString());
         setSelectedFloor(floorId.toString());
 
@@ -511,8 +516,8 @@ export default function ParkingUtilsWorkspace() {
         // Initialize date & times
         initWizardDateTime();
 
-        // Show the booking modal and set wizard to step 3 (Schedule Time)
-        setWizardStep(3);
+        // Start booking modal from STEP 1 (Vehicle Selection)
+        setWizardStep(1);
         setShowBookingModal(true);
 
         // Clear query parameters from URL
@@ -521,7 +526,7 @@ export default function ParkingUtilsWorkspace() {
 
       } catch (err) {
         console.error('Error resolving slot from URL param:', err);
-        setSelectedSlotCode(slotParam);
+        setWizardStep(1);
         setShowBookingModal(true);
       }
     };
@@ -657,6 +662,18 @@ export default function ParkingUtilsWorkspace() {
         setSlotsList([]);
       });
   }, [selectedFloor, selectedVehicleTypeId, showBookingModal, bookingDate, startTime, endBookingDate, endTime]);
+
+  // Restore preselected slot from URL when wizard reaches step 4 and slots are loaded
+  useEffect(() => {
+    if (wizardStep === 4 && urlPreselectedSlot && slotsList.length > 0) {
+      const isSlotInList = slotsList.some(s => s.id === urlPreselectedSlot.id);
+      if (isSlotInList) {
+        setSelectedSlotCode(urlPreselectedSlot.code);
+        setSelectedSlotId(urlPreselectedSlot.id);
+      }
+      setUrlPreselectedSlot(null); // Clear after restore
+    }
+  }, [wizardStep, urlPreselectedSlot, slotsList]);
 
   const openNewBooking = () => {
     if (vehicles.length === 0) {
@@ -1238,7 +1255,7 @@ export default function ParkingUtilsWorkspace() {
                   : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'
                   }`}
               >
-                Walk-in / Active ({activeSession ? 1 : 0})
+                Active Session ({activeSession ? 1 : 0})
               </button>
             </div>
 
@@ -1384,7 +1401,7 @@ export default function ParkingUtilsWorkspace() {
                           </div>
                           <div>
                             <span className="text-[9px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded-full uppercase tracking-wide">
-                              {activeSession.sessionStatus || 'ACTIVE'}
+                              {activeSession.bookingId ? 'BOOKING CHECK-IN' : (activeSession.sessionStatus || 'ACTIVE')}
                             </span>
                             <h3 className="text-base font-extrabold text-[#1B2A41] mt-1">
                               Session #{String(activeSession.id).slice(0, 8)}
@@ -1498,6 +1515,7 @@ export default function ParkingUtilsWorkspace() {
                   className="px-3 py-2 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 text-xs font-bold rounded-xl bg-white text-slate-600 font-sans"
                 >
                   <option value="all">All Status</option>
+                  <option value="pending">Active (Đang đỗ)</option>
                   <option value="completed">Completed</option>
                   <option value="cancelled">Cancelled</option>
                 </select>
@@ -1563,11 +1581,14 @@ export default function ParkingUtilsWorkspace() {
                               {s.fee > 0 ? `${Math.round(s.fee).toLocaleString('vi-VN')} đ` : '0 đ'}
                             </td>
                             <td className="px-6 py-4">
-                              <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold capitalize ${s.status === 'completed'
-                                  ? 'bg-emerald-50 text-emerald-700 border border-emerald-250/20'
-                                  : 'bg-red-50 text-[#ba1a1a] border border-red-200'
+                              <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold capitalize ${
+                                  s.status === 'completed'
+                                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                    : s.status === 'pending'
+                                    ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                                    : 'bg-red-50 text-[#ba1a1a] border border-red-200'
                                 }`}>
-                                {s.status}
+                                {s.status === 'pending' ? 'active' : s.status}
                               </span>
                             </td>
                           </tr>
@@ -1671,33 +1692,56 @@ export default function ParkingUtilsWorkspace() {
                     <h3 className="font-bold text-slate-800 text-sm">Choose Your Vehicle</h3>
                     <p className="text-xs text-slate-400 mt-0.5">Select a vehicle from your registered fleet.</p>
                   </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    {vehicles.map((v) => (
-                      <div
-                        key={v.licensePlate}
-                        onClick={() => setSelectedVehicle(v.licensePlate)}
-                        className={`p-4 border rounded-xl cursor-pointer transition-all flex items-center justify-between group ${selectedVehicle === v.licensePlate
-                            ? 'border-[#00a86b] bg-emerald-50/10'
-                            : 'border-[#e2e8f0] hover:border-slate-300 bg-slate-50/30'
-                          }`}
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${selectedVehicle === v.licensePlate ? 'bg-[#00a86b] text-white' : 'bg-slate-100 text-slate-400 group-hover:bg-slate-200'
-                            }`}>
-                            <Car className="w-5 h-5" />
-                          </div>
-                          <div>
-                            <p className="text-sm font-bold text-slate-700">{v.licensePlate}</p>
-                            <p className="text-xs text-slate-400">{v.vehicleTypeName || 'Private Vehicle'}</p>
-                          </div>
-                        </div>
-                        <span className={`w-5 h-5 rounded-full border flex items-center justify-center shrink-0 ${selectedVehicle === v.licensePlate ? 'border-[#00a86b] bg-[#00a86b] text-white' : 'border-slate-300'
-                          }`}>
-                          {selectedVehicle === v.licensePlate && <span className="w-1.5 h-1.5 rounded-full bg-white"></span>}
-                        </span>
+                  {vehicles.length === 0 ? (
+                    <div className="p-6 bg-amber-50 border border-amber-200/60 rounded-2xl text-center space-y-3">
+                      <div className="w-12 h-12 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center mx-auto">
+                        <span className="material-symbols-outlined text-2xl">directions_car</span>
                       </div>
-                    ))}
-                  </div>
+                      <p className="text-sm font-bold text-slate-800">Không tìm thấy biển số xe</p>
+                      <p className="text-xs text-slate-600 leading-relaxed max-w-sm mx-auto">
+                        Tài khoản của bạn chưa đăng ký phương tiện nào. Vui lòng thêm biển số xe trước khi thực hiện đặt chỗ gửi xe.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowBookingModal(false);
+                          router.push('/dashboard/driver/vehicles');
+                        }}
+                        className="inline-flex items-center gap-1.5 px-4 py-2 bg-slate-900 text-white font-bold text-xs rounded-xl hover:bg-slate-850 transition shadow-sm"
+                      >
+                        <span className="material-symbols-outlined text-sm">add</span>
+                        Đăng ký xe ngay
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      {vehicles.map((v) => (
+                        <div
+                          key={v.licensePlate}
+                          onClick={() => setSelectedVehicle(v.licensePlate)}
+                          className={`p-4 border rounded-xl cursor-pointer transition-all flex items-center justify-between group ${selectedVehicle === v.licensePlate
+                              ? 'border-[#00a86b] bg-emerald-50/10'
+                              : 'border-[#e2e8f0] hover:border-slate-300 bg-slate-50/30'
+                            }`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${selectedVehicle === v.licensePlate ? 'bg-[#00a86b] text-white' : 'bg-slate-100 text-slate-400 group-hover:bg-slate-200'
+                              }`}>
+                              <Car className="w-5 h-5" />
+                            </div>
+                            <div>
+                              <p className="text-sm font-bold text-slate-700">{v.licensePlate}</p>
+                              <p className="text-xs text-slate-400">{v.vehicleTypeName || 'Private Vehicle'}</p>
+                            </div>
+                          </div>
+                          <span className={`w-5 h-5 rounded-full border flex items-center justify-center shrink-0 ${selectedVehicle === v.licensePlate ? 'border-[#00a86b] bg-[#00a86b] text-white' : 'border-slate-300'
+                            }`}>
+                            {selectedVehicle === v.licensePlate && <span className="w-1.5 h-1.5 rounded-full bg-white"></span>}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
 

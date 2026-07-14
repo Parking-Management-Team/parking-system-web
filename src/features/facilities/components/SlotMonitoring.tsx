@@ -304,7 +304,7 @@ export default function SlotMonitoring() {
             { label: 'Occupied',    value: occupiedSlots,  color: 'text-[#263143]' },
             { label: 'Blocked',     value: blockedSlots,   color: 'text-[#ba1a1a]' },
             { label: 'Maintenance', value: maintenanceSlots, color: 'text-[#d97706]' },
-            { label: 'Utilization', value: `${pct}%`,      color: pct >= 90 ? 'text-red-650' : pct >= 75 ? 'text-amber-650' : 'text-[#006d43]' },
+            { label: 'Utilization', value: `${pct}%`,      color: pct >= 90 ? 'text-[#ba1a1a]' : pct >= 75 ? 'text-amber-600' : 'text-[#006d43]' },
           ].map(stat => (
             <div key={stat.label} className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 text-center">
               <p className={`text-2xl font-black ${stat.color}`}>{stat.value}</p>

@@ -152,7 +152,7 @@ export default function PricingWorkspace() {
                           }
                         }}
                         disabled={isCleaningUp}
-                        className="inline-flex items-center gap-2 px-3.5 py-1.5 bg-white hover:bg-red-50 text-slate-650 hover:text-red-600 border border-slate-200 hover:border-red-200 rounded-xl font-bold text-xs shadow-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="inline-flex items-center gap-2 px-3.5 py-1.5 bg-white hover:bg-red-50 text-slate-600 hover:text-red-600 border border-slate-200 hover:border-red-200 rounded-xl font-bold text-xs shadow-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                         title="Cleanup Expired Policies"
                       >
                         <span className="material-symbols-outlined text-[16px] text-slate-500">
@@ -261,13 +261,13 @@ export default function PricingWorkspace() {
                               )}
                               <button 
                                 onClick={() => handleOpenAddWindow(policy.pricingPolicyId)}
-                                className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-650 font-bold text-xs rounded-lg transition-all"
+                                className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold text-xs rounded-lg transition-all"
                               >
                                 + Add Window
                               </button>
                               <button 
                                 onClick={() => handleOpenEditPolicy(policy)}
-                                className="h-8 w-8 rounded-lg flex items-center justify-center bg-slate-100 hover:bg-[#006d43]/10 text-slate-655 hover:text-[#006d43] transition-colors"
+                                className="h-8 w-8 rounded-lg flex items-center justify-center bg-slate-100 hover:bg-[#006d43]/10 text-slate-600 hover:text-[#006d43] transition-colors"
                                 title="Edit Policy Details"
                               >
                                 <span className="material-symbols-outlined text-[16px]">edit</span>

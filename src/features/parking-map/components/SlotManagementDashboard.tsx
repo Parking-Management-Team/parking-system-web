@@ -17,8 +17,33 @@ function mapFloorSlotSummary(data: any[]): FloorSlotSummary[] {
       const statusCounts: any = {};
       if (Array.isArray(vt.statusCounts)) {
         vt.statusCounts.forEach((sc: any) => {
-          if (sc.status) {
-            statusCounts[sc.status] = sc.count;
+          if (sc.status !== undefined && sc.status !== null) {
+            const statusStr = sc.status.toString();
+            const count = sc.count;
+            
+            // Map exact response key
+            statusCounts[statusStr] = count;
+            statusCounts[statusStr.toUpperCase()] = count;
+            statusCounts[statusStr.toLowerCase()] = count;
+
+            // Map standard keys case-insensitively and handle potential numeric enums
+            const normalizedStatus = statusStr.toUpperCase();
+            if (normalizedStatus === 'AVAILABLE' || normalizedStatus === '0') {
+              statusCounts['Available'] = count;
+              statusCounts['AVAILABLE'] = count;
+            } else if (normalizedStatus === 'OCCUPIED' || normalizedStatus === '1') {
+              statusCounts['Occupied'] = count;
+              statusCounts['OCCUPIED'] = count;
+            } else if (normalizedStatus === 'BLOCKED' || normalizedStatus === '2') {
+              statusCounts['Blocked'] = count;
+              statusCounts['BLOCKED'] = count;
+            } else if (normalizedStatus === 'MAINTENANCE' || normalizedStatus === '3') {
+              statusCounts['Maintenance'] = count;
+              statusCounts['MAINTENANCE'] = count;
+            } else if (normalizedStatus === 'RESERVED' || normalizedStatus === '4') {
+              statusCounts['Reserved'] = count;
+              statusCounts['RESERVED'] = count;
+            }
           }
         });
       }

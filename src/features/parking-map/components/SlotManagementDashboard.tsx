@@ -43,6 +43,7 @@ export function SlotManagementDashboard() {
   const [zones, setZones] = useState<Zone[]>([]);
   const [slots, setSlots] = useState<Slot[]>([]);
   const [activeSessions, setActiveSessions] = useState<ParkingSessionDto[]>([]);
+  const [vehicleTypes, setVehicleTypes] = useState<any[]>([]);
   
   const [selectedBuildingId, setSelectedBuildingId] = useState<number | null>(null);
   const [selectedFloorId, setSelectedFloorId] = useState<number | null>(null);
@@ -81,6 +82,11 @@ export function SlotManagementDashboard() {
   const fetchInitialData = useCallback(async () => {
     setLoading(true);
     try {
+      // 0. Fetch Vehicle Types
+      const resVt = await api.get<BaseResponse<any[]>>('/vehicle-types');
+      const loadedVehicleTypes = resVt.success && resVt.data ? resVt.data : [];
+      setVehicleTypes(loadedVehicleTypes);
+
       // 1. Fetch Buildings
       const resBld = await api.get<BaseResponse<PagedResult<Building>>>('/Buildings/paged?pageIndex=1&pageSize=100');
       let loadedBuildings: Building[] = [];
@@ -108,12 +114,15 @@ export function SlotManagementDashboard() {
       let loadedZones: Zone[] = [];
       if (resZones.success && resZones.data) {
         const mapVehicleTypeIdToType = (id: number): 'Standard' | 'EV Charging' | 'Motorbike' => {
-          switch (id) {
-            case 1: return 'Standard';
-            case 3: return 'EV Charging';
-            case 4: return 'Motorbike';
-            default: return 'Standard';
+          const vt = loadedVehicleTypes.find(v => v.id === id);
+          if (vt) {
+            const name = (vt.name || vt.typeName || '').toUpperCase();
+            const code = (vt.vehicleTypeCode || vt.code || '').toUpperCase();
+            if (name.includes('MOTOR') || name.includes('BIKE') || code.includes('MOTOR') || code.includes('BIKE')) {
+              return 'Motorbike';
+            }
           }
+          return 'Standard';
         };
         const mapAccessTypeToZone = (accessType?: number): 'GENERAL' | 'MONTHLY' => {
           return 'GENERAL';
@@ -395,6 +404,36 @@ export function SlotManagementDashboard() {
     return zones.filter(z => z.floorId === selectedFloorId && z.vehicleType === 'Motorbike');
   }, [zones, selectedFloorId]);
 
+  // Find motorbike slot summary for the current floor
+  const motorSummary = useMemo(() => {
+    if (!floorSlotSummary) return null;
+    return floorSlotSummary.vehicleTypeSummaries.find(vt => {
+      const name = (vt.vehicleTypeName || '').toUpperCase();
+      return name.includes('MOTOR') || name.includes('BIKE');
+    }) || null;
+  }, [floorSlotSummary]);
+
+  // Calculate effective occupied motorbike count on the current floor
+  const effectiveMotorOccupied = useMemo(() => {
+    if (motorSummary) {
+      return motorSummary.statusCounts?.Occupied ?? 0;
+    }
+    // Fallback count active sessions on this floor in motorbike zones
+    return activeSessions.filter(session => {
+      const zone = zones.find(z => z.id === session.zoneId);
+      return zone && zone.floorId === selectedFloorId && zone.vehicleType === 'Motorbike';
+    }).length;
+  }, [motorSummary, activeSessions, zones, selectedFloorId]);
+
+  // Calculate effective available motorbike count on the current floor
+  const effectiveMotorAvailable = useMemo(() => {
+    if (motorSummary) {
+      return motorSummary.statusCounts?.Available ?? 0;
+    }
+    const total = activeMotorbikeZones.reduce((sum, z) => sum + (z.slotCapacity || 0), 0);
+    return Math.max(0, total - effectiveMotorOccupied);
+  }, [motorSummary, activeMotorbikeZones, effectiveMotorOccupied]);
+
   // Handlers
   const handleBuildingChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const bldId = parseInt(e.target.value);
@@ -619,104 +658,110 @@ export function SlotManagementDashboard() {
         {/* ===== FLOOR CAPACITY SUMMARY BAR ===== */}
         {selectedFloorId && floorSlotSummary && (
           <div className="mb-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {floorSlotSummary.vehicleTypeSummaries.map((vehicleType) => {
-              const { vehicleTypeName, totalSlots, statusCounts } = vehicleType;
-              const occupied = statusCounts?.Occupied ?? 0;
-              const blocked = statusCounts?.Blocked ?? 0;
-              const maintenance = statusCounts?.Maintenance ?? 0;
-              const available = statusCounts?.Available ?? 0;
-              const reserved = statusCounts?.Reserved ?? 0;
-              const total = totalSlots ?? 0;
-              const occupiedPct = total > 0 ? Math.round((occupied / total) * 100) : 0;
-              const blockedPct = total > 0 ? Math.round((blocked / total) * 100) : 0;
-              const maintenancePct = total > 0 ? Math.round((maintenance / total) * 100) : 0;
-              const availablePct = total > 0 ? Math.round((available / total) * 100) : 0;
-              const reservedPct = total > 0 ? Math.round((reserved / total) * 100) : 0;
-              const isMotorbike = vehicleTypeName?.toUpperCase().includes('MOTOR') || vehicleTypeName?.toUpperCase().includes('BIKE');
-              
-              return (
-                <div key={vehicleType.vehicleTypeId} className="bg-white border-2 border-slate-200 shadow-md rounded-2xl p-5 flex flex-col gap-3 hover:shadow-lg transition-shadow">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2.5">
-                      <div className={`p-2 rounded-xl ${isMotorbike ? 'bg-slate-100' : 'bg-emerald-50'}`}>
-                        <span className={`material-symbols-outlined text-[20px] ${isMotorbike ? 'text-slate-600' : 'text-[#006d43]'}`}>
-                          {isMotorbike ? 'two_wheeler' : 'directions_car'}
-                        </span>
-                      </div>
-                      <span className="text-xs font-extrabold text-slate-700 uppercase tracking-wide">{vehicleTypeName} · Floor {floorSlotSummary.floorNumber}</span>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-end gap-3 flex-wrap">
-                    <div className="text-center min-w-[50px]">
-                      <p className="text-2xl font-black text-[#006d43]">{available}</p>
-                      <p className="text-[10px] font-bold text-slate-400 uppercase mt-0.5">Available</p>
-                    </div>
-                    <div className="h-8 w-px bg-slate-100"></div>
-                    <div className="text-center min-w-[50px]">
-                      <p className="text-2xl font-black text-amber-500">{reserved}</p>
-                      <p className="text-[10px] font-bold text-slate-400 uppercase mt-0.5">Reserved</p>
-                    </div>
-                    <div className="h-8 w-px bg-slate-100"></div>
-                    <div className="text-center min-w-[50px]">
-                      <p className="text-2xl font-black text-[#263143]">{occupied}</p>
-                      <p className="text-[10px] font-bold text-slate-400 uppercase mt-0.5">Occupied</p>
-                    </div>
-                    <div className="h-8 w-px bg-slate-100"></div>
-                    <div className="text-center min-w-[50px]">
-                      <p className="text-2xl font-black text-[#ba1a1a]">{blocked}</p>
-                      <p className="text-[10px] font-bold text-slate-400 uppercase mt-0.5">Blocked</p>
-                    </div>
-                    <div className="h-8 w-px bg-slate-100"></div>
-                    <div className="text-center min-w-[50px]">
-                      <p className="text-2xl font-black text-[#d97706]">{maintenance}</p>
-                      <p className="text-[10px] font-bold text-slate-400 uppercase mt-0.5">Maintenance</p>
-                    </div>
-                    <div className="h-8 w-px bg-slate-100"></div>
-                    <div className="text-center min-w-[50px]">
-                      <p className="text-2xl font-black text-slate-600">{total}</p>
-                      <p className="text-[10px] font-bold text-slate-400 uppercase mt-0.5">Total</p>
-                    </div>
-                  </div>
-                  
-                  {/* Progress Bar with Percentage */}
-                  <div className="space-y-1.5">
-                    <div className="flex items-center justify-between text-[10px] font-bold">
-                      <span className="text-slate-500 uppercase tracking-wider">Capacity Usage</span>
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-[#006d43]">{availablePct}% free</span>
-                        <span className="text-amber-500">{reservedPct}% reserved</span>
-                        <span className="text-[#263143]">{occupiedPct}% occupied</span>
-                        {blocked > 0 && <span className="text-[#ba1a1a]">{blockedPct}% blocked</span>}
-                        {maintenance > 0 && <span className="text-[#d97706]">{maintenancePct}% maintaining</span>}
+            {floorSlotSummary.vehicleTypeSummaries
+              .filter(vt => {
+                const name = (vt.vehicleTypeName || '').toUpperCase();
+                return name.includes('MOTOR') || name.includes('BIKE') || name.includes('STANDARD') || name.includes('CAR');
+              })
+              .map((vehicleType) => {
+                const { vehicleTypeName, totalSlots, statusCounts } = vehicleType;
+                const occupied = statusCounts?.Occupied ?? 0;
+                const blocked = statusCounts?.Blocked ?? 0;
+                const maintenance = statusCounts?.Maintenance ?? 0;
+                const available = statusCounts?.Available ?? 0;
+                const reserved = statusCounts?.Reserved ?? 0;
+                const total = totalSlots ?? 0;
+                const isMotorbike = vehicleTypeName?.toUpperCase().includes('MOTOR') || vehicleTypeName?.toUpperCase().includes('BIKE');
+
+                let effectiveOccupied = occupied;
+                let effectiveAvailable = available;
+                if (isMotorbike) {
+                  effectiveOccupied = effectiveMotorOccupied;
+                  effectiveAvailable = effectiveMotorAvailable;
+                }
+
+                const effectiveOccupiedPct = total > 0 ? Math.round((effectiveOccupied / total) * 100) : 0;
+                const effectiveAvailablePct = total > 0 ? Math.round((effectiveAvailable / total) * 100) : 0;
+                const blockedPct = total > 0 ? Math.round((blocked / total) * 100) : 0;
+                const maintenancePct = total > 0 ? Math.round((maintenance / total) * 100) : 0;
+                const reservedPct = total > 0 ? Math.round((reserved / total) * 100) : 0;
+
+                return (
+                  <div key={vehicleType.vehicleTypeId} className="bg-white border-2 border-slate-200 shadow-md rounded-2xl p-5 flex flex-col gap-3 hover:shadow-lg transition-shadow">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2.5">
+                        <div className={`p-2 rounded-xl ${isMotorbike ? 'bg-slate-100' : 'bg-emerald-50'}`}>
+                          <span className={`material-symbols-outlined text-[20px] ${isMotorbike ? 'text-slate-600' : 'text-[#006d43]'}`}>
+                            {isMotorbike ? 'motorcycle' : 'directions_car'}
+                          </span>
+                        </div>
+                        <span className="text-xs font-extrabold text-slate-700 uppercase tracking-wide">{isMotorbike ? 'Motorbike' : 'Car'} · Floor {floorSlotSummary.floorNumber}</span>
                       </div>
                     </div>
-                    <div className="w-full bg-slate-100 h-3 rounded-full overflow-hidden flex">
-                      <div
-                        className="h-full bg-[#006d43] transition-all duration-700"
-                        style={{ width: `${availablePct}%` }}
-                      />
-                      <div
-                        className="h-full bg-amber-500 transition-all duration-700"
-                        style={{ width: `${reservedPct}%` }}
-                      />
-                      <div
-                        className="h-full bg-[#263143] transition-all duration-700"
-                        style={{ width: `${occupiedPct}%` }}
-                      />
-                      <div
-                        className="h-full bg-[#ba1a1a] transition-all duration-700"
-                        style={{ width: `${blockedPct}%` }}
-                      />
-                      <div
-                        className="h-full bg-[#d97706] transition-all duration-700"
-                        style={{ width: `${maintenancePct}%` }}
-                      />
+                    
+                    <div className="flex items-end gap-3 flex-wrap">
+                      <div className="text-center min-w-[50px]">
+                        <p className="text-2xl font-black text-[#006d43]">{effectiveAvailable}</p>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase mt-0.5">Available</p>
+                      </div>
+                      {!isMotorbike && (
+                        <>
+                          <div className="h-8 w-px bg-slate-100"></div>
+                          <div className="text-center min-w-[50px]">
+                            <p className="text-2xl font-black text-amber-500">{reserved}</p>
+                            <p className="text-[10px] font-bold text-slate-400 uppercase mt-0.5">Reserved</p>
+                          </div>
+                        </>
+                      )}
+                      <div className="h-8 w-px bg-slate-100"></div>
+                      <div className="text-center min-w-[50px]">
+                        <p className="text-2xl font-black text-[#263143]">{effectiveOccupied}</p>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase mt-0.5">Occupied</p>
+                      </div>
+                      {!isMotorbike && (
+                        <>
+                          <div className="h-8 w-px bg-slate-100"></div>
+                          <div className="text-center min-w-[50px]">
+                            <p className="text-2xl font-black text-[#ba1a1a]">{blocked}</p>
+                            <p className="text-[10px] font-bold text-slate-400 uppercase mt-0.5">Blocked</p>
+                          </div>
+                          <div className="h-8 w-px bg-slate-100"></div>
+                          <div className="text-center min-w-[50px]">
+                            <p className="text-2xl font-black text-[#d97706]">{maintenance}</p>
+                            <p className="text-[10px] font-bold text-slate-400 uppercase mt-0.5">Maintenance</p>
+                          </div>
+                        </>
+                      )}
+                      <div className="h-8 w-px bg-slate-100"></div>
+                      <div className="text-center min-w-[50px]">
+                        <p className="text-2xl font-black text-slate-600">{total}</p>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase mt-0.5">Total</p>
+                      </div>
+                    </div>
+                    
+                    {/* Progress Bar with Percentage */}
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between text-[10px] font-bold">
+                        <span className="text-slate-500 uppercase tracking-wider">Capacity Usage</span>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-[#006d43]">{effectiveAvailablePct}% free</span>
+                          {!isMotorbike && <span className="text-amber-500">{reservedPct}% reserved</span>}
+                          <span className="text-[#263143]">{effectiveOccupiedPct}% occupied</span>
+                          {!isMotorbike && blocked > 0 && <span className="text-[#ba1a1a]">{blockedPct}% blocked</span>}
+                          {!isMotorbike && maintenance > 0 && <span className="text-[#d97706]">{maintenancePct}% maintaining</span>}
+                        </div>
+                      </div>
+                      <div className="w-full bg-slate-100 h-3 rounded-full overflow-hidden flex">
+                        <div className="h-full bg-[#006d43] transition-all duration-700" style={{ width: `${effectiveAvailablePct}%` }} />
+                        {!isMotorbike && <div className="h-full bg-amber-500 transition-all duration-700" style={{ width: `${reservedPct}%` }} />}
+                        <div className="h-full bg-[#263143] transition-all duration-700" style={{ width: `${effectiveOccupiedPct}%` }} />
+                        {!isMotorbike && <div className="h-full bg-[#ba1a1a] transition-all duration-700" style={{ width: `${blockedPct}%` }} />}
+                        {!isMotorbike && <div className="h-full bg-[#d97706] transition-all duration-700" style={{ width: `${maintenancePct}%` }} />}
+                      </div>
                     </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })}
           </div>
         )}
 
@@ -765,17 +810,14 @@ export function SlotManagementDashboard() {
                     <div className="flex items-center justify-between mb-6">
                       <div>
                         <h3 className="text-base font-extrabold text-slate-800 flex items-center gap-2">
-                          <span className={`material-symbols-outlined text-[20px] ${zone.vehicleType === 'EV Charging' ? 'text-amber-500' : 'text-[#006d43]'}`}>
-                            {zone.vehicleType === 'EV Charging' ? 'ev_station' : 'directions_car'}
+                          <span className="material-symbols-outlined text-[20px] text-[#006d43]">
+                            directions_car
                           </span>
                           {zone.name}
                         </h3>
                         <div className="flex items-center gap-2 mt-1">
-                          <span className="text-[11px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-slate-100 text-slate-600">
-                            {zone.vehicleType}
-                          </span>
-                          <span className="text-[11px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-700">
-                            General
+                          <span className="text-[11px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-emerald-50 text-[#006d43] border border-emerald-500/10">
+                            Car
                           </span>
                         </div>
                       </div>
@@ -798,7 +840,7 @@ export function SlotManagementDashboard() {
                           >
                             <span className="truncate w-full text-center px-1">{slot.slotCode}</span>
                             <span className="material-symbols-outlined text-[18px]">
-                              {zone.vehicleType === 'EV Charging' ? 'ev_station' : 'directions_car'}
+                              directions_car
                             </span>
                           </button>
                         ))}
@@ -809,70 +851,99 @@ export function SlotManagementDashboard() {
               })
             )}
 
-            {/* Motorbike Zones Section */}
-            <div>
-              <h3 className="text-lg font-extrabold text-slate-850 mb-5 flex items-center gap-2">
-                <span className="material-symbols-outlined text-slate-600">two_wheeler</span>
-                Motorbike Capacity Monitoring
-              </h3>
+            {/* Motorbike Capacity Monitoring Section */}
+            <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 mb-6 border-b border-slate-100 gap-4">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 rounded-xl bg-slate-100">
+                    <span className="material-symbols-outlined text-slate-600 text-xl">motorcycle</span>
+                  </div>
+                  <div>
+                    <h3 className="text-base font-extrabold text-slate-800">Motorbike Capacity Monitoring</h3>
+                    <p className="text-xs text-slate-400 font-semibold mt-0.5">Real-time occupancy of motorbike parking zones</p>
+                  </div>
+                </div>
+              </div>
 
               {activeMotorbikeZones.length === 0 ? (
-                <div className="bg-white border border-dashed border-slate-200 rounded-2xl p-6 text-center">
-                  <p className="text-xs text-slate-400 font-medium">No Motorbike Zones configured on this Floor.</p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  {activeMotorbikeZones.map((zone) => {
-                    const zoneSessions = activeSessions.filter(s => s.zoneId === zone.id);
-                    const occupied = zoneSessions.length;
-                    const percentage = zone.slotCapacity > 0 ? Math.min(100, Math.round((occupied / zone.slotCapacity) * 100)) : 0;
+                motorSummary ? (
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
+                    <div className="md:col-span-1">
+                      <h4 className="text-sm font-extrabold text-slate-700">General Motorbike Area</h4>
+                      <p className="text-xs text-slate-400 font-medium mt-1">No individual motorbike zones configured, showing aggregated floor metrics.</p>
+                    </div>
                     
-                    let statusLabel = 'Normal';
-                    let statusColorText = 'text-[#00a86b] bg-[#00a86b]/10';
-                    let progressColorClass = 'bg-[#00a86b]';
-
-                    if (percentage >= 90) {
-                      statusLabel = 'Critical / Full';
-                      statusColorText = 'text-[#ba1a1a] bg-[#ba1a1a]/10';
-                      progressColorClass = 'bg-[#ba1a1a]';
-                    } else if (percentage >= 75) {
-                      statusLabel = 'High Occupancy';
-                      statusColorText = 'text-[#d97706] bg-[#d97706]/10';
-                      progressColorClass = 'bg-[#d97706]';
-                    }
-
-                    return (
-                      <div key={zone.id} className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all">
-                        <div className="flex justify-between items-start mb-4">
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Motorbike Section</p>
-                              <span className={`text-[9px] font-extrabold px-1.5 py-0.5 rounded-md ${statusColorText}`}>
-                                {statusLabel}
-                              </span>
-                            </div>
-                            <h4 className="text-base font-extrabold text-slate-800 mt-0.5">{zone.name}</h4>
-                          </div>
-                          <span className="p-2 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center">
-                            <span className="material-symbols-outlined text-slate-500 text-lg">two_wheeler</span>
-                          </span>
-                        </div>
-
-                        <div className="space-y-2 pt-2 border-t border-slate-50">
-                          <div className="flex justify-between text-xs font-semibold text-slate-500">
-                            <span>Capacity Utilization</span>
-                            <span className="font-extrabold text-slate-700">{occupied} / {zone.slotCapacity} vehicles ({percentage}%)</span>
-                          </div>
-                          <div className="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden">
-                            <div
-                                className={`${progressColorClass} h-full transition-all duration-500`}
-                                style={{ width: `${percentage}%` }}
-                            ></div>
-                          </div>
-                        </div>
+                    <div className="grid grid-cols-3 gap-4 md:col-span-2">
+                      <div className="bg-emerald-50/40 border border-emerald-500/10 rounded-xl p-4 text-center">
+                        <span className="text-xs font-bold text-emerald-700 block uppercase tracking-wider mb-1">Available</span>
+                        <span className="text-2xl font-black text-[#006d43]">{effectiveMotorAvailable}</span>
                       </div>
-                    );
-                  })}
+                      
+                      <div className="bg-slate-50/50 border border-slate-150 rounded-xl p-4 text-center">
+                        <span className="text-xs font-bold text-slate-500 block uppercase tracking-wider mb-1">Occupied</span>
+                        <span className="text-2xl font-black text-[#263143]">{effectiveMotorOccupied}</span>
+                      </div>
+
+                      <div className="bg-slate-50/50 border border-slate-150 rounded-xl p-4 text-center">
+                        <span className="text-xs font-bold text-slate-500 block uppercase tracking-wider mb-1">Total Capacity</span>
+                        <span className="text-2xl font-black text-slate-600">{(motorSummary.totalSlots || 0)}</span>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-center py-6 text-slate-400 text-xs font-medium">
+                    No motorbike capacity data available.
+                  </div>
+                )
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className="border-b border-slate-100 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                        <th className="pb-3 font-extrabold">Zone Name</th>
+                        <th className="pb-3 font-extrabold text-center">Available</th>
+                        <th className="pb-3 font-extrabold text-center">Occupied</th>
+                        <th className="pb-3 font-extrabold text-center">Total Capacity</th>
+                        <th className="pb-3 font-extrabold text-right w-1/3">Occupancy Rate</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-50">
+                      {activeMotorbikeZones.map((zone) => {
+                        const zoneSessions = activeSessions.filter(s => s.zoneId === zone.id);
+                        const occupied = zoneSessions.length;
+                        const capacity = zone.slotCapacity || 0;
+                        const available = Math.max(0, capacity - occupied);
+                        const percentage = capacity > 0 ? Math.min(100, Math.round((occupied / capacity) * 100)) : 0;
+                        
+                        let progressColorClass = 'bg-[#00a86b]';
+                        if (percentage >= 90) {
+                          progressColorClass = 'bg-[#ba1a1a]';
+                        } else if (percentage >= 75) {
+                          progressColorClass = 'bg-[#d97706]';
+                        }
+
+                        return (
+                          <tr key={zone.id} className="text-sm font-semibold text-slate-700">
+                            <td className="py-3.5 font-extrabold text-slate-800 flex items-center gap-2">
+                              <span className="material-symbols-outlined text-[16px] text-slate-400">motorcycle</span>
+                              {zone.name}
+                            </td>
+                            <td className="py-3.5 text-center font-black text-[#006d43]">{available}</td>
+                            <td className="py-3.5 text-center font-black text-[#263143]">{occupied}</td>
+                            <td className="py-3.5 text-center font-bold text-slate-500">{capacity}</td>
+                            <td className="py-3.5 text-right">
+                              <div className="flex items-center justify-end gap-3">
+                                <span className="text-xs font-extrabold text-slate-600">{percentage}%</span>
+                                <div className="w-24 bg-slate-100 h-2 rounded-full overflow-hidden">
+                                  <div className={`h-full ${progressColorClass} transition-all duration-500`} style={{ width: `${percentage}%` }}></div>
+                                </div>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
                 </div>
               )}
             </div>
@@ -948,13 +1019,13 @@ export function SlotManagementDashboard() {
                               {slot ? (
                                 <span className="flex items-center gap-1.5">
                                   <span className="material-symbols-outlined text-[16px] text-[#006d43]">
-                                    {slot.slotType === 'EV Charging' ? 'ev_station' : 'directions_car'}
+                                    directions_car
                                   </span>
                                   {slot.slotCode}
                                 </span>
                               ) : (
                                 <span className="text-slate-400 text-xs font-semibold italic flex items-center gap-1.5">
-                                  <span className="material-symbols-outlined text-[16px] text-slate-400">two_wheeler</span>
+                                  <span className="material-symbols-outlined text-[16px] text-slate-400">motorcycle</span>
                                   Motorbike Area
                                 </span>
                               )}

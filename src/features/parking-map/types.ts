@@ -103,7 +103,7 @@ export interface Slot {
   zoneName: string;
   floorId: number;
   buildingId: number;
-  slotType: 'Standard' | 'EV Charging';
+  slotType: 'Standard' | 'EV Charging' | 'Motorbike';
   status: 'AVAILABLE' | 'OCCUPIED' | 'BLOCKED' | 'MAINTENANCE' | 'RESERVED';
   vehicleTypeId: number;
   assignedVehicle?: {

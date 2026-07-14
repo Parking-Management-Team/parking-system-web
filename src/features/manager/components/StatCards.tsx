@@ -1,16 +1,15 @@
 'use client';
 
 import React from 'react';
-import { Coins, Car, Percent, Warehouse } from 'lucide-react';
+import { Coins, Car, Warehouse, Activity } from 'lucide-react';
 
 export interface DashboardStats {
   revenue: number;
   occupiedCount: number;
-  carCount: number;
-  bikeCount: number;
   occupancyRate: number;
   totalCapacity: number;
   floorsCount: number;
+  todaySessions: number;
 }
 
 interface StatCardsProps {
@@ -18,7 +17,6 @@ interface StatCardsProps {
 }
 
 export function StatCards({ stats }: StatCardsProps) {
-  // Format currency in VND
   const formattedRevenue = new Intl.NumberFormat('vi-VN', {
     style: 'currency',
     currency: 'VND',
@@ -26,7 +24,7 @@ export function StatCards({ stats }: StatCardsProps) {
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-      
+
       {/* Daily Revenue */}
       <div className="bg-white p-6 rounded-2xl border border-slate-100/80 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-300">
         <div className="flex justify-between items-start">
@@ -45,50 +43,48 @@ export function StatCards({ stats }: StatCardsProps) {
         </div>
       </div>
 
-      {/* Active Vehicles */}
+      {/* Active Vehicles — with inline occupancy rate */}
       <div className="bg-white p-6 rounded-2xl border border-slate-100/80 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-300">
         <div className="flex justify-between items-start">
-          <div className="w-12 h-12 rounded-xl bg-blue-50 text-blue-650 flex items-center justify-center shadow-inner">
+          <div className="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shadow-inner">
             <Car className="w-6 h-6 stroke-[1.8]" />
           </div>
           <span className="bg-blue-50 text-blue-700 text-[10px] font-extrabold px-2.5 py-1 rounded-lg uppercase tracking-wide">
-            Parked
+            {stats.occupancyRate}% Full
           </span>
         </div>
         <div className="mt-5">
           <h3 className="text-slate-400 text-xs font-bold uppercase tracking-wider">Active Vehicles</h3>
           <p className="text-2xl font-black text-slate-800 mt-1 tracking-tight">
-            {stats.occupiedCount} Spaces
+            {stats.occupiedCount}
+            <span className="text-base font-bold text-slate-400 ml-1">/ {stats.totalCapacity} slots</span>
           </p>
-          <div className="flex gap-2.5 mt-2.5 text-xs font-bold text-slate-500/90">
-            <span>Cars: {stats.carCount}</span>
-            <span className="text-slate-300">•</span>
-            <span>Bikes: {stats.bikeCount}</span>
+          <div className="w-full bg-slate-100 h-1.5 rounded-full mt-3 overflow-hidden">
+            <div
+              className="bg-blue-500 h-full rounded-full transition-all duration-700"
+              style={{ width: `${Math.min(stats.occupancyRate, 100)}%` }}
+            />
           </div>
         </div>
       </div>
 
-      {/* Occupancy Rate */}
+      {/* Today's Sessions */}
       <div className="bg-white p-6 rounded-2xl border border-slate-100/80 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-300">
         <div className="flex justify-between items-start">
           <div className="w-12 h-12 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center shadow-inner">
-            <Percent className="w-6 h-6 stroke-[1.8]" />
+            <Activity className="w-6 h-6 stroke-[1.8]" />
           </div>
           <span className="bg-amber-50 text-amber-700 text-[10px] font-extrabold px-2.5 py-1 rounded-lg uppercase tracking-wide">
-            Live Rate
+            Today
           </span>
         </div>
         <div className="mt-5">
-          <h3 className="text-slate-400 text-xs font-bold uppercase tracking-wider">Occupancy Rate</h3>
+          <h3 className="text-slate-400 text-xs font-bold uppercase tracking-wider">Total Sessions</h3>
           <p className="text-2xl font-black text-slate-800 mt-1 tracking-tight">
-            {stats.occupancyRate}%
+            {stats.todaySessions}
+            <span className="text-base font-bold text-slate-400 ml-1">trips</span>
           </p>
-          <div className="w-full bg-slate-100 h-2.5 rounded-full mt-3.5 overflow-hidden shadow-inner">
-            <div
-              className="bg-amber-500 h-full rounded-full transition-all duration-700"
-              style={{ width: `${Math.min(stats.occupancyRate, 100)}%` }}
-            />
-          </div>
+          <p className="text-[10px] text-slate-400 font-semibold mt-1.5">Check-ins recorded today</p>
         </div>
       </div>
 
@@ -98,15 +94,17 @@ export function StatCards({ stats }: StatCardsProps) {
           <div className="w-12 h-12 rounded-xl bg-slate-50 text-slate-600 flex items-center justify-center shadow-inner">
             <Warehouse className="w-6 h-6 stroke-[1.8]" />
           </div>
-          <span className="bg-slate-100 text-slate-650 text-[10px] font-extrabold px-2.5 py-1 rounded-lg uppercase tracking-wide">
+          <span className="bg-slate-100 text-slate-600 text-[10px] font-extrabold px-2.5 py-1 rounded-lg uppercase tracking-wide">
             {stats.floorsCount} Floors
           </span>
         </div>
         <div className="mt-5">
           <h3 className="text-slate-400 text-xs font-bold uppercase tracking-wider">Total Capacity</h3>
           <p className="text-2xl font-black text-slate-800 mt-1 tracking-tight">
-            {stats.totalCapacity} Slots
+            {stats.totalCapacity}
+            <span className="text-base font-bold text-slate-400 ml-1">slots</span>
           </p>
+          <p className="text-[10px] text-slate-400 font-semibold mt-1.5">{stats.totalCapacity - stats.occupiedCount} currently available</p>
         </div>
       </div>
 

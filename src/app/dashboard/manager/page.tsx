@@ -168,42 +168,26 @@ export default function ManagerDashboard() {
     return () => clearInterval(interval);
   }, [selectedBuildingId]);
 
-  // Dynamic calculations based on selected building
   const stats = useMemo<DashboardStats>(() => {
     if (!selectedBuildingId) {
-      return { revenue: 0, occupiedCount: 0, carCount: 0, bikeCount: 0, occupancyRate: 0, totalCapacity: 0, floorsCount: 0 };
+      return { revenue: 0, occupiedCount: 0, occupancyRate: 0, totalCapacity: 0, floorsCount: 0, todaySessions: 0 };
     }
 
     const buildingFloors = floors.filter(f => f.buildingId === selectedBuildingId);
     const buildingFloorIds = buildingFloors.map(f => f.id);
     const buildingZones = zones.filter(z => buildingFloorIds.includes(z.floorId));
-    
     const totalCapacity = buildingZones.reduce((sum, z) => sum + (z.capacity || 0), 0);
+
     const buildingActiveSessions = activeSessions.filter(s => s.buildingId === selectedBuildingId);
     const occupiedCount = buildingActiveSessions.length;
-    
-    // Split into car slots (has slotId) and motorbikes (no slotId)
-    const carCount = buildingActiveSessions.filter(s => s.slotId !== null && s.slotId !== undefined).length;
-    const bikeCount = occupiedCount - carCount;
-
     const occupancyRate = totalCapacity > 0 ? Math.round((occupiedCount / totalCapacity) * 1000) / 10 : 0;
 
-    // Total daily revenue from API (find the total revenue record with the most recent date)
     const latestRevenueDto = revenueList
       .filter(r => r.vehicleTypeId === null || r.vehicleTypeId === undefined || r.vehicleTypeName === 'Total Revenue')
       .sort((a, b) => b.startDate.localeCompare(a.startDate))[0];
-
     const revenue = latestRevenueDto ? latestRevenueDto.totalRevenue : 0;
 
-    return {
-      revenue,
-      occupiedCount,
-      carCount,
-      bikeCount,
-      occupancyRate,
-      totalCapacity,
-      floorsCount: buildingFloors.length,
-    };
+    return { revenue, occupiedCount, occupancyRate, totalCapacity, floorsCount: buildingFloors.length, todaySessions: latestRevenueDto?.totalSessions ?? 0 };
   }, [selectedBuildingId, floors, zones, activeSessions, revenueList]);
 
   // Daily revenue chart data (filter total revenue records and sort chronologically)
@@ -223,29 +207,18 @@ export default function ManagerDashboard() {
     return dailyTotals.slice(-7); // Keep the last 7 days
   }, [revenueList]);
 
-  // Filtered active sessions for the building (representing recent check-ins)
   const activities = useMemo<ActivityLog[]>(() => {
     if (!selectedBuildingId) return [];
-    
     return [...activeSessions]
       .filter(s => s.buildingId === selectedBuildingId)
       .sort((a, b) => new Date(b.checkInTime).getTime() - new Date(a.checkInTime).getTime())
-      .slice(0, 5) // Show top 5 active parking sessions
-      .map(s => {
-        const sessionZone = s.zoneId ? zones.find(z => z.id === s.zoneId) : null;
-        const floorName = sessionZone 
-          ? (floors.find(f => f.id === sessionZone.floorId)?.name || 'L1') 
-          : 'L1';
-        return {
-          id: s.id.toString(),
-          time: new Date(s.checkInTime).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
-          plate: s.licensePlateIn,
-          type: 'walkin',
-          message: 'Visitor Check-in',
-          details: `Vehicle ${s.licensePlateIn} entered floor ${floorName} via Card ${s.cardCode || '#' + s.cardId}.`
-        };
-      });
-  }, [selectedBuildingId, activeSessions, floors, zones]);
+      .slice(0, 10)
+      .map(s => ({
+        id: s.id.toString(),
+        plate: s.licensePlateIn,
+        time: new Date(s.checkInTime).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+      }));
+  }, [selectedBuildingId, activeSessions]);
 
   return (
     <div className="p-6 md:p-8 space-y-8 bg-[#f8f9ff] min-h-screen">
@@ -302,13 +275,12 @@ export default function ManagerDashboard() {
           {/* ── 4 Stat Cards ── */}
           <StatCards stats={stats} />
 
-          {/* ── Visual Analytics Grid (Bar & Pie Charts) ── */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <div className="lg:col-span-2">
               <HourlyTrafficChart chartData={chartData} />
             </div>
             <div className="lg:col-span-1">
-              <OccupancyPieChart carCount={stats.carCount} bikeCount={stats.bikeCount} occupiedCount={stats.occupiedCount} />
+              <OccupancyPieChart occupiedCount={stats.occupiedCount} totalCapacity={stats.totalCapacity} />
             </div>
           </div>
 

@@ -599,7 +599,7 @@ export function SlotActionModal({
               <button
                 type="button"
                 onClick={onClose}
-                className="flex-1 py-3 border border-slate-200 rounded-xl font-bold text-sm text-slate-500 hover:bg-white transition-colors"
+                className="flex-1 py-3 bg-white hover:bg-slate-50 border border-slate-200 rounded-xl font-bold text-sm text-slate-600 transition-all shadow-sm"
               >
                 Cancel
               </button>
@@ -624,7 +624,7 @@ export function SlotActionModal({
                 <button
                   onClick={() => handleSetStatus('MAINTENANCE')}
                   disabled={isSubmitting}
-                  className="flex-1 py-3 border border-slate-200 hover:bg-white text-slate-600 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition-colors disabled:opacity-50"
+                  className="flex-1 py-3 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition-all shadow-sm disabled:opacity-50"
                 >
                   <span className="material-symbols-outlined text-[16px]">build</span>
                   Maintain
@@ -651,7 +651,7 @@ export function SlotActionModal({
             <>
               <button
                 onClick={onClose}
-                className="flex-1 py-3 border border-slate-200 rounded-xl font-bold text-sm text-slate-500 hover:bg-white transition-colors"
+                className="flex-1 py-3 bg-white hover:bg-slate-50 border border-slate-200 rounded-xl font-bold text-sm text-slate-600 transition-all shadow-sm"
               >
                 Cancel
               </button>

@@ -446,15 +446,7 @@ export function SlotActionModal({
                   </div>
                 )}
 
-                {/* Allocation parameters */}
-                <div className="flex flex-col gap-1 pt-2">
-                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">Priority</label>
-                  <select className="w-full border border-slate-200 rounded-lg py-2 px-3 text-sm focus:ring-1 focus:ring-emerald-500/30 focus:border-emerald-500 text-slate-600 focus:outline-none">
-                    <option>Normal</option>
-                    <option>High</option>
-                    <option>Critical</option>
-                  </select>
-                </div>
+
 
                 <div className="flex flex-col gap-1 pt-2">
                   <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">Operational Notes</label>

@@ -1565,7 +1565,7 @@ export default function ParkingUtilsWorkspace() {
                             <td className="px-6 py-4">
                               <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold capitalize ${s.status === 'completed'
                                   ? 'bg-emerald-50 text-emerald-700 border border-emerald-250/20'
-                                  : 'bg-red-50 text-red-650 border border-red-200'
+                                  : 'bg-red-50 text-[#ba1a1a] border border-red-200'
                                 }`}>
                                 {s.status}
                               </span>

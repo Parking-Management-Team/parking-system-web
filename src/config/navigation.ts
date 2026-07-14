@@ -76,7 +76,7 @@ export const ROLE_NAVIGATION: Record<string, NavigationItem[]> = {
     },
     {
       label: 'Support',
-      href: '#',
+      href: '/dashboard/manager/help',
       icon: 'help',
       isFooter: true,
     },
@@ -120,7 +120,7 @@ export const ROLE_NAVIGATION: Record<string, NavigationItem[]> = {
     },
     {
       label: 'Support',
-      href: '#',
+      href: '/dashboard/staff/help',
       icon: 'help',
       isFooter: true,
     },
@@ -169,7 +169,7 @@ export const ROLE_NAVIGATION: Record<string, NavigationItem[]> = {
     },
     {
       label: 'Support',
-      href: '#',
+      href: '/dashboard/admin/help',
       icon: 'help',
       isFooter: true,
     },

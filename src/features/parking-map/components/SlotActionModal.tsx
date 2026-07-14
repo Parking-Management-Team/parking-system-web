@@ -616,30 +616,22 @@ export function SlotActionModal({
 
           {activeSlot.status === 'OCCUPIED' && (
             <>
+              <button
+                onClick={onClose}
+                className="flex-1 py-3 bg-white hover:bg-slate-50 border border-slate-200 rounded-xl font-bold text-sm text-slate-600 transition-all shadow-sm"
+              >
+                Close
+              </button>
               {userRole === 'MANAGER' && (
                 <button
                   onClick={() => handleSetStatus('MAINTENANCE')}
                   disabled={isSubmitting}
-                  className="flex-1 py-3 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition-all shadow-sm disabled:bg-slate-100 disabled:text-slate-400 disabled:cursor-not-allowed"
+                  className="flex-[2] py-3 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-xl font-bold text-sm flex items-center justify-center gap-1.5 transition-all shadow-sm disabled:bg-slate-100 disabled:text-slate-400 disabled:cursor-not-allowed"
                 >
                   <span className="material-symbols-outlined text-[16px]">build</span>
                   Maintain
                 </button>
               )}
-              <button
-                onClick={handleReleaseSlot}
-                disabled={isSubmitting}
-                className={`${userRole === 'MANAGER' ? 'flex-[2]' : 'flex-1'} py-3 bg-[#ba1a1a] hover:bg-red-700 disabled:bg-red-300 disabled:cursor-not-allowed text-white rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition-all shadow-md shadow-red-500/10`}
-              >
-                {isSubmitting ? (
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                ) : (
-                  <>
-                    <span className="material-symbols-outlined text-[16px]">logout</span>
-                    Release Slot
-                  </>
-                )}
-              </button>
             </>
           )}
 

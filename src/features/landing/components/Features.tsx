@@ -1,237 +1,81 @@
-'use client';
+'use client'
 
-import { motion, type Variants } from 'framer-motion';
-import {
-  MapPin,
-  Calendar,
-  DollarSign,
-  Shield,
-  Building2,
-  Zap,
-  Activity,
-} from 'lucide-react';
+import { motion } from 'framer-motion'
 
-const visionData = {
-  title: 'Our Vision',
-  subtitle: 'Transforming Urban Mobility Through Intelligence',
-  description:
-    'We envision cities where parking is seamless, sustainable, and stress-free. By integrating cutting-edge technology with urban infrastructure, we create intelligent parking solutions that reduce congestion, lower emissions, and enhance the quality of urban life for everyone.',
-  icon: Zap,
-  color: '#006d43',
-  bgColor: '#e7f5ef',
-};
+const fade = (delay = 0) => ({
+  initial: { opacity: 0, y: 32 },
+  whileInView: { opacity: 1, y: 0 },
+  viewport: { once: true },
+  transition: { duration: 0.7, delay, ease: 'easeOut' as const },
+})
 
 const features = [
-  {
-    icon: MapPin,
-    title: 'Real-time Occupancy Tracking',
-    description:
-      'Zone-based management for motorcycles and slot-specific allocation for cars. Multi-floor, multi-building support with live capacity monitoring.',
-    color: '#006d43',
-    bgColor: '#e7f5ef',
-  },
-  {
-    icon: Calendar,
-    title: 'Smart Advance Booking',
-    description:
-      'Pre-book parking spots 1–8 hours in advance. Deposit fee equals first pricing block. Automatic slot allocation with a 45-minute grace period.',
-    color: '#006d43',
-    bgColor: '#e7f5ef',
-  },
-  {
-    icon: Activity,
-    title: 'Live Session Management',
-    description:
-      'Track active parking sessions in real-time. Automated check-in/check-out via RFID or QR code with instant status updates for operators.',
-    color: '#006d43',
-    bgColor: '#e7f5ef',
-  },
-  {
-    icon: DollarSign,
-    title: 'Dynamic Pricing Engine',
-    description:
-      'Time window-based pricing with base duration and increment blocks. Window caps per time period with grace period rounding.',
-    color: '#006d43',
-    bgColor: '#e7f5ef',
-  },
-  {
-    icon: Shield,
-    title: 'Integrated Payment System',
-    description:
-      'Cash payment with rounding and online bank transfers with exact amounts. Automated deposit handling and refund processing.',
-    color: '#006d43',
-    bgColor: '#e7f5ef',
-  },
-  {
-    icon: Building2,
-    title: 'Multi-Vehicle Support',
-    description:
-      'Motorcycles and cars with different allocation logic. Expandable structure for additional vehicle types and custom rules.',
-    color: '#006d43',
-    bgColor: '#e7f5ef',
-  },
-];
-
-const itemVariants: Variants = {
-  hidden: { opacity: 0, y: 20, scale: 0.95 },
-  visible: {
-    opacity: 1,
-    y: 0,
-    scale: 1,
-    transition: { duration: 0.6, ease: 'easeOut' },
-  },
-};
-
-const visionVariants: Variants = {
-  hidden: { opacity: 0, x: -50 },
-  visible: {
-    opacity: 1,
-    x: 0,
-    transition: { duration: 0.8, ease: 'easeOut' },
-  },
-};
-
-const featuresVariants: Variants = {
-  hidden: { opacity: 0, x: 50 },
-  visible: {
-    opacity: 1,
-    x: 0,
-    transition: { duration: 0.8, ease: 'easeOut', delay: 0.2 },
-  },
-};
+  { tag: 'Access',   title: 'Live slot tracking',         body: 'Zone + floor. Car or bike. Updated every second.' },
+  { tag: 'Booking',  title: 'Book up to 8h ahead',        body: '45-min grace. 1-block deposit. Auto-allocated.' },
+  { tag: 'Sessions', title: 'RFID & QR entry',             body: 'Frictionless gate access — no ticket, no queue.' },
+  { tag: 'Pricing',  title: 'Time-block billing',          body: 'Base rate + increments. Day & night windows. Hard cap.' },
+  { tag: 'Payment',  title: 'Cash or bank transfer',       body: 'Auto-calculated on exit. Deposit auto-applied.' },
+  { tag: 'Fleet',    title: 'Bikes & cars, one platform',  body: 'Different logic. Same system. Expandable.' },
+]
 
 export default function Features() {
   return (
-    <section
-      id="features"
-      className="relative pt-24 pb-20 overflow-hidden"
-      style={{ backgroundColor: '#f8fafc' }}
-    >
-      {/* Background decoration */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div
-          className="absolute -top-16 -right-16 w-80 h-80 rounded-full opacity-20 blur-3xl"
-          style={{ backgroundColor: '#e0f2fe' }}
-        />
-        <div
-          className="absolute -bottom-16 -left-16 w-80 h-80 rounded-full opacity-20 blur-3xl"
-          style={{ backgroundColor: '#dcfce7' }}
-        />
-      </div>
+    <section id="features" className="bg-[#f5f5f0] overflow-hidden">
+      <div className="h-px bg-gradient-to-r from-transparent via-black/10 to-transparent" />
 
-      <div className="container relative z-10 mx-auto px-4 sm:px-6 lg:px-8 max-w-7xl">
-        {/* Vision Section */}
-        <motion.div
-          variants={visionVariants}
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true, margin: '-100px' }}
-          className="mb-16 text-center"
-        >
-          <div
-            className="inline-flex items-center gap-3 px-4 py-2 rounded-full text-sm font-medium mb-4"
-            style={{ backgroundColor: visionData.bgColor, color: visionData.color }}
-          >
-            <visionData.icon className="w-4 h-4" />
-            <span>{visionData.title}</span>
+      <div className="max-w-5xl mx-auto px-6 lg:px-12 py-28">
+
+        {/* Headline */}
+        <motion.div {...fade()} className="mb-20 flex flex-col md:flex-row md:items-end md:justify-between gap-6">
+          <div>
+            <p className="font-mono text-[11px] uppercase tracking-[0.25em] text-emerald-600 mb-4">03 / Features</p>
+            <h2 className="text-5xl md:text-6xl font-black text-[#0a0a0a] leading-none tracking-tight">
+              Every edge.<br />
+              <span className="text-emerald-500">Covered.</span>
+            </h2>
           </div>
-          <h2
-            className="text-3xl md:text-4xl font-bold mb-6"
-            style={{ color: '#1e293b', fontFamily: 'Inter, sans-serif', lineHeight: '1.2' }}
-          >
-            {visionData.subtitle}
-          </h2>
-          <p
-            className="text-lg md:text-xl max-w-2xl mx-auto"
-            style={{ color: '#64748b', fontFamily: 'Inter, sans-serif', lineHeight: '1.6' }}
-          >
-            {visionData.description}
+          <p className="text-[#707070] text-sm leading-relaxed max-w-xs md:text-right">
+            Six systems. One platform. Nothing missing.
           </p>
         </motion.div>
 
-        {/* Features Grid */}
-        <motion.div
-          variants={featuresVariants}
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true, margin: '-100px' }}
-          className="grid gap-8"
-        >
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {features.slice(0, 3).map((feature, index) => {
-              const Icon = feature.icon;
-              return (
-                <motion.div
-                  key={index}
-                  variants={itemVariants}
-                  whileHover={{ y: -4, scale: 1.02, transition: { duration: 0.3, ease: 'easeOut' } }}
-                  className="group relative bg-white rounded-xl p-6 border border-muted/20 transition-all duration-300 hover:shadow-lg"
-                >
-                  <div
-                    className="w-10 h-10 rounded-xl flex items-center justify-center mb-4 transition-all duration-300 group-hover:scale-110"
-                    style={{ backgroundColor: feature.bgColor }}
-                  >
-                    <Icon className="w-5 h-5" style={{ color: feature.color }} strokeWidth={1.5} />
-                  </div>
-                  <h3
-                    className="text-lg font-semibold mb-2"
-                    style={{ color: '#1e293b', fontFamily: 'Inter, sans-serif' }}
-                  >
-                    {feature.title}
-                  </h3>
-                  <p
-                    className="text-sm leading-relaxed"
-                    style={{ color: '#64748b', fontFamily: 'Inter, sans-serif' }}
-                  >
-                    {feature.description}
-                  </p>
-                  <div
-                    className="absolute inset-0 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"
-                    style={{ border: '1px solid #006d43' }}
-                  />
-                </motion.div>
-              );
-            })}
-          </div>
+        {/* Feature list — numbered editorial */}
+        <div className="divide-y divide-[#e0e0d8]">
+          {features.map((f, i) => (
+            <motion.div
+              key={i}
+              {...fade(0.05 * i)}
+              className="group flex items-start gap-6 py-7 hover:bg-[#0a0a0a]/[0.03] -mx-4 px-4 rounded-xl transition-colors duration-300 cursor-default"
+            >
+              {/* Number */}
+              <span className="font-mono text-[10px] text-[#c0c0c0] w-6 shrink-0 mt-1">
+                {String(i + 1).padStart(2, '0')}
+              </span>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {features.slice(3, 6).map((feature, index) => {
-              const Icon = feature.icon;
-              return (
-                <motion.div
-                  key={index + 3}
-                  variants={itemVariants}
-                  whileHover={{ y: -4, scale: 1.02, transition: { duration: 0.3, ease: 'easeOut' } }}
-                  className="group relative bg-white rounded-xl p-6 border border-muted/20 transition-all duration-300 hover:shadow-lg"
-                >
-                  <div
-                    className="w-10 h-10 rounded-xl flex items-center justify-center mb-4 transition-all duration-300 group-hover:scale-110"
-                    style={{ backgroundColor: feature.bgColor }}
-                  >
-                    <Icon className="w-5 h-5" style={{ color: feature.color }} strokeWidth={1.5} />
-                  </div>
-                  <h3
-                    className="text-lg font-semibold mb-2"
-                    style={{ color: '#1e293b', fontFamily: 'Inter, sans-serif' }}
-                  >
-                    {feature.title}
-                  </h3>
-                  <p
-                    className="text-sm leading-relaxed"
-                    style={{ color: '#64748b', fontFamily: 'Inter, sans-serif' }}
-                  >
-                    {feature.description}
-                  </p>
-                  <div
-                    className="absolute inset-0 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"
-                    style={{ border: '1px solid #006d43' }}
-                  />
-                </motion.div>
-              );
-            })}
-          </div>
-        </motion.div>
+              {/* Tag */}
+              <span className="shrink-0 w-20 text-[10px] font-black uppercase tracking-widest text-emerald-600 mt-1">
+                {f.tag}
+              </span>
+
+              {/* Title */}
+              <h3 className="flex-1 text-[#0a0a0a] font-bold text-base group-hover:text-emerald-600 transition-colors duration-300">
+                {f.title}
+              </h3>
+
+              {/* Body */}
+              <p className="hidden md:block flex-1 text-sm text-[#707070] leading-relaxed max-w-xs">
+                {f.body}
+              </p>
+
+              {/* Arrow */}
+              <span className="text-[#d0d0d0] group-hover:text-emerald-500 transition-colors duration-300 text-xl shrink-0">
+                →
+              </span>
+            </motion.div>
+          ))}
+        </div>
+
       </div>
     </section>
-  );
+  )
 }

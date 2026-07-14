@@ -217,7 +217,7 @@ export function SlotManagementDashboard() {
     if (!selectedFloorId) return;
     setLoading(true);
     try {
-      const floorZones = zones.filter(z => z.floorId === selectedFloorId && z.vehicleType !== 'Motorbike');
+      const floorZones = zones.filter(z => z.floorId === selectedFloorId);
       
       // Fetch active parking sessions to match license plates and details
       const sessionRes = await api.get<BaseResponse<ParkingSessionDto[]>>('/parking-sessions/active').catch(() => null);
@@ -283,7 +283,7 @@ export function SlotManagementDashboard() {
                 zoneName: zone.name,
                 floorId: selectedFloorId,
                 buildingId: selectedBuildingId || 0,
-                slotType: zone.vehicleType === 'EV Charging' ? 'EV Charging' as const : 'Standard' as const,
+                slotType: zone.vehicleType === 'EV Charging' ? 'EV Charging' as const : (zone.vehicleType === 'Motorbike' ? 'Motorbike' as const : 'Standard' as const),
                 status: mapStatus(item.status),
                 vehicleTypeId: item.vehicleTypeId,
                 assignedVehicle
@@ -316,7 +316,7 @@ export function SlotManagementDashboard() {
   const refreshSlotsAndSessions = useCallback(async () => {
     if (!selectedFloorId) return;
     try {
-      const floorZones = zones.filter(z => z.floorId === selectedFloorId && z.vehicleType !== 'Motorbike');
+      const floorZones = zones.filter(z => z.floorId === selectedFloorId);
 
       const sessionRes = await api.get<BaseResponse<ParkingSessionDto[]>>('/parking-sessions/active').catch(() => null);
       const activeSess = sessionRes?.success && sessionRes.data ? sessionRes.data : [];
@@ -377,7 +377,7 @@ export function SlotManagementDashboard() {
                 zoneName: zone.name,
                 floorId: selectedFloorId,
                 buildingId: selectedBuildingId || 0,
-                slotType: zone.vehicleType === 'EV Charging' ? 'EV Charging' as const : 'Standard' as const,
+                slotType: zone.vehicleType === 'EV Charging' ? 'EV Charging' as const : (zone.vehicleType === 'Motorbike' ? 'Motorbike' as const : 'Standard' as const),
                 status: mapStatus(item.status),
                 vehicleTypeId: item.vehicleTypeId,
                 assignedVehicle
@@ -438,26 +438,59 @@ export function SlotManagementDashboard() {
     }) || null;
   }, [floorSlotSummary]);
 
+  // Calculate effective total motorbike capacity on the current floor
+  const effectiveMotorTotal = useMemo(() => {
+    // Filter slots on this floor belonging to motorbike zones
+    const floorMotorSlots = slots.filter(s => {
+      const zone = zones.find(z => z.id === s.zoneId);
+      return zone && zone.floorId === selectedFloorId && zone.vehicleType === 'Motorbike';
+    });
+
+    if (floorMotorSlots.length > 0) {
+      return floorMotorSlots.length;
+    }
+
+    if (motorSummary) {
+      return motorSummary.totalSlots ?? 0;
+    }
+
+    // Fallback: sum of slot capacities of motorbike zones on this floor
+    return activeMotorbikeZones.reduce((sum, z) => sum + (z.slotCapacity || 0), 0);
+  }, [slots, zones, selectedFloorId, motorSummary, activeMotorbikeZones]);
+
   // Calculate effective occupied motorbike count on the current floor
   const effectiveMotorOccupied = useMemo(() => {
-    if (motorSummary) {
-      return motorSummary.statusCounts?.Occupied ?? 0;
-    }
-    // Fallback count active sessions on this floor in motorbike zones
-    return activeSessions.filter(session => {
+    // Filter slots on this floor belonging to motorbike zones
+    const floorMotorSlots = slots.filter(s => {
+      const zone = zones.find(z => z.id === s.zoneId);
+      return zone && zone.floorId === selectedFloorId && zone.vehicleType === 'Motorbike';
+    });
+
+    const occupiedSlotsCount = floorMotorSlots.filter(s => s.status === 'OCCUPIED').length;
+
+    // Count active sessions on this floor in motorbike zones
+    const activeSessionsCount = activeSessions.filter(session => {
       const zone = zones.find(z => z.id === session.zoneId);
       return zone && zone.floorId === selectedFloorId && zone.vehicleType === 'Motorbike';
     }).length;
-  }, [motorSummary, activeSessions, zones, selectedFloorId]);
+
+    const count = Math.max(occupiedSlotsCount, activeSessionsCount);
+
+    if (count > 0) {
+      return count;
+    }
+
+    if (motorSummary) {
+      return motorSummary.statusCounts?.Occupied ?? 0;
+    }
+
+    return 0;
+  }, [slots, zones, selectedFloorId, motorSummary, activeSessions]);
 
   // Calculate effective available motorbike count on the current floor
   const effectiveMotorAvailable = useMemo(() => {
-    if (motorSummary) {
-      return motorSummary.statusCounts?.Available ?? 0;
-    }
-    const total = activeMotorbikeZones.reduce((sum, z) => sum + (z.slotCapacity || 0), 0);
-    return Math.max(0, total - effectiveMotorOccupied);
-  }, [motorSummary, activeMotorbikeZones, effectiveMotorOccupied]);
+    return Math.max(0, effectiveMotorTotal - effectiveMotorOccupied);
+  }, [effectiveMotorTotal, effectiveMotorOccupied]);
 
   // Handlers
   const handleBuildingChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -695,21 +728,22 @@ export function SlotManagementDashboard() {
                 const maintenance = statusCounts?.Maintenance ?? 0;
                 const available = statusCounts?.Available ?? 0;
                 const reserved = statusCounts?.Reserved ?? 0;
-                const total = totalSlots ?? 0;
                 const isMotorbike = vehicleTypeName?.toUpperCase().includes('MOTOR') || vehicleTypeName?.toUpperCase().includes('BIKE');
 
                 let effectiveOccupied = occupied;
                 let effectiveAvailable = available;
+                let effectiveTotal = totalSlots ?? 0;
                 if (isMotorbike) {
                   effectiveOccupied = effectiveMotorOccupied;
                   effectiveAvailable = effectiveMotorAvailable;
+                  effectiveTotal = effectiveMotorTotal;
                 }
 
-                const effectiveOccupiedPct = total > 0 ? Math.round((effectiveOccupied / total) * 100) : 0;
-                const effectiveAvailablePct = total > 0 ? Math.round((effectiveAvailable / total) * 100) : 0;
-                const blockedPct = total > 0 ? Math.round((blocked / total) * 100) : 0;
-                const maintenancePct = total > 0 ? Math.round((maintenance / total) * 100) : 0;
-                const reservedPct = total > 0 ? Math.round((reserved / total) * 100) : 0;
+                const effectiveOccupiedPct = effectiveTotal > 0 ? Math.round((effectiveOccupied / effectiveTotal) * 100) : 0;
+                const effectiveAvailablePct = effectiveTotal > 0 ? Math.round((effectiveAvailable / effectiveTotal) * 100) : 0;
+                const blockedPct = effectiveTotal > 0 ? Math.round((blocked / effectiveTotal) * 100) : 0;
+                const maintenancePct = effectiveTotal > 0 ? Math.round((maintenance / effectiveTotal) * 100) : 0;
+                const reservedPct = effectiveTotal > 0 ? Math.round((reserved / effectiveTotal) * 100) : 0;
 
                 return (
                   <div key={vehicleType.vehicleTypeId} className="bg-white border-2 border-slate-200 shadow-md rounded-2xl p-5 flex flex-col gap-3 hover:shadow-lg transition-shadow">
@@ -759,7 +793,7 @@ export function SlotManagementDashboard() {
                       )}
                       <div className="h-8 w-px bg-slate-100"></div>
                       <div className="text-center min-w-[50px]">
-                        <p className="text-2xl font-black text-slate-600">{total}</p>
+                        <p className="text-2xl font-black text-slate-600">{effectiveTotal}</p>
                         <p className="text-[10px] font-bold text-slate-400 uppercase mt-0.5">Total</p>
                       </div>
                     </div>
@@ -934,9 +968,11 @@ export function SlotManagementDashboard() {
                     </thead>
                     <tbody className="divide-y divide-slate-50">
                       {activeMotorbikeZones.map((zone) => {
-                        const zoneSessions = activeSessions.filter(s => s.zoneId === zone.id);
-                        const occupied = zoneSessions.length;
-                        const capacity = zone.slotCapacity || 0;
+                        const zoneSlots = slots.filter(s => s.zoneId === zone.id);
+                        const capacity = zone.slotCapacity || zoneSlots.length || 0;
+                        const occupiedSlotsCount = zoneSlots.filter(s => s.status === 'OCCUPIED').length;
+                        const activeSessionsCount = activeSessions.filter(s => s.zoneId === zone.id).length;
+                        const occupied = Math.max(occupiedSlotsCount, activeSessionsCount);
                         const available = Math.max(0, capacity - occupied);
                         const percentage = capacity > 0 ? Math.min(100, Math.round((occupied / capacity) * 100)) : 0;
                         

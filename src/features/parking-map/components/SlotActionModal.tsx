@@ -67,7 +67,7 @@ export function SlotActionModal({
     if (isOpen && activeSlot && activeSlot.status === 'AVAILABLE') {
       setLoadingFutureBookings(true);
       setFutureBookingsData(null);
-      api.get<BaseResponse<any>>(`/parking-slots/${activeSlot.id}/future-bookings`)
+      api.get<BaseResponse<any>>(`/ParkingSlots/${activeSlot.id}/future-bookings`)
         .then((res) => {
           if (res.success && res.data) {
             setFutureBookingsData(res.data);
@@ -205,6 +205,7 @@ export function SlotActionModal({
       }
 
       // 2. Start a parking session on the backend
+      // Backend automatically updates slot status to OCCUPIED when session is created
       await api.post<BaseResponse<ParkingSessionDto>>('/parking-sessions', {
         vehicleId: searchedVehicle.id,
         buildingId: selectedBuildingId,
@@ -214,18 +215,6 @@ export function SlotActionModal({
         licensePlateIn: searchedVehicle.plate,
         checkInTime: new Date().toISOString()
       });
-
-      // 3. Update the slot status to Occupied (1)
-      try {
-        await api.put(`/ParkingSlots/${activeSlot.id}`, {
-          code: activeSlot.slotCode,
-          name: activeSlot.slotName || `Slot ${activeSlot.slotCode}`,
-          vehicleTypeId: activeSlot.vehicleTypeId,
-          status: 1 // Occupied
-        });
-      } catch (putErr) {
-        console.warn('PUT /ParkingSlots status update failed (likely staff role restrictions), but parking session creation succeeded:', putErr);
-      }
 
       // Trigger Parent callback
       onSlotUpdated(activeSlot.id, 'OCCUPIED', {
@@ -280,16 +269,23 @@ export function SlotActionModal({
   const handleSetStatus = async (newStatus: 'AVAILABLE' | 'BLOCKED' | 'MAINTENANCE') => {
     setIsSubmitting(true);
     try {
-      let statusVal = 0; // Available
-      if (newStatus === 'BLOCKED') statusVal = 2;
-      else if (newStatus === 'MAINTENANCE') statusVal = 3;
+      const slotId = activeSlot.id;
+      const currentStatus = activeSlot.status;
 
-      await api.put(`/ParkingSlots/${activeSlot.id}`, {
-        code: activeSlot.slotCode,
-        name: activeSlot.slotName || `Slot ${activeSlot.slotCode}`,
-        vehicleTypeId: activeSlot.vehicleTypeId,
-        status: statusVal
-      });
+      // Use dedicated endpoints for status changes
+      if (newStatus === 'BLOCKED') {
+        await api.post(`/ParkingSlots/${slotId}/block`, { reason: 'Blocked by staff' });
+      } else if (newStatus === 'MAINTENANCE') {
+        await api.post(`/ParkingSlots/${slotId}/maintenance`, { reason: 'Maintenance by staff' });
+      } else if (newStatus === 'AVAILABLE') {
+        // Available from BLOCKED or MAINTENANCE
+        if (currentStatus === 'BLOCKED') {
+          await api.post(`/ParkingSlots/${slotId}/unblock`, { reason: 'Unblocked by staff' });
+        } else if (currentStatus === 'MAINTENANCE') {
+          // Need to unblock from maintenance - use dedicated endpoint or fallback
+          await api.post(`/ParkingSlots/${slotId}/unblock`, { reason: 'Maintenance completed' });
+        }
+      }
 
       // Trigger Parent callback
       onSlotUpdated(activeSlot.id, newStatus, newStatus === 'AVAILABLE' ? undefined : activeSlot.assignedVehicle);
@@ -322,7 +318,7 @@ export function SlotActionModal({
         } max-h-[90vh]`}
       >
         {/* Header */}
-        <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-emerald-50/30">
+        <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-emerald-50">
           <div>
             <h2 className="text-lg font-extrabold text-slate-800">
               Slot {activeSlot.slotCode}
@@ -347,7 +343,7 @@ export function SlotActionModal({
             <div className="space-y-6 animate-in fade-in duration-150">
               {loadingFutureBookings && (
                 <div className="flex items-center justify-center p-4">
-                  <div className="w-5 h-5 border-2 border-emerald-650 border-t-transparent rounded-full animate-spin"></div>
+                  <div className="w-5 h-5 border-2 border-[#006d43] border-t-transparent rounded-full animate-spin"></div>
                   <span className="ml-2 text-xs font-semibold text-slate-500">Checking future bookings...</span>
                 </div>
               )}
@@ -375,9 +371,9 @@ export function SlotActionModal({
                             key={rec.slotId}
                             type="button"
                             onClick={() => handleSwitchSlot(rec.slotId)}
-                            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-white border border-amber-250 hover:border-amber-400 hover:bg-amber-100/55 transition font-black text-amber-900 shadow-sm"
+                            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-white border border-amber-200 hover:border-amber-400 hover:bg-amber-100/55 transition font-black text-amber-900 shadow-sm"
                           >
-                            <span className="material-symbols-outlined text-sm text-amber-650">swap_horiz</span>
+                            <span className="material-symbols-outlined text-sm text-amber-600">swap_horiz</span>
                             {rec.slotCode}
                           </button>
                         ))}
@@ -387,7 +383,7 @@ export function SlotActionModal({
                 </div>
               )}
 
-              <div className="bg-emerald-50/50 p-4 rounded-xl border border-emerald-500/10 flex items-start gap-3">
+              <div className="bg-emerald-50 p-4 rounded-xl border border-emerald-500/10 flex items-start gap-3">
                 <span className="material-symbols-outlined text-emerald-600 mt-0.5">add_circle</span>
                 <div>
                   <h4 className="text-sm font-bold text-[#006d43]">New Allocation</h4>
@@ -426,10 +422,10 @@ export function SlotActionModal({
 
                 {/* Selected Vehicle Card */}
                 {searchedVehicle ? (
-                  <div className="bg-emerald-50/10 border border-emerald-500/20 rounded-xl p-4 space-y-2.5 relative">
+                  <div className="bg-emerald-50 border border-emerald-500/20 rounded-xl p-4 space-y-2.5 relative">
                     <button
                       onClick={() => setSearchedVehicle(null)}
-                      className="absolute top-3 right-3 text-slate-400 hover:text-slate-650"
+                      className="absolute top-3 right-3 text-slate-400 hover:text-slate-700"
                     >
                       <span className="material-symbols-outlined text-[16px]">close</span>
                     </button>
@@ -482,7 +478,7 @@ export function SlotActionModal({
                         type="button"
                         onClick={() => handleSetStatus('MAINTENANCE')}
                         disabled={isSubmitting}
-                        className="flex-1 py-2.5 px-3 text-white bg-[#d97706] hover:bg-amber-700 hover:brightness-110 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition-all shadow-md shadow-amber-500/10 disabled:opacity-50"
+                        className="flex-1 py-2.5 px-3 text-white bg-[#d97706] hover:bg-amber-700 hover:brightness-110 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition-all shadow-md shadow-amber-500/10 disabled:bg-amber-300 disabled:cursor-not-allowed"
                       >
                         <span className="material-symbols-outlined text-[16px]">build</span>
                         Set Maintenance
@@ -491,7 +487,7 @@ export function SlotActionModal({
                         type="button"
                         onClick={() => handleSetStatus('BLOCKED')}
                         disabled={isSubmitting}
-                        className="flex-1 py-2.5 px-3 text-white bg-[#ba1a1a] hover:bg-red-700 hover:brightness-110 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition-all shadow-md shadow-red-500/10 disabled:opacity-50"
+                        className="flex-1 py-2.5 px-3 text-white bg-[#ba1a1a] hover:bg-red-700 hover:brightness-110 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition-all shadow-md shadow-red-500/10 disabled:bg-red-300 disabled:cursor-not-allowed"
                       >
                         <span className="material-symbols-outlined text-[16px]">block</span>
                         Block Slot
@@ -538,7 +534,7 @@ export function SlotActionModal({
                 </div>
 
                 {activeSlot.assignedVehicle.notes && (
-                  <div className="bg-amber-50/30 border border-amber-200/20 p-4 rounded-xl">
+                  <div className="bg-amber-50 border border-amber-200/20 p-4 rounded-xl">
                     <p className="text-[10px] font-bold text-amber-700 uppercase tracking-wider">Staff Note</p>
                     <p className="text-xs text-slate-600 mt-1 italic">{activeSlot.assignedVehicle.notes}</p>
                   </div>
@@ -550,8 +546,8 @@ export function SlotActionModal({
           {/* Drawer Mode: BLOCKED or MAINTENANCE -> Action Panel */}
           {(activeSlot.status === 'BLOCKED' || activeSlot.status === 'MAINTENANCE') && (
             <div className="space-y-6 animate-in fade-in duration-150">
-              <div className="bg-red-50/30 p-5 rounded-2xl border border-red-500/10 flex items-start gap-4">
-                <span className={`material-symbols-outlined text-2xl mt-0.5 ${activeSlot.status === 'BLOCKED' ? 'text-red-650' : 'text-amber-500'}`}>
+              <div className="bg-red-50 p-5 rounded-2xl border border-red-500/10 flex items-start gap-4">
+                <span className={`material-symbols-outlined text-2xl mt-0.5 ${activeSlot.status === 'BLOCKED' ? 'text-[#ba1a1a]' : 'text-amber-500'}`}>
                   {activeSlot.status === 'BLOCKED' ? 'block' : 'lock_clock'}
                 </span>
                 <div>
@@ -574,7 +570,7 @@ export function SlotActionModal({
                     type="button"
                     onClick={() => handleSetStatus(activeSlot.status === 'BLOCKED' ? 'MAINTENANCE' : 'BLOCKED')}
                     disabled={isSubmitting}
-                    className={`w-full py-2.5 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition-all text-white hover:brightness-110 shadow-md disabled:opacity-50 ${
+                    className={`w-full py-2.5 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition-all text-white hover:brightness-110 shadow-md disabled:cursor-not-allowed ${
                       activeSlot.status === 'BLOCKED'
                         ? 'bg-[#d97706] hover:bg-amber-700 shadow-amber-500/10'
                         : 'bg-[#ba1a1a] hover:bg-red-700 shadow-red-500/10'
@@ -593,7 +589,7 @@ export function SlotActionModal({
         </div>
 
         {/* Footer Actions */}
-        <div className="p-6 border-t border-slate-100 bg-slate-50/70 flex gap-3">
+        <div className="p-6 border-t border-slate-100 bg-slate-50 flex gap-3">
           {activeSlot.status === 'AVAILABLE' && (
             <>
               <button
@@ -607,7 +603,7 @@ export function SlotActionModal({
                 type="button"
                 onClick={handleConfirmAllocation}
                 disabled={isSubmitting || !searchedVehicle}
-                className="flex-1 py-3 bg-[#006d43] hover:bg-emerald-700 disabled:opacity-50 text-white rounded-xl font-bold text-sm shadow-md shadow-emerald-500/10 flex items-center justify-center gap-2 transition-all"
+                className="flex-1 py-3 bg-[#006d43] hover:bg-emerald-700 disabled:bg-emerald-300 disabled:cursor-not-allowed text-white rounded-xl font-bold text-sm shadow-md shadow-emerald-500/10 flex items-center justify-center gap-2 transition-all"
               >
                 {isSubmitting ? (
                   <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
@@ -624,7 +620,7 @@ export function SlotActionModal({
                 <button
                   onClick={() => handleSetStatus('MAINTENANCE')}
                   disabled={isSubmitting}
-                  className="flex-1 py-3 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition-all shadow-sm disabled:opacity-50"
+                  className="flex-1 py-3 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition-all shadow-sm disabled:bg-slate-100 disabled:text-slate-400 disabled:cursor-not-allowed"
                 >
                   <span className="material-symbols-outlined text-[16px]">build</span>
                   Maintain
@@ -633,7 +629,7 @@ export function SlotActionModal({
               <button
                 onClick={handleReleaseSlot}
                 disabled={isSubmitting}
-                className={`${userRole === 'MANAGER' ? 'flex-[2]' : 'flex-1'} py-3 bg-red-650 hover:bg-red-700 disabled:opacity-50 text-white rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition-all shadow-md shadow-red-500/10`}
+                className={`${userRole === 'MANAGER' ? 'flex-[2]' : 'flex-1'} py-3 bg-[#ba1a1a] hover:bg-red-700 disabled:bg-red-300 disabled:cursor-not-allowed text-white rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition-all shadow-md shadow-red-500/10`}
               >
                 {isSubmitting ? (
                   <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
@@ -659,7 +655,7 @@ export function SlotActionModal({
                 <button
                   onClick={() => handleSetStatus('AVAILABLE')}
                   disabled={isSubmitting}
-                  className="flex-[2] py-3 bg-[#006d43] hover:bg-emerald-700 disabled:opacity-50 text-white rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all shadow-md shadow-emerald-500/10"
+                  className="flex-[2] py-3 bg-[#006d43] hover:bg-emerald-700 disabled:bg-emerald-300 disabled:cursor-not-allowed text-white rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all shadow-md shadow-emerald-500/10"
                 >
                   {isSubmitting ? (
                     <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>

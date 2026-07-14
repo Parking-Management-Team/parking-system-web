@@ -893,14 +893,28 @@ export function SlotManagementDashboard() {
                           <button
                             key={slot.id}
                             onClick={() => handleSlotClick(slot)}
-                            className={`h-24 border rounded-xl flex flex-col items-center justify-between py-4 px-3.5 shadow-sm transition-all hover:scale-[1.03] active:scale-95 group font-bold text-sm ${getSlotColorClass(
+                            className={`h-24 border rounded-xl flex flex-col items-center justify-between py-3 px-3.5 shadow-sm transition-all hover:scale-[1.03] active:scale-95 group font-bold text-sm ${getSlotColorClass(
                               slot.status
                             )}`}
                           >
                             <span className="truncate w-full text-center px-1">{slot.slotCode}</span>
-                            <span className="material-symbols-outlined text-[18px]">
-                              directions_car
-                            </span>
+                            {slot.status === 'OCCUPIED' && slot.assignedVehicle ? (
+                              <div className="w-full text-center">
+                                <span className="material-symbols-outlined text-[16px]">
+                                  directions_car
+                                </span>
+                                <span className="block text-[9px] font-extrabold mt-0.5 opacity-90 truncate leading-tight">
+                                  {slot.assignedVehicle.plate}
+                                </span>
+                              </div>
+                            ) : (
+                              <span className="material-symbols-outlined text-[18px]">
+                                {slot.status === 'AVAILABLE' ? 'check_circle' :
+                                 slot.status === 'BLOCKED' ? 'block' :
+                                 slot.status === 'MAINTENANCE' ? 'build' :
+                                 'directions_car'}
+                              </span>
+                            )}
                           </button>
                         ))}
                       </div>
@@ -1122,7 +1136,7 @@ export function SlotManagementDashboard() {
                               <button
                                 onClick={() => handleForceCompleteSession(session.id)}
                                 disabled={completingSessionId === session.id}
-                                className="text-red-650 font-bold text-xs hover:underline disabled:opacity-50"
+                                className="text-[#ba1a1a] font-bold text-xs hover:underline disabled:opacity-50"
                               >
                                 {completingSessionId === session.id ? 'Releasing...' : 'Force Release'}
                               </button>
@@ -1244,7 +1258,7 @@ export function SlotManagementDashboard() {
               <button
                 onClick={() => handleForceCompleteSession(selectedSessionDetails.id)}
                 disabled={completingSessionId === selectedSessionDetails.id}
-                className="flex-1 py-2.5 bg-red-650 hover:bg-red-700 hover:brightness-110 text-white rounded-xl text-xs font-extrabold transition-all shadow-md shadow-red-500/10 disabled:opacity-50"
+                className="flex-1 py-2.5 bg-[#ba1a1a] hover:bg-red-700 hover:brightness-110 text-white rounded-xl text-xs font-extrabold transition-all shadow-md shadow-red-500/10 disabled:opacity-50"
               >
                 {completingSessionId === selectedSessionDetails.id ? 'Releasing...' : 'Force Release'}
               </button>

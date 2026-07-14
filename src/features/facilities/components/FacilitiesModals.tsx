@@ -660,17 +660,7 @@ export default function FacilitiesModals({
                   className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm text-[#111c2d] focus:outline-none focus:border-[#006d43]"
                 />
               </div>
-              <div>
-                <label className="block text-xs font-semibold text-[#3d4a41] mb-1">Status</label>
-                <select
-                  value={formZoneStatus}
-                  onChange={(e) => setFormZoneStatus(e.target.value as 'Active' | 'Inactive')}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm text-[#111c2d] focus:outline-none focus:border-[#006d43]"
-                >
-                  <option value="Active">Active</option>
-                  <option value="Inactive">Inactive</option>
-                </select>
-              </div>
+
 
               <div className="flex justify-end gap-2 pt-2">
                 <button 
@@ -746,17 +736,7 @@ export default function FacilitiesModals({
                   className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm text-[#111c2d] focus:outline-none focus:border-[#006d43]"
                 />
               </div>
-              <div>
-                <label className="block text-xs font-semibold text-[#3d4a41] mb-1">Status</label>
-                <select
-                  value={formZoneStatus}
-                  onChange={(e) => setFormZoneStatus(e.target.value as 'Active' | 'Inactive')}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm text-[#111c2d] focus:outline-none focus:border-[#006d43]"
-                >
-                  <option value="Active">Active</option>
-                  <option value="Inactive">Inactive</option>
-                </select>
-              </div>
+
 
               <div className="flex justify-end gap-2 pt-2">
                 <button 

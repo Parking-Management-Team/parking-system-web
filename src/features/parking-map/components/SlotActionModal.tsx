@@ -108,29 +108,60 @@ export function SlotActionModal({
     try {
       const slotId = activeSlot.id;
       const currentStatus = activeSlot.status;
+      let res: any = null;
 
       // Use dedicated endpoints for status changes
       if (newStatus === 'BLOCKED') {
-        await api.post(`/ParkingSlots/${slotId}/block`, { reason: 'Blocked by staff' });
+        res = await api.post<BaseResponse<any>>(`/ParkingSlots/${slotId}/block`, { reason: 'Blocked by staff' });
       } else if (newStatus === 'MAINTENANCE') {
-        await api.post(`/ParkingSlots/${slotId}/maintenance`, { reason: 'Maintenance by staff' });
+        res = await api.post<BaseResponse<any>>(`/ParkingSlots/${slotId}/maintenance`, { reason: 'Maintenance by staff' });
       } else if (newStatus === 'AVAILABLE') {
         // Available from BLOCKED or MAINTENANCE
         if (currentStatus === 'BLOCKED') {
-          await api.post(`/ParkingSlots/${slotId}/unblock`, { reason: 'Unblocked by staff' });
+          res = await api.post<BaseResponse<any>>(`/ParkingSlots/${slotId}/unblock`, { reason: 'Unblocked by staff' });
         } else if (currentStatus === 'MAINTENANCE') {
           // Need to unblock from maintenance - use dedicated endpoint or fallback
-          await api.post(`/ParkingSlots/${slotId}/unblock`, { reason: 'Maintenance completed' });
+          res = await api.post<BaseResponse<any>>(`/ParkingSlots/${slotId}/unblock`, { reason: 'Maintenance completed' });
         }
+      }
+
+      // Check if response indicates success
+      if (res && res.success === false) {
+        throw new Error(res.message || `Failed to update status to ${newStatus}`);
       }
 
       // Trigger Parent callback
       onSlotUpdated(activeSlot.id, newStatus, newStatus === 'AVAILABLE' ? undefined : activeSlot.assignedVehicle);
-      showToastMessage(`Slot ${activeSlot.slotCode} status updated to ${newStatus}.`);
+      
+      // Get the message from backend or use a dynamic fallback
+      const successMessage = res?.message || `Slot ${activeSlot.slotCode} status updated to ${newStatus}.`;
+      showToastMessage(successMessage);
       onClose();
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      showToastMessage('Could not update status on backend.', 'error');
+      
+      // Extract detailed error message from backend response
+      let errorMsg = 'Could not update status on backend.';
+      if (err && err.data) {
+        const data = err.data;
+        if (typeof data === 'object' && data !== null) {
+          if (data.message) {
+            errorMsg = data.message;
+          } else if (data.errors) {
+            if (Array.isArray(data.errors) && data.errors.length > 0) {
+              errorMsg = data.errors.join(', ');
+            } else if (typeof data.errors === 'object') {
+              errorMsg = Object.values(data.errors).flat().join(', ');
+            }
+          } else if (data.detail) {
+            errorMsg = data.detail;
+          }
+        }
+      } else if (err.message) {
+        errorMsg = err.message;
+      }
+      
+      showToastMessage(errorMsg, 'error');
     } finally {
       setIsSubmitting(false);
     }

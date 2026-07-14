@@ -204,8 +204,9 @@ interface PolicyApiResponse {
 
     let loadedVehicleTypes: VehicleType[] = [];
     let loadedIncidentTypes: IncidentType[] = [];
+    let loadedPenaltyConfigs: PenaltyConfig[] = [];
 
-    // Step 1: Load vehicle types and incident types independently
+    // Step 1: Load vehicle types
     try {
       const vtRes = await api.get<{ data?: RawVehicleType[], success?: boolean }>('/vehicle-types');
       if (vtRes && vtRes.success && Array.isArray(vtRes.data)) {
@@ -223,55 +224,63 @@ interface PolicyApiResponse {
       console.error('Failed to fetch vehicle types:', error);
     }
 
+    // Step 2: Load penalty configs
+    try {
+      const penRes = await api.get<{ data?: PenaltyConfig[]; success?: boolean }>('/penalty-configs?onlyActive=true');
+      if (penRes && Array.isArray(penRes.data)) {
+        loadedPenaltyConfigs = penRes.data;
+      }
+    } catch (error) {
+      console.error('Failed to fetch penalty configs:', error);
+    }
+
+    // Step 3: Load incident types and merge penalty fee
     try {
       const itRes = await api.get<{ data?: IncidentType[]; success?: boolean }>('/IncidentType');
-      if (itRes && Array.isArray(itRes.data) && itRes.data.length > 0) {
-        loadedIncidentTypes = itRes.data;
+      if (itRes && Array.isArray(itRes.data)) {
+        loadedIncidentTypes = itRes.data.map((it) => {
+          const activeConfig = loadedPenaltyConfigs.find((c) => c.incidentTypeId === it.id && c.isActive);
+          return {
+            ...it,
+            defaultPenaltyFee: activeConfig ? activeConfig.penaltyFee : 0
+          };
+        });
       }
     } catch (error) {
       console.error('Failed to fetch incident types:', error);
     }
     setIncidentTypes(loadedIncidentTypes);
 
-    // Step 2: Load penalty configs independently
-
-    try {
-      const penRes = await api.get<{ data?: PenaltyConfig[]; success?: boolean }>('/penalty-configs?onlyActive=true');
-      if (penRes && Array.isArray(penRes.data)) {
-        const configs = penRes.data;
-        const mappedPen = loadedIncidentTypes.map((it) => {
-          const activeConfig = configs.find((c) => c.incidentTypeId === it.id && c.isActive);
-          if (activeConfig) {
-            return {
-              id: activeConfig.id.toString(),
-              incidentTypeId: it.id,
-              name: it.incidentName,
-              type: it.incidentCode,
-              amount: `${activeConfig.penaltyFee.toLocaleString('en-US')} VND`,
-              amountNum: activeConfig.penaltyFee,
-              description: it.description,
-              isActive: true,
-              hasConfig: true
-            };
-          } else {
-            return {
-              id: `it-${it.id}`,
-              incidentTypeId: it.id,
-              name: it.incidentName,
-              type: it.incidentCode,
-              amount: 'No config',
-              amountNum: it.defaultPenaltyFee,
-              description: it.description,
-              isActive: false,
-              hasConfig: false
-            };
-          }
-        });
-        setFees(mappedPen);
+    // Map fees for compatibility
+    const mappedPen = loadedIncidentTypes.map((it) => {
+      const activeConfig = loadedPenaltyConfigs.find((c) => c.incidentTypeId === it.id && c.isActive);
+      if (activeConfig) {
+        return {
+          id: activeConfig.id.toString(),
+          incidentTypeId: it.id,
+          name: it.incidentName,
+          type: it.incidentCode,
+          amount: `${activeConfig.penaltyFee.toLocaleString('en-US')} VND`,
+          amountNum: activeConfig.penaltyFee,
+          description: it.description,
+          isActive: true,
+          hasConfig: true
+        };
+      } else {
+        return {
+          id: `it-${it.id}`,
+          incidentTypeId: it.id,
+          name: it.incidentName,
+          type: it.incidentCode,
+          amount: 'No config',
+          amountNum: 0,
+          description: it.description,
+          isActive: false,
+          hasConfig: false
+        };
       }
-    } catch (error) {
-      console.error('Failed to fetch penalty configs:', error);
-    }
+    });
+    setFees(mappedPen);
   }, []);
 
   useEffect(() => {
@@ -324,7 +333,7 @@ interface PolicyApiResponse {
   }, [tariffs, vehicleTypes]);
 
   // UI state variables
-  const [activeTab, setActiveTab] = useState<'standard' | 'incident-types' | 'fees'>('standard');
+  const [activeTab, setActiveTab] = useState<'standard' | 'incident-types'>('standard');
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
   const [toastType, setToastType] = useState<'success' | 'error'>('success');
@@ -694,23 +703,36 @@ interface PolicyApiResponse {
 
     try {
       if (editingIncidentType) {
-        const res = await api.put<{ success: boolean }>(`/IncidentType/${editingIncidentType.id}`, {
+        const res = await api.put<{ success: boolean; data?: IncidentType }>(`/IncidentType/${editingIncidentType.id}`, {
           incidentName: formIncidentName,
           description: formIncidentDescription
         });
         if (res) {
+          if (formIncidentDefaultFee !== (editingIncidentType.defaultPenaltyFee ?? 0)) {
+            await api.post('/penalty-configs', {
+              incidentTypeId: editingIncidentType.id,
+              penaltyFee: formIncidentDefaultFee
+            });
+          }
           await loadAllData();
           triggerToast('Incident type updated successfully!', 'success');
         } else {
           triggerToast('Failed to update incident type.', 'error');
         }
       } else {
-        const res = await api.post<{ success: boolean }>('/IncidentType', {
+        const res = await api.post<{ success: boolean; data?: IncidentType }>('/IncidentType', {
           incidentCode: formIncidentCode,
           incidentName: formIncidentName,
           description: formIncidentDescription
         });
         if (res) {
+          const newIncidentType = res.data;
+          if (newIncidentType && formIncidentDefaultFee > 0) {
+            await api.post('/penalty-configs', {
+              incidentTypeId: newIncidentType.id,
+              penaltyFee: formIncidentDefaultFee
+            });
+          }
           await loadAllData();
           triggerToast('Incident type created successfully!', 'success');
         } else {

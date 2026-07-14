@@ -122,16 +122,6 @@ export default function PricingWorkspace() {
               >
                 Incident Types
               </button>
-              <button
-                onClick={() => setActiveTab('fees')}
-                className={`py-4 px-1 border-b-2 font-bold text-sm transition-all whitespace-nowrap ${
-                  activeTab === 'fees'
-                    ? 'border-[#006d43] text-[#006d43]'
-                    : 'border-transparent text-slate-400 hover:text-slate-600 hover:border-slate-300'
-                }`}
-              >
-                Service Fees & Penalties
-              </button>
             </nav>
           </div>
 
@@ -442,6 +432,13 @@ export default function PricingWorkspace() {
               <div className="space-y-4">
                 <div className="flex justify-between items-center">
                   <h4 className="text-base font-bold text-[#111c2d]">Incident Types Management</h4>
+                  <button
+                    onClick={handleOpenAddIncidentType}
+                    className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-[#006d43] hover:bg-[#005c38] text-white font-bold text-xs rounded-xl shadow-sm transition-all"
+                  >
+                    <span className="material-symbols-outlined text-[16px]">add_circle</span>
+                    Add Incident Type
+                  </button>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -488,7 +485,7 @@ export default function PricingWorkspace() {
                         <div className="flex items-center justify-between">
                           <span className="text-xs text-slate-400 font-medium">Default Fee</span>
                           <span className="text-sm font-bold text-red-600">
-                            {it.defaultPenaltyFee.toLocaleString('en-US')} VND
+                            {(it.defaultPenaltyFee ?? 0).toLocaleString('en-US')} VND
                           </span>
                         </div>
                       </div>
@@ -512,89 +509,7 @@ export default function PricingWorkspace() {
               </div>
             )}
 
-            {/* TAB 4: SERVICE FEES & PENALTIES */}
-            {activeTab === 'fees' && (
-              <div className="space-y-4">
-                <div className="flex justify-between items-center">
-                  <h4 className="text-base font-bold text-[#111c2d]">Service Fees & Penalty Conditions</h4>
-                </div>
 
-                <div className="grid grid-cols-1 gap-4">
-                  {fees.map((fee) => {
-                    const isPenalty = true; // Representing penalty configurations
-                    const iconName = fee.type.toLowerCase().includes('ticket') || fee.type.toLowerCase().includes('card')
-                      ? 'credit_card_off'
-                      : (fee.type.toLowerCase().includes('vehicle') ? 'directions_car' : 'warning');
-                    
-                    return (
-                      <div 
-                        key={fee.id} 
-                        className={`border rounded-2xl p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 transition-all hover:shadow-sm ${
-                          fee.hasConfig 
-                            ? 'bg-[#FFF8F6] border-red-200/60' 
-                            : 'bg-slate-50/30 border-slate-250 border-dashed'
-                        }`}
-                      >
-                        <div className="flex items-start gap-4">
-                          <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${
-                            fee.hasConfig 
-                              ? 'bg-red-50 text-red-600' 
-                              : 'bg-slate-100 text-slate-400'
-                          }`}>
-                            <span className="material-symbols-outlined text-[24px]">
-                              {iconName}
-                            </span>
-                          </div>
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <h5 className="text-sm font-bold text-slate-800">{fee.name}</h5>
-                              <span className={`text-[9px] font-extrabold uppercase px-2 py-0.5 rounded-full ${
-                                fee.hasConfig 
-                                  ? 'bg-red-100 text-red-700' 
-                                  : 'bg-slate-100 text-slate-400'
-                              }`}>
-                                {fee.hasConfig ? 'Active' : 'Unconfigured'}
-                              </span>
-                            </div>
-                            <p className="text-xs text-slate-500 font-semibold mt-1">{fee.description}</p>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center justify-between md:justify-end gap-6 w-full md:w-auto border-t md:border-none pt-3 md:pt-0">
-                          {fee.hasConfig ? (
-                            <>
-                              <div className="text-lg font-black tracking-tight text-red-600">
-                                {fee.amount}
-                              </div>
-                              <div className="flex items-center gap-1">
-                                <button 
-                                  onClick={() => handleOpenEditFee(fee)}
-                                  className="h-8 w-8 flex items-center justify-center rounded-full hover:bg-slate-100 text-slate-500 hover:text-[#006d43]"
-                                  title="Edit penalty configuration"
-                                >
-                                  <span className="material-symbols-outlined text-[18px]">edit</span>
-                                </button>
-                              </div>
-                            </>
-                          ) : (
-                            <div className="flex items-center gap-3">
-                              <span className="text-slate-400 font-medium text-xs italic">No configuration</span>
-                              <button
-                                onClick={() => handleOpenEditFee(fee)}
-                                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-red-600 hover:bg-red-700 text-white font-bold text-xs rounded-xl shadow-sm transition-all"
-                              >
-                                <span className="material-symbols-outlined text-[14px]">add_circle</span>
-                                Create configuration
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
 
           </div>
 

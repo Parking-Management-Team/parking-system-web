@@ -228,8 +228,20 @@ export const incidentService = {
 
   getIncidentTypes: async (): Promise<IncidentType[]> => {
     try {
-      const response = await api.get<IncidentApiResponse<IncidentTypeDto[]>>('/IncidentType');
-      return unwrap(response, 'Could not load incident types.').map(mapIncidentType);
+      const [itResponse, penResponse] = await Promise.all([
+        api.get<IncidentApiResponse<IncidentTypeDto[]>>('/IncidentType'),
+        api.get<{ data?: { incidentTypeId: number; penaltyFee: number; isActive: boolean }[]; success?: boolean }>('/penalty-configs?onlyActive=true').catch(() => ({ data: [] }))
+      ]);
+      const incidentTypes = unwrap(itResponse, 'Could not load incident types.').map(mapIncidentType);
+      const activeConfigs = penResponse?.data ?? [];
+
+      return incidentTypes.map((it) => {
+        const activeConfig = activeConfigs.find((c) => c.incidentTypeId === it.id && c.isActive);
+        return {
+          ...it,
+          defaultPenaltyFee: activeConfig ? activeConfig.penaltyFee : 0,
+        };
+      });
     } catch (error) {
       throw new Error(getApiErrorMessage(error));
     }

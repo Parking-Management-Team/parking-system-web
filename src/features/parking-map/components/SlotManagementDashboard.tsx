@@ -276,7 +276,7 @@ export function SlotManagementDashboard() {
                 floorId: selectedFloorId,
                 buildingId: selectedBuildingId || 0,
                 slotType: zone.vehicleType === 'EV Charging' ? 'EV Charging' as const : (zone.vehicleType === 'Motorbike' ? 'Motorbike' as const : 'Standard' as const),
-                status: mapStatus(item.status),
+                status: assignedVehicle ? 'OCCUPIED' : mapStatus(item.status),
                 vehicleTypeId: item.vehicleTypeId,
                 assignedVehicle
               };
@@ -362,7 +362,7 @@ export function SlotManagementDashboard() {
                 floorId: selectedFloorId,
                 buildingId: selectedBuildingId || 0,
                 slotType: zone.vehicleType === 'EV Charging' ? 'EV Charging' as const : (zone.vehicleType === 'Motorbike' ? 'Motorbike' as const : 'Standard' as const),
-                status: mapStatus(item.status),
+                status: assignedVehicle ? 'OCCUPIED' : mapStatus(item.status),
                 vehicleTypeId: item.vehicleTypeId,
                 assignedVehicle
               };

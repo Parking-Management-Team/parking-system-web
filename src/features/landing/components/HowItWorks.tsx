@@ -1,53 +1,66 @@
 'use client'
 
+import { motion } from 'framer-motion'
+
+const fade = (delay = 0) => ({
+  initial: { opacity: 0, y: 32 },
+  whileInView: { opacity: 1, y: 0 },
+  viewport: { once: true },
+  transition: { duration: 0.7, delay, ease: 'easeOut' as const },
+})
+
 const steps = [
-  {
-    number: '01',
-    title: 'Choose Building',
-    description: 'Select your preferred parking building from our network of smart facilities'
-  },
-  {
-    number: '02',
-    title: 'Book Your Spot',
-    description: 'Enter your vehicle details and choose your preferred time duration'
-  },
-  {
-    number: '03',
-    title: 'Pay & Park',
-    description: 'Complete secure payment and receive your virtual parking pass'
-  }
+  { n: '01', title: 'Find',  body: 'Browse real-time slot availability by zone and vehicle type.' },
+  { n: '02', title: 'Book',  body: 'Walk in or pre-book up to 8 hours ahead with a deposit.' },
+  { n: '03', title: 'Enter', body: 'Tap RFID or scan QR. Barrier lifts. Drive in.' },
+  { n: '04', title: 'Pay',   body: 'Auto-calculated fee on exit. Cash or transfer.' },
 ]
 
 export default function HowItWorks() {
   return (
-    <section className="section-padding bg-zinc-950 text-white relative overflow-hidden">
-      {/* Subtle decorative glow */}
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-emerald-500/10 rounded-full blur-[120px] pointer-events-none" />
+    <section className="bg-[#0a0a0a] text-white overflow-hidden relative">
+      <div className="h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
 
-      <div className="container mx-auto px-6 lg:px-12 relative z-10">
-        <div className="text-center max-w-3xl mx-auto mb-20">
-          <h2 className="text-4xl md:text-5xl font-bold font-heading mb-4 text-white">How It Works</h2>
-          <p className="text-emerald-400 text-xl font-light">
-            Three simple steps to secure your parking spot
+      <div className="max-w-5xl mx-auto px-6 lg:px-12 py-28">
+
+        {/* Headline */}
+        <motion.div {...fade()} className="mb-20">
+          <p className="font-mono text-[11px] uppercase tracking-[0.25em] text-emerald-500 mb-4">
+            04 / How It Works
           </p>
-        </div>
+          <h2 className="text-5xl md:text-7xl font-black leading-none tracking-tight">
+            Four steps.<br />
+            <span className="text-emerald-400">That's it.</span>
+          </h2>
+        </motion.div>
 
-        <div className="grid md:grid-cols-3 gap-16 md:gap-8 lg:gap-16">
-          {steps.map((step, index) => (
-            <div key={index} className="relative group">
-              <div className="absolute -top-10 left-0 text-7xl lg:text-8xl font-black font-mono text-emerald-500/10 group-hover:text-emerald-500/20 transition-colors duration-300">
-                {step.number}
-              </div>
-              <div className="pt-8">
-                <h3 className="text-2xl font-bold font-heading mb-4 text-white group-hover:text-emerald-400 transition-colors duration-300">
-                  {step.title}
-                </h3>
-                <p className="text-zinc-400 text-lg leading-relaxed">{step.description}</p>
-              </div>
-            </div>
+        {/* Steps — cinematic horizontal */}
+        <div className="grid md:grid-cols-4 gap-0 border border-white/8 rounded-2xl overflow-hidden">
+          {steps.map((s, i) => (
+            <motion.div
+              key={i}
+              {...fade(0.08 * i)}
+              className={`group p-7 hover:bg-emerald-500 transition-all duration-500 cursor-default ${
+                i < steps.length - 1 ? 'border-r border-white/8' : ''
+              }`}
+            >
+              <div className="font-mono text-[10px] text-white/20 group-hover:text-black/30 mb-8 transition-colors">{s.n}</div>
+              <div className="text-3xl font-black text-white group-hover:text-black mb-3 transition-colors">{s.title}</div>
+              <div className="text-xs text-white/40 group-hover:text-black/60 leading-relaxed transition-colors">{s.body}</div>
+            </motion.div>
           ))}
         </div>
+
+        {/* Bottom footnote */}
+        <motion.p
+          {...fade(0.4)}
+          className="mt-8 text-center text-sm text-white/25 font-mono"
+        >
+          No subscription. No commitment. Pay per visit.
+        </motion.p>
       </div>
+
+      <div className="h-px bg-gradient-to-r from-transparent via-white/8 to-transparent" />
     </section>
   )
 }

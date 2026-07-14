@@ -2,254 +2,249 @@
 
 import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { Bike, Car } from 'lucide-react'
+import { Bike, Car, PhoneCall } from 'lucide-react'
+import { useLandingPricing, type VehicleRate } from '../hooks/useLandingPricing'
 
+const fade = (delay = 0) => ({
+  initial: { opacity: 0, y: 32 },
+  whileInView: { opacity: 1, y: 0 },
+  viewport: { once: true },
+  transition: { duration: 0.7, delay, ease: 'easeOut' as const },
+})
+
+// ── Fallback rates (shown when API is unavailable) ──────────────────────────
+const FALLBACK: {
+  motorcycle: { day: VehicleRate; night: VehicleRate }
+  car:        { day: VehicleRate; night: VehicleRate }
+  gracePeriodMinutes: number
+  isFallback: true
+} = {
+  motorcycle: {
+    day:   { basePrice: 5_000,  baseDurationHours: 4, extraPerHour: 1_000,  cap: 10_000,  gracePeriodMinutes: 15, windowName: 'Day' },
+    night: { basePrice: 5_000,  baseDurationHours: 4, extraPerHour: 2_000,  cap: 20_000,  gracePeriodMinutes: 15, windowName: 'Night' },
+  },
+  car: {
+    day:   { basePrice: 30_000, baseDurationHours: 4, extraPerHour: 10_000, cap: 100_000, gracePeriodMinutes: 15, windowName: 'Day' },
+    night: { basePrice: 30_000, baseDurationHours: 4, extraPerHour: 12_000, cap: 120_000, gracePeriodMinutes: 15, windowName: 'Night' },
+  },
+  gracePeriodMinutes: 15,
+  isFallback: true,
+}
+
+// ── Helpers ─────────────────────────────────────────────────────────────────
+function fmtVND(v: number): string {
+  if (v >= 1_000_000) return `${(v / 1_000_000).toFixed(v % 1_000_000 === 0 ? 0 : 1)}M₫`
+  if (v >= 1_000)     return `${Math.round(v / 1_000)}K₫`
+  return `${v}₫`
+}
+
+function fmtHours(h: number): string {
+  return h % 1 === 0 ? `${h}h` : `${h.toFixed(1)}h`
+}
+
+// ── Rate Card ────────────────────────────────────────────────────────────────
+function RateCard({
+  icon: Icon, label, sublabel, rate, highlight, delay,
+}: {
+  icon: typeof Car; label: string; sublabel: string
+  rate: VehicleRate; highlight?: boolean; delay: number
+}) {
+  return (
+    <motion.div
+      {...fade(delay)}
+      className={`group relative border rounded-2xl p-8 transition-all duration-500 overflow-hidden ${
+        highlight
+          ? 'border-emerald-500/25 bg-emerald-950/20 hover:bg-emerald-950/35 hover:border-emerald-500/60'
+          : 'border-white/8 bg-white/[0.03] hover:bg-white/[0.07] hover:border-emerald-500/30'
+      }`}
+    >
+      {/* Corner glow */}
+      {highlight && (
+        <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/[0.06] rounded-full -translate-y-16 translate-x-16 pointer-events-none" />
+      )}
+
+      {/* Top badge */}
+      {highlight && (
+        <div className="absolute -top-3.5 left-8">
+          <span className="text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/25">
+            Most Booked
+          </span>
+        </div>
+      )}
+
+      {/* Header */}
+      <div className={`flex items-center gap-3 mb-10 ${highlight ? 'pt-3' : ''}`}>
+        <div className={`w-9 h-9 rounded-xl flex items-center justify-center border transition-colors shrink-0 ${
+          highlight ? 'border-emerald-500/30 bg-emerald-500/5' : 'border-white/10 group-hover:border-emerald-500/40'
+        }`}>
+          <Icon className="w-4 h-4 text-emerald-400" />
+        </div>
+        <div>
+          <div className="text-xs font-black uppercase tracking-widest text-white/50">{label}</div>
+          <div className="text-[10px] text-white/25 font-mono leading-tight">{sublabel}</div>
+        </div>
+      </div>
+
+      {/* Price hero — oversized, always visible */}
+      <div className="mb-9">
+        <div
+          className="font-black text-white leading-none tracking-tight select-none"
+          style={{ fontSize: 'clamp(2.5rem, 6vw, 4rem)' }}
+        >
+          {fmtVND(rate.basePrice)}
+        </div>
+        <div className="text-white/30 text-[11px] mt-2 font-mono uppercase tracking-widest">
+          first {fmtHours(rate.baseDurationHours)}
+        </div>
+      </div>
+
+      {/* Rate breakdown */}
+      <div className={`space-y-3 pt-5 border-t text-sm ${highlight ? 'border-emerald-500/10' : 'border-white/8'}`}>
+        <div className="flex justify-between items-center">
+          <span className="text-white/35 font-mono text-xs uppercase tracking-wider">After base</span>
+          <span className="text-white font-bold font-mono">+{fmtVND(rate.extraPerHour)}/h</span>
+        </div>
+        {rate.cap !== null && (
+          <div className="flex justify-between items-center">
+            <span className="text-white/35 font-mono text-xs uppercase tracking-wider">Daily cap</span>
+            <span className="text-emerald-400 font-bold font-mono">{fmtVND(rate.cap)}</span>
+          </div>
+        )}
+      </div>
+    </motion.div>
+  )
+}
+
+// ── Skeleton ─────────────────────────────────────────────────────────────────
+function Skeleton({ highlight }: { highlight?: boolean }) {
+  return (
+    <div className={`border rounded-2xl p-8 ${highlight ? 'border-emerald-500/10 bg-emerald-950/10' : 'border-white/5 bg-white/[0.02]'}`}>
+      <div className="flex items-center gap-3 mb-10">
+        <div className="w-9 h-9 bg-white/8 rounded-xl animate-pulse" />
+        <div className="space-y-1.5">
+          <div className="h-2.5 w-20 bg-white/8 rounded animate-pulse" />
+          <div className="h-2 w-14 bg-white/5 rounded animate-pulse" />
+        </div>
+      </div>
+      <div className="h-14 w-28 bg-white/8 rounded-lg animate-pulse mb-2" />
+      <div className="h-2.5 w-20 bg-white/5 rounded animate-pulse mb-9" />
+      <div className="pt-5 border-t border-white/5 space-y-3">
+        <div className="flex justify-between">
+          <div className="h-2.5 w-16 bg-white/5 rounded animate-pulse" />
+          <div className="h-2.5 w-20 bg-white/8 rounded animate-pulse" />
+        </div>
+        <div className="flex justify-between">
+          <div className="h-2.5 w-14 bg-white/5 rounded animate-pulse" />
+          <div className="h-2.5 w-18 bg-white/8 rounded animate-pulse" />
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Main ─────────────────────────────────────────────────────────────────────
 export default function Pricing() {
-  const [rateType, setRateType] = useState<'day' | 'night'>('day')
+  const [mode, setMode] = useState<'day' | 'night'>('day')
+  const { data, loading, error } = useLandingPricing()
+
+  // Use real data if available, else fallback silently
+  const hasMotoDay  = !!data.motorcycle.day
+  const hasCarDay   = !!data.car.day
+  const hasRealData = hasMotoDay || hasCarDay
+
+  const display = hasRealData ? data : FALLBACK
+  const isFallback = !hasRealData
+
+  const moto = mode === 'day' ? display.motorcycle.day  : display.motorcycle.night
+  const car  = mode === 'day' ? display.car.day          : display.car.night
+
+  // If night window doesn't exist in real data, fall back to day rate for that vehicle
+  const motoRate = moto ?? display.motorcycle.day
+  const carRate  = car  ?? display.car.day
 
   return (
-    <section id="pricing" className="section-padding bg-gray-50">
-      <div className="container mx-auto px-6 lg:px-12 max-w-5xl">
-        {/* Header */}
-        <div className="text-center mb-12">
-          <motion.h2
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="text-4xl md:text-5xl font-bold font-heading text-gray-900 mb-4"
-          >
-            Pricing Policy
-          </motion.h2>
-          <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-            Detailed pricing for walk-in customers and NexPark members
-          </p>
-        </div>
+    <section id="pricing" className="bg-[#0a0a0a] text-white overflow-hidden relative">
+      <div className="h-px bg-gradient-to-r from-transparent via-emerald-500/50 to-transparent" />
 
-        {/* Rate Type Toggle */}
-        <div className="flex justify-center mb-12">
-          <div className="inline-flex bg-white rounded-full p-1 shadow-md border border-gray-100">
-            <button
-              onClick={() => setRateType('day')}
-              className={`px-6 py-2.5 rounded-full font-medium transition-all flex items-center space-x-2 cursor-pointer ${
-                rateType === 'day'
-                  ? 'bg-emerald-500 text-white shadow-md'
-                  : 'text-gray-600 hover:text-gray-900'
-              }`}
-            >
-              <span>☀️</span>
-              <span>Day</span>
-            </button>
-            <button
-              onClick={() => setRateType('night')}
-              className={`px-6 py-2.5 rounded-full font-medium transition-all flex items-center space-x-2 cursor-pointer ${
-                rateType === 'night'
-                  ? 'bg-gray-800 text-white shadow-md'
-                  : 'text-gray-600 hover:text-gray-900'
-              }`}
-            >
-              <span>🌙</span>
-              <span>Night</span>
-            </button>
-          </div>
-        </div>
+      <div className="max-w-5xl mx-auto px-6 lg:px-12 py-28">
 
-        {/* Vehicle Rate Cards */}
-        <div className="grid md:grid-cols-2 gap-6 mb-12">
-          {/* Motorcycle Card */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="bg-white rounded-2xl p-6 border border-gray-200 hover:border-emerald-300 hover:shadow-lg transition-all"
-          >
-            <div className="flex items-start justify-between mb-4">
-              <div className="w-12 h-12 bg-emerald-100 rounded-xl flex items-center justify-center">
-                <Bike className="w-6 h-6 text-emerald-600" />
-              </div>
-              <div className="text-right">
-                <div className="text-3xl font-bold font-heading text-emerald-600">5K₫</div>
-                <div className="text-sm text-gray-500">first 4 hours</div>
-              </div>
-            </div>
-            <h3 className="text-xl font-bold font-heading text-gray-900 mb-1">Motorcycle</h3>
-            <p className="text-gray-600 mb-4">Motorcycle Parking</p>
-            <div className="space-y-2 mb-4">
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-600">Base (4h):</span>
-                <span className="font-semibold text-gray-800">5,000₫</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-600">After 4h:</span>
-                <span className="font-semibold text-gray-800">
-                  {rateType === 'day' ? '+1,000₫/hour' : '+2,000₫/hour'}
-                </span>
-              </div>
-              <div className="flex justify-between text-sm border-t border-gray-100 pt-2 mt-2">
-                <span className="text-gray-600 font-medium">Max cap:</span>
-                <span className="font-bold text-emerald-600">
-                  {rateType === 'day' ? '10,000₫/day' : '20,000₫/night'}
-                </span>
-              </div>
-            </div>
-          </motion.div>
-
-          {/* Standard Car Card */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ delay: 0.1 }}
-            className="bg-white rounded-2xl p-6 border-2 border-emerald-400 hover:border-emerald-500 hover:shadow-xl transition-all relative"
-          >
-            <div className="flex items-start justify-between mb-4">
-              <div className="w-12 h-12 bg-emerald-100 rounded-xl flex items-center justify-center">
-                <Car className="w-6 h-6 text-emerald-600" />
-              </div>
-              <div className="text-right">
-                <div className="text-3xl font-bold font-heading text-emerald-600">30K₫</div>
-                <div className="text-sm text-gray-500">first 4 hours</div>
-              </div>
-            </div>
-            <h3 className="text-xl font-bold font-heading text-gray-900 mb-1">Car</h3>
-            <p className="text-gray-600 mb-4">Standard Car Parking</p>
-            <div className="space-y-2 mb-4">
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-600">Base (4h):</span>
-                <span className="font-semibold text-gray-800">30,000₫</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-600">After 4h:</span>
-                <span className="font-semibold text-gray-800">
-                  {rateType === 'day' ? '+10,000₫/hour' : '+12,000₫/hour'}
-                </span>
-              </div>
-              <div className="flex justify-between text-sm border-t border-gray-100 pt-2 mt-2">
-                <span className="text-gray-600 font-medium">Max cap:</span>
-                <span className="font-bold text-emerald-600">
-                  {rateType === 'day' ? '100,000₫/day' : '120,000₫/night'}
-                </span>
-              </div>
-            </div>
-          </motion.div>
-        </div>
-
-        {/* Unlimited Access Section */}
-        <div className="mb-8">
-          <h3 className="text-2xl font-bold font-heading text-gray-900 mb-6">Monthly Pass</h3>
-
-          {/* Monthly Pass Card */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="bg-gradient-to-br from-emerald-600 to-teal-700 rounded-3xl p-8 md:p-10 text-white shadow-2xl relative overflow-hidden"
-          >
-            {/* Background Pattern */}
-            <div className="absolute inset-0 opacity-10">
-              <div className="absolute top-0 right-0 w-64 h-64 bg-white rounded-full -translate-y-32 translate-x-32"></div>
-              <div className="absolute bottom-0 left-0 w-96 h-96 bg-white rounded-full translate-y-48 -translate-x-48"></div>
-            </div>
-
-            <div className="relative z-10">
-              <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-8">
-                {/* Left Side - Info */}
-                <div className="flex-1">
-                  <div className="inline-block bg-emerald-400 text-emerald-900 text-xs px-3 py-1 rounded-full font-bold mb-4">
-                    MEMBER / VIP
-                  </div>
-                  <h4 className="text-4xl md:text-5xl font-bold font-heading mb-6">Monthly Pass</h4>
-
-                  {/* Pricing Options */}
-                  <div className="grid md:grid-cols-2 gap-6 mb-8">
-                    <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20">
-                      <div className="flex items-center space-x-3 mb-3">
-                        <Bike className="w-6 h-6" />
-                        <span className="text-lg font-semibold">Motorcycle</span>
-                      </div>
-                      <div className="flex items-baseline space-x-2">
-                        <span className="text-4xl font-bold font-heading">200K₫</span>
-                        <span className="text-emerald-100">/month</span>
-                      </div>
-                    </div>
-                    <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20">
-                      <div className="flex items-center space-x-3 mb-3">
-                        <Car className="w-6 h-6" />
-                        <span className="text-lg font-semibold">Car</span>
-                      </div>
-                      <div className="flex items-baseline space-x-2">
-                        <span className="text-4xl font-bold font-heading">1.5M₫</span>
-                        <span className="text-emerald-100">/month</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Features Grid */}
-                  <div className="grid md:grid-cols-2 gap-4 mb-6">
-                    <div className="flex items-center space-x-3">
-                      <div className="w-6 h-6 bg-emerald-400 rounded-full flex items-center justify-center flex-shrink-0">
-                        <svg className="w-4 h-4 text-emerald-900" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                        </svg>
-                      </div>
-                      <span className="text-emerald-50 font-medium">24/7 Priority Access</span>
-                    </div>
-                    <div className="flex items-center space-x-3">
-                      <div className="w-6 h-6 bg-emerald-400 rounded-full flex items-center justify-center flex-shrink-0">
-                        <svg className="w-4 h-4 text-emerald-900" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                        </svg>
-                      </div>
-                      <span className="text-emerald-50 font-medium">Free EV Charging (Level 2)</span>
-                    </div>
-                    <div className="flex items-center space-x-3">
-                      <div className="w-6 h-6 bg-emerald-400 rounded-full flex items-center justify-center flex-shrink-0">
-                        <svg className="w-4 h-4 text-emerald-900" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                        </svg>
-                      </div>
-                      <span className="text-emerald-50 font-medium">Reserved Executive Bays</span>
-                    </div>
-                    <div className="flex items-center space-x-3">
-                      <div className="w-6 h-6 bg-emerald-400 rounded-full flex items-center justify-center flex-shrink-0">
-                        <svg className="w-4 h-4 text-emerald-900" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                        </svg>
-                      </div>
-                      <span className="text-emerald-50 font-medium">Multi-Location Access</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Right Side - CTA */}
-                <div className="md:text-right self-center">
-                  <button className="w-full md:w-auto px-8 py-4 bg-white text-emerald-700 rounded-xl font-bold text-lg hover:bg-emerald-50 transition-all shadow-lg hover:shadow-xl hover:scale-105 cursor-pointer">
-                    Upgrade Now
-                  </button>
-                  <p className="text-emerald-100 text-sm mt-4">Cancel anytime. No hidden fees.</p>
-                </div>
-              </div>
-            </div>
-          </motion.div>
-        </div>
-
-        {/* Grace Period Info */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          className="bg-blue-50 border border-blue-200 rounded-2xl p-6 flex items-start space-x-4"
-        >
-          <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
-            <svg className="w-5 h-5 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
-              <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-            </svg>
-          </div>
-          <div>
-            <h4 className="font-bold font-heading text-gray-900 mb-1">GRACE PERIOD</h4>
-            <p className="text-gray-700 font-light">First 15 minutes excess time: no additional block charged. Over 15 minutes: charged as full additional block.</p>
-          </div>
+        {/* Section label */}
+        <motion.div {...fade()} className="mb-16">
+          <p className="font-mono text-[11px] uppercase tracking-[0.25em] text-emerald-500 mb-4">02 / Pricing</p>
+          <h2 className="font-black leading-none tracking-tight text-white" style={{ fontSize: 'clamp(2.8rem, 7vw, 5.5rem)' }}>
+            Pay for<br />
+            <span className="text-emerald-400">what you use.</span>
+          </h2>
         </motion.div>
+
+        {/* Fallback notice — only if using hardcoded data & API had an error */}
+        {!loading && (error || isFallback) && (
+          <motion.div {...fade(0.08)} className="mb-10 flex items-center gap-3 border border-white/10 rounded-xl px-5 py-3.5 bg-white/[0.02]">
+            <span className="text-white/30 text-lg">📋</span>
+            <p className="text-white/35 text-xs font-mono leading-relaxed">
+              Showing reference rates — contact us for the latest active pricing.
+            </p>
+            <a
+              href="#contact"
+              className="ml-auto shrink-0 flex items-center gap-1.5 text-emerald-500 hover:text-emerald-400 text-xs font-bold transition-colors"
+            >
+              <PhoneCall className="w-3 h-3" />
+              Contact
+            </a>
+          </motion.div>
+        )}
+
+        {/* Day / Night toggle */}
+        <motion.div {...fade(0.1)} className="flex gap-1 mb-14 w-fit border border-white/10 rounded-full p-1">
+          {(['day', 'night'] as const).map(t => (
+            <button
+              key={t}
+              onClick={() => setMode(t)}
+              className={`px-5 py-2 rounded-full text-sm font-bold transition-all cursor-pointer select-none ${
+                mode === t
+                  ? t === 'day' ? 'bg-emerald-500 text-black' : 'bg-white text-black'
+                  : 'text-white/40 hover:text-white/70'
+              }`}
+            >
+              {t === 'day' ? '☀ Day' : '☽ Night'}
+            </button>
+          ))}
+        </motion.div>
+
+        {/* Cards */}
+        <div className="grid md:grid-cols-2 gap-4 mb-10">
+          {loading ? (
+            <>
+              <Skeleton />
+              <Skeleton highlight />
+            </>
+          ) : (
+            <>
+              {motoRate && (
+                <RateCard icon={Bike} label="Motorcycle" sublabel="Zone-based parking" rate={motoRate} delay={0.15} />
+              )}
+              {carRate && (
+                <RateCard icon={Car} label="Car" sublabel="Dedicated slot parking" rate={carRate} highlight delay={0.22} />
+              )}
+            </>
+          )}
+        </div>
+
+        {/* Grace period footnote */}
+        <motion.div
+          {...fade(0.3)}
+          className="flex items-start gap-4 border border-white/8 rounded-xl px-5 py-4 bg-white/[0.02]"
+        >
+          <span className="text-xl shrink-0">⏱</span>
+          <p className="text-sm leading-relaxed">
+            <span className="text-white font-semibold">{display.gracePeriodMinutes}-min grace period. </span>
+            <span className="text-white/35">Minor overruns won&apos;t cost you a full block.</span>
+          </p>
+        </motion.div>
+
       </div>
+
+      <div className="h-px bg-gradient-to-r from-transparent via-white/8 to-transparent" />
     </section>
   )
 }

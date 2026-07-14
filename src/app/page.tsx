@@ -217,7 +217,7 @@ export default function Home() {
             <div>
               <h3 className="text-lg font-bold font-heading mb-6">Services</h3>
               <ul className="space-y-3 text-gray-400">
-                {['Smart Parking', 'Booking System', 'Monthly Passes', 'Management Dashboard', 'Analytics'].map((s) => (
+                {['Smart Parking', 'Booking System', 'Management Dashboard', 'Analytics', 'RFID Access'].map((s) => (
                   <li key={s}><a href="#" className="hover:text-emerald-400 transition-colors">{s}</a></li>
                 ))}
               </ul>

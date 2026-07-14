@@ -2,253 +2,221 @@
 
 import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { Bike, Car } from 'lucide-react'
+import { Bike, Car, Clock, CheckCircle, Info } from 'lucide-react'
 
 export default function Pricing() {
   const [rateType, setRateType] = useState<'day' | 'night'>('day')
 
+  const motorcycleRates = {
+    day:   { extra: '+1,000₫/hour', cap: '10,000₫/day' },
+    night: { extra: '+2,000₫/hour', cap: '20,000₫/night' },
+  }
+  const carRates = {
+    day:   { extra: '+10,000₫/hour', cap: '100,000₫/day' },
+    night: { extra: '+12,000₫/hour', cap: '120,000₫/night' },
+  }
+
   return (
-    <section id="pricing" className="section-padding bg-gray-50">
+    <section id="pricing" className="section-padding bg-white">
       <div className="container mx-auto px-6 lg:px-12 max-w-5xl">
-        {/* Header */}
-        <div className="text-center mb-12">
+
+        {/* ── Header ── */}
+        <div className="text-center mb-14">
+          <motion.div
+            initial={{ opacity: 0, y: -16 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6 }}
+            className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-bold tracking-wider uppercase mb-5"
+            style={{ background: '#e7f5ef', color: '#006d43' }}
+          >
+            <CheckCircle className="w-3.5 h-3.5" />
+            Transparent Pricing — No Subscriptions
+          </motion.div>
+
           <motion.h2
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
+            transition={{ duration: 0.6, delay: 0.1 }}
             className="text-4xl md:text-5xl font-bold font-heading text-gray-900 mb-4"
           >
-            Pricing Policy
+            Pay Only When You Park
           </motion.h2>
-          <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-            Detailed pricing for walk-in customers and NexPark members
-          </p>
+          <motion.p
+            initial={{ opacity: 0 }}
+            whileInView={{ opacity: 1 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6, delay: 0.2 }}
+            className="text-lg text-gray-500 max-w-xl mx-auto"
+          >
+            Simple, time-based pricing for walk-in customers and advance bookings. No hidden fees, no commitments.
+          </motion.p>
         </div>
 
-        {/* Rate Type Toggle */}
+        {/* ── Day / Night Toggle ── */}
         <div className="flex justify-center mb-12">
-          <div className="inline-flex bg-white rounded-full p-1 shadow-md border border-gray-100">
-            <button
-              onClick={() => setRateType('day')}
-              className={`px-6 py-2.5 rounded-full font-medium transition-all flex items-center space-x-2 cursor-pointer ${
-                rateType === 'day'
-                  ? 'bg-emerald-500 text-white shadow-md'
-                  : 'text-gray-600 hover:text-gray-900'
-              }`}
-            >
-              <span>☀️</span>
-              <span>Day</span>
-            </button>
-            <button
-              onClick={() => setRateType('night')}
-              className={`px-6 py-2.5 rounded-full font-medium transition-all flex items-center space-x-2 cursor-pointer ${
-                rateType === 'night'
-                  ? 'bg-gray-800 text-white shadow-md'
-                  : 'text-gray-600 hover:text-gray-900'
-              }`}
-            >
-              <span>🌙</span>
-              <span>Night</span>
-            </button>
+          <div className="inline-flex bg-gray-100 rounded-full p-1">
+            {(['day', 'night'] as const).map((t) => (
+              <button
+                key={t}
+                onClick={() => setRateType(t)}
+                className={`px-7 py-2.5 rounded-full font-semibold text-sm flex items-center gap-2 transition-all cursor-pointer ${
+                  rateType === t
+                    ? t === 'day'
+                      ? 'bg-emerald-500 text-white shadow-md'
+                      : 'bg-gray-800 text-white shadow-md'
+                    : 'text-gray-500 hover:text-gray-800'
+                }`}
+              >
+                <span>{t === 'day' ? '☀️' : '🌙'}</span>
+                <span className="capitalize">{t === 'day' ? 'Daytime (6am–10pm)' : 'Overnight (10pm–6am)'}</span>
+              </button>
+            ))}
           </div>
         </div>
 
-        {/* Vehicle Rate Cards */}
-        <div className="grid md:grid-cols-2 gap-6 mb-12">
-          {/* Motorcycle Card */}
+        {/* ── Rate Cards ── */}
+        <div className="grid md:grid-cols-2 gap-7 mb-10">
+          {/* Motorcycle */}
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 24 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            className="bg-white rounded-2xl p-6 border border-gray-200 hover:border-emerald-300 hover:shadow-lg transition-all"
+            transition={{ duration: 0.55, delay: 0, ease: 'easeOut' }}
+            className="group relative bg-gray-50 border border-gray-200 rounded-3xl p-8 hover:border-emerald-400 hover:shadow-xl transition-all duration-300"
           >
-            <div className="flex items-start justify-between mb-4">
-              <div className="w-12 h-12 bg-emerald-100 rounded-xl flex items-center justify-center">
-                <Bike className="w-6 h-6 text-emerald-600" />
+            <div className="flex items-start justify-between mb-6">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 bg-emerald-100 rounded-2xl flex items-center justify-center">
+                  <Bike className="w-6 h-6 text-emerald-600" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-gray-900">Motorcycle</h3>
+                  <p className="text-sm text-gray-400">Zone-based parking</p>
+                </div>
               </div>
               <div className="text-right">
-                <div className="text-3xl font-bold font-heading text-emerald-600">5K₫</div>
-                <div className="text-sm text-gray-500">first 4 hours</div>
+                <div className="text-3xl font-extrabold text-emerald-600 font-heading">5,000₫</div>
+                <div className="text-xs text-gray-400 font-medium">first 4 hours</div>
               </div>
             </div>
-            <h3 className="text-xl font-bold font-heading text-gray-900 mb-1">Motorcycle</h3>
-            <p className="text-gray-600 mb-4">Motorcycle Parking</p>
-            <div className="space-y-2 mb-4">
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-600">Base (4h):</span>
-                <span className="font-semibold text-gray-800">5,000₫</span>
+
+            <div className="space-y-3">
+              <div className="flex justify-between text-sm py-2 border-b border-gray-100">
+                <span className="text-gray-500 flex items-center gap-1.5"><Clock className="w-3.5 h-3.5" /> Base duration</span>
+                <span className="font-bold text-gray-800">4 hours</span>
               </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-600">After 4h:</span>
-                <span className="font-semibold text-gray-800">
-                  {rateType === 'day' ? '+1,000₫/hour' : '+2,000₫/hour'}
-                </span>
+              <div className="flex justify-between text-sm py-2 border-b border-gray-100">
+                <span className="text-gray-500">After 4 hours</span>
+                <span className="font-bold text-gray-800">{motorcycleRates[rateType].extra}</span>
               </div>
-              <div className="flex justify-between text-sm border-t border-gray-100 pt-2 mt-2">
-                <span className="text-gray-600 font-medium">Max cap:</span>
-                <span className="font-bold text-emerald-600">
-                  {rateType === 'day' ? '10,000₫/day' : '20,000₫/night'}
-                </span>
+              <div className="flex justify-between text-sm py-2">
+                <span className="text-gray-500 font-medium">Daily cap</span>
+                <span className="font-extrabold text-emerald-600">{motorcycleRates[rateType].cap}</span>
               </div>
             </div>
+
+            <div className="absolute inset-0 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" style={{ border: '2px solid #10b981' }} />
           </motion.div>
 
-          {/* Standard Car Card */}
+          {/* Car */}
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 24 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            transition={{ delay: 0.1 }}
-            className="bg-white rounded-2xl p-6 border-2 border-emerald-400 hover:border-emerald-500 hover:shadow-xl transition-all relative"
+            transition={{ duration: 0.55, delay: 0.12, ease: 'easeOut' }}
+            className="group relative bg-gray-50 border-2 border-emerald-400 rounded-3xl p-8 hover:shadow-2xl transition-all duration-300"
           >
-            <div className="flex items-start justify-between mb-4">
-              <div className="w-12 h-12 bg-emerald-100 rounded-xl flex items-center justify-center">
-                <Car className="w-6 h-6 text-emerald-600" />
+            {/* Popular badge */}
+            <div className="absolute -top-3.5 left-8">
+              <span className="bg-emerald-500 text-white text-[11px] font-bold uppercase tracking-widest px-3 py-1 rounded-full shadow-md">
+                Most Booked
+              </span>
+            </div>
+
+            <div className="flex items-start justify-between mb-6 pt-2">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 bg-emerald-100 rounded-2xl flex items-center justify-center">
+                  <Car className="w-6 h-6 text-emerald-600" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-gray-900">Car</h3>
+                  <p className="text-sm text-gray-400">Dedicated slot parking</p>
+                </div>
               </div>
               <div className="text-right">
-                <div className="text-3xl font-bold font-heading text-emerald-600">30K₫</div>
-                <div className="text-sm text-gray-500">first 4 hours</div>
+                <div className="text-3xl font-extrabold text-emerald-600 font-heading">30,000₫</div>
+                <div className="text-xs text-gray-400 font-medium">first 4 hours</div>
               </div>
             </div>
-            <h3 className="text-xl font-bold font-heading text-gray-900 mb-1">Car</h3>
-            <p className="text-gray-600 mb-4">Standard Car Parking</p>
-            <div className="space-y-2 mb-4">
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-600">Base (4h):</span>
-                <span className="font-semibold text-gray-800">30,000₫</span>
+
+            <div className="space-y-3">
+              <div className="flex justify-between text-sm py-2 border-b border-gray-100">
+                <span className="text-gray-500 flex items-center gap-1.5"><Clock className="w-3.5 h-3.5" /> Base duration</span>
+                <span className="font-bold text-gray-800">4 hours</span>
               </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-600">After 4h:</span>
-                <span className="font-semibold text-gray-800">
-                  {rateType === 'day' ? '+10,000₫/hour' : '+12,000₫/hour'}
-                </span>
+              <div className="flex justify-between text-sm py-2 border-b border-gray-100">
+                <span className="text-gray-500">After 4 hours</span>
+                <span className="font-bold text-gray-800">{carRates[rateType].extra}</span>
               </div>
-              <div className="flex justify-between text-sm border-t border-gray-100 pt-2 mt-2">
-                <span className="text-gray-600 font-medium">Max cap:</span>
-                <span className="font-bold text-emerald-600">
-                  {rateType === 'day' ? '100,000₫/day' : '120,000₫/night'}
-                </span>
+              <div className="flex justify-between text-sm py-2">
+                <span className="text-gray-500 font-medium">Daily cap</span>
+                <span className="font-extrabold text-emerald-600">{carRates[rateType].cap}</span>
               </div>
             </div>
           </motion.div>
         </div>
 
-        {/* Unlimited Access Section */}
-        <div className="mb-8">
-          <h3 className="text-2xl font-bold font-heading text-gray-900 mb-6">Monthly Pass</h3>
-
-          {/* Monthly Pass Card */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="bg-gradient-to-br from-emerald-600 to-teal-700 rounded-3xl p-8 md:p-10 text-white shadow-2xl relative overflow-hidden"
-          >
-            {/* Background Pattern */}
-            <div className="absolute inset-0 opacity-10">
-              <div className="absolute top-0 right-0 w-64 h-64 bg-white rounded-full -translate-y-32 translate-x-32"></div>
-              <div className="absolute bottom-0 left-0 w-96 h-96 bg-white rounded-full translate-y-48 -translate-x-48"></div>
-            </div>
-
-            <div className="relative z-10">
-              <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-8">
-                {/* Left Side - Info */}
-                <div className="flex-1">
-                  <div className="inline-block bg-emerald-400 text-emerald-900 text-xs px-3 py-1 rounded-full font-bold mb-4">
-                    MEMBER / VIP
-                  </div>
-                  <h4 className="text-4xl md:text-5xl font-bold font-heading mb-6">Monthly Pass</h4>
-
-                  {/* Pricing Options */}
-                  <div className="grid md:grid-cols-2 gap-6 mb-8">
-                    <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20">
-                      <div className="flex items-center space-x-3 mb-3">
-                        <Bike className="w-6 h-6" />
-                        <span className="text-lg font-semibold">Motorcycle</span>
-                      </div>
-                      <div className="flex items-baseline space-x-2">
-                        <span className="text-4xl font-bold font-heading">200K₫</span>
-                        <span className="text-emerald-100">/month</span>
-                      </div>
-                    </div>
-                    <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20">
-                      <div className="flex items-center space-x-3 mb-3">
-                        <Car className="w-6 h-6" />
-                        <span className="text-lg font-semibold">Car</span>
-                      </div>
-                      <div className="flex items-baseline space-x-2">
-                        <span className="text-4xl font-bold font-heading">1.5M₫</span>
-                        <span className="text-emerald-100">/month</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Features Grid */}
-                  <div className="grid md:grid-cols-2 gap-4 mb-6">
-                    <div className="flex items-center space-x-3">
-                      <div className="w-6 h-6 bg-emerald-400 rounded-full flex items-center justify-center flex-shrink-0">
-                        <svg className="w-4 h-4 text-emerald-900" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                        </svg>
-                      </div>
-                      <span className="text-emerald-50 font-medium">24/7 Priority Access</span>
-                    </div>
-                    <div className="flex items-center space-x-3">
-                      <div className="w-6 h-6 bg-emerald-400 rounded-full flex items-center justify-center flex-shrink-0">
-                        <svg className="w-4 h-4 text-emerald-900" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                        </svg>
-                      </div>
-                      <span className="text-emerald-50 font-medium">Free EV Charging (Level 2)</span>
-                    </div>
-                    <div className="flex items-center space-x-3">
-                      <div className="w-6 h-6 bg-emerald-400 rounded-full flex items-center justify-center flex-shrink-0">
-                        <svg className="w-4 h-4 text-emerald-900" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                        </svg>
-                      </div>
-                      <span className="text-emerald-50 font-medium">Reserved Executive Bays</span>
-                    </div>
-                    <div className="flex items-center space-x-3">
-                      <div className="w-6 h-6 bg-emerald-400 rounded-full flex items-center justify-center flex-shrink-0">
-                        <svg className="w-4 h-4 text-emerald-900" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                        </svg>
-                      </div>
-                      <span className="text-emerald-50 font-medium">Multi-Location Access</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Right Side - CTA */}
-                <div className="md:text-right self-center">
-                  <button className="w-full md:w-auto px-8 py-4 bg-white text-emerald-700 rounded-xl font-bold text-lg hover:bg-emerald-50 transition-all shadow-lg hover:shadow-xl hover:scale-105 cursor-pointer">
-                    Upgrade Now
-                  </button>
-                  <p className="text-emerald-100 text-sm mt-4">Cancel anytime. No hidden fees.</p>
-                </div>
-              </div>
-            </div>
-          </motion.div>
-        </div>
-
-        {/* Grace Period Info */}
+        {/* ── Booking Perk Banner ── */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
-          className="bg-blue-50 border border-blue-200 rounded-2xl p-6 flex items-start space-x-4"
+          transition={{ duration: 0.55, delay: 0.1 }}
+          className="mb-6 bg-gradient-to-r from-emerald-600 to-teal-600 rounded-3xl p-6 md:p-8 text-white flex flex-col md:flex-row md:items-center gap-5"
         >
-          <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
-            <svg className="w-5 h-5 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
-              <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-            </svg>
+          <div className="w-14 h-14 bg-white/20 rounded-2xl flex items-center justify-center shrink-0">
+            <span className="text-3xl">📅</span>
           </div>
-          <div>
-            <h4 className="font-bold font-heading text-gray-900 mb-1">GRACE PERIOD</h4>
-            <p className="text-gray-700 font-light">First 15 minutes excess time: no additional block charged. Over 15 minutes: charged as full additional block.</p>
+          <div className="flex-1">
+            <h4 className="text-lg font-bold mb-1">Advance Booking Saves Your Spot</h4>
+            <p className="text-emerald-100 text-sm leading-relaxed">
+              Pre-book up to 8 hours in advance. Your slot is reserved the moment you pay the deposit fee (equal to 1 pricing block). A 45-minute grace period ensures you are never penalized for minor delays.
+            </p>
+          </div>
+          <div className="flex items-center gap-4 shrink-0 text-sm font-semibold">
+            <div className="text-center">
+              <div className="text-2xl font-extrabold">8h</div>
+              <div className="text-emerald-200 font-medium">advance</div>
+            </div>
+            <div className="w-px h-10 bg-white/20" />
+            <div className="text-center">
+              <div className="text-2xl font-extrabold">45m</div>
+              <div className="text-emerald-200 font-medium">grace</div>
+            </div>
           </div>
         </motion.div>
+
+        {/* ── Grace Period Notice ── */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.55, delay: 0.15 }}
+          className="bg-blue-50 border border-blue-200 rounded-2xl p-5 flex items-start gap-4"
+        >
+          <div className="w-9 h-9 bg-blue-100 rounded-full flex items-center justify-center shrink-0 mt-0.5">
+            <Info className="w-5 h-5 text-blue-600" />
+          </div>
+          <div>
+            <h4 className="font-bold text-gray-900 mb-0.5 text-sm">Grace Period Policy</h4>
+            <p className="text-gray-600 text-sm leading-relaxed">
+              First <strong>15 minutes</strong> of excess time: no additional block charged. Over 15 minutes: charged as one full additional pricing block.
+            </p>
+          </div>
+        </motion.div>
+
       </div>
     </section>
   )

@@ -11,3 +11,5 @@
 // Components
 export { default as StaffOverview }     from './components/StaffOverview';
 export { default as IncidentHandling }  from './components/IncidentHandling';
+export { default as StaffSlotMonitoring } from './components/StaffSlotMonitoring';
+export { default as StaffIncidentSelector } from './components/StaffIncidentSelector';

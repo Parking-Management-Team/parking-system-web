@@ -84,7 +84,7 @@ const isConfirmedBookingForPlate = (
   return Number.isNaN(graceUntil) || graceUntil >= Date.now();
 };
 
-export default function VehicleCheckin() {
+export default function VehicleCheckin({ compact = false }: { compact?: boolean } = {}) {
   const { showToast } = useAuth();
 
   const [buildingId, setBuildingId] = useState<number>(3);
@@ -114,6 +114,16 @@ export default function VehicleCheckin() {
           card.cardStatus === 'AVAILABLE'
       ),
     [cards]
+  );
+
+  const sortedAvailableCards = useMemo(
+    () =>
+      [...availableCards].sort((a, b) => {
+        const codeA = a.cardCode || '';
+        const codeB = b.cardCode || '';
+        return codeA.localeCompare(codeB, undefined, { numeric: true, sensitivity: 'base' });
+      }),
+    [availableCards]
   );
 
   // Webcam & LPR states
@@ -579,60 +589,165 @@ export default function VehicleCheckin() {
   };
 
   return (
-    <div className="min-h-[calc(100vh-76px)] bg-slate-50 p-4">
-      <div className="mx-auto flex min-h-[calc(100vh-108px)] max-w-7xl flex-col gap-3">
-        <div className="flex shrink-0 items-center justify-between gap-3">
-          <div>
-            <p className="text-xs font-black uppercase tracking-[0.24em] text-emerald-600">
-              Staff Gate In
-            </p>
-            <h1 className="text-2xl font-black text-slate-900">
-              Vehicle Check-in
-            </h1>
+    <div className={compact ? '' : 'min-h-[calc(100vh-76px)] bg-slate-50 p-4 text-slate-900'}>
+      <div className={compact ? 'flex flex-col gap-4' : 'mx-auto flex min-h-[calc(100vh-108px)] max-w-[1600px] flex-col gap-4'}>
+        {!compact && (
+          <div className="flex shrink-0 items-center justify-between gap-3">
+            <h1 className="text-xl font-black text-slate-900">Staff Gate Check-in</h1>
+
+            <button
+              type="button"
+              onClick={() => setIsSessionsOpen(true)}
+              className="inline-flex items-center gap-2 rounded-2xl bg-white px-4 py-3 text-sm font-black text-slate-700 shadow-sm ring-1 ring-slate-200 hover:bg-slate-50"
+            >
+              <span className="material-symbols-outlined text-lg">local_parking</span>
+              Active sessions
+              <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-xs text-emerald-700">
+                {activeSessionCount}
+              </span>
+            </button>
           </div>
+        )}
 
-          <button
-            type="button"
-            onClick={() => setIsSessionsOpen(true)}
-            className="inline-flex items-center gap-2 rounded-2xl bg-white px-4 py-3 text-sm font-black text-slate-700 shadow-sm ring-1 ring-slate-200 hover:bg-slate-50"
-          >
-            <span className="material-symbols-outlined text-lg">local_parking</span>
-            Active sessions
-            <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-xs text-emerald-700">
-              {activeSessionCount}
-            </span>
-          </button>
-        </div>
-
-        <div className="grid min-h-0 flex-1 gap-4 xl:grid-cols-[minmax(360px,0.88fr)_minmax(420px,1.12fr)]">
-          <form
-            onSubmit={handleConfirmCheckin}
-            className="min-h-0 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm"
-          >
-            <div className="mb-4 flex items-start justify-between gap-3">
-              <div>
-                <h2 className="text-base font-black text-slate-900">
-                  Check-in information
-                </h2>
-                <p className="mt-1 text-xs font-semibold text-slate-500">
-                  Enter plate, vehicle type and parking card.
+        <div className={compact ? 'flex flex-col gap-4' : 'grid min-h-0 flex-1 gap-4 xl:grid-cols-2'}>
+          {/* CỘT TRÁI: CAMERA LỐI VÀO (LIVE FEED & LPR) */}
+          <div className="space-y-4 flex flex-col min-h-0">
+            <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm flex flex-col">
+              <div className="flex items-center justify-between border-b border-slate-100 px-4 py-2.5">
+                <p className="font-mono text-[11px] font-bold text-slate-700 uppercase tracking-wider">
+                  Check-in Camera
                 </p>
               </div>
-              <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-black text-emerald-700">
-                Gate ready
-              </span>
+
+              <div className="relative aspect-video bg-slate-900 border-b border-slate-100 flex items-center justify-center overflow-hidden">
+                <video
+                  ref={videoRef}
+                  autoPlay
+                  playsInline
+                  muted
+                  className={`h-full w-full object-cover ${cameraActive ? 'block' : 'hidden'}`}
+                />
+
+                {!cameraActive && (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-6 space-y-3 bg-slate-950">
+                    <span className="material-symbols-outlined text-3xl text-slate-600">videocam_off</span>
+                    <p className="text-slate-400 text-xs font-semibold">Camera is not active.</p>
+                    <button
+                      type="button"
+                      onClick={startCamera}
+                      className="flex items-center gap-2 rounded-xl bg-emerald-600 px-3.5 py-1.5 text-xs font-black text-white hover:bg-emerald-500 transition shadow-lg shadow-emerald-600/20"
+                    >
+                      Start Camera
+                    </button>
+                  </div>
+                )}
+
+                {cameraActive && (
+                  <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
+                    <div className="w-64 h-32 border-4 border-dashed border-emerald-400/40 rounded-3xl relative">
+                      <div className="absolute top-2 left-2 text-[9px] font-mono font-bold bg-slate-950/80 text-emerald-400 px-1 py-0.5 rounded">
+                        LPR ALIGNMENT
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {isScanning && (
+                  <div className="absolute inset-0 bg-slate-950/85 flex flex-col items-center justify-center p-6 text-center space-y-4">
+                    <div className="h-8 w-8 border-3 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
+                    <p className="text-emerald-400 text-xs font-black tracking-wider animate-pulse">{scanProgress}</p>
+                  </div>
+                )}
+              </div>
+
+              <div className="p-3 bg-slate-50 border-t border-slate-100 space-y-3">
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div>
+                    <select
+                      value={selectedDeviceId}
+                      onChange={(e) => setSelectedDeviceId(e.target.value)}
+                      className="w-full rounded-xl bg-white border border-slate-200 px-3 py-1.5 text-xs text-slate-700 outline-none focus:border-emerald-500"
+                    >
+                      {devices.map((device, idx) => (
+                        <option key={device.deviceId || idx} value={device.deviceId}>
+                          {device.label || `Camera ${idx + 1}`}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={cameraActive ? stopCamera : startCamera}
+                      className={`flex-1 rounded-xl py-1.5 text-xs font-bold transition flex items-center justify-center gap-1.5 border ${cameraActive
+                        ? 'bg-red-50 border-red-200 text-red-700 hover:bg-red-100'
+                        : 'bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100'
+                        }`}
+                    >
+                      {cameraActive ? 'Stop Cam' : 'Start Cam'}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="grid gap-3 grid-cols-2">
+                  <button
+                    type="button"
+                    onClick={handleCheckinScan}
+                    disabled={isScanning || !cameraActive}
+                    className="rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white py-1.5 text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-md shadow-emerald-600/10 disabled:opacity-50"
+                  >
+                    <span className="material-symbols-outlined text-base">photo_camera</span>
+                    Scan Camera
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleMockScanCheckin}
+                    className="rounded-xl bg-white hover:bg-slate-50 text-slate-600 py-1.5 text-xs font-semibold border border-slate-200 transition"
+                  >
+                    Mock Scan
+                  </button>
+                </div>
+
+                {capturedImage && (
+                  <div className="bg-white rounded-xl p-2 border border-slate-100 flex items-center gap-3">
+                    <div className="h-12 w-20 bg-slate-950 rounded-lg overflow-hidden border border-slate-200 flex-shrink-0">
+                      <img src={capturedImage} alt="Captured plate snapshot" className="h-full w-full object-contain" />
+                    </div>
+                    <div>
+                      <p className="text-[8px] font-bold text-slate-400 uppercase tracking-wider">Detected License Plate</p>
+                      <p className="font-mono text-base font-black text-slate-900 tracking-wider mt-0.5">{licensePlate || '---'}</p>
+                    </div>
+                  </div>
+                )}
+                {ocrText && <p className="text-[9px] text-emerald-400 font-bold mt-0.5">Confidence: {ocrText ? 'Passed' : ''}</p>}
+              </div>
+            </section>
+          </div>
+
+          {/* CỘT PHẢI: THÔNG TIN VÀ XÁC NHẬN CỔNG VÀO */}
+          <form
+            onSubmit={handleConfirmCheckin}
+            className="min-h-0 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm space-y-3 flex flex-col justify-start"
+          >
+            <div className="border-b border-slate-100 pb-2.5">
+              <h2 className="text-base font-black text-slate-900">
+                Check-in Information
+              </h2>
+              <p className="text-xs font-semibold text-slate-500">
+                Enter license plate and map to building and parking card
+              </p>
             </div>
 
             <div className="space-y-3">
               {buildings.length > 0 && (
                 <div>
-                  <label className="text-xs font-black uppercase tracking-wider text-slate-500">
+                  <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">
                     Tòa nhà (Building)
                   </label>
                   <select
                     value={buildingId}
                     onChange={(e) => setBuildingId(Number(e.target.value))}
-                    className="mt-2 block w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-black text-slate-700 outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100"
+                    className="mt-1 block w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-bold text-slate-700 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
                   >
                     {buildings.map((b) => (
                       <option key={b.id} value={b.id}>
@@ -642,34 +757,55 @@ export default function VehicleCheckin() {
                   </select>
                 </div>
               )}
-              <div>
-                <label className="text-xs font-black uppercase tracking-wider text-slate-500">
-                  License plate
-                </label>
-                <input
-                  value={licensePlate}
-                  onChange={(event) => setLicensePlate(event.target.value.toUpperCase())}
-                  placeholder="Example: 51A-123.45"
-                  className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 font-mono text-2xl font-black uppercase tracking-wider text-slate-900 outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100"
-                />
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">
+                    License plate
+                  </label>
+                  <input
+                    value={licensePlate}
+                    onChange={(event) => setLicensePlate(event.target.value.toUpperCase())}
+                    placeholder="Example: 51A-123.45"
+                    className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 font-mono text-lg font-black uppercase tracking-wider text-slate-900 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">
+                    Parking card code
+                  </label>
+                  <input
+                    value={cardCode}
+                    onChange={(event) => setCardCode(event.target.value.toUpperCase())}
+                    placeholder="Type/select card"
+                    list="available-checkin-cards"
+                    className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 font-mono text-sm font-bold uppercase text-slate-900 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+                  />
+                  <datalist id="available-checkin-cards">
+                    {sortedAvailableCards.map((card) => (
+                      <option key={card.id} value={card.cardCode} />
+                    ))}
+                  </datalist>
+                </div>
               </div>
 
               <div>
-                <label className="text-xs font-black uppercase tracking-wider text-slate-500">
+                <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">
                   Vehicle type
                 </label>
-                <div className="mt-2 grid grid-cols-2 gap-3">
+                <div className="mt-1 grid grid-cols-2 gap-3">
                   {(['CAR', 'MOTORCYCLE'] as VehicleType[]).map((type) => (
                     <button
                       key={type}
                       type="button"
                       onClick={() => setVehicleType(type)}
-                      className={`rounded-2xl border px-4 py-3 text-sm font-black transition ${vehicleType === type
-                          ? 'border-emerald-500 bg-emerald-50 text-emerald-700'
-                          : 'border-slate-200 bg-white text-slate-500 hover:bg-slate-50'
+                      className={`rounded-xl border px-3 py-2 text-xs font-black transition ${vehicleType === type
+                        ? 'border-emerald-500 bg-emerald-50 text-emerald-700'
+                        : 'border-slate-200 bg-white text-slate-500 hover:bg-slate-50'
                         }`}
                     >
-                      <span className="material-symbols-outlined mr-2 align-middle text-lg">
+                      <span className="material-symbols-outlined mr-1.5 align-middle text-base">
                         {type === 'CAR' ? 'directions_car' : 'two_wheeler'}
                       </span>
                       {type === 'CAR' ? 'Car' : 'Motorcycle'}
@@ -678,59 +814,38 @@ export default function VehicleCheckin() {
                 </div>
               </div>
 
-              <div>
-                <label className="text-xs font-black uppercase tracking-wider text-slate-500">
-                  Parking card code
-                </label>
-                <input
-                  value={cardCode}
-                  onChange={(event) => setCardCode(event.target.value.toUpperCase())}
-                  placeholder="Example: CARD-001"
-                  list="available-checkin-cards"
-                  className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 font-mono text-xl font-black uppercase text-slate-900 outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100"
-                />
-                <datalist id="available-checkin-cards">
-                  {availableCards.map((card) => (
-                    <option key={card.id} value={card.cardCode} />
-                  ))}
-                </datalist>
-                <p className="mt-2 text-xs font-semibold text-slate-400">
-                  Available parking cards: {availableCards.length}
-                </p>
-              </div>
-
-              <div className="rounded-2xl border border-emerald-100 bg-emerald-50/70 p-3">
+              <div className="rounded-xl border border-emerald-100 bg-emerald-50/70 p-2.5">
                 <div className="flex items-center justify-between gap-3">
                   <div>
-                    <p className="text-xs font-black uppercase tracking-wider text-emerald-700">
-                      Entry type
+                    <p className="text-[9px] font-black uppercase tracking-wider text-emerald-700">
+                      Entry type status
                     </p>
                     {formattedPlate ? (
                       matchedBooking ? (
-                        <p className="mt-1 text-sm font-bold text-slate-800">
+                        <p className="mt-0.5 text-xs font-bold text-slate-800">
                           Booking matched{' '}
-                          <span className="font-mono text-emerald-700">
+                          <span className="font-mono text-emerald-700 font-bold">
                             {matchedBooking.bookingCode}
                           </span>
                         </p>
                       ) : (
-                        <p className="mt-1 text-sm font-bold text-slate-500">
+                        <p className="mt-0.5 text-xs font-bold text-slate-500">
                           Walk-in vehicle
                         </p>
                       )
                     ) : (
-                      <p className="mt-1 text-sm font-bold text-slate-500">
-                        Enter a plate to identify entry type.
+                      <p className="mt-0.5 text-xs font-semibold text-slate-400">
+                        Enter plate to verify booking status
                       </p>
                     )}
                   </div>
-                  <span className="material-symbols-outlined text-3xl text-emerald-600">
+                  <span className="material-symbols-outlined text-2xl text-emerald-600">
                     confirmation_number
                   </span>
                 </div>
 
                 {matchedBooking && (
-                  <div className="mt-2 grid grid-cols-2 gap-2 text-xs font-bold text-slate-600">
+                  <div className="mt-2 grid grid-cols-2 gap-2 text-[10px] font-bold text-slate-600 border-t border-emerald-100/50 pt-2">
                     <span>Deposit: {formatCurrency(matchedBooking.depositAmount)}</span>
                     <span>Grace: {formatDateTime(matchedBooking.checkinGraceUntil)}</span>
                     <span>Building: {matchedBooking.buildingName || buildingId}</span>
@@ -739,147 +854,32 @@ export default function VehicleCheckin() {
                 )}
               </div>
 
-              <button
-                type="submit"
-                disabled={isSubmitting}
-                className="flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-600 py-3.5 text-base font-black text-white shadow-lg shadow-emerald-600/20 transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-300"
-              >
-                <span className="material-symbols-outlined">
-                  {isSubmitting ? 'progress_activity' : 'login'}
-                </span>
-                {isSubmitting ? 'Checking in...' : 'Confirm Check-in'}
-              </button>
-
-              {showReallocateBtn && matchedBooking && (
+              <div className="pt-1 flex flex-col gap-2">
                 <button
-                  type="button"
-                  onClick={handleOpenReallocate}
+                  type="submit"
                   disabled={isSubmitting}
-                  className="mt-3 flex w-full items-center justify-center gap-2 rounded-2xl bg-amber-500 py-3.5 text-base font-black text-white shadow-lg shadow-amber-500/20 transition hover:bg-amber-600 disabled:cursor-not-allowed disabled:bg-slate-300"
+                  className="flex w-full items-center justify-center gap-1.5 rounded-xl bg-emerald-600 py-2.5 text-xs font-black text-white shadow-md hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-300 transition"
                 >
-                  <span className="material-symbols-outlined">swap_horiz</span>
-                  Đổi vị trí đỗ (Reallocate Slot)
+                  <span className="material-symbols-outlined text-base">
+                    {isSubmitting ? 'progress_activity' : 'login'}
+                  </span>
+                  {isSubmitting ? 'Checking in...' : 'Confirm Check-in'}
                 </button>
-              )}
+
+                {showReallocateBtn && matchedBooking && (
+                  <button
+                    type="button"
+                    onClick={handleOpenReallocate}
+                    disabled={isSubmitting}
+                    className="flex w-full items-center justify-center gap-1.5 rounded-xl bg-amber-500 py-2.5 text-xs font-black text-white shadow-md hover:bg-amber-600 disabled:cursor-not-allowed disabled:bg-slate-300 transition"
+                  >
+                    <span className="material-symbols-outlined text-base">swap_horiz</span>
+                    Reallocate Parking Slot
+                  </button>
+                )}
+              </div>
             </div>
           </form>
-
-          <div className="overflow-hidden rounded-3xl border border-slate-900 bg-slate-950 shadow-2xl flex flex-col">
-            <div className="flex items-center justify-between border-b border-white/10 px-5 py-3">
-              <div className="flex items-center gap-2">
-                <span className="material-symbols-outlined text-emerald-500 text-sm animate-pulse">videocam</span>
-                <span className="text-xs font-bold text-slate-400">GATE-IN-01</span>
-              </div>
-              <p className="font-mono text-xs font-bold text-emerald-400">
-                LIVE CAMERA
-              </p>
-            </div>
-
-            <div className="relative aspect-video min-h-[360px] bg-slate-900 border-b border-white/5 flex items-center justify-center overflow-hidden">
-              <video
-                ref={videoRef}
-                autoPlay
-                playsInline
-                muted
-                className={`h-full w-full object-cover ${cameraActive ? 'block' : 'hidden'}`}
-              />
-
-              {!cameraActive && (
-                <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-6 space-y-3 bg-slate-950">
-                  <span className="material-symbols-outlined text-5xl text-slate-600">videocam_off</span>
-                  <p className="text-slate-400 text-sm font-semibold">Camera is not active.</p>
-                  <button
-                    type="button"
-                    onClick={startCamera}
-                    className="flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-xs font-black text-white hover:bg-emerald-500 transition shadow-lg shadow-emerald-600/20"
-                  >
-                    Start Camera
-                  </button>
-                </div>
-              )}
-
-              {cameraActive && (
-                <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
-                  <div className="w-64 h-32 border-4 border-dashed border-emerald-400/40 rounded-3xl relative">
-                    <div className="absolute top-2 left-2 text-[9px] font-mono font-bold bg-slate-950/80 text-emerald-400 px-1 py-0.5 rounded">
-                      LPR ALIGNMENT
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {isScanning && (
-                <div className="absolute inset-0 bg-slate-950/85 flex flex-col items-center justify-center p-6 text-center space-y-4">
-                  <div className="h-10 w-10 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
-                  <p className="text-emerald-400 text-sm font-black tracking-wider animate-pulse">{scanProgress}</p>
-                </div>
-              )}
-            </div>
-
-            <div className="p-4 bg-slate-950 text-white space-y-3.5">
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div>
-                  <label className="text-[10px] font-bold text-slate-400 block mb-1 uppercase tracking-wider">Select Device</label>
-                  <select
-                    value={selectedDeviceId}
-                    onChange={(e) => setSelectedDeviceId(e.target.value)}
-                    className="w-full rounded-xl bg-slate-900 border border-slate-800 px-3 py-2 text-xs text-slate-200 outline-none focus:border-emerald-500"
-                  >
-                    {devices.map((device, idx) => (
-                      <option key={device.deviceId || idx} value={device.deviceId}>
-                        {device.label || `Camera ${idx + 1}`}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="flex items-end gap-2">
-                  <button
-                    type="button"
-                    onClick={cameraActive ? stopCamera : startCamera}
-                    className={`flex-1 rounded-xl py-2.5 text-xs font-bold transition flex items-center justify-center gap-2 border ${cameraActive
-                        ? 'bg-red-950 border-red-800 text-red-400 hover:bg-red-900'
-                        : 'bg-emerald-950 border-emerald-800 text-emerald-400 hover:bg-emerald-900'
-                      }`}
-                  >
-                    {cameraActive ? 'Stop Cam' : 'Start Cam'}
-                  </button>
-                </div>
-              </div>
-
-              <div className="grid gap-3 grid-cols-2">
-                <button
-                  type="button"
-                  onClick={handleCheckinScan}
-                  disabled={isScanning || !cameraActive}
-                  className="rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white py-2.5 text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-md shadow-emerald-600/10 disabled:opacity-50"
-                >
-                  <span className="material-symbols-outlined text-lg">photo_camera</span>
-                  Scan Camera
-                </button>
-                <button
-                  type="button"
-                  onClick={handleMockScanCheckin}
-                  className="rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 py-2.5 text-xs font-medium border border-slate-700 transition"
-                  title="Mock scan without a physical camera"
-                >
-                  Mock Scan
-                </button>
-              </div>
-
-              {capturedImage && (
-                <div className="bg-slate-900/60 rounded-xl p-3 border border-slate-800 flex items-center gap-4">
-                  <div className="h-16 w-28 bg-slate-950 rounded-lg overflow-hidden border border-slate-800 flex-shrink-0">
-                    <img src={capturedImage} alt="Captured plate snapshot" className="h-full w-full object-contain" />
-                  </div>
-                  <div>
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Detected License Plate</p>
-                    <p className="font-mono text-2xl font-black text-white tracking-wider mt-1">{licensePlate || '---'}</p>
-                    {ocrText && <p className="text-[9px] text-emerald-400 font-bold mt-0.5">Confidence: {ocrText ? 'Passed' : ''}</p>}
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
         </div>
       </div>
 
@@ -1040,8 +1040,8 @@ export default function VehicleCheckin() {
                         type="button"
                         onClick={() => setSelectedSlotId(slot.id)}
                         className={`flex flex-col items-start rounded-2xl border p-3 text-left transition ${selectedSlotId === slot.id
-                            ? 'border-emerald-500 bg-emerald-50 text-emerald-950 ring-2 ring-emerald-500'
-                            : 'border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700'
+                          ? 'border-emerald-500 bg-emerald-50 text-emerald-950 ring-2 ring-emerald-500'
+                          : 'border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700'
                           }`}
                       >
                         <span className="font-mono text-sm font-black">{slot.code}</span>

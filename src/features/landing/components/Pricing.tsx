@@ -1,250 +1,202 @@
 'use client'
 
-import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { Bike, Car, PhoneCall } from 'lucide-react'
-import { useLandingPricing, type VehicleRate } from '../hooks/useLandingPricing'
+import { CheckCircle2, ArrowRight, Cpu } from 'lucide-react'
+import Link from 'next/link'
 
-const fade = (delay = 0) => ({
-  initial: { opacity: 0, y: 32 },
+const fadeUp = (delay = 0) => ({
+  initial: { opacity: 0, y: 40 },
   whileInView: { opacity: 1, y: 0 },
-  viewport: { once: true },
-  transition: { duration: 0.7, delay, ease: 'easeOut' as const },
+  viewport: { once: true, margin: '-100px' },
+  transition: { duration: 0.8, delay, ease: [0.16, 1, 0.3, 1] as [number, number, number, number] },
 })
 
-// ── Fallback rates (shown when API is unavailable) ──────────────────────────
-const FALLBACK: {
-  motorcycle: { day: VehicleRate; night: VehicleRate }
-  car:        { day: VehicleRate; night: VehicleRate }
-  gracePeriodMinutes: number
-  isFallback: true
-} = {
-  motorcycle: {
-    day:   { basePrice: 5_000,  baseDurationHours: 4, extraPerHour: 1_000,  cap: 10_000,  gracePeriodMinutes: 15, windowName: 'Day' },
-    night: { basePrice: 5_000,  baseDurationHours: 4, extraPerHour: 2_000,  cap: 20_000,  gracePeriodMinutes: 15, windowName: 'Night' },
-  },
-  car: {
-    day:   { basePrice: 30_000, baseDurationHours: 4, extraPerHour: 10_000, cap: 100_000, gracePeriodMinutes: 15, windowName: 'Day' },
-    night: { basePrice: 30_000, baseDurationHours: 4, extraPerHour: 12_000, cap: 120_000, gracePeriodMinutes: 15, windowName: 'Night' },
-  },
-  gracePeriodMinutes: 15,
-  isFallback: true,
-}
-
-// ── Helpers ─────────────────────────────────────────────────────────────────
-function fmtVND(v: number): string {
-  if (v >= 1_000_000) return `${(v / 1_000_000).toFixed(v % 1_000_000 === 0 ? 0 : 1)}M₫`
-  if (v >= 1_000)     return `${Math.round(v / 1_000)}K₫`
-  return `${v}₫`
-}
-
-function fmtHours(h: number): string {
-  return h % 1 === 0 ? `${h}h` : `${h.toFixed(1)}h`
-}
-
-// ── Rate Card ────────────────────────────────────────────────────────────────
-function RateCard({
-  icon: Icon, label, sublabel, rate, highlight, delay,
-}: {
-  icon: typeof Car; label: string; sublabel: string
-  rate: VehicleRate; highlight?: boolean; delay: number
-}) {
-  return (
-    <motion.div
-      {...fade(delay)}
-      className={`group relative border rounded-2xl p-8 transition-all duration-500 overflow-hidden ${
-        highlight
-          ? 'border-emerald-500/25 bg-emerald-950/20 hover:bg-emerald-950/35 hover:border-emerald-500/60'
-          : 'border-white/8 bg-white/[0.03] hover:bg-white/[0.07] hover:border-emerald-500/30'
-      }`}
-    >
-      {/* Corner glow */}
-      {highlight && (
-        <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/[0.06] rounded-full -translate-y-16 translate-x-16 pointer-events-none" />
-      )}
-
-      {/* Top badge */}
-      {highlight && (
-        <div className="absolute -top-3.5 left-8">
-          <span className="text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/25">
-            Most Booked
-          </span>
-        </div>
-      )}
-
-      {/* Header */}
-      <div className={`flex items-center gap-3 mb-10 ${highlight ? 'pt-3' : ''}`}>
-        <div className={`w-9 h-9 rounded-xl flex items-center justify-center border transition-colors shrink-0 ${
-          highlight ? 'border-emerald-500/30 bg-emerald-500/5' : 'border-white/10 group-hover:border-emerald-500/40'
-        }`}>
-          <Icon className="w-4 h-4 text-emerald-400" />
-        </div>
-        <div>
-          <div className="text-xs font-black uppercase tracking-widest text-white/50">{label}</div>
-          <div className="text-[10px] text-white/25 font-mono leading-tight">{sublabel}</div>
-        </div>
-      </div>
-
-      {/* Price hero — oversized, always visible */}
-      <div className="mb-9">
-        <div
-          className="font-black text-white leading-none tracking-tight select-none"
-          style={{ fontSize: 'clamp(2.5rem, 6vw, 4rem)' }}
-        >
-          {fmtVND(rate.basePrice)}
-        </div>
-        <div className="text-white/30 text-[11px] mt-2 font-mono uppercase tracking-widest">
-          first {fmtHours(rate.baseDurationHours)}
-        </div>
-      </div>
-
-      {/* Rate breakdown */}
-      <div className={`space-y-3 pt-5 border-t text-sm ${highlight ? 'border-emerald-500/10' : 'border-white/8'}`}>
-        <div className="flex justify-between items-center">
-          <span className="text-white/35 font-mono text-xs uppercase tracking-wider">After base</span>
-          <span className="text-white font-bold font-mono">+{fmtVND(rate.extraPerHour)}/h</span>
-        </div>
-        {rate.cap !== null && (
-          <div className="flex justify-between items-center">
-            <span className="text-white/35 font-mono text-xs uppercase tracking-wider">Daily cap</span>
-            <span className="text-emerald-400 font-bold font-mono">{fmtVND(rate.cap)}</span>
-          </div>
-        )}
-      </div>
-    </motion.div>
-  )
-}
-
-// ── Skeleton ─────────────────────────────────────────────────────────────────
-function Skeleton({ highlight }: { highlight?: boolean }) {
-  return (
-    <div className={`border rounded-2xl p-8 ${highlight ? 'border-emerald-500/10 bg-emerald-950/10' : 'border-white/5 bg-white/[0.02]'}`}>
-      <div className="flex items-center gap-3 mb-10">
-        <div className="w-9 h-9 bg-white/8 rounded-xl animate-pulse" />
-        <div className="space-y-1.5">
-          <div className="h-2.5 w-20 bg-white/8 rounded animate-pulse" />
-          <div className="h-2 w-14 bg-white/5 rounded animate-pulse" />
-        </div>
-      </div>
-      <div className="h-14 w-28 bg-white/8 rounded-lg animate-pulse mb-2" />
-      <div className="h-2.5 w-20 bg-white/5 rounded animate-pulse mb-9" />
-      <div className="pt-5 border-t border-white/5 space-y-3">
-        <div className="flex justify-between">
-          <div className="h-2.5 w-16 bg-white/5 rounded animate-pulse" />
-          <div className="h-2.5 w-20 bg-white/8 rounded animate-pulse" />
-        </div>
-        <div className="flex justify-between">
-          <div className="h-2.5 w-14 bg-white/5 rounded animate-pulse" />
-          <div className="h-2.5 w-18 bg-white/8 rounded animate-pulse" />
-        </div>
-      </div>
-    </div>
-  )
-}
-
-// ── Main ─────────────────────────────────────────────────────────────────────
 export default function Pricing() {
-  const [mode, setMode] = useState<'day' | 'night'>('day')
-  const { data, loading, error } = useLandingPricing()
-
-  // Use real data if available, else fallback silently
-  const hasMotoDay  = !!data.motorcycle.day
-  const hasCarDay   = !!data.car.day
-  const hasRealData = hasMotoDay || hasCarDay
-
-  const display = hasRealData ? data : FALLBACK
-  const isFallback = !hasRealData
-
-  const moto = mode === 'day' ? display.motorcycle.day  : display.motorcycle.night
-  const car  = mode === 'day' ? display.car.day          : display.car.night
-
-  // If night window doesn't exist in real data, fall back to day rate for that vehicle
-  const motoRate = moto ?? display.motorcycle.day
-  const carRate  = car  ?? display.car.day
-
   return (
-    <section id="pricing" className="bg-[#0a0a0a] text-white overflow-hidden relative">
-      <div className="h-px bg-gradient-to-r from-transparent via-emerald-500/50 to-transparent" />
+    <section id="pricing" className="bg-[#050505] text-white relative overflow-hidden py-32 lg:py-48">
+      {/* Cinematic grid overlay */}
+      <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff03_1px,transparent_1px),linear-gradient(to_bottom,#ffffff03_1px,transparent_1px)] bg-[size:4rem_4rem] pointer-events-none" />
+      
+      {/* Tech radial glowing spots */}
+      <div className="absolute top-1/4 left-1/10 w-[500px] h-[500px] bg-emerald-500/[0.02] rounded-full filter blur-[120px] pointer-events-none animate-pulse" style={{ animationDuration: '8s' }} />
+      <div className="absolute bottom-1/3 right-1/10 w-[600px] h-[600px] bg-emerald-500/[0.015] rounded-full filter blur-[150px] pointer-events-none animate-pulse" style={{ animationDuration: '12s' }} />
 
-      <div className="max-w-5xl mx-auto px-6 lg:px-12 py-28">
+      {/* Top accent border */}
+      <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-emerald-500/25 to-transparent" />
 
-        {/* Section label */}
-        <motion.div {...fade()} className="mb-16">
-          <p className="font-mono text-[11px] uppercase tracking-[0.25em] text-emerald-500 mb-4">02 / Pricing</p>
-          <h2 className="font-black leading-none tracking-tight text-white" style={{ fontSize: 'clamp(2.8rem, 7vw, 5.5rem)' }}>
-            Pay for<br />
-            <span className="text-emerald-400">what you use.</span>
-          </h2>
-        </motion.div>
-
-        {/* Fallback notice — only if using hardcoded data & API had an error */}
-        {!loading && (error || isFallback) && (
-          <motion.div {...fade(0.08)} className="mb-10 flex items-center gap-3 border border-white/10 rounded-xl px-5 py-3.5 bg-white/[0.02]">
-            <span className="text-white/30 text-lg">📋</span>
-            <p className="text-white/35 text-xs font-mono leading-relaxed">
-              Showing reference rates — contact us for the latest active pricing.
-            </p>
-            <a
-              href="#contact"
-              className="ml-auto shrink-0 flex items-center gap-1.5 text-emerald-500 hover:text-emerald-400 text-xs font-bold transition-colors"
-            >
-              <PhoneCall className="w-3 h-3" />
-              Contact
-            </a>
-          </motion.div>
-        )}
-
-        {/* Day / Night toggle */}
-        <motion.div {...fade(0.1)} className="flex gap-1 mb-14 w-fit border border-white/10 rounded-full p-1">
-          {(['day', 'night'] as const).map(t => (
-            <button
-              key={t}
-              onClick={() => setMode(t)}
-              className={`px-5 py-2 rounded-full text-sm font-bold transition-all cursor-pointer select-none ${
-                mode === t
-                  ? t === 'day' ? 'bg-emerald-500 text-black' : 'bg-white text-black'
-                  : 'text-white/40 hover:text-white/70'
-              }`}
-            >
-              {t === 'day' ? '☀ Day' : '☽ Night'}
-            </button>
-          ))}
-        </motion.div>
-
-        {/* Cards */}
-        <div className="grid md:grid-cols-2 gap-4 mb-10">
-          {loading ? (
-            <>
-              <Skeleton />
-              <Skeleton highlight />
-            </>
-          ) : (
-            <>
-              {motoRate && (
-                <RateCard icon={Bike} label="Motorcycle" sublabel="Zone-based parking" rate={motoRate} delay={0.15} />
-              )}
-              {carRate && (
-                <RateCard icon={Car} label="Car" sublabel="Dedicated slot parking" rate={carRate} highlight delay={0.22} />
-              )}
-            </>
-          )}
-        </div>
-
-        {/* Grace period footnote */}
-        <motion.div
-          {...fade(0.3)}
-          className="flex items-start gap-4 border border-white/8 rounded-xl px-5 py-4 bg-white/[0.02]"
-        >
-          <span className="text-xl shrink-0">⏱</span>
-          <p className="text-sm leading-relaxed">
-            <span className="text-white font-semibold">{display.gracePeriodMinutes}-min grace period. </span>
-            <span className="text-white/35">Minor overruns won&apos;t cost you a full block.</span>
+      <div className="max-w-7xl mx-auto px-6 lg:px-16 relative z-10">
+        
+        {/* Monospace Tech Tag */}
+        <motion.div {...fadeUp(0)} className="flex items-center gap-2 mb-6">
+          <span className="w-1.5 h-1.5 rounded-none bg-emerald-400 animate-ping" />
+          <p className="font-mono text-[10px] uppercase tracking-[0.3em] text-emerald-400/80">
+            SYSTEM NODE: VALUE_METRICS // ACTIVE
           </p>
         </motion.div>
 
+        {/* Asymmetric Header Layout */}
+        <div className="grid lg:grid-cols-12 gap-8 lg:gap-16 items-start mb-24">
+          <motion.div {...fadeUp(0.1)} className="lg:col-span-8">
+            <h2 
+              className="font-black leading-[0.9] tracking-tighter text-white select-none"
+              style={{ fontSize: 'clamp(2.5rem, 7vw, 5.5rem)' }}
+            >
+              AFFORDABLE.<br />
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 via-emerald-500 to-emerald-200">
+                TAILORED. TRANSPARENT.
+              </span>
+            </h2>
+          </motion.div>
+          
+          <motion.div {...fadeUp(0.2)} className="lg:col-span-4 lg:pt-8 text-white/50 space-y-4">
+            <p className="text-sm font-mono leading-relaxed uppercase tracking-wider border-l border-emerald-500/40 pl-4">
+              We believe parking shouldn't be a financial burden. NexPark implements a flexible, building-specific pricing structure to ensure the most optimized and affordable rates.
+            </p>
+          </motion.div>
+        </div>
+
+        {/* Cinematic Schematic Layout */}
+        <div className="grid lg:grid-cols-12 gap-12 lg:gap-16 border-t border-white/5 pt-16">
+          
+          {/* Left Column: Blueprint Schematic Flow */}
+          <div className="lg:col-span-7 space-y-12 relative">
+            <div className="absolute left-4 top-4 bottom-4 w-px bg-white/5" />
+            
+            {/* Step 1 */}
+            <motion.div {...fadeUp(0.1)} className="relative pl-12 group">
+              <div className="absolute left-2.5 top-1.5 w-3 h-3 border border-emerald-500 bg-[#050505] flex items-center justify-center">
+                <div className="w-1 h-1 bg-emerald-400" />
+              </div>
+              <div className="font-mono text-xs text-white/30 uppercase tracking-widest mb-1">01 / Smart Location Calibration</div>
+              <h3 className="text-lg font-bold text-white mb-2 group-hover:text-emerald-400 transition-colors">
+                Optimized by Facility
+              </h3>
+              <p className="text-sm text-white/40 leading-relaxed max-w-xl">
+                No rigid flat rates. Parking rates are dynamically calibrated to match the specific market, demand, and amenities of the facility you use.
+              </p>
+            </motion.div>
+
+            {/* Step 2 */}
+            <motion.div {...fadeUp(0.2)} className="relative pl-12 group">
+              <div className="absolute left-2.5 top-1.5 w-3 h-3 border border-white/20 bg-[#050505] flex items-center justify-center group-hover:border-emerald-500 transition-colors">
+                <div className="w-1 h-1 bg-white/40 group-hover:bg-emerald-400 transition-colors" />
+              </div>
+              <div className="font-mono text-xs text-white/30 uppercase tracking-widest mb-1">02 / Micro-Billing</div>
+              <h3 className="text-lg font-bold text-white mb-2 group-hover:text-emerald-400 transition-colors">
+                Fractional Block Billing
+              </h3>
+              <p className="text-sm text-white/40 leading-relaxed max-w-xl">
+                Say goodbye to rounded-up hourly overcharges. Your parking session is calculated in precise, small increments, ensuring you only pay for your actual stay.
+              </p>
+            </motion.div>
+
+            {/* Step 3 */}
+            <motion.div {...fadeUp(0.3)} className="relative pl-12 group">
+              <div className="absolute left-2.5 top-1.5 w-3 h-3 border border-white/20 bg-[#050505] flex items-center justify-center group-hover:border-emerald-500 transition-colors">
+                <div className="w-1 h-1 bg-white/40 group-hover:bg-emerald-400 transition-colors" />
+              </div>
+              <div className="font-mono text-xs text-white/30 uppercase tracking-widest mb-1">03 / Short Stay Exemption</div>
+              <h3 className="text-lg font-bold text-white mb-2 group-hover:text-emerald-400 transition-colors">
+                Grace Period Protection
+              </h3>
+              <p className="text-sm text-white/40 leading-relaxed max-w-xl">
+                Dropping off passengers or making a quick turnaround? Exit free of charge during the grace period window.
+              </p>
+            </motion.div>
+
+            {/* Step 4 */}
+            <motion.div {...fadeUp(0.4)} className="relative pl-12 group">
+              <div className="absolute left-2.5 top-1.5 w-3 h-3 border border-white/20 bg-[#050505] flex items-center justify-center group-hover:border-emerald-500 transition-colors">
+                <div className="w-1 h-1 bg-white/40 group-hover:bg-emerald-400 transition-colors" />
+              </div>
+              <div className="font-mono text-xs text-white/30 uppercase tracking-widest mb-1">04 / Cap Security</div>
+              <h3 className="text-lg font-bold text-white mb-2 group-hover:text-emerald-400 transition-colors">
+                Daily Capping Limits
+              </h3>
+              <p className="text-sm text-white/40 leading-relaxed max-w-xl">
+                Park all day with absolute peace of mind. The billing engine automatically locks the maximum daily fee, preventing unexpected bill surprises.
+              </p>
+            </motion.div>
+
+          </div>
+
+          {/* Right Column: Value Guarantee Block */}
+          <div className="lg:col-span-5 flex flex-col justify-between">
+            <motion.div 
+              {...fadeUp(0.25)}
+              className="border border-white/5 bg-gradient-to-b from-white/[0.02] to-transparent p-8 lg:p-10 relative overflow-hidden"
+              style={{ borderRadius: '2px' }}
+            >
+              {/* Subtle Tech grid background in card */}
+              <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff01_1px,transparent_1px),linear-gradient(to_bottom,#ffffff01_1px,transparent_1px)] bg-[size:1rem_1rem] pointer-events-none" />
+              
+              <div className="relative z-10">
+                <div className="flex items-center gap-3 mb-8">
+                  <div className="w-10 h-10 border border-emerald-500/30 bg-emerald-500/5 flex items-center justify-center">
+                    <Cpu className="w-5 h-5 text-emerald-400" />
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-white uppercase tracking-wider text-sm">NexPark Guarantee</h4>
+                    <p className="text-[10px] text-white/30 font-mono">SECURE BILLING PROTOCOL</p>
+                  </div>
+                </div>
+
+                <ul className="space-y-4 mb-8">
+                  <li className="flex items-start gap-3">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-400 mt-0.5 shrink-0" />
+                    <span className="text-xs text-white/70">No hidden surcharges or account maintenance fees.</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-400 mt-0.5 shrink-0" />
+                    <span className="text-xs text-white/70">No dynamic surge pricing during peak hours or weather events.</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-400 mt-0.5 shrink-0" />
+                    <span className="text-xs text-white/70">Instant access to detailed parking history and e-receipts 24/7.</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-400 mt-0.5 shrink-0" />
+                    <span className="text-xs text-white/70">Sign in to check the active real-time rate card for any specific facility.</span>
+                  </li>
+                </ul>
+
+                {/* Call to action */}
+                <div className="space-y-4 pt-6 border-t border-white/5">
+                  <Link 
+                    href="/login" 
+                    className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-emerald-500 hover:bg-emerald-400 text-black text-xs font-black uppercase tracking-widest transition-all duration-300 rounded-xl group"
+                  >
+                    Sign In to Check Rates
+                    <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                  </Link>
+                  
+                  <div className="flex justify-between items-center text-[10px] font-mono text-white/30">
+                    <span>STATUS: READY</span>
+                    <span>SECURE TRANSACTION</span>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+
+            {/* Bottom info link */}
+            <motion.div {...fadeUp(0.4)} className="mt-8 lg:mt-0 text-center lg:text-left">
+              <p className="text-xs text-white/30">
+                Are you a building manager looking to optimize your facility's parking rates?{' '}
+                <a href="#contact" className="text-emerald-400 hover:text-emerald-300 font-bold underline transition-colors">
+                  Partner with us
+                </a>
+              </p>
+            </motion.div>
+
+          </div>
+
+        </div>
+
       </div>
 
-      <div className="h-px bg-gradient-to-r from-transparent via-white/8 to-transparent" />
+      {/* Bottom technical border */}
+      <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/5 to-transparent" />
     </section>
   )
 }
+

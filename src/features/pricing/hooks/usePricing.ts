@@ -499,23 +499,7 @@ interface PolicyApiResponse {
     }
   };
 
-  const handleDeactivatePolicy = async (policy: StandardTariff) => {
-    const matchingVehicle = vehicleTypes.find(v => v.id === policy.vehicleTypeId);
-    const vehicleName = matchingVehicle ? matchingVehicle.name : (policy.vehicleTypeId === 1 ? 'Motorbike' : 'Car');
-    try {
-      const res = await api.post<{ success: boolean }>(`/pricing-policies/${policy.pricingPolicyId}/deactivate`, {});
-      if (res) {
-        await fetchPolicies();
-        triggerToast(`Policy "${policy.policyName}" (${vehicleName}) set to Inactive successfully!`, 'success');
-      } else {
-        triggerToast(`Failed to deactivate ${vehicleName} policy.`, 'error');
-      }
-    } catch (error) {
-      console.error('Failed to deactivate policy:', error);
-      const errorMsg = extractErrorMessage(error);
-      triggerToast(errorMsg, 'error');
-    }
-  };
+
 
 
 
@@ -545,20 +529,21 @@ interface PolicyApiResponse {
     if (!policy) return;
 
     if (policy.pricingPolicyStatus === 'Active') {
-      await handleDeactivatePolicy(policy);
-    } else {
-      try {
-        const res = await api.post<{ success: boolean }>(`/pricing-policies/${policyId}/activate`, {});
-        if (res) {
-          await fetchPolicies();
-          triggerToast(`Policy activated successfully!`, 'success');
-        } else {
-          triggerToast(`Failed to activate policy.`, 'error');
-        }
-      } catch (error) {
-        const errorMsg = extractErrorMessage(error);
-        triggerToast(errorMsg, 'error');
+      triggerToast('Active policies cannot be deactivated. Create a new policy instead.', 'success');
+      return;
+    }
+
+    try {
+      const res = await api.post<{ success: boolean }>(`/pricing-policies/${policyId}/activate`, {});
+      if (res) {
+        await fetchPolicies();
+        triggerToast(`Policy activated successfully!`, 'success');
+      } else {
+        triggerToast(`Failed to activate policy.`, 'error');
       }
+    } catch (error) {
+      const errorMsg = extractErrorMessage(error);
+      triggerToast(errorMsg, 'error');
     }
   };
 
@@ -1239,7 +1224,6 @@ interface PolicyApiResponse {
     handleCloseEditTariff,
     handleSaveTariff,
     handleToggleTariffStatus,
-    handleDeactivatePolicy,
     handleDeleteTariff,
 
     // S1 Handlers

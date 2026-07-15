@@ -341,10 +341,12 @@ export default function PaymentWorkspace() {
       {(() => {
         const totalRows = revenueItems.filter(item => item.vehicleTypeId === null || item.vehicleTypeName === 'Total Revenue');
         const chartSource = totalRows.length > 0 ? totalRows : revenueItems;
-        const chartData = chartSource.map(item => ({
-          label: item.startDate ? new Date(item.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—',
-          value: item.totalRevenue
-        }));
+        const chartData = [...chartSource]
+          .sort((a, b) => (a.startDate || '').localeCompare(b.startDate || ''))
+          .map(item => ({
+            label: item.startDate ? new Date(item.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—',
+            value: item.totalRevenue
+          }));
         return (
           <div className="bg-white border border-slate-100 rounded-2xl shadow-sm p-5">
             <div className="flex items-center justify-between mb-3">

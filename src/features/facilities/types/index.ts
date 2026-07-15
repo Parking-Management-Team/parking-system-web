@@ -31,4 +31,5 @@ export interface Zone {
   zoneAccessType: 'GENERAL' | 'MONTHLY'; // GENERAL = Walk-in/Booking, MONTHLY = Thẻ tháng
   slotCapacity: number; // Sức chứa ô đỗ của phân khu này
   status: 'Active' | 'Inactive';
+  bookingLimitRate: number; // Tỷ lệ phần trăm sức chứa cho phép đặt trước (1-100)
 }

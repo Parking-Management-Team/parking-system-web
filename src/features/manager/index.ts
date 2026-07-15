@@ -23,8 +23,6 @@ export type { ActivityLog }    from './components/RecentActivity';
 // Hooks
 export { useAccounts } from './hooks/useAccounts';
 export { useSystemConfig } from './hooks/useSystemConfig';
-export { useShiftReports } from './hooks/useShiftReports';
-export { useSubscriptionPriceConfigs } from './hooks/useSubscriptionPriceConfigs';
 export { usePricingEngine } from './hooks/usePricingEngine';
 export { useDashboardSummary } from './hooks/useDashboardSummary';
 export { usePayments } from './hooks/usePayments';

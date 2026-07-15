@@ -3,13 +3,11 @@
 import React, { useState } from 'react';
 import { useAccounts } from '../hooks/useAccounts';
 import { useSystemConfig } from '../hooks/useSystemConfig';
-import { useShiftReports } from '../hooks/useShiftReports';
-import { useSubscriptionPriceConfigs } from '../hooks/useSubscriptionPriceConfigs';
 import { usePricingEngine } from '../hooks/usePricingEngine';
 import { usePayments } from '../hooks/usePayments';
 import { useVehicleTypes } from '../hooks/useVehicleTypes';
 
-type TabType = 'accounts' | 'config' | 'shift-reports' | 'subscription-prices' | 'pricing-engine' | 'payments' | 'vehicle-types';
+type TabType = 'accounts' | 'config' | 'pricing-engine' | 'payments' | 'vehicle-types';
 
 export default function ManagerWorkspace() {
   const [activeTab, setActiveTab] = useState<TabType>('accounts');
@@ -29,16 +27,6 @@ export default function ManagerWorkspace() {
           active={activeTab === 'config'}
           onClick={() => setActiveTab('config')}
           label="System Config"
-        />
-        <TabButton
-          active={activeTab === 'shift-reports'}
-          onClick={() => setActiveTab('shift-reports')}
-          label="Shift Reports"
-        />
-        <TabButton
-          active={activeTab === 'subscription-prices'}
-          onClick={() => setActiveTab('subscription-prices')}
-          label="Subscription Prices"
         />
         <TabButton
           active={activeTab === 'pricing-engine'}
@@ -61,8 +49,6 @@ export default function ManagerWorkspace() {
       <div className="mt-4">
         {activeTab === 'accounts' && <AccountsTab />}
         {activeTab === 'config' && <SystemConfigTab />}
-        {activeTab === 'shift-reports' && <ShiftReportsTab />}
-        {activeTab === 'subscription-prices' && <SubscriptionPricesTab />}
         {activeTab === 'pricing-engine' && <PricingEngineTab />}
         {activeTab === 'payments' && <PaymentsTab />}
         {activeTab === 'vehicle-types' && <VehicleTypesTab />}
@@ -304,189 +290,6 @@ function SystemConfigTab() {
   );
 }
 
-function ShiftReportsTab() {
-  const { reports, isLoading, error, approveReport } = useShiftReports();
-  const [approving, setApproving] = useState<number | null>(null);
-
-  const handleApprove = async (id: number) => {
-    setApproving(id);
-    try {
-      await approveReport(id);
-    } catch (err) {
-      alert(err instanceof Error ? err.message : 'Failed to approve report');
-    } finally {
-      setApproving(null);
-    }
-  };
-
-  return (
-    <div>
-      {isLoading ? (
-        <div className="text-center py-8 text-gray-500">Loading...</div>
-      ) : error ? (
-        <div className="text-center py-8 text-red-500">{error}</div>
-      ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-gray-200">
-                <th className="text-left py-3 px-4 font-medium">ID</th>
-                <th className="text-left py-3 px-4 font-medium">Staff</th>
-                <th className="text-left py-3 px-4 font-medium">Date</th>
-                <th className="text-left py-3 px-4 font-medium">Time</th>
-                <th className="text-left py-3 px-4 font-medium">Revenue</th>
-                <th className="text-left py-3 px-4 font-medium">Sessions</th>
-                <th className="text-left py-3 px-4 font-medium">Status</th>
-                <th className="text-left py-3 px-4 font-medium">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {reports.map((report) => (
-                <tr key={report.id} className="border-b border-gray-100 hover:bg-gray-50">
-                  <td className="py-3 px-4">{report.id}</td>
-                  <td className="py-3 px-4">{report.staffName || `Staff #${report.staffId}`}</td>
-                  <td className="py-3 px-4">{new Date(report.shiftDate).toLocaleDateString()}</td>
-                  <td className="py-3 px-4">
-                    {report.startTime} - {report.endTime || 'Ongoing'}
-                  </td>
-                  <td className="py-3 px-4">
-                    {report.totalRevenue ? `${report.totalRevenue.toLocaleString()} VND` : '-'}
-                  </td>
-                  <td className="py-3 px-4">{report.totalSessions || 0}</td>
-                  <td className="py-3 px-4">
-                    <span className={`px-2 py-1 text-xs font-medium rounded ${
-                      report.status === 'APPROVED' ? 'bg-green-100 text-green-700' :
-                      report.status === 'REJECTED' ? 'bg-red-100 text-red-700' :
-                      'bg-yellow-100 text-yellow-700'
-                    }`}>
-                      {report.status}
-                    </span>
-                  </td>
-                  <td className="py-3 px-4">
-                    {report.status === 'PENDING' && (
-                      <button
-                        onClick={() => handleApprove(report.id)}
-                        disabled={approving === report.id}
-                        className="px-3 py-1 text-xs text-green-600 hover:bg-green-50 rounded disabled:opacity-50"
-                      >
-                        Approve
-                      </button>
-                    )}
-                  </td>
-                </tr>
-              ))}
-              {reports.length === 0 && (
-                <tr>
-                  <td colSpan={8} className="py-8 text-center text-gray-500">
-                    No shift reports found
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function SubscriptionPricesTab() {
-  const { configs, isLoading, error, deactivateConfig, deleteConfig } = useSubscriptionPriceConfigs();
-  const [actionLoading, setActionLoading] = useState<number | null>(null);
-
-  const handleDeactivate = async (id: number) => {
-    setActionLoading(id);
-    try {
-      await deactivateConfig(id);
-    } catch (err) {
-      alert(err instanceof Error ? err.message : 'Failed to deactivate');
-    } finally {
-      setActionLoading(null);
-    }
-  };
-
-  const handleDelete = async (id: number) => {
-    if (!confirm('Are you sure you want to delete this configuration?')) return;
-    setActionLoading(id);
-    try {
-      await deleteConfig(id);
-    } catch (err) {
-      alert(err instanceof Error ? err.message : 'Failed to delete');
-    } finally {
-      setActionLoading(null);
-    }
-  };
-
-  return (
-    <div>
-      {isLoading ? (
-        <div className="text-center py-8 text-gray-500">Loading...</div>
-      ) : error ? (
-        <div className="text-center py-8 text-red-500">{error}</div>
-      ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-gray-200">
-                <th className="text-left py-3 px-4 font-medium">ID</th>
-                <th className="text-left py-3 px-4 font-medium">Vehicle Type</th>
-                <th className="text-left py-3 px-4 font-medium">Monthly Price</th>
-                <th className="text-left py-3 px-4 font-medium">Description</th>
-                <th className="text-left py-3 px-4 font-medium">Status</th>
-                <th className="text-left py-3 px-4 font-medium">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {configs.map((config) => (
-                <tr key={config.id} className="border-b border-gray-100 hover:bg-gray-50">
-                  <td className="py-3 px-4">{config.id}</td>
-                  <td className="py-3 px-4">{config.vehicleTypeName || `Type #${config.vehicleTypeId}`}</td>
-                  <td className="py-3 px-4">{config.monthlyPrice.toLocaleString()} VND</td>
-                  <td className="py-3 px-4">{config.description || '-'}</td>
-                  <td className="py-3 px-4">
-                    <span className={`px-2 py-1 text-xs font-medium rounded ${
-                      config.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'
-                    }`}>
-                      {config.isActive ? 'Active' : 'Inactive'}
-                    </span>
-                  </td>
-                  <td className="py-3 px-4">
-                    <div className="flex gap-2">
-                      {config.isActive && (
-                        <button
-                          onClick={() => handleDeactivate(config.id)}
-                          disabled={actionLoading === config.id}
-                          className="px-2 py-1 text-xs text-orange-600 hover:bg-orange-50 rounded disabled:opacity-50"
-                        >
-                          Deactivate
-                        </button>
-                      )}
-                      <button
-                        onClick={() => handleDelete(config.id)}
-                        disabled={actionLoading === config.id}
-                        className="px-2 py-1 text-xs text-red-600 hover:bg-red-50 rounded disabled:opacity-50"
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-              {configs.length === 0 && (
-                <tr>
-                  <td colSpan={6} className="py-8 text-center text-gray-500">
-                    No subscription price configurations found
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      )}
-    </div>
-  );
-}
-
 function PricingEngineTab() {
   const { isCalculating, error, calculatePrice } = usePricingEngine();
   const [vehicleTypeId, setVehicleTypeId] = useState(1);
@@ -703,20 +506,20 @@ function VehicleTypesTab() {
   const { vehicleTypes, isLoading, error, createVehicleType, updateVehicleType, deleteVehicleType } = useVehicleTypes();
   const [isAdding, setIsAdding] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
-  const [typeName, setTypeName] = useState('');
+  const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [saving, setSaving] = useState(false);
 
   const handleAdd = async () => {
-    if (!typeName.trim()) {
+    if (!name.trim()) {
       alert('Type name is required');
       return;
     }
     setSaving(true);
     try {
-      await createVehicleType({ typeName: typeName.trim(), description: description.trim() || undefined });
+      await createVehicleType({ name: name.trim(), description: description.trim() || undefined, vehicleTypeStatus: 'ACTIVE' });
       setIsAdding(false);
-      setTypeName('');
+      setName('');
       setDescription('');
     } catch (err) {
       alert(err instanceof Error ? err.message : 'Failed to create');
@@ -726,15 +529,15 @@ function VehicleTypesTab() {
   };
 
   const handleUpdate = async (id: number) => {
-    if (!typeName.trim()) {
+    if (!name.trim()) {
       alert('Type name is required');
       return;
     }
     setSaving(true);
     try {
-      await updateVehicleType(id, { typeName: typeName.trim(), description: description.trim() || undefined, vehicleTypeStatus: 'Active' });
+      await updateVehicleType(id, { name: name.trim(), description: description.trim() || undefined, vehicleTypeStatus: 'ACTIVE' });
       setEditingId(null);
-      setTypeName('');
+      setName('');
       setDescription('');
     } catch (err) {
       alert(err instanceof Error ? err.message : 'Failed to update');
@@ -752,9 +555,9 @@ function VehicleTypesTab() {
     }
   };
 
-  const startEdit = (vt: { id: number; typeName: string; description?: string }) => {
+  const startEdit = (vt: { id: number; name: string; description?: string }) => {
     setEditingId(vt.id);
-    setTypeName(vt.typeName);
+    setName(vt.name);
     setDescription(vt.description || '');
   };
 
@@ -762,7 +565,7 @@ function VehicleTypesTab() {
     <div>
       <div className="mb-4">
         <button
-          onClick={() => { setIsAdding(true); setEditingId(null); setTypeName(''); setDescription(''); }}
+          onClick={() => { setIsAdding(true); setEditingId(null); setName(''); setDescription(''); }}
           className="px-4 py-2 bg-blue-500 text-white text-sm rounded-lg hover:bg-blue-600"
         >
           + Add Vehicle Type
@@ -779,7 +582,7 @@ function VehicleTypesTab() {
             <thead>
               <tr className="border-b border-gray-200">
                 <th className="text-left py-3 px-4 font-medium">ID</th>
-                <th className="text-left py-3 px-4 font-medium">Type Name</th>
+                <th className="text-left py-3 px-4 font-medium">Name</th>
                 <th className="text-left py-3 px-4 font-medium">Description</th>
                 <th className="text-left py-3 px-4 font-medium">Status</th>
                 <th className="text-left py-3 px-4 font-medium">Actions</th>
@@ -792,8 +595,8 @@ function VehicleTypesTab() {
                   <td className="py-3 px-4">
                     <input
                       type="text"
-                      value={typeName}
-                      onChange={(e) => setTypeName(e.target.value)}
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
                       placeholder="Type name"
                       className="px-2 py-1 border rounded text-sm w-full"
                     />
@@ -823,12 +626,12 @@ function VehicleTypesTab() {
                     {editingId === vt.id ? (
                       <input
                         type="text"
-                        value={typeName}
-                        onChange={(e) => setTypeName(e.target.value)}
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
                         className="px-2 py-1 border rounded text-sm w-full"
                       />
                     ) : (
-                      vt.typeName
+                      vt.name
                     )}
                   </td>
                   <td className="py-3 px-4">

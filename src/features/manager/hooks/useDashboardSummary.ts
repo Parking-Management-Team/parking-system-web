@@ -2,17 +2,10 @@ import { useState, useEffect, useCallback } from 'react';
 import { api, ApiError } from '@/lib/api/client';
 
 type DashboardSummary = {
-  totalBuildings: number;
-  totalFloors: number;
-  totalZones: number;
-  totalSlots: number;
-  occupiedSlots: number;
-  availableSlots: number;
+  totalActiveSessions: number;
+  expectedBookingsToday: number;
   occupancyRate: number;
-  todayRevenue: number;
-  todaySessions: number;
-  activeSessions: number;
-  monthlyRevenue: number;
+  activeIncidentsCount: number;
 };
 
 const getApiErrorMessage = (error: unknown): string => {

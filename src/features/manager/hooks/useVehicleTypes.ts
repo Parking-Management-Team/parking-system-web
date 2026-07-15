@@ -3,9 +3,10 @@ import { api, ApiError } from '@/lib/api/client';
 
 type VehicleType = {
   id: number;
-  typeName: string;
+  name: string;
   description?: string;
   vehicleTypeStatus: string;
+  bufferRatio?: number;
 };
 
 const getApiErrorMessage = (error: unknown): string => {
@@ -55,7 +56,7 @@ export function useVehicleTypes() {
     }
   }, []);
 
-  const createVehicleType = useCallback(async (data: { typeName: string; description?: string }) => {
+  const createVehicleType = useCallback(async (data: { name: string; description?: string; vehicleTypeStatus?: string; bufferRatio?: number }) => {
     try {
       const res = await api.post<{ data: VehicleType } | VehicleType>('/vehicle-types', data);
       await fetchVehicleTypes();
@@ -65,7 +66,7 @@ export function useVehicleTypes() {
     }
   }, [fetchVehicleTypes]);
 
-  const updateVehicleType = useCallback(async (id: number, data: { typeName: string; description?: string; vehicleTypeStatus: string }) => {
+  const updateVehicleType = useCallback(async (id: number, data: { name: string; description?: string; vehicleTypeStatus?: string; bufferRatio?: number }) => {
     try {
       const res = await api.put<{ data: VehicleType } | VehicleType>(`/vehicle-types/${id}`, data);
       await fetchVehicleTypes();

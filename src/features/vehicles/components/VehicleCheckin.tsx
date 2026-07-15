@@ -42,8 +42,8 @@ type GateOverlay =
 const BUILDING_ID = 3;
 const STAFF_ID = 2;
 
-// TODO(api-confirm): giữ mapping tạm theo yêu cầu test hiện tại.
-// Nếu BE seed VehicleType khác, chỉ cần đổi mapping này.
+// TODO(api-confirm): keep this temporary mapping for the current test requirements.
+// Update this mapping if the backend seeds different vehicle types.
 const VEHICLE_TYPE_ID_BY_TYPE: Record<VehicleType, number> = {
   CAR: 2,
   MOTORCYCLE: 3,
@@ -151,14 +151,14 @@ export default function VehicleCheckin({ compact = false }: { compact?: boolean 
         setSelectedDeviceId(videoDevices[0].deviceId);
       }
     } catch (err) {
-      console.error('Không tìm thấy thiết bị camera:', err);
+      console.error('No camera device found:', err);
     }
   }, [selectedDeviceId]);
 
   // Start webcam stream
   const startCamera = useCallback(async () => {
     if (typeof window === 'undefined' || !navigator.mediaDevices) {
-      showToast('Không thể mở camera: Trình duyệt không hỗ trợ hoặc kết nối không an toàn (HTTP). Vui lòng dùng localhost hoặc cấu hình HTTPS.', 'error');
+      showToast('Unable to open the camera: the browser is unsupported or the connection is insecure (HTTP). Use localhost or configure HTTPS.', 'error');
       return;
     }
     try {
@@ -174,10 +174,10 @@ export default function VehicleCheckin({ compact = false }: { compact?: boolean 
         videoRef.current.srcObject = mediaStream;
       }
       setCameraActive(true);
-      showToast('Camera hoạt động thành công!', 'success');
+      showToast('Camera started successfully!', 'success');
     } catch (err) {
-      console.error('Không thể mở camera:', err);
-      showToast('Không thể kết nối camera. Vui lòng cấp quyền.', 'error');
+      console.error('Unable to open the camera:', err);
+      showToast('Unable to connect to the camera. Please grant camera permission.', 'error');
     }
   }, [selectedDeviceId, stream, showToast]);
 
@@ -202,7 +202,7 @@ export default function VehicleCheckin({ compact = false }: { compact?: boolean 
   // Capture frame from video stream to base64
   const captureFrame = useCallback((): string | null => {
     if (!videoRef.current || !cameraActive) {
-      showToast('Vui lòng kích hoạt camera trước.', 'info');
+      showToast('Please activate the camera first.', 'info');
       return null;
     }
 
@@ -223,17 +223,17 @@ export default function VehicleCheckin({ compact = false }: { compact?: boolean 
   // Run OCR on Backend Cloud API
   const performOCR = useCallback(async (base64Img: string) => {
     setIsScanning(true);
-    setScanProgress('Đang quét biển số...');
+    setScanProgress('Scanning license plate...');
     setOcrText('');
 
     try {
       const result = await scanLicensePlate({ image: base64Img });
       setOcrText(result.licensePlate);
-      showToast(`Nhận diện biển số thành công: ${result.licensePlate} (Độ tin cậy: ${Math.round(result.confidence * 100)}%)`, 'success');
+      showToast(`License plate recognized: ${result.licensePlate} (Confidence: ${Math.round(result.confidence * 100)}%)`, 'success');
       return result.licensePlate;
     } catch (err: any) {
-      console.error('Lỗi OCR:', err);
-      showToast(err.message || 'Lỗi trong quá trình quét OCR.', 'error');
+      console.error('OCR error:', err);
+      showToast(err.message || 'An error occurred during the OCR scan.', 'error');
       return '';
     } finally {
       setIsScanning(false);
@@ -287,7 +287,7 @@ export default function VehicleCheckin({ compact = false }: { compact?: boolean 
       const dataUrl = canvas.toDataURL('image/jpeg');
       setCapturedImage(dataUrl);
     }
-    showToast(`Giả lập quét biển số vào: ${randomPlate}`, 'success');
+    showToast(`Simulated entry plate scan: ${randomPlate}`, 'success');
   }, [showToast, availableCards]);
 
   const formattedPlate = normalizeText(licensePlate);
@@ -338,8 +338,8 @@ export default function VehicleCheckin({ compact = false }: { compact?: boolean 
       console.warn('Failed to fetch building list:', err);
     }
 
-    // Staff check-in cần Cards/Active Sessions/Booking/Blacklist để hỗ trợ vận hành cổng vào.
-    // Booking/Blacklist chỉ là dữ liệu hỗ trợ; nếu endpoint phụ lỗi thì không được làm hỏng check-in chính.
+    // Staff check-in uses cards, active sessions, bookings, and blacklist data to operate the entry gate.
+    // Booking and blacklist data are supplementary; auxiliary endpoint failures must not break the primary check-in flow.
     const [cardData, sessionData, bookingData, blacklistData] = await Promise.all([
       fetchCards(),
       fetchActiveParkingSessions(),
@@ -503,7 +503,7 @@ export default function VehicleCheckin({ compact = false }: { compact?: boolean 
         if (body.message) errMsg = body.message;
       } else if (error instanceof Error) {
         errMsg = error.message;
-        if (error.message.includes('SLOT_NOT_AVAILABLE') || error.message.includes('chiếm dụng') || error.message.includes('bận')) {
+        if (error.message.includes('SLOT_NOT_AVAILABLE') || error.message.includes('occupied') || error.message.includes('unavailable')) {
           isSlotUnavailableError = true;
         }
       }
@@ -535,7 +535,7 @@ export default function VehicleCheckin({ compact = false }: { compact?: boolean 
       setAvailableSlots(slots);
       setIsReallocateModalOpen(true);
     } catch (err) {
-      showToast('Không thể tải danh sách vị trí đỗ trống: ' + (err instanceof Error ? err.message : String(err)), 'error');
+      showToast('Unable to load available parking spaces: ' + (err instanceof Error ? err.message : String(err)), 'error');
     } finally {
       setIsSubmitting(false);
     }
@@ -564,14 +564,14 @@ export default function VehicleCheckin({ compact = false }: { compact?: boolean 
       showGateOverlay({
         type: 'success',
         title: 'Check-in successful',
-        message: `Đổi sang vị trí đỗ mới và check-in thành công cho xe ${formattedPlate}.`,
+        message: `Vehicle ${formattedPlate} was checked in successfully at the new parking space.`,
         session,
         vehicleType,
         cardCode: normalizedCardCode,
         checkInTime: session.checkInTime || new Date().toISOString(),
       });
     } catch (error) {
-      let errMsg = 'Đổi vị trí và Check-in thất bại.';
+      let errMsg = 'Failed to change the parking space and check in the vehicle.';
       if (error instanceof ApiError && error.data && typeof error.data === 'object') {
         const body = error.data as { message?: string };
         if (body.message) errMsg = body.message;
@@ -610,7 +610,7 @@ export default function VehicleCheckin({ compact = false }: { compact?: boolean 
         )}
 
         <div className={compact ? 'flex flex-col gap-4' : 'grid min-h-0 flex-1 gap-4 xl:grid-cols-2'}>
-          {/* CỘT TRÁI: CAMERA LỐI VÀO (LIVE FEED & LPR) */}
+          {/* LEFT COLUMN: ENTRY CAMERA (LIVE FEED & LPR) */}
           <div className="space-y-4 flex flex-col min-h-0">
             <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm flex flex-col">
               <div className="flex items-center justify-between border-b border-slate-100 px-4 py-2.5">
@@ -724,7 +724,7 @@ export default function VehicleCheckin({ compact = false }: { compact?: boolean 
             </section>
           </div>
 
-          {/* CỘT PHẢI: THÔNG TIN VÀ XÁC NHẬN CỔNG VÀO */}
+          {/* RIGHT COLUMN: ENTRY INFORMATION AND CONFIRMATION */}
           <form
             onSubmit={handleConfirmCheckin}
             className="min-h-0 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm space-y-3 flex flex-col justify-start"
@@ -742,7 +742,7 @@ export default function VehicleCheckin({ compact = false }: { compact?: boolean 
               {buildings.length > 0 && (
                 <div>
                   <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">
-                    Tòa nhà (Building)
+                    Building
                   </label>
                   <select
                     value={buildingId}
@@ -1008,10 +1008,10 @@ export default function VehicleCheckin({ compact = false }: { compact?: boolean 
               <div className="flex shrink-0 items-center justify-between gap-4 border-b border-slate-100 pb-4">
                 <div>
                   <h2 className="text-xl font-black text-slate-900">
-                    Chọn vị trí đỗ mới
+                    Select a New Parking Space
                   </h2>
                   <p className="text-xs font-semibold text-slate-500">
-                    Chọn một vị trí đỗ trống khác trong tòa nhà.
+                    Select another available parking space in the building.
                   </p>
                 </div>
                 <button
@@ -1030,7 +1030,7 @@ export default function VehicleCheckin({ compact = false }: { compact?: boolean 
                     <span className="material-symbols-outlined text-4xl">
                       search_off
                     </span>
-                    <p className="mt-2 text-xs font-semibold">Không tìm thấy vị trí đỗ trống nào khả dụng.</p>
+                    <p className="mt-2 text-xs font-semibold">No available parking spaces were found.</p>
                   </div>
                 ) : (
                   <div className="grid grid-cols-2 gap-2">
@@ -1060,7 +1060,7 @@ export default function VehicleCheckin({ compact = false }: { compact?: boolean 
                   onClick={() => setIsReallocateModalOpen(false)}
                   className="flex-1 rounded-2xl border border-slate-200 py-3 text-sm font-black text-slate-600 hover:bg-slate-50"
                 >
-                  Hủy bỏ
+                  Cancel
                 </button>
                 <button
                   type="button"
@@ -1068,7 +1068,7 @@ export default function VehicleCheckin({ compact = false }: { compact?: boolean 
                   disabled={!selectedSlotId || isSubmitting}
                   className="flex-1 rounded-2xl bg-emerald-600 py-3 text-sm font-black text-white shadow-lg shadow-emerald-600/20 hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-300"
                 >
-                  Xác nhận & Check-in
+                  Confirm & Check In
                 </button>
               </div>
             </div>

@@ -177,14 +177,14 @@ export default function VehicleCheckout({ compact = false }: { compact?: boolean
         setSelectedDeviceId(videoDevices[0].deviceId);
       }
     } catch (err) {
-      console.error('Không tìm thấy thiết bị camera:', err);
+      console.error('No camera device found:', err);
     }
   }, [selectedDeviceId]);
 
   // Start camera stream
   const startCamera = useCallback(async () => {
     if (typeof window === 'undefined' || !navigator.mediaDevices) {
-      showToast('Không thể mở camera: Trình duyệt không hỗ trợ hoặc kết nối không an toàn. Vui lòng sử dụng localhost hoặc HTTPS.', 'error');
+      showToast('Unable to open the camera: the browser is unsupported or the connection is insecure. Use localhost or HTTPS.', 'error');
       return;
     }
     try {
@@ -200,10 +200,10 @@ export default function VehicleCheckout({ compact = false }: { compact?: boolean
         videoRef.current.srcObject = mediaStream;
       }
       setCameraActive(true);
-      showToast('Camera lối ra hoạt động thành công!', 'success');
+      showToast('Exit camera started successfully!', 'success');
     } catch (err) {
-      console.error('Không thể mở camera:', err);
-      showToast('Không thể kết nối camera. Vui lòng cấp quyền.', 'error');
+      console.error('Unable to open the camera:', err);
+      showToast('Unable to connect to the camera. Please grant camera permission.', 'error');
     }
   }, [selectedDeviceId, stream, showToast]);
 
@@ -235,7 +235,7 @@ export default function VehicleCheckout({ compact = false }: { compact?: boolean
   // Capture frame to base64
   const captureFrame = useCallback((): string | null => {
     if (!videoRef.current || !cameraActive) {
-      showToast('Vui lòng bật camera lối ra trước.', 'info');
+      showToast('Please activate the exit camera first.', 'info');
       return null;
     }
     const video = videoRef.current;
@@ -255,17 +255,17 @@ export default function VehicleCheckout({ compact = false }: { compact?: boolean
   // Run OCR on Backend Cloud API
   const performOCR = useCallback(async (base64Img: string) => {
     setIsScanning(true);
-    setScanProgress('Đang quét biển số lối ra...');
+    setScanProgress('Scanning exit license plate...');
     setOcrText('');
 
     try {
       const result = await scanLicensePlate({ image: base64Img });
       setOcrText(result.licensePlate);
-      showToast(`Nhận diện biển số ra: ${result.licensePlate} (${Math.round(result.confidence * 100)}%)`, 'success');
+      showToast(`Exit license plate recognized: ${result.licensePlate} (${Math.round(result.confidence * 100)}%)`, 'success');
       return result.licensePlate;
     } catch (err: any) {
-      console.error('Lỗi OCR:', err);
-      showToast(err.message || 'Lỗi trong quá trình quét OCR.', 'error');
+      console.error('OCR error:', err);
+      showToast(err.message || 'An error occurred during the OCR scan.', 'error');
       return '';
     } finally {
       setIsScanning(false);
@@ -289,9 +289,9 @@ export default function VehicleCheckout({ compact = false }: { compact?: boolean
           setCalculatedFee(null);
           setLockedCheckoutTime(null);
           setExitPlate(plate);
-          showToast(`Tự động khớp phiên đỗ của xe: ${plate}`, 'success');
+          showToast(`Automatically matched the parking session for vehicle: ${plate}`, 'success');
         } else {
-          showToast(`Không tìm thấy xe đang đỗ có biển số: ${plate}`, 'error');
+          showToast(`No active parking session found for license plate: ${plate}`, 'error');
         }
       } else {
         setExitPlate(plate);
@@ -325,7 +325,7 @@ export default function VehicleCheckout({ compact = false }: { compact?: boolean
       const dataUrl = canvas.toDataURL('image/jpeg');
       setCapturedImage(dataUrl);
     }
-    showToast(`Giả lập quét biển số ra: ${targetPlate}`, 'success');
+    showToast(`Simulated exit plate scan: ${targetPlate}`, 'success');
 
     if (!selectedSession) {
       const queryKey = normalizeComparable(targetPlate);
@@ -507,7 +507,7 @@ export default function VehicleCheckout({ compact = false }: { compact?: boolean
   const handleMarkLost = () => {
     if (!selectedSession) return;
     if (!selectedSession.cardId) {
-      showToast('Phiên này không có ID thẻ từ hệ thống.', 'error');
+      showToast('This session does not have a card ID from the system.', 'error');
       return;
     }
     setShowConfirmLostModal(true);
@@ -517,7 +517,7 @@ export default function VehicleCheckout({ compact = false }: { compact?: boolean
     if (!selectedSession) return;
 
     if (!selectedSession.cardId) {
-      showToast('Phiên này không có ID thẻ từ hệ thống.', 'error');
+      showToast('This session does not have a card ID from the system.', 'error');
       return;
     }
 
@@ -526,13 +526,13 @@ export default function VehicleCheckout({ compact = false }: { compact?: boolean
     try {
       await reportLostCard(selectedSession.id, {
         staffId: STAFF_ID,
-        description: "Báo mất thẻ khi check-out",
+        description: "Card reported lost during check-out",
       });
       await loadActiveSessions();
       setCardLostConfirmed(true);
       setCheckoutCardCode('');
 
-      // Tự động tính toán lại phí gửi xe sau khi báo mất thẻ
+      // Automatically recalculate the parking fee after the card is reported lost.
       const checkoutTimeStr = new Date().toISOString();
       const res = await startCheckout(selectedSession.id, {
         checkOutTime: checkoutTimeStr,
@@ -543,10 +543,10 @@ export default function VehicleCheckout({ compact = false }: { compact?: boolean
       setCalculatedFee(res);
       setLockedCheckoutTime(checkoutTimeStr);
 
-      showToast(`Thẻ ${selectedSession.cardCode ?? selectedSession.cardId} đã được báo mất và tính lại phí đỗ xe thành công.`, 'success');
+      showToast(`Card ${selectedSession.cardCode ?? selectedSession.cardId} was reported lost and the parking fee was recalculated successfully.`, 'success');
     } catch (error) {
       showToast(
-        error instanceof Error ? error.message : 'Không thể báo mất thẻ và tính lại phí.',
+        error instanceof Error ? error.message : 'Unable to report the card as lost and recalculate the fee.',
         'error'
       );
     } finally {
@@ -572,7 +572,7 @@ export default function VehicleCheckout({ compact = false }: { compact?: boolean
     }
 
     if (checkoutCardCode && !isCardMatched) {
-      showToast('Thẻ xuất trình không khớp với thẻ check-in. Vui lòng kiểm tra lại.', 'error');
+      showToast('The presented card does not match the check-in card. Please verify the card.', 'error');
       return;
     }
 
@@ -589,10 +589,10 @@ export default function VehicleCheckout({ compact = false }: { compact?: boolean
 
       setCalculatedFee(res);
       setLockedCheckoutTime(checkoutTimeStr);
-      showToast('Tính phí đỗ xe thành công. Vui lòng xác nhận thanh toán.', 'success');
+      showToast('Parking fee calculated successfully. Please confirm payment.', 'success');
     } catch (error) {
       showToast(
-        error instanceof Error ? error.message : 'Không thể tính toán phí gửi xe.',
+        error instanceof Error ? error.message : 'Unable to calculate the parking fee.',
         'error'
       );
     } finally {
@@ -668,7 +668,7 @@ export default function VehicleCheckout({ compact = false }: { compact?: boolean
 
       await loadActiveSessions();
       resetForNextVehicle();
-      showToast('Thực hiện check-out và thanh toán thành công!', 'success');
+      showToast('Check-out and payment completed successfully!', 'success');
     } catch (error) {
       showToast(
         error instanceof Error ? error.message : 'Could not complete checkout flow.',
@@ -681,7 +681,7 @@ export default function VehicleCheckout({ compact = false }: { compact?: boolean
 
   const handleCompleteCheckout = async () => {
     if (!selectedSession || !calculatedFee || !lockedCheckoutTime) {
-      showToast('Vui lòng tính phí đỗ xe trước.', 'error');
+      showToast('Please calculate the parking fee first.', 'error');
       return;
     }
 
@@ -707,7 +707,7 @@ export default function VehicleCheckout({ compact = false }: { compact?: boolean
         name.includes('PAYMENT') ||
         name.includes('REFUSE') ||
         name.includes('KHONG THANH TOAN') ||
-        name.includes('KHÔNG THANH TOÁN')
+        name.includes('UNPAID')
       );
     }) ?? null;
 
@@ -776,7 +776,7 @@ export default function VehicleCheckout({ compact = false }: { compact?: boolean
         )}
 
         <main className={compact ? 'flex flex-col gap-4' : 'grid min-h-0 flex-1 gap-4 xl:grid-cols-2'}>
-          {/* CỘT TRÁI: CAMERA LỐI RA (QUÉT BIỂN SỐ) */}
+          {/* LEFT COLUMN: EXIT CAMERA (LICENSE PLATE SCAN) */}
           <div className="space-y-4 flex flex-col min-h-0">
             <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm flex flex-col">
               <div className="flex items-center justify-between border-b border-slate-100 px-4 py-2.5">
@@ -889,10 +889,10 @@ export default function VehicleCheckout({ compact = false }: { compact?: boolean
             </section>
           </div>
 
-          {/* CỘT PHẢI: TÌM KIẾM, ĐỐI CHIẾU & THANH TOÁN */}
+          {/* RIGHT COLUMN: SEARCH, VERIFICATION, AND PAYMENT */}
           <div className="space-y-3 flex flex-col min-h-0">
             <section className="min-h-0 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm space-y-3 flex flex-col">
-              {/* Thanh tìm kiếm session nhỏ gọn */}
+              {/* Compact session search bar */}
               <form onSubmit={handleSearch} className="flex gap-2 items-center border-b border-slate-100 pb-3">
                 <div className="relative flex-1">
                   <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-base">
@@ -916,7 +916,7 @@ export default function VehicleCheckout({ compact = false }: { compact?: boolean
 
               {selectedSession ? (
                 <div className="space-y-3">
-                  {/* So sánh hình ảnh Check-in vs Check-out */}
+                  {/* Check-in and check-out image comparison */}
                   <div className="grid grid-cols-2 gap-3">
                     {/* Check-in Photo */}
                     <div className="overflow-hidden rounded-xl border border-slate-200 bg-slate-900 aspect-[4/3] relative flex items-center justify-center h-28">
@@ -957,7 +957,7 @@ export default function VehicleCheckout({ compact = false }: { compact?: boolean
                     </div>
                   </div>
 
-                  {/* Nhập/So khớp biển số */}
+                  {/* License plate entry and matching */}
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">Check-in Plate</label>
@@ -978,7 +978,7 @@ export default function VehicleCheckout({ compact = false }: { compact?: boolean
                     </div>
                   </div>
 
-                  {/* Nhập/So khớp thẻ */}
+                  {/* Card entry and matching */}
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">Check-in Card</label>
@@ -995,7 +995,7 @@ export default function VehicleCheckout({ compact = false }: { compact?: boolean
                         value={checkoutCardCode}
                         onChange={(e) => setCheckoutCardCode(e.target.value.toUpperCase())}
                         disabled={isSelectedCardLost}
-                        placeholder={isSelectedCardLost ? "Thẻ đã báo mất (Lost)" : "Type/select card code"}
+                        placeholder={isSelectedCardLost ? "Card reported lost" : "Type/select card code"}
                         className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-2.5 py-2 font-mono text-xs font-bold uppercase tracking-wider text-slate-900 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 disabled:bg-slate-100 disabled:text-slate-400 disabled:cursor-not-allowed"
                       />
                       <datalist id="checkout-cards-list">
@@ -1006,7 +1006,7 @@ export default function VehicleCheckout({ compact = false }: { compact?: boolean
                     </div>
                   </div>
 
-                  {/* Badges so khớp và so sánh */}
+                  {/* Matching and comparison badges */}
                   <div className="grid grid-cols-2 gap-3">
                     {/* Plate Match status */}
                     <div
@@ -1043,7 +1043,7 @@ export default function VehicleCheckout({ compact = false }: { compact?: boolean
                     </div>
                   </div>
 
-                  {/* Thông tin phụ check-in */}
+                  {/* Additional check-in information */}
                   <div className="grid grid-cols-2 gap-3">
                     <div className="rounded-xl border border-slate-100 bg-slate-50 p-2">
                       <p className="text-[9px] font-black uppercase text-slate-400">Duration / Slot</p>
@@ -1071,7 +1071,7 @@ export default function VehicleCheckout({ compact = false }: { compact?: boolean
                     </div>
                   </div>
 
-                  {/* Tính toán tiền phí & billing */}
+                  {/* Fee calculation and billing */}
                   {calculatedFee && (
                     <div className="border-t border-slate-100 pt-3 space-y-3">
                       <div className="bg-slate-50 rounded-xl p-2.5 border border-slate-100 flex justify-between items-center text-xs">
@@ -1090,7 +1090,7 @@ export default function VehicleCheckout({ compact = false }: { compact?: boolean
                         </div>
                       </div>
 
-                      {/* Chọn phương thức thanh toán */}
+                      {/* Payment method selection */}
                       <div className="grid grid-cols-2 gap-3">
                         {(['CASH', 'ONLINE_BANKING'] as CheckoutPaymentMethod[]).map((method) => (
                           <button
@@ -1107,7 +1107,7 @@ export default function VehicleCheckout({ compact = false }: { compact?: boolean
                         ))}
                       </div>
 
-                      {/* Nút thanh toán */}
+                      {/* Payment button */}
                       <div className="flex flex-col gap-1.5">
                         <button
                           type="button"
@@ -1127,7 +1127,7 @@ export default function VehicleCheckout({ compact = false }: { compact?: boolean
                           className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white py-2 text-xs font-black text-slate-700 hover:bg-slate-50 hover:border-slate-300 transition shadow-sm"
                         >
                           <span className="material-symbols-outlined text-base text-slate-500">refresh</span>
-                          Tính lại phí / Quét lại biển số (Recalculate)
+                          Recalculate Fee / Rescan License Plate
                         </button>
                       </div>
                     </div>
@@ -1289,20 +1289,20 @@ export default function VehicleCheckout({ compact = false }: { compact?: boolean
               <div className="flex items-center gap-3 text-red-600">
                 <span className="material-symbols-outlined text-4xl">warning</span>
                 <div>
-                  <h3 className="text-xl font-black text-slate-900">Xác nhận báo mất thẻ</h3>
-                  <p className="text-sm font-semibold text-slate-500">Khóa thẻ gửi xe trong hệ thống</p>
+                  <h3 className="text-xl font-black text-slate-900">Confirm Lost Card Report</h3>
+                  <p className="text-sm font-semibold text-slate-500">Lock the parking card in the system</p>
                 </div>
               </div>
 
               <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100 text-sm space-y-2">
                 <p className="text-slate-600 leading-relaxed">
-                  Bạn đang chuẩn bị báo mất thẻ cho thẻ gửi xe mã số <strong className="font-mono text-slate-950 font-black">{selectedSession?.cardCode}</strong> của xe <strong className="font-mono text-slate-950 font-black">{selectedSession?.licensePlate}</strong>.
+                  You are about to report parking card <strong className="font-mono text-slate-950 font-black">{selectedSession?.cardCode}</strong> as lost for vehicle <strong className="font-mono text-slate-950 font-black">{selectedSession?.licensePlate}</strong>.
                 </p>
                 <p className="text-slate-600 leading-relaxed">
-                  Thao tác này sẽ khóa thẻ này và đánh dấu phiên gửi xe ở trạng thái mất thẻ. Người dùng sẽ thanh toán phí phạt và phí đỗ xe tương ứng.
+                  This action will lock the card and mark the parking session as a lost-card case. The customer will be charged the applicable penalty and parking fee.
                 </p>
                 <p className="text-[11px] text-red-500 font-bold border-t border-slate-200/60 pt-2 mt-2">
-                  * Chú ý: Thẻ bị báo mất sẽ không thể sử dụng để quét ra/vào cho đến khi được mở khóa.
+                  * Note: A card reported as lost cannot be used at the entry or exit gate until it is unlocked.
                 </p>
               </div>
 
@@ -1312,7 +1312,7 @@ export default function VehicleCheckout({ compact = false }: { compact?: boolean
                   onClick={() => setShowConfirmLostModal(false)}
                   className="flex-1 rounded-xl border border-slate-200 bg-white py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-50 transition"
                 >
-                  Hủy bỏ
+                  Cancel
                 </button>
                 <button
                   type="button"
@@ -1321,7 +1321,7 @@ export default function VehicleCheckout({ compact = false }: { compact?: boolean
                   }}
                   className="flex-1 rounded-xl bg-red-600 py-2.5 text-xs font-black text-white shadow-md shadow-red-600/10 hover:bg-red-700 transition"
                 >
-                  Xác nhận báo mất
+                  Confirm Lost Card
                 </button>
               </div>
             </div>
@@ -1337,22 +1337,22 @@ export default function VehicleCheckout({ compact = false }: { compact?: boolean
               <div className="flex items-center gap-3 text-red-600">
                 <span className="material-symbols-outlined text-4xl">error</span>
                 <div>
-                  <h3 className="text-xl font-black text-slate-900">Yêu cầu báo mất thẻ</h3>
-                  <p className="text-sm font-semibold text-slate-500">Bắt buộc khai báo sự cố mất thẻ</p>
+                  <h3 className="text-xl font-black text-slate-900">Lost Card Report Required</h3>
+                  <p className="text-sm font-semibold text-slate-500">A lost-card incident must be reported</p>
                 </div>
               </div>
 
               <div className="bg-red-50 rounded-2xl p-4 border border-red-100 text-sm text-red-800 space-y-2 leading-relaxed">
                 <p>
-                  Hệ thống phát hiện xe check-out không trình thẻ, nhưng thẻ này chưa được khai báo mất.
+                  The vehicle is checking out without presenting its card, but the card has not been reported as lost.
                 </p>
                 <p className="font-bold">
-                  Quy trình bắt buộc:
+                  Required procedure:
                 </p>
                 <ol className="list-decimal list-inside space-y-1">
-                  <li>Nhân viên phải bấm nút <strong className="underline text-red-950">Báo mất thẻ</strong> (Lost card) ở bên phải.</li>
-                  <li>Xác nhận mất thẻ để hệ thống cập nhật trạng thái thẻ.</li>
-                  <li>Sau khi thẻ chuyển sang trạng thái mất, mới có thể tiến hành bấm thanh toán check-out!</li>
+                  <li>Click <strong className="underline text-red-950">Report Lost Card</strong> on the right.</li>
+                  <li>Confirm the report so the system can update the card status.</li>
+                  <li>Continue with check-out payment only after the card status changes to lost.</li>
                 </ol>
               </div>
 
@@ -1362,7 +1362,7 @@ export default function VehicleCheckout({ compact = false }: { compact?: boolean
                   onClick={() => setShowNoCardErrorModal(false)}
                   className="w-full sm:w-auto rounded-xl bg-slate-900 px-6 py-2.5 text-sm font-black text-white hover:bg-slate-800 transition"
                 >
-                  Đã hiểu
+                  Understood
                 </button>
               </div>
             </div>

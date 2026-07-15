@@ -294,3 +294,21 @@ export const completeCheckout = async (sessionId: number): Promise<void> => {
     throw new Error(getApiErrorMessage(error));
   }
 };
+
+export const reportLostCard = async (
+  sessionId: number,
+  input: {
+    staffId: number;
+    description: string;
+  }
+): Promise<any> => {
+  try {
+    const response = await api.post<BaseResponse<any>>(
+      `/parking-sessions/${sessionId}/lost-card`,
+      input
+    );
+    return unwrap(response, 'Could not report lost card.');
+  } catch (error) {
+    throw new Error(getApiErrorMessage(error));
+  }
+};

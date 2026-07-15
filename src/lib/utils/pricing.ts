@@ -60,14 +60,14 @@ export function calculateParkingFee(
   // Calculate surcharges
   const surchargesList: { name: string; amount: number }[] = [];
   if (options?.hasLostCard) {
-    surchargesList.push({ name: 'Mất thẻ / Lost Card', amount: SURCHARGE.LOST_CARD_PENALTY });
+    surchargesList.push({ name: 'Lost Card', amount: SURCHARGE.LOST_CARD_PENALTY });
   }
   if (options?.hasWrongZone) {
-    surchargesList.push({ name: 'Sai làn / Wrong Zone', amount: SURCHARGE.WRONG_ZONE_PENALTY });
+    surchargesList.push({ name: 'Wrong Zone', amount: SURCHARGE.WRONG_ZONE_PENALTY });
   }
   if (options?.isBooking) {
     // Booking deposit is deducted from the final fee
-    surchargesList.push({ name: 'Khấu trừ đặt chỗ / Deposit Deducted', amount: -SURCHARGE.BOOKING_DEPOSIT });
+    surchargesList.push({ name: 'Deposit Deducted', amount: -SURCHARGE.BOOKING_DEPOSIT });
   }
 
   const surchargeSum = surchargesList.reduce((sum, item) => sum + item.amount, 0);

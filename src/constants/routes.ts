@@ -63,8 +63,6 @@ export const ROUTES = {
     DASHBOARD: '/dashboard/admin',
     USERS: '/dashboard/admin/users',
     ROLES: '/dashboard/admin/roles',
-    ANALYTICS: '/dashboard/admin/analytics',
-    DEVICES: '/dashboard/admin/devices',
     SETTINGS: '/dashboard/admin/settings',
   },
 } as const;

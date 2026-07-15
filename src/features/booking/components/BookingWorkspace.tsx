@@ -30,6 +30,7 @@ export default function BookingWorkspace() {
     isLoading,
     error,
     fetchBookings,
+    fetchBookingsByBuilding,
   } = useBookings();
 
   const [searchTerm, setSearchTerm] = useState('');
@@ -41,8 +42,6 @@ export default function BookingWorkspace() {
   const [currentPage, setCurrentPage] = useState(1);
   const ITEMS_PER_PAGE = 8;
 
-
-
   useEffect(() => {
     api.get<BaseResponse<PagedResult<BuildingItem>>>('/Buildings/paged?pageIndex=1&pageSize=100')
       .then(res => {
@@ -53,13 +52,21 @@ export default function BookingWorkspace() {
       .catch(err => console.error('Error fetching buildings:', err));
   }, []);
 
-  const triggerFetch = useCallback(() => {
-    fetchBookings();
-  }, [fetchBookings]);
-
   useEffect(() => {
-    triggerFetch();
-  }, [triggerFetch]);
+    if (selectedBuildingId === 'ALL') {
+      fetchBookings();
+    } else {
+      fetchBookingsByBuilding(selectedBuildingId);
+    }
+  }, [selectedBuildingId, fetchBookings, fetchBookingsByBuilding]);
+
+  const handleRefresh = useCallback(() => {
+    if (selectedBuildingId === 'ALL') {
+      fetchBookings();
+    } else {
+      fetchBookingsByBuilding(selectedBuildingId);
+    }
+  }, [selectedBuildingId, fetchBookings, fetchBookingsByBuilding]);
 
   // Filter bookings by building first for building-specific metrics
   const buildingFilteredBookings = useMemo(() => {
@@ -145,7 +152,7 @@ export default function BookingWorkspace() {
           </p>
         </div>
         <button
-          onClick={triggerFetch}
+          onClick={handleRefresh}
           disabled={isLoading}
           className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 text-slate-600 text-xs font-bold rounded-xl shadow-sm hover:bg-slate-50 transition-all disabled:opacity-50"
         >
@@ -286,7 +293,7 @@ export default function BookingWorkspace() {
             <div className="py-20 text-center text-rose-500 text-xs font-semibold">
               <p>{error}</p>
               <button
-                onClick={triggerFetch}
+                onClick={handleRefresh}
                 className="mt-3 px-4 py-2 border border-rose-200 text-rose-600 rounded-lg hover:bg-rose-50"
               >
                 Retry Request

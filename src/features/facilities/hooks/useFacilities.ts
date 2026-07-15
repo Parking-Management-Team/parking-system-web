@@ -21,6 +21,7 @@ interface ZoneResponse {
   accessType?: number;  // Backend: 0 = GENERAL, 1 = MONTHLY
   capacity?: number;
   status: number | string;
+  bookingLimitRate?: number;
 }
 
 // Map accessType number to string (Backend: 0 = GENERAL, 1 = MONTHLY)
@@ -152,6 +153,7 @@ export function useFacilities() {
   const [formZoneVehicleTypeId, setFormZoneVehicleTypeId] = useState<number | ''>('');
   const [formZoneAccessType, setFormZoneAccessType] = useState<'GENERAL' | 'MONTHLY'>('GENERAL');
   const [formZoneSlotCapacity, setFormZoneSlotCapacity] = useState(5);
+  const [formZoneBookingLimitRate, setFormZoneBookingLimitRate] = useState(80);
   const [formZoneStatus, setFormZoneStatus] = useState<'Active' | 'Inactive'>('Active');
   const [editingZone, setEditingZone] = useState<Zone | null>(null);
   const [deletingZone, setDeletingZone] = useState<Zone | null>(null);
@@ -243,7 +245,8 @@ export function useFacilities() {
             vehicleType: vt ? vt.name : `Type ${item.vehicleTypeId}`,
             zoneAccessType: mapAccessTypeToFrontend(item.accessType),
             slotCapacity: item.capacity || 0,
-            status: mapStatusToFrontend(item.status)
+            status: mapStatusToFrontend(item.status),
+            bookingLimitRate: item.bookingLimitRate ?? 80
           };
         });
         setZones(mappedZones);
@@ -617,6 +620,7 @@ export function useFacilities() {
     setFormZoneVehicleTypeId(''); // Trống mặc định để require người dùng chọn
     setFormZoneAccessType('GENERAL');
     setFormZoneSlotCapacity(5);
+    setFormZoneBookingLimitRate(80);
     setFormZoneStatus('Active');
     setIsAddZoneOpen(true);
   };
@@ -629,6 +633,7 @@ export function useFacilities() {
     setFormZoneVehicleTypeId(zone.vehicleTypeId);
     setFormZoneAccessType(zone.zoneAccessType);
     setFormZoneSlotCapacity(zone.slotCapacity);
+    setFormZoneBookingLimitRate(zone.bookingLimitRate ?? 80);
     setFormZoneStatus(zone.status);
     setIsEditZoneOpen(true);
   };
@@ -663,7 +668,8 @@ export function useFacilities() {
         name: formZoneName,
         vehicleTypeId: Number(formZoneVehicleTypeId),
         accessType: mapAccessTypeToBackend(formZoneAccessType),
-        capacity: formZoneSlotCapacity
+        capacity: formZoneSlotCapacity,
+        bookingLimitRate: formZoneBookingLimitRate
       });
       if (res.success) {
         setIsAddZoneOpen(false);
@@ -703,7 +709,8 @@ export function useFacilities() {
         name: formZoneName,
         vehicleTypeId: Number(formZoneVehicleTypeId),
         accessType: mapAccessTypeToBackend(formZoneAccessType),
-        capacity: formZoneSlotCapacity
+        capacity: formZoneSlotCapacity,
+        bookingLimitRate: formZoneBookingLimitRate
       });
       if (res.success) {
         setIsEditZoneOpen(false);
@@ -852,6 +859,8 @@ export function useFacilities() {
     setFormZoneAccessType,
     formZoneSlotCapacity,
     setFormZoneSlotCapacity,
+    formZoneBookingLimitRate,
+    setFormZoneBookingLimitRate,
     formZoneStatus,
     setFormZoneStatus,
     editingZone,

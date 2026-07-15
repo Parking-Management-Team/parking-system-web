@@ -106,7 +106,7 @@ export default function ZoneColumn({
                       </span>
                       <span className={`w-1.5 h-1.5 rounded-full ${zone.status === 'Active' ? 'bg-[#006d43]' : 'bg-red-500'}`} />
                     </h3>
-                    <p className="text-[11px] text-slate-400 mt-1">Capacity allocation: {zone.slotCapacity} slots</p>
+                    <p className="text-[11px] text-slate-400 mt-1">Capacity allocation: {zone.slotCapacity} slots | Booking limit: {zone.bookingLimitRate ?? 80}%</p>
                   </div>
 
                   <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">

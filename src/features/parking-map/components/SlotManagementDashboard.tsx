@@ -237,20 +237,12 @@ export function SlotManagementDashboard() {
               if (session) {
                 assignedVehicle = {
                   plate: session.licensePlateIn,
-                  model: 'Registered Vehicle',
-                  ownerName: session.bookingId ? `Booking Customer` : 'Visitor / Short-term',
-                  memberId: session.bookingId ? `BK-${session.bookingId}` : 'WALK-IN',
                   startDate: session.checkInTime,
-                  endDate: session.checkOutTime || undefined,
-                  notes: session.bookingId ? `Booking #${session.bookingId}` : 'Check-in via staff'
+                  endDate: session.checkOutTime || undefined
                 };
               } else if (item.occupiedLicensePlate) {
                 assignedVehicle = {
-                  plate: item.occupiedLicensePlate,
-                  model: 'Occupied Vehicle',
-                  ownerName: 'Visitor / Unknown',
-                  memberId: 'WALK-IN',
-                  notes: 'Active session not found in list.'
+                  plate: item.occupiedLicensePlate
                 };
               }
 
@@ -284,7 +276,7 @@ export function SlotManagementDashboard() {
                 floorId: selectedFloorId,
                 buildingId: selectedBuildingId || 0,
                 slotType: zone.vehicleType === 'EV Charging' ? 'EV Charging' as const : (zone.vehicleType === 'Motorbike' ? 'Motorbike' as const : 'Standard' as const),
-                status: mapStatus(item.status),
+                status: assignedVehicle ? 'OCCUPIED' : mapStatus(item.status),
                 vehicleTypeId: item.vehicleTypeId,
                 assignedVehicle
               };
@@ -332,20 +324,12 @@ export function SlotManagementDashboard() {
               if (session) {
                 assignedVehicle = {
                   plate: session.licensePlateIn,
-                  model: 'Registered Vehicle',
-                  ownerName: session.bookingId ? `Booking Customer` : 'Visitor / Short-term',
-                  memberId: session.bookingId ? `BK-${session.bookingId}` : 'WALK-IN',
                   startDate: session.checkInTime,
-                  endDate: session.checkOutTime || undefined,
-                  notes: session.bookingId ? `Booking #${session.bookingId}` : 'Check-in via staff'
+                  endDate: session.checkOutTime || undefined
                 };
               } else if (item.occupiedLicensePlate) {
                 assignedVehicle = {
-                  plate: item.occupiedLicensePlate,
-                  model: 'Occupied Vehicle',
-                  ownerName: 'Visitor / Unknown',
-                  memberId: 'WALK-IN',
-                  notes: 'Active session not found in list.'
+                  plate: item.occupiedLicensePlate
                 };
               }
 
@@ -378,7 +362,7 @@ export function SlotManagementDashboard() {
                 floorId: selectedFloorId,
                 buildingId: selectedBuildingId || 0,
                 slotType: zone.vehicleType === 'EV Charging' ? 'EV Charging' as const : (zone.vehicleType === 'Motorbike' ? 'Motorbike' as const : 'Standard' as const),
-                status: mapStatus(item.status),
+                status: assignedVehicle ? 'OCCUPIED' : mapStatus(item.status),
                 vehicleTypeId: item.vehicleTypeId,
                 assignedVehicle
               };

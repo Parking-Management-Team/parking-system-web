@@ -79,6 +79,8 @@ interface FacilitiesModalsProps {
   setFormZoneAccessType: (type: 'GENERAL' | 'MONTHLY') => void;
   formZoneSlotCapacity: number;
   setFormZoneSlotCapacity: (num: number) => void;
+  formZoneBookingLimitRate: number;
+  setFormZoneBookingLimitRate: (num: number) => void;
   formZoneStatus: 'Active' | 'Inactive';
   setFormZoneStatus: (status: 'Active' | 'Inactive') => void;
   
@@ -169,6 +171,8 @@ export default function FacilitiesModals({
   setFormZoneAccessType,
   formZoneSlotCapacity,
   setFormZoneSlotCapacity,
+  formZoneBookingLimitRate,
+  setFormZoneBookingLimitRate,
   formZoneStatus,
   setFormZoneStatus,
   
@@ -660,17 +664,23 @@ export default function FacilitiesModals({
                   className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm text-[#111c2d] focus:outline-none focus:border-[#006d43]"
                 />
               </div>
+
               <div>
-                <label className="block text-xs font-semibold text-[#3d4a41] mb-1">Status</label>
-                <select
-                  value={formZoneStatus}
-                  onChange={(e) => setFormZoneStatus(e.target.value as 'Active' | 'Inactive')}
+                <label className="block text-xs font-semibold text-[#3d4a41] mb-1">Booking Limit Rate (%) *</label>
+                <input 
+                  type="number" 
+                  required
+                  min={1}
+                  max={100}
+                  value={formZoneBookingLimitRate}
+                  onChange={(e) => setFormZoneBookingLimitRate(parseInt(e.target.value, 10) || 80)}
                   className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm text-[#111c2d] focus:outline-none focus:border-[#006d43]"
-                >
-                  <option value="Active">Active</option>
-                  <option value="Inactive">Inactive</option>
-                </select>
+                />
+                <p className="text-[10px] text-slate-400 mt-1">
+                  Percentage of capacity available for booking (1-100%). Default: 80%.
+                </p>
               </div>
+
 
               <div className="flex justify-end gap-2 pt-2">
                 <button 
@@ -746,17 +756,23 @@ export default function FacilitiesModals({
                   className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm text-[#111c2d] focus:outline-none focus:border-[#006d43]"
                 />
               </div>
+
               <div>
-                <label className="block text-xs font-semibold text-[#3d4a41] mb-1">Status</label>
-                <select
-                  value={formZoneStatus}
-                  onChange={(e) => setFormZoneStatus(e.target.value as 'Active' | 'Inactive')}
+                <label className="block text-xs font-semibold text-[#3d4a41] mb-1">Booking Limit Rate (%) *</label>
+                <input 
+                  type="number" 
+                  required
+                  min={1}
+                  max={100}
+                  value={formZoneBookingLimitRate}
+                  onChange={(e) => setFormZoneBookingLimitRate(parseInt(e.target.value, 10) || 80)}
                   className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm text-[#111c2d] focus:outline-none focus:border-[#006d43]"
-                >
-                  <option value="Active">Active</option>
-                  <option value="Inactive">Inactive</option>
-                </select>
+                />
+                <p className="text-[10px] text-slate-400 mt-1">
+                  Percentage of capacity available for booking (1-100%).
+                </p>
               </div>
+
 
               <div className="flex justify-end gap-2 pt-2">
                 <button 

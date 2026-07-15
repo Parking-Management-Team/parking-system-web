@@ -92,18 +92,10 @@ export function LoginForm({ isModal = false, onSuccess, onClose, onSwitchMode }:
 
     try {
       const loggedInUser = await login(identifier, password);
-      // Chuyển hướng người dùng dựa trên vai trò (role)
-      if (loggedInUser.role === 'MANAGER') {
-        router.push('/dashboard/manager/facilities');
-        if (isModal && onSuccess) {
-          onSuccess();
-        }
+      if (isModal && onSuccess) {
+        onSuccess();
       } else {
-        if (isModal && onSuccess) {
-          onSuccess();
-        } else {
-          router.push('/');
-        }
+        router.push('/dashboard');
       }
     } catch (err: any) {
       if (err && err.code === 'REQUIRE_LOGIN_OTP_VERIFICATION') {
@@ -134,17 +126,10 @@ export function LoginForm({ isModal = false, onSuccess, onClose, onSwitchMode }:
       const loggedInUser = await verifyLoginOtp(identifier, password, otpCode);
       showToast('Login successful!', 'success');
       
-      if (loggedInUser.role === 'MANAGER') {
-        router.push('/dashboard/manager/facilities');
-        if (isModal && onSuccess) {
-          onSuccess();
-        }
+      if (isModal && onSuccess) {
+        onSuccess();
       } else {
-        if (isModal && onSuccess) {
-          onSuccess();
-        } else {
-          router.push('/');
-        }
+        router.push('/dashboard');
       }
     } catch (err: any) {
       setErrors({ form: err.message || 'Invalid or expired OTP. Please try again.' });
@@ -191,18 +176,10 @@ export function LoginForm({ isModal = false, onSuccess, onClose, onSwitchMode }:
     try {
       // Gửi token nhận được từ Google lên Context để login qua Backend
       const loggedInUser = await loginWithGoogle(response.credential);
-      // Chuyển hướng người dùng dựa trên vai trò (role) sau khi đăng nhập Google
-      if (loggedInUser.role === 'MANAGER') {
-        router.push('/dashboard/manager/facilities');
-        if (isModal && onSuccess) {
-          onSuccess();
-        }
+      if (isModal && onSuccess) {
+        onSuccess();
       } else {
-        if (isModal && onSuccess) {
-          onSuccess();
-        } else {
-          router.push('/');
-        }
+        router.push('/dashboard');
       }
     } catch (err: any) {
       if (err && err.code === 'REQUIRE_OTP_VERIFICATION') {

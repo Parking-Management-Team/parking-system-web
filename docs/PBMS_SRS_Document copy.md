@@ -4053,7 +4053,7 @@ stateDiagram-v2
 
 ### 15.2 Verification Methods
 - **Automated API Tests**: Chạy lệnh `dotnet test` kiểm thử toàn bộ logic checkin bảo vệ slot, tính phí qua Pricing Engine và dọn dẹp các bản ghi hết hạn.
-- **Manual Verification**: Truy cập trang `/camera-test` trên browser local, kiểm thử luồng webcam chụp ảnh Base64 thực tế và nhận diện biển số xe bằng OCR.
+- **Manual Verification**: Kiểm thử luồng webcam chụp ảnh Base64 và nhận diện biển số xe bằng OCR trực tiếp trên màn hình check-in/check-out.
 
 ---
 

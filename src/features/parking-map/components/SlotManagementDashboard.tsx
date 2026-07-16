@@ -612,7 +612,7 @@ export function SlotManagementDashboard() {
                 href={backLink}
                 className="p-1.5 rounded-lg text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 transition-colors"
               >
-                <span className="material-symbols-outlined text-[20px] align-middle">arrow_back</span>
+                ←
               </Link>
               <h1 className="text-2xl font-bold text-slate-855 tracking-tight">Slot Management</h1>
             </div>
@@ -663,7 +663,6 @@ export function SlotManagementDashboard() {
                   : 'text-slate-400 border-transparent hover:text-slate-600'
               }`}
             >
-              <span className="material-symbols-outlined text-[18px]">map</span>
               Visual Layout Map
             </button>
             <button
@@ -674,7 +673,6 @@ export function SlotManagementDashboard() {
                   : 'text-slate-400 border-transparent hover:text-slate-600'
               }`}
             >
-              <span className="material-symbols-outlined text-[18px]">list_alt</span>
               Session Allocations ({activeSessions.filter(s => zones.find(z => z.id === s.zoneId)?.floorId === selectedFloorId).length})
             </button>
           </div>
@@ -698,9 +696,9 @@ export function SlotManagementDashboard() {
             <button
               onClick={refreshSlotsAndSessions}
               title="Refresh now"
-              className="p-1.5 rounded-lg text-slate-400 hover:text-[#006d43] hover:bg-emerald-50 transition-colors"
+              className="px-3 py-1.5 rounded-lg text-slate-500 hover:text-[#006d430] hover:bg-emerald-50 transition-colors text-xs font-bold"
             >
-              <span className="material-symbols-outlined text-[16px] align-middle">refresh</span>
+              Refresh
             </button>
           </div>
         </div>
@@ -757,11 +755,6 @@ export function SlotManagementDashboard() {
                   <div key={vehicleType.vehicleTypeId} className="bg-white border-2 border-slate-200 shadow-md rounded-2xl p-5 flex flex-col gap-3 hover:shadow-lg transition-shadow">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2.5">
-                        <div className={`p-2 rounded-xl ${isMotorbike ? 'bg-slate-100' : 'bg-emerald-50'}`}>
-                          <span className={`material-symbols-outlined text-[20px] ${isMotorbike ? 'text-slate-600' : 'text-[#006d43]'}`}>
-                            {isMotorbike ? 'motorcycle' : 'directions_car'}
-                          </span>
-                        </div>
                         <span className="text-xs font-extrabold text-slate-700 uppercase tracking-wide">{isMotorbike ? 'Motorbike' : 'Car'} · Floor {floorSlotSummary.floorNumber}</span>
                       </div>
                       {!isMotorbike && (
@@ -805,10 +798,7 @@ export function SlotManagementDashboard() {
                     {/* Booking Capacity Info */}
                     {!isMotorbike && (
                       <div className="bg-blue-50 border border-blue-100 rounded-xl p-3 flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <span className="material-symbols-outlined text-[16px] text-blue-600">event_available</span>
-                          <span className="text-[11px] font-bold text-blue-700">Booking Capacity</span>
-                        </div>
+                        <span className="text-[11px] font-bold text-blue-700">Booking Capacity</span>
                         <div className="text-right">
                           <span className="text-sm font-black text-blue-800">{remainingBookable}</span>
                           <span className="text-[10px] font-bold text-blue-500 ml-1">/ {maxBookable} remaining</span>
@@ -867,7 +857,6 @@ export function SlotManagementDashboard() {
             {/* Car Slots Layout grids (rendered per zone) */}
             {activeCarZones.length === 0 ? (
               <div className="bg-white border border-dashed border-slate-200 rounded-2xl p-12 text-center">
-                <span className="material-symbols-outlined text-slate-300 text-5xl mb-3">grid_view</span>
                 <h3 className="text-sm font-bold text-slate-600">No Car Zones Configured</h3>
                 <p className="text-xs text-slate-400 mt-1">Configure your zones and slots under Facilities Management first.</p>
               </div>
@@ -880,10 +869,7 @@ export function SlotManagementDashboard() {
                   <div key={zone.id} className="bg-[#fcfdfc] p-6 rounded-2xl border border-emerald-500/10 shadow-sm">
                     <div className="flex items-center justify-between mb-6">
                       <div>
-                        <h3 className="text-base font-extrabold text-slate-800 flex items-center gap-2">
-                          <span className="material-symbols-outlined text-[20px] text-[#006d43]">
-                            directions_car
-                          </span>
+                        <h3 className="text-base font-extrabold text-slate-800">
                           {zone.name}
                         </h3>
                         <div className="flex items-center gap-2 mt-1">
@@ -906,35 +892,19 @@ export function SlotManagementDashboard() {
                                 key={slot.id}
                                 onClick={() => handleSlotClick(slot)}
                                 title={slot.status === 'RESERVED' ? 'Reserved for booking' : undefined}
-                                className={`h-24 border rounded-xl flex flex-col items-center justify-between py-3 px-3.5 shadow-sm transition-all hover:scale-[1.03] active:scale-95 group font-bold text-sm ${getSlotColorClass(
+                                className={`h-24 border rounded-xl flex flex-col items-center justify-center py-3 px-3.5 shadow-sm transition-all hover:scale-[1.03] active:scale-95 group font-bold text-sm ${getSlotColorClass(
                                   slot.status
                                 )}`}
                               >
                                 <span className="truncate w-full text-center px-1">{slot.slotCode}</span>
-                                {slot.status === 'OCCUPIED' && slot.assignedVehicle ? (
-                                  <div className="w-full text-center">
-                                    <span className="material-symbols-outlined text-[16px]">
-                                      directions_car
-                                    </span>
-                                    <span className="block text-[9px] font-extrabold mt-0.5 opacity-90 truncate leading-tight">
-                                      {slot.assignedVehicle.plate}
-                                    </span>
-                                  </div>
-                                ) : slot.status === 'RESERVED' ? (
-                                  <div className="w-full text-center">
-                                    <span className="material-symbols-outlined text-[16px]">
-                                      event
-                                    </span>
-                                    <span className="block text-[8px] font-extrabold mt-0.5 opacity-80 uppercase">
-                                      Booked
-                                    </span>
-                                  </div>
-                                ) : (
-                                  <span className="material-symbols-outlined text-[18px]">
-                                    {slot.status === 'AVAILABLE' ? 'check_circle' :
-                                     slot.status === 'BLOCKED' ? 'block' :
-                                     slot.status === 'MAINTENANCE' ? 'build' :
-                                     'directions_car'}
+                                {slot.status === 'OCCUPIED' && slot.assignedVehicle && (
+                                  <span className="block text-[9px] font-extrabold mt-1 opacity-90 truncate leading-tight">
+                                    {slot.assignedVehicle.plate}
+                                  </span>
+                                )}
+                                {slot.status === 'RESERVED' && (
+                                  <span className="block text-[8px] font-extrabold mt-1 opacity-80 uppercase">
+                                    Booked
                                   </span>
                                 )}
                               </button>
@@ -949,14 +919,9 @@ export function SlotManagementDashboard() {
             {/* Motorbike Capacity Monitoring Section */}
             <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 mb-6 border-b border-slate-100 gap-4">
-                <div className="flex items-center gap-2.5">
-                  <div className="p-2 rounded-xl bg-slate-100">
-                    <span className="material-symbols-outlined text-slate-600 text-xl">motorcycle</span>
-                  </div>
-                  <div>
-                    <h3 className="text-base font-extrabold text-slate-800">Motorbike Capacity Monitoring</h3>
-                    <p className="text-xs text-slate-400 font-semibold mt-0.5">Real-time occupancy of motorbike parking zones</p>
-                  </div>
+                <div>
+                  <h3 className="text-base font-extrabold text-slate-800">Motorbike Capacity Monitoring</h3>
+                  <p className="text-xs text-slate-400 font-semibold mt-0.5">Real-time occupancy of motorbike parking zones</p>
                 </div>
               </div>
 
@@ -1021,8 +986,7 @@ export function SlotManagementDashboard() {
 
                         return (
                           <tr key={zone.id} className="text-sm font-semibold text-slate-700">
-                            <td className="py-3.5 font-extrabold text-slate-800 flex items-center gap-2">
-                              <span className="material-symbols-outlined text-[16px] text-slate-400">motorcycle</span>
+                            <td className="py-3.5 font-extrabold text-slate-800">
                               {zone.name}
                             </td>
                             <td className="py-3.5 text-center font-black text-[#006d43]">{available}</td>
@@ -1053,16 +1017,13 @@ export function SlotManagementDashboard() {
             {/* Table Filters */}
             <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-white p-4 rounded-xl border border-slate-100 shadow-sm">
               <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
-                <div className="relative flex-1 sm:w-72">
-                  <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[18px]">
-                    search
-                  </span>
+                <div className="flex-1 sm:w-72">
                   <input
                     type="text"
                     value={tableSearchQuery}
                     onChange={(e) => setTableSearchQuery(e.target.value)}
                     placeholder="Search by Slot, Plate, or Subscriber..."
-                    className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg text-sm focus:ring-1 focus:ring-emerald-500/30 focus:border-emerald-500 focus:outline-none font-medium"
+                    className="w-full px-4 py-2 border border-slate-200 rounded-lg text-sm focus:ring-1 focus:ring-emerald-500/30 focus:border-emerald-500 focus:outline-none font-medium"
                   />
                 </div>
 
@@ -1110,15 +1071,9 @@ export function SlotManagementDashboard() {
                           <tr key={session.id} className="hover:bg-slate-50/40 transition-colors">
                             <td className="px-6 py-4 font-extrabold text-slate-800">
                               {slot ? (
-                                <span className="flex items-center gap-1.5">
-                                  <span className="material-symbols-outlined text-[16px] text-[#006d43]">
-                                    directions_car
-                                  </span>
-                                  {slot.slotCode}
-                                </span>
+                                <span>{slot.slotCode}</span>
                               ) : (
-                                <span className="text-slate-400 text-xs font-semibold italic flex items-center gap-1.5">
-                                  <span className="material-symbols-outlined text-[16px] text-slate-400">motorcycle</span>
+                                <span className="text-slate-400 text-xs font-semibold italic">
                                   Motorbike Area
                                 </span>
                               )}
@@ -1198,7 +1153,7 @@ export function SlotManagementDashboard() {
                 onClick={() => setSelectedSessionDetails(null)}
                 className="p-1.5 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-600 transition-colors"
               >
-                <span className="material-symbols-outlined text-[18px] align-middle">close</span>
+                ✕
               </button>
             </div>
 

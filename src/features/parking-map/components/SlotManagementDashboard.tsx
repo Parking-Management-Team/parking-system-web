@@ -507,7 +507,7 @@ export function SlotManagementDashboard() {
   };
 
   // Callback to handle updates inside modal
-  const handleSlotUpdated = useCallback((
+  const handleSlotUpdated = useCallback(async (
     slotId: number,
     newStatus: Slot['status'],
     assignedVehicle?: Slot['assignedVehicle']
@@ -522,9 +522,11 @@ export function SlotManagementDashboard() {
       }
       return s;
     }));
-    fetchSlotSummary();
-    setTimeout(() => fetchSlotsForFloor(), 500);
-  }, [fetchSlotsForFloor, fetchSlotSummary]);
+    await refreshSlotsAndSessions();
+    setTimeout(() => {
+      refreshSlotsAndSessions();
+    }, 1000);
+  }, [refreshSlotsAndSessions]);
 
   // Active Sessions list filtering for the current floor
   const filteredSessions = useMemo(() => {
@@ -737,7 +739,7 @@ export function SlotManagementDashboard() {
                 const bookingLimitRate = zoneForType?.bookingLimitRate ?? 80;
 
                 // Calculate booking capacity
-                const maxBookable = Math.floor(effectiveTotal * bookingLimitRate / 100);
+                const maxBookable = Math.floor(Math.max(0, effectiveTotal - blocked - maintenance) * bookingLimitRate / 100);
                 const reservedCount = activeSessions.filter(s => {
                   const zone = zones.find(z => z.id === s.zoneId);
                   if (!zone || zone.floorId !== selectedFloorId) return false;
@@ -757,11 +759,9 @@ export function SlotManagementDashboard() {
                       <div className="flex items-center gap-2.5">
                         <span className="text-xs font-extrabold text-slate-700 uppercase tracking-wide">{isMotorbike ? 'Motorbike' : 'Car'} · Floor {floorSlotSummary.floorNumber}</span>
                       </div>
-                      {!isMotorbike && (
-                        <span className="text-[10px] font-bold text-slate-400 bg-slate-100 px-2 py-1 rounded-lg">
-                          Booking limit: {bookingLimitRate}%
-                        </span>
-                      )}
+                      <span className="text-[10px] font-bold text-slate-400 bg-slate-100 px-2 py-1 rounded-lg">
+                        Booking limit: {bookingLimitRate}%
+                      </span>
                     </div>
                     
                     <div className="flex items-end gap-3 flex-wrap">
@@ -774,20 +774,16 @@ export function SlotManagementDashboard() {
                         <p className="text-2xl font-black text-[#263143]">{effectiveOccupied}</p>
                         <p className="text-[10px] font-bold text-slate-400 uppercase mt-0.5">Occupied</p>
                       </div>
-                      {!isMotorbike && (
-                        <>
-                          <div className="h-8 w-px bg-slate-100"></div>
-                          <div className="text-center min-w-[50px]">
-                            <p className="text-2xl font-black text-[#ba1a1a]">{blocked}</p>
-                            <p className="text-[10px] font-bold text-slate-400 uppercase mt-0.5">Blocked</p>
-                          </div>
-                          <div className="h-8 w-px bg-slate-100"></div>
-                          <div className="text-center min-w-[50px]">
-                            <p className="text-2xl font-black text-[#d97706]">{maintenance}</p>
-                            <p className="text-[10px] font-bold text-slate-400 uppercase mt-0.5">Maintenance</p>
-                          </div>
-                        </>
-                      )}
+                      <div className="h-8 w-px bg-slate-100"></div>
+                      <div className="text-center min-w-[50px]">
+                        <p className="text-2xl font-black text-[#ba1a1a]">{blocked}</p>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase mt-0.5">Blocked</p>
+                      </div>
+                      <div className="h-8 w-px bg-slate-100"></div>
+                      <div className="text-center min-w-[50px]">
+                        <p className="text-2xl font-black text-[#d97706]">{maintenance}</p>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase mt-0.5">Maintenance</p>
+                      </div>
                       <div className="h-8 w-px bg-slate-100"></div>
                       <div className="text-center min-w-[50px]">
                         <p className="text-2xl font-black text-slate-600">{effectiveTotal}</p>
@@ -796,43 +792,51 @@ export function SlotManagementDashboard() {
                     </div>
 
                     {/* Booking Capacity Info */}
-                    {!isMotorbike && (() => {
+                    {(() => {
                       const usedBookable = Math.min(reservedCount, maxBookable);
                       const bookingUsagePct = maxBookable > 0 ? Math.round((usedBookable / maxBookable) * 100) : 0;
                       const isCritical = bookingUsagePct >= 90;
                       const isWarning = bookingUsagePct >= 70 && bookingUsagePct < 90;
                       const barColor = isCritical ? '#ba1a1a' : isWarning ? '#d97706' : '#006d43';
-                      const bgClass = isCritical
-                        ? 'bg-red-50 border-red-200'
-                        : isWarning
-                          ? 'bg-amber-50 border-amber-200'
-                          : 'bg-emerald-50 border-emerald-200';
-                      const labelClass = isCritical ? 'text-red-700' : isWarning ? 'text-amber-700' : 'text-emerald-700';
-                      const countClass = isCritical ? 'text-red-800' : isWarning ? 'text-amber-800' : 'text-emerald-800';
-                      const subClass = isCritical ? 'text-red-500' : isWarning ? 'text-amber-500' : 'text-emerald-500';
-                      const statusIcon = isCritical ? 'warning' : isWarning ? 'info' : 'check_circle';
+                      
+                      const statusColor = isCritical 
+                        ? { text: 'text-red-600', bg: 'bg-red-50 border-red-200/50', icon: 'warning' }
+                        : isWarning 
+                          ? { text: 'text-amber-600', bg: 'bg-amber-50 border-amber-200/50', icon: 'info' }
+                          : { text: 'text-emerald-600', bg: 'bg-emerald-50 border-emerald-200/50', icon: 'check_circle' };
 
                       return (
-                        <div className={`border rounded-xl p-3 ${bgClass}`}>
-                          <div className="flex items-center justify-between mb-2">
+                        <div className="border border-slate-100 bg-slate-50/55 rounded-xl p-3.5 space-y-3">
+                          <div className="flex items-center justify-between">
                             <div className="flex items-center gap-1.5">
-                              <span className={`material-symbols-outlined text-base ${labelClass}`}>{statusIcon}</span>
-                              <span className={`text-[11px] font-extrabold uppercase tracking-wide ${labelClass}`}>Booking Capacity</span>
+                              <span className={`material-symbols-outlined text-base ${statusColor.text}`}>{statusColor.icon}</span>
+                              <span className="text-[11px] font-black uppercase tracking-wider text-slate-700">Booking Capacity</span>
+                            </div>
+                            <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-md border ${statusColor.bg} ${statusColor.text}`}>
+                              {bookingUsagePct}% used
+                            </span>
+                          </div>
+                          
+                          <div className="flex items-baseline justify-between">
+                            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">
+                              Remaining capacity
                             </div>
                             <div className="text-right">
-                              <span className={`text-base font-black ${countClass}`}>{remainingBookable}</span>
-                              <span className={`text-[10px] font-bold ml-1 ${subClass}`}>/ {maxBookable} remaining</span>
+                              <span className="text-xl font-black text-slate-800">{remainingBookable}</span>
+                              <span className="text-xs font-bold text-slate-400 ml-1">/ {maxBookable} slots</span>
                             </div>
                           </div>
-                          <div className="w-full bg-white/60 h-2 rounded-full overflow-hidden">
+
+                          <div className="w-full bg-slate-200/60 h-2 rounded-full overflow-hidden">
                             <div
                               className="h-full rounded-full transition-all duration-700"
                               style={{ width: `${bookingUsagePct}%`, backgroundColor: barColor }}
                             />
                           </div>
-                          <div className="flex items-center justify-between mt-1.5">
-                            <span className={`text-[10px] font-bold ${subClass}`}>{bookingUsagePct}% used</span>
-                            <span className={`text-[10px] font-semibold ${subClass}`}>Limit: {bookingLimitRate}% of total</span>
+
+                          <div className="flex items-center justify-between text-[10px] font-bold text-slate-400">
+                            <span>Limit: {bookingLimitRate}% of floor capacity</span>
+                            <span className="text-slate-500 font-extrabold">{usedBookable} booked</span>
                           </div>
                         </div>
                       );
@@ -845,15 +849,15 @@ export function SlotManagementDashboard() {
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className="text-[#006d43]">{effectiveAvailablePct}% free</span>
                           <span className="text-[#263143]">{effectiveOccupiedPct}% occupied</span>
-                          {!isMotorbike && blocked > 0 && <span className="text-[#ba1a1a]">{blockedPct}% blocked</span>}
-                          {!isMotorbike && maintenance > 0 && <span className="text-[#d97706]">{maintenancePct}% maintaining</span>}
+                          {blocked > 0 && <span className="text-[#ba1a1a]">{blockedPct}% blocked</span>}
+                          {maintenance > 0 && <span className="text-[#d97706]">{maintenancePct}% maintaining</span>}
                         </div>
                       </div>
                       <div className="w-full bg-slate-100 h-3 rounded-full overflow-hidden flex">
                         <div className="h-full bg-[#006d43] transition-all duration-700" style={{ width: `${effectiveAvailablePct}%` }} />
                         <div className="h-full bg-[#263143] transition-all duration-700" style={{ width: `${effectiveOccupiedPct}%` }} />
-                        {!isMotorbike && <div className="h-full bg-[#ba1a1a] transition-all duration-700" style={{ width: `${blockedPct}%` }} />}
-                        {!isMotorbike && <div className="h-full bg-[#d97706] transition-all duration-700" style={{ width: `${maintenancePct}%` }} />}
+                        <div className="h-full bg-[#ba1a1a] transition-all duration-700" style={{ width: `${blockedPct}%` }} />
+                        <div className="h-full bg-[#d97706] transition-all duration-700" style={{ width: `${maintenancePct}%` }} />
                       </div>
                     </div>
                   </div>

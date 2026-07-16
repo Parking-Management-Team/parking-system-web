@@ -605,20 +605,11 @@ export default function FacilitiesModals({
         </div>
       )}
 
-      {/* 8. MODAL THÊM PHÂN KHU (ZONE) - FULL SCREEN */}
+      {/* 8. MODAL THÊM PHÂN KHU (ZONE) */}
       {isAddZoneOpen && (
-        <div className="fixed inset-0 bg-white z-50 flex flex-col">
-          <div className="flex-1 overflow-auto p-6 max-w-3xl mx-auto w-full animate-in fade-in duration-150">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-xl font-bold text-[#111c2d]">Add Parking Zone</h3>
-              <button
-                type="button"
-                onClick={() => setIsAddZoneOpen(false)}
-                className="p-2 hover:bg-slate-100 rounded-lg text-slate-500"
-              >
-                <span className="material-symbols-outlined">close</span>
-              </button>
-            </div>
+        <div className="fixed inset-0 bg-[#111c2d]/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-xl border border-[#006d43]/10 p-6 max-w-md w-full animate-in fade-in zoom-in-95 duration-150">
+            <h3 className="text-lg font-bold text-[#111c2d] mb-4">Add Parking Zone</h3>
             <form onSubmit={handleAddZoneSubmit} className="space-y-4">
               <div>
                 <label className="block text-xs font-semibold text-[#3d4a41] mb-1">Zone Code *</label>
@@ -631,7 +622,7 @@ export default function FacilitiesModals({
                   className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm text-[#111c2d] focus:outline-none focus:border-[#006d43]"
                 />
                 <p className="text-[10px] text-slate-400 mt-1">
-                  Unique code for this zone (auto-generated, can be edited).
+                  Unique code for this zone (can be edited).
                 </p>
               </div>
               <div>
@@ -686,22 +677,21 @@ export default function FacilitiesModals({
                   className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm text-[#111c2d] focus:outline-none focus:border-[#006d43]"
                 />
                 <p className="text-[10px] text-slate-400 mt-1">
-                  Percentage of capacity available for booking (1-100%). Default: 80%.
+                  Percentage available for booking. Default: 80%.
                 </p>
               </div>
 
-
-              <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
+              <div className="flex justify-end gap-2 pt-2">
                 <button 
                   type="button"
                   onClick={() => setIsAddZoneOpen(false)}
-                  className="px-6 py-2.5 text-sm font-bold text-slate-500 hover:bg-slate-50 rounded-lg"
+                  className="px-4 py-2 text-xs font-bold text-slate-500 hover:bg-slate-50 rounded-lg"
                 >
                   Cancel
                 </button>
                 <button 
                   type="submit"
-                  className="px-6 py-2.5 bg-[#006d43] hover:bg-[#006d43]/90 text-white text-sm font-bold rounded-lg"
+                  className="px-4 py-2 bg-[#006d43] hover:bg-[#006d43]/90 text-white text-xs font-bold rounded-lg"
                 >
                   Add Zone
                 </button>
@@ -711,20 +701,11 @@ export default function FacilitiesModals({
         </div>
       )}
 
-      {/* 9. MODAL CHỈNH SỬA PHÂN KHU (ZONE) - FULL SCREEN */}
+      {/* 9. MODAL CHỈNH SỬA PHÂN KHU (ZONE) */}
       {isEditZoneOpen && (
-        <div className="fixed inset-0 bg-white z-50 flex flex-col">
-          <div className="flex-1 overflow-auto p-6 max-w-3xl mx-auto w-full animate-in fade-in duration-150">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-xl font-bold text-[#111c2d]">Edit Zone Details</h3>
-              <button
-                type="button"
-                onClick={() => { setIsEditZoneOpen(false); setEditingZone(null); }}
-                className="p-2 hover:bg-slate-100 rounded-lg text-slate-500"
-              >
-                <span className="material-symbols-outlined">close</span>
-              </button>
-            </div>
+        <div className="fixed inset-0 bg-[#111c2d]/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-xl border border-[#006d43]/10 p-6 max-w-md w-full animate-in fade-in zoom-in-95 duration-150">
+            <h3 className="text-lg font-bold text-[#111c2d] mb-4">Edit Zone Details</h3>
             <form onSubmit={handleEditZoneSubmit} className="space-y-4">
               <div>
                 <label className="block text-xs font-semibold text-[#3d4a41] mb-1">Zone Code *</label>
@@ -787,25 +768,24 @@ export default function FacilitiesModals({
                   className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm text-[#111c2d] focus:outline-none focus:border-[#006d43]"
                 />
                 <p className="text-[10px] text-slate-400 mt-1">
-                  Percentage of capacity available for booking (1-100%).
+                  Percentage of capacity available for booking.
                 </p>
               </div>
 
-
-              <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
+              <div className="flex justify-end gap-2 pt-2">
                 <button 
                   type="button"
                   onClick={() => {
                     setIsEditZoneOpen(false);
                     setEditingZone(null);
                   }}
-                  className="px-6 py-2.5 text-sm font-bold text-slate-500 hover:bg-slate-50 rounded-lg"
+                  className="px-4 py-2 text-xs font-bold text-slate-500 hover:bg-slate-50 rounded-lg"
                 >
                   Cancel
                 </button>
                 <button 
                   type="submit"
-                  className="px-6 py-2.5 bg-[#006d43] hover:bg-[#006d43]/90 text-white text-sm font-bold rounded-lg"
+                  className="px-4 py-2 bg-[#006d43] hover:bg-[#006d43]/90 text-white text-xs font-bold rounded-lg"
                 >
                   Save Zone
                 </button>
@@ -815,43 +795,34 @@ export default function FacilitiesModals({
         </div>
       )}
 
-      {/* 10. MODAL XÁC NHẬN XÓA PHÂN KHU (ZONE) - FULL SCREEN */}
+      {/* 10. MODAL XÁC NHẬN XÓA PHÂN KHU (ZONE) */}
       {isDelZoneOpen && (
-        <div className="fixed inset-0 bg-white z-50 flex flex-col">
-          <div className="flex-1 overflow-auto p-6 max-w-3xl mx-auto w-full animate-in fade-in duration-150">
-            <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center gap-2 text-red-600">
-                <span className="material-symbols-outlined text-2xl">delete</span>
-                <h3 className="text-xl font-bold">Delete Zone</h3>
-              </div>
-              <button
-                type="button"
-                onClick={() => { setIsDelZoneOpen(false); setDeletingZone(null); }}
-                className="p-2 hover:bg-slate-100 rounded-lg text-slate-500"
-              >
-                <span className="material-symbols-outlined">close</span>
-              </button>
+        <div className="fixed inset-0 bg-[#111c2d]/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-xl border border-red-100 p-6 max-w-md w-full animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-center gap-2 text-red-600 mb-3">
+              <span className="material-symbols-outlined text-2xl">delete</span>
+              <h3 className="text-lg font-bold">Delete Zone</h3>
             </div>
             <p className="text-sm text-slate-600 leading-relaxed mb-6">
               Are you sure you want to delete parking <span className="font-bold text-[#111c2d]">{deletingZone?.name}</span>?
               <br /><br />
               This action will release its allocated capacity of {deletingZone?.slotCapacity} slots from the floor level.
             </p>
-            <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
+            <div className="flex justify-end gap-2">
               <button 
                 type="button"
                 onClick={() => {
                   setIsDelZoneOpen(false);
                   setDeletingZone(null);
                 }}
-                className="px-6 py-2.5 text-sm font-bold text-slate-500 hover:bg-slate-50 rounded-lg"
+                className="px-4 py-2 text-xs font-bold text-slate-500 hover:bg-slate-50 rounded-lg"
               >
                 Cancel
               </button>
               <button 
                 type="button"
                 onClick={executeDeleteZone}
-                className="px-6 py-2.5 bg-red-600 hover:bg-red-700 text-white text-sm font-bold rounded-lg"
+                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-lg"
               >
                 Confirm Delete
               </button>

@@ -40,11 +40,7 @@ const STATUS_CONFIG: Record<
 };
 
 const formatCurrency = (value?: number | null) =>
-  new Intl.NumberFormat('vi-VN', {
-    style: 'currency',
-    currency: 'VND',
-    maximumFractionDigits: 0,
-  }).format(value ?? 0);
+  `${Math.round(Number(value ?? 0)).toLocaleString('vi-VN')} VND`;
 
 const formatDateTime = (value?: string | null) => {
   if (!value) return '—';

@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { useAuth } from '@/features/auth';
 import { api } from '@/lib/api/client';
+import { formatPlate, detectVehicleTypeFromPlate } from '@/lib/utils/format';
 import { 
   Plus, 
   Trash2, 
@@ -69,6 +70,27 @@ export default function DriverVehicles() {
   const [addTypeId, setAddTypeId] = useState<number | ''>('');
   const [isSaving, setIsSaving] = useState(false);
 
+  // Auto-detect vehicle type based on license plate input
+  useEffect(() => {
+    if (!addPlate.trim() || vehicleTypes.length === 0) return;
+    const detected = detectVehicleTypeFromPlate(addPlate);
+    
+    // Find matching vehicle type in the list
+    const matchedType = vehicleTypes.find(t => {
+      const name = t.name.toLowerCase();
+      if (detected === 'Motorcycle') {
+        return name.includes('motor') || name.includes('bike') || name.includes('scoot') || name.includes('máy');
+      } else {
+        // For Car, make sure it is NOT a motorcycle
+        return !(name.includes('motor') || name.includes('bike') || name.includes('scoot') || name.includes('máy'));
+      }
+    });
+
+    if (matchedType) {
+      setAddTypeId(matchedType.id);
+    }
+  }, [addPlate, vehicleTypes]);
+
   // Delete confirm modal
   const [deleteVehicleId, setDeleteVehicleId] = useState<number | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -132,7 +154,7 @@ export default function DriverVehicles() {
     setIsSaving(true);
     try {
       await api.post('/vehicles', {
-        licensePlate: addPlate.trim().toUpperCase(),
+        licensePlate: addPlate.toUpperCase().replace(/[^A-Z0-9]/g, ''),
         vehicleTypeId: Number(addTypeId),
         accountId: user?.id,
       });
@@ -268,7 +290,7 @@ export default function DriverVehicles() {
                     <div>
                       <div className="flex items-center gap-2">
                         <h3 className="font-extrabold text-[#1B2A41] text-lg font-mono tracking-wide">
-                          {vehicle.licensePlate}
+                          {formatPlate(vehicle.licensePlate)}
                         </h3>
                         {isDefault && (
                           <span className="text-[9px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded-full uppercase tracking-wide">

@@ -45,61 +45,44 @@ export default function ManagerCardWorkspace() {
   const [newCardType, setNewCardType] = useState('PARKING_CARD');
   const [createLoading, setCreateLoading] = useState(false);
 
-  // Fetch cards based on current active tab
+  // Fetch cards from backend
   const fetchCards = useCallback(async () => {
     setIsLoading(true);
     setError(null);
     try {
-      let endpoint = '/cards';
-      if (activeTab === 'available') endpoint = '/cards/available';
-      else if (activeTab === 'assigned') endpoint = '/cards/assigned';
-      else if (activeTab === 'inactive') endpoint = '/cards';
+      const res = await api.get<any>('/cards');
+      let allCards: any[] = [];
       
-      let data: any[] = [];
-      
-      try {
-        const res = await api.get<any>(endpoint);
-        if (Array.isArray(res)) {
-          data = res;
-        } else if (res && res.success && Array.isArray(res.data)) {
-          data = res.data;
-        } else if (res && Array.isArray(res.data)) {
-          data = res.data;
-        }
-      } catch (err) {
-        console.warn(`Endpoint ${endpoint} not fully active on backend. Falling back to /cards.`, err);
-        const fallbackRes = await api.get<any>('/cards');
-        const allCards = Array.isArray(fallbackRes) ? fallbackRes : fallbackRes.data || [];
-        
-        if (activeTab === 'available') {
-          data = allCards.filter((c: any) => (c.cardStatus || c.status || '').toUpperCase() === 'AVAILABLE');
-        } else if (activeTab === 'assigned') {
-          data = allCards.filter((c: any) => {
-            const st = (c.cardStatus || c.status || '').toUpperCase();
-            return st === 'ASSIGNED' || st === 'ACTIVE';
-          });
-        } else if (activeTab === 'inactive') {
-          data = allCards.filter((c: any) => {
-            const st = (c.cardStatus || c.status || '').toUpperCase();
-            return st === 'LOST' || st === 'BLOCKED';
-          });
-        }
+      if (Array.isArray(res)) {
+        allCards = res;
+      } else if (res && res.success && Array.isArray(res.data)) {
+        allCards = res.data;
+      } else if (res && Array.isArray(res.data)) {
+        allCards = res.data;
       }
 
-      // For inactive tab, filter to only show LOST/BLOCKED
-      if (activeTab === 'inactive') {
-        data = data.filter((c: any) => {
+      // Filter based on active tab
+      let filtered: any[] = [];
+      if (activeTab === 'available') {
+        filtered = allCards.filter((c: any) => (c.cardStatus || c.status || '').toUpperCase() === 'AVAILABLE');
+      } else if (activeTab === 'assigned') {
+        filtered = allCards.filter((c: any) => {
+          const st = (c.cardStatus || c.status || '').toUpperCase();
+          return st === 'ASSIGNED' || st === 'ACTIVE';
+        });
+      } else if (activeTab === 'inactive') {
+        filtered = allCards.filter((c: any) => {
           const st = (c.cardStatus || c.status || '').toUpperCase();
           return st === 'LOST' || st === 'BLOCKED';
         });
       }
 
-      const mapped: ParkingCard[] = data.map((item: any) => ({
+      const mapped: ParkingCard[] = filtered.map((item: any) => ({
         id: item.id,
         cardCode: item.cardCode || `CARD-${item.id}`,
         rfidCode: item.rfidCode,
         cardType: item.cardType || 'PARKING_CARD',
-        cardStatus: item.cardStatus || item.status || (activeTab === 'available' ? 'AVAILABLE' : 'ASSIGNED'),
+        cardStatus: item.cardStatus || item.status || 'UNKNOWN',
         createdAt: item.createdAt || new Date().toISOString()
       }));
 
@@ -152,6 +135,21 @@ export default function ManagerCardWorkspace() {
       }
     } catch (err: any) {
       showToast(err?.message || 'Error marking card lost.', 'error');
+    }
+  };
+
+  const handleRestoreCard = async (id: number) => {
+    if (!window.confirm('Restore this card to AVAILABLE status?')) return;
+    try {
+      const res = await api.put<any>(`/cards/${id}/status`, { status: 'Available' });
+      if (res.success || res.data) {
+        showToast('Card restored to AVAILABLE.', 'success');
+        fetchCards();
+      } else {
+        showToast(res.message || 'Failed to restore card.', 'error');
+      }
+    } catch (err: any) {
+      showToast(err?.message || 'Error restoring card.', 'error');
     }
   };
 
@@ -362,7 +360,7 @@ export default function ManagerCardWorkspace() {
                           )}
                           {status === 'BLOCKED' && (
                             <button
-                              onClick={() => handleUpdateStatus(card.id, 'Available')}
+                              onClick={() => handleRestoreCard(card.id)}
                               className="px-2 py-1 text-emerald-600 hover:text-emerald-700 font-semibold text-[10px] rounded hover:bg-emerald-50"
                             >
                               Unblock
@@ -370,7 +368,7 @@ export default function ManagerCardWorkspace() {
                           )}
                           {status === 'LOST' && (
                             <button
-                              onClick={() => handleUpdateStatus(card.id, 'Available')}
+                              onClick={() => handleRestoreCard(card.id)}
                               className="px-2 py-1 text-emerald-600 hover:text-emerald-700 font-semibold text-[10px] rounded hover:bg-emerald-50"
                             >
                               Restore

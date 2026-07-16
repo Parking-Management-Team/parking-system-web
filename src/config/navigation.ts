@@ -43,6 +43,11 @@ export const ROLE_NAVIGATION: Record<string, NavigationItem[]> = {
       icon: 'report_problem',
     },
     {
+      label: 'Incident Types',
+      href: '/dashboard/manager/incident-types',
+      icon: 'category',
+    },
+    {
       label: 'Bookings Management',
       href: '/dashboard/manager/bookings',
       icon: 'calendar_month',
@@ -96,6 +101,11 @@ export const ROLE_NAVIGATION: Record<string, NavigationItem[]> = {
       label: 'Vehicle Check-out',
       href: '/dashboard/staff/check-out',
       icon: 'logout',
+    },
+    {
+      label: 'Booking Review',
+      href: '/dashboard/staff/bookings',
+      icon: 'calendar_month',
     },
     {
       label: 'Combined Gate',

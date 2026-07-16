@@ -28,6 +28,8 @@ export interface Incident {
   licensePlate?: string | null;
   cardCode?: string | null;
   vehicleType?: string | null;
+  vehicleTypeId?: number | null;
+  vehicleTypeName?: string | null;
   vehicleId?: number | null;
   cardId?: number | null;
   description?: string | null;
@@ -43,6 +45,8 @@ export interface IncidentSessionOption {
   licensePlate: string;
   cardCode?: string | null;
   vehicleType?: string | null;
+  vehicleTypeId?: number | null;
+  vehicleTypeName?: string | null;
   checkInTime?: string | null;
   zoneCode?: string | null;
   slotCode?: string | null;

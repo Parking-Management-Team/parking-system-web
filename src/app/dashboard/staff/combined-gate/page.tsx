@@ -18,7 +18,7 @@ export default function CombinedGatePage() {
           <section className="rounded-3xl border border-emerald-200/60 bg-white p-4 shadow-sm">
             <div className="flex items-center gap-2 border-b border-slate-100 pb-3 mb-3">
               <span className="material-symbols-outlined text-emerald-600 text-xl">login</span>
-              <h2 className="text-base font-black text-slate-900">CỔNG VÀO (CHECK-IN)</h2>
+              <h2 className="text-base font-black text-slate-900">ENTRY GATE (CHECK-IN)</h2>
               <span className="text-[9px] font-bold bg-emerald-50 text-emerald-600 rounded-full px-2 py-0.5 ml-auto">IN</span>
             </div>
             <VehicleCheckin compact />
@@ -28,7 +28,7 @@ export default function CombinedGatePage() {
           <section className="rounded-3xl border border-rose-200/60 bg-white p-4 shadow-sm">
             <div className="flex items-center gap-2 border-b border-slate-100 pb-3 mb-3">
               <span className="material-symbols-outlined text-rose-600 text-xl">logout</span>
-              <h2 className="text-base font-black text-slate-900">CỔNG RA (CHECK-OUT)</h2>
+              <h2 className="text-base font-black text-slate-900">EXIT GATE (CHECK-OUT)</h2>
               <span className="text-[9px] font-bold bg-rose-50 text-rose-600 rounded-full px-2 py-0.5 ml-auto">OUT</span>
             </div>
             <VehicleCheckout compact />

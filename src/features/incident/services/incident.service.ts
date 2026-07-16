@@ -24,6 +24,8 @@ type IncidentDto = {
   licensePlateIn?: string | null;
   cardCode?: string | null;
   vehicleType?: string | null;
+  vehicleTypeId?: number | null;
+  vehicleTypeName?: string | null;
   vehicleId?: number | null;
   cardId?: number | null;
   description?: string | null;
@@ -53,8 +55,11 @@ type ActiveSessionDto = {
   licensePlate?: string | null;
   cardCode?: string | null;
   vehicleType?: string | null;
+  vehicleTypeId?: number | null;
+  vehicleTypeName?: string | null;
   checkInTime?: string | null;
   zoneCode?: string | null;
+  zoneName?: string | null;
   slotCode?: string | null;
 };
 
@@ -153,7 +158,9 @@ const mapIncident = (incident: IncidentDto): Incident => {
     incidentName: String(incident.incidentName ?? `Incident type #${incidentTypeId}`),
     licensePlate: incident.licensePlate ?? incident.licensePlateIn ?? null,
     cardCode: incident.cardCode ?? null,
-    vehicleType: incident.vehicleType ?? null,
+    vehicleType: incident.vehicleTypeName ?? incident.vehicleType ?? null,
+    vehicleTypeId: incident.vehicleTypeId ?? null,
+    vehicleTypeName: incident.vehicleTypeName ?? null,
     vehicleId: incident.vehicleId ?? null,
     cardId: incident.cardId ?? null,
     description: incident.description ?? null,
@@ -184,9 +191,11 @@ const mapActiveSession = (session: ActiveSessionDto): IncidentSessionOption => {
     sessionCode: session.sessionCode ?? `SS-${sessionId}`,
     licensePlate: String(session.licensePlateIn ?? session.licensePlate ?? '-'),
     cardCode: session.cardCode ?? (session.cardId ? `#${session.cardId}` : null),
-    vehicleType: session.vehicleType ?? null,
+    vehicleType: session.vehicleTypeName ?? session.vehicleType ?? null,
+    vehicleTypeId: session.vehicleTypeId ?? null,
+    vehicleTypeName: session.vehicleTypeName ?? null,
     checkInTime: session.checkInTime ?? null,
-    zoneCode: session.zoneCode ?? null,
+    zoneCode: session.zoneName ?? session.zoneCode ?? null,
     slotCode: session.slotCode ?? null,
     vehicleId: session.vehicleId ?? null,
     cardId: session.cardId ?? null,
@@ -321,6 +330,48 @@ export const incidentService = {
   delete: async (id: number): Promise<boolean> => {
     try {
       const response = await api.delete<IncidentApiResponse<unknown>>(`/Incident/${id}`);
+      return response.success !== false;
+    } catch (error) {
+      throw new Error(getApiErrorMessage(error));
+    }
+  },
+
+  reportLostCard: async (
+    sessionId: number,
+    input: { staffId: number; description?: string }
+  ): Promise<unknown> => {
+    try {
+      const response = await api.post<IncidentApiResponse<unknown>>(
+        `/parking-sessions/${sessionId}/lost-card`,
+        {
+          staffId: input.staffId,
+          description: input.description?.trim() || undefined,
+        }
+      );
+      return unwrap(response, 'Could not report lost card.');
+    } catch (error) {
+      throw new Error(getApiErrorMessage(error));
+    }
+  },
+
+  rollbackLostCard: async (sessionId: number): Promise<boolean> => {
+    try {
+      const response = await api.post<IncidentApiResponse<unknown>>(
+        `/parking-sessions/${sessionId}/lost-card/rollback`,
+        {}
+      );
+      return response.success !== false;
+    } catch (error) {
+      throw new Error(getApiErrorMessage(error));
+    }
+  },
+
+  replaceSessionCard: async (sessionId: number, newCardCode: string): Promise<boolean> => {
+    try {
+      const response = await api.patch<IncidentApiResponse<unknown>>(
+        `/parking-sessions/${sessionId}/replace-card?newCardCode=${encodeURIComponent(newCardCode.trim())}`,
+        {}
+      );
       return response.success !== false;
     } catch (error) {
       throw new Error(getApiErrorMessage(error));

@@ -747,8 +747,8 @@ export default function VehicleCheckout({ compact = false }: { compact?: boolean
   };
 
   return (
-    <div className={compact ? 'text-slate-900' : 'min-h-[calc(100vh-76px)] bg-slate-50 p-4 text-slate-900'}>
-      <div className={compact ? 'flex flex-col gap-4' : 'mx-auto flex min-h-[calc(100vh-108px)] max-w-[1600px] flex-col gap-4'}>
+    <div className={compact ? 'text-slate-900' : 'bg-slate-50 p-4 text-slate-900'}>
+      <div className={compact ? 'flex flex-col gap-4' : 'mx-auto flex max-w-[1600px] flex-col gap-4'}>
         {!compact && (
           <div className="flex shrink-0 items-center justify-between gap-3">
             <h1 className="text-xl font-black text-slate-900">Staff Gate Check-out</h1>
@@ -775,13 +775,13 @@ export default function VehicleCheckout({ compact = false }: { compact?: boolean
           </div>
         )}
 
-        <main className={compact ? 'flex flex-col gap-4' : 'grid min-h-0 flex-1 gap-4 xl:grid-cols-2'}>
+        <main className={compact ? 'grid gap-4 md:grid-cols-2' : 'grid min-h-0 flex-1 gap-4 xl:grid-cols-2'}>
           {/* LEFT COLUMN: EXIT CAMERA (LICENSE PLATE SCAN) */}
           <div className="space-y-4 flex flex-col min-h-0">
             <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm flex flex-col">
               <div className="flex items-center justify-between border-b border-slate-100 px-4 py-2.5">
                 <p className="font-mono text-[11px] font-bold text-slate-700 uppercase tracking-wider">
-                  Checkout Camera · GATE-OUT-01
+                  Checkout Camera
                 </p>
               </div>
 
@@ -846,8 +846,8 @@ export default function VehicleCheckout({ compact = false }: { compact?: boolean
                       type="button"
                       onClick={cameraActive ? stopCamera : startCamera}
                       className={`flex-1 rounded-xl py-1.5 text-xs font-bold transition flex items-center justify-center gap-1.5 border ${cameraActive
-                          ? 'bg-red-50 border-red-200 text-red-700 hover:bg-red-100'
-                          : 'bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100'
+                        ? 'bg-red-50 border-red-200 text-red-700 hover:bg-red-100'
+                        : 'bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100'
                         }`}
                     >
                       {cameraActive ? 'Stop Cam' : 'Start Cam'}
@@ -855,22 +855,15 @@ export default function VehicleCheckout({ compact = false }: { compact?: boolean
                   </div>
                 </div>
 
-                <div className="grid gap-3 grid-cols-2">
+                <div>
                   <button
                     type="button"
                     onClick={handleCheckoutScan}
                     disabled={isScanning || !cameraActive}
-                    className="rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white py-1.5 text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-md shadow-emerald-600/10 disabled:opacity-50"
+                    className="w-full rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white py-2 text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-md shadow-emerald-600/10 disabled:opacity-50"
                   >
                     <span className="material-symbols-outlined text-base">photo_camera</span>
                     Scan Camera
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleMockScanCheckout}
-                    className="rounded-xl bg-white hover:bg-slate-50 text-slate-600 py-1.5 text-xs font-semibold border border-slate-200 transition"
-                  >
-                    Mock Scan
                   </button>
                 </div>
 
@@ -1011,10 +1004,10 @@ export default function VehicleCheckout({ compact = false }: { compact?: boolean
                     {/* Plate Match status */}
                     <div
                       className={`rounded-xl border px-3 py-2 flex items-center gap-1.5 text-xs font-bold ${!exitPlate
-                          ? 'border-amber-200 bg-amber-50 text-amber-700'
-                          : isPlateMatched
-                            ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
-                            : 'border-red-200 bg-red-50 text-red-700'
+                        ? 'border-amber-200 bg-amber-50 text-amber-700'
+                        : isPlateMatched
+                          ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                          : 'border-red-200 bg-red-50 text-red-700'
                         }`}
                     >
                       <span className="material-symbols-outlined text-base">
@@ -1028,10 +1021,10 @@ export default function VehicleCheckout({ compact = false }: { compact?: boolean
                     {/* Card Match status */}
                     <div
                       className={`rounded-xl border px-3 py-2 flex items-center gap-1.5 text-xs font-bold ${!checkoutCardCode
-                          ? 'border-amber-200 bg-amber-50/70 text-amber-700'
-                          : isCardMatched
-                            ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
-                            : 'border-red-200 bg-red-50 text-red-700'
+                        ? 'border-amber-200 bg-amber-50/70 text-amber-700'
+                        : isCardMatched
+                          ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                          : 'border-red-200 bg-red-50 text-red-700'
                         }`}
                     >
                       <span className="material-symbols-outlined text-base">
@@ -1098,8 +1091,8 @@ export default function VehicleCheckout({ compact = false }: { compact?: boolean
                             type="button"
                             onClick={() => setPaymentMethod(method)}
                             className={`rounded-xl border px-3 py-2 text-xs font-black transition ${paymentMethod === method
-                                ? 'border-emerald-500 bg-emerald-50 text-emerald-700'
-                                : 'border-slate-200 bg-white text-slate-500 hover:bg-slate-50'
+                              ? 'border-emerald-500 bg-emerald-50 text-emerald-700'
+                              : 'border-slate-200 bg-white text-slate-500 hover:bg-slate-50'
                               }`}
                           >
                             {method === 'CASH' ? 'Cash' : 'Online banking'}

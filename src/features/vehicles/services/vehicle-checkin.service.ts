@@ -57,7 +57,7 @@ export type VehicleCheckinSession = {
   id: number;
   sessionCode: string;
   licensePlate: string;
-  vehicleType: 'CAR' | 'MOTORCYCLE' | 'UNKNOWN';
+  vehicleType: string;
   customerType: 'WALK_IN' | 'BOOKING' | 'MONTHLY';
   vehicleId: number | null;
   buildingId: number | null;
@@ -162,12 +162,12 @@ export const mapActiveParkingSession = (
     id: sessionId,
     sessionCode: `SS-${sessionId}`,
     licensePlate: String(session.licensePlateIn ?? '-'),
-    vehicleType: session.vehicleType
-      ? (String(session.vehicleType).toUpperCase().includes('CAR') ? 'CAR' : 'MOTORCYCLE')
-      : 'UNKNOWN',
-    customerType: session.bookingId
-      ? 'BOOKING'
-      : 'WALK_IN',
+    vehicleType: session.vehicleType ? String(session.vehicleType) : 'UNKNOWN',
+    customerType: session.monthlySubscriptionId
+      ? 'MONTHLY'
+      : session.bookingId
+        ? 'BOOKING'
+        : 'WALK_IN',
     vehicleId: session.vehicleId ?? null,
     buildingId: session.buildingId ?? null,
     cardId,

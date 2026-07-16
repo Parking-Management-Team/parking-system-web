@@ -75,6 +75,7 @@ export interface ZoneResponse {
   accessType?: number;  // Backend: 0 = GENERAL, 1 = MONTHLY
   capacity?: number;
   status: number | string;
+  bookingLimitRate?: number; // Tỷ lệ phần trăm slots cho phép đặt trước (1-100)
 }
 
 export interface Floor {
@@ -93,6 +94,7 @@ export interface Zone {
   zoneAccessType: 'GENERAL' | 'MONTHLY';
   slotCapacity: number;
   status: 'Active' | 'Inactive';
+  bookingLimitRate?: number; // Tỷ lệ phần trăm slots cho phép đặt trước (1-100)
 }
 
 export interface Slot {

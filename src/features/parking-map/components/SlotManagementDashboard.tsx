@@ -159,7 +159,8 @@ export function SlotManagementDashboard() {
           vehicleType: mapVehicleTypeIdToType(item.vehicleTypeId),
           zoneAccessType: mapAccessTypeToZone(item.accessType),
           slotCapacity: item.capacity || 0,
-          status: item.status === 3 || item.status === 'OutOfService' || item.status === 'Inactive' ? 'Inactive' : 'Active'
+          status: item.status === 3 || item.status === 'OutOfService' || item.status === 'Inactive' ? 'Inactive' : 'Active',
+          bookingLimitRate: item.bookingLimitRate ?? 80
         }));
         setZones(loadedZones);
       }
@@ -229,7 +230,14 @@ export function SlotManagementDashboard() {
         try {
           const res = await api.get<BaseResponse<ParkingSlotDto[]>>(`/ParkingSlots/zone/${zone.id}`);
           if (res.success && res.data) {
-            return res.data.map(item => {
+            // Calculate spare slots based on bookingLimitRate
+            const totalSlots = res.data.length;
+            const bookingLimitRate = zone.bookingLimitRate ?? 80;
+            const bookableCount = Math.floor(totalSlots * bookingLimitRate / 100);
+            const spareCount = totalSlots - bookableCount;
+
+            // Map slots and mark spare ones as RESERVED
+            const mappedSlots = res.data.map((item, index) => {
               // Find active session for this slot
               const session = activeSess.find(s => s.slotId === item.id);
               
@@ -267,6 +275,13 @@ export function SlotManagementDashboard() {
                 }
               };
 
+              let finalStatus = assignedVehicle ? 'OCCUPIED' : mapStatus(item.status);
+              
+              // Mark spare slots as RESERVED (last N AVAILABLE slots)
+              if (finalStatus === 'AVAILABLE' && index >= bookableCount && !assignedVehicle) {
+                finalStatus = 'RESERVED';
+              }
+
               return {
                 id: item.id,
                 slotCode: item.code,
@@ -276,11 +291,13 @@ export function SlotManagementDashboard() {
                 floorId: selectedFloorId,
                 buildingId: selectedBuildingId || 0,
                 slotType: zone.vehicleType === 'EV Charging' ? 'EV Charging' as const : (zone.vehicleType === 'Motorbike' ? 'Motorbike' as const : 'Standard' as const),
-                status: assignedVehicle ? 'OCCUPIED' : mapStatus(item.status),
+                status: finalStatus,
                 vehicleTypeId: item.vehicleTypeId,
                 assignedVehicle
               };
             });
+
+            return mappedSlots;
           }
         } catch (slotErr) {
           console.error(`Error loading slots for zone ${zone.id}:`, slotErr);
@@ -318,7 +335,12 @@ export function SlotManagementDashboard() {
         try {
           const res = await api.get<BaseResponse<ParkingSlotDto[]>>(`/ParkingSlots/zone/${zone.id}`);
           if (res.success && res.data) {
-            return res.data.map(item => {
+            // Calculate spare slots based on bookingLimitRate
+            const totalSlots = res.data.length;
+            const bookingLimitRate = zone.bookingLimitRate ?? 80;
+            const bookableCount = Math.floor(totalSlots * bookingLimitRate / 100);
+
+            return res.data.map((item, index) => {
               const session = activeSess.find(s => s.slotId === item.id);
               let assignedVehicle = undefined;
               if (session) {
@@ -353,6 +375,14 @@ export function SlotManagementDashboard() {
                   default: return 'AVAILABLE';
                 }
               };
+
+              let finalStatus = assignedVehicle ? 'OCCUPIED' : mapStatus(item.status);
+              
+              // Mark spare slots as RESERVED (last N AVAILABLE slots)
+              if (finalStatus === 'AVAILABLE' && index >= bookableCount && !assignedVehicle) {
+                finalStatus = 'RESERVED';
+              }
+
               return {
                 id: item.id,
                 slotCode: item.code,
@@ -362,7 +392,7 @@ export function SlotManagementDashboard() {
                 floorId: selectedFloorId,
                 buildingId: selectedBuildingId || 0,
                 slotType: zone.vehicleType === 'EV Charging' ? 'EV Charging' as const : (zone.vehicleType === 'Motorbike' ? 'Motorbike' as const : 'Standard' as const),
-                status: assignedVehicle ? 'OCCUPIED' : mapStatus(item.status),
+                status: finalStatus,
                 vehicleTypeId: item.vehicleTypeId,
                 assignedVehicle
               };
@@ -580,7 +610,7 @@ export function SlotManagementDashboard() {
       case 'MAINTENANCE':
         return 'bg-[#d97706] border-[#d97706] text-white hover:brightness-110';
       case 'RESERVED':
-        return 'bg-amber-500 border-amber-500 text-white hover:brightness-110';
+        return 'bg-amber-400 border-amber-400 text-white hover:brightness-110';
       default:
         return 'bg-slate-300 border-slate-300 text-slate-700';
     }
@@ -875,40 +905,50 @@ export function SlotManagementDashboard() {
                       </span>
                     </div>
 
-                    {zoneSlots.length === 0 ? (
-                      <p className="text-xs text-slate-400 font-semibold italic text-center py-6 col-span-full">No slots configured in this zone.</p>
-                    ) : (
-                      <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10 gap-3.5">
-                        {zoneSlots.map(slot => (
-                          <button
-                            key={slot.id}
-                            onClick={() => handleSlotClick(slot)}
-                            className={`h-24 border rounded-xl flex flex-col items-center justify-between py-3 px-3.5 shadow-sm transition-all hover:scale-[1.03] active:scale-95 group font-bold text-sm ${getSlotColorClass(
-                              slot.status
-                            )}`}
-                          >
-                            <span className="truncate w-full text-center px-1">{slot.slotCode}</span>
-                            {slot.status === 'OCCUPIED' && slot.assignedVehicle ? (
-                              <div className="w-full text-center">
-                                <span className="material-symbols-outlined text-[16px]">
-                                  directions_car
-                                </span>
-                                <span className="block text-[9px] font-extrabold mt-0.5 opacity-90 truncate leading-tight">
-                                  {slot.assignedVehicle.plate}
-                                </span>
-                              </div>
-                            ) : (
-                              <span className="material-symbols-outlined text-[18px]">
-                                {slot.status === 'AVAILABLE' ? 'check_circle' :
-                                 slot.status === 'BLOCKED' ? 'block' :
-                                 slot.status === 'MAINTENANCE' ? 'build' :
-                                 'directions_car'}
-                              </span>
-                            )}
-                          </button>
-                        ))}
-                      </div>
-                    )}
+                        {zoneSlots.length === 0 ? (
+                          <p className="text-xs text-slate-400 font-semibold italic text-center py-6 col-span-full">No slots configured in this zone.</p>
+                        ) : (
+                          <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10 gap-3.5">
+                            {zoneSlots.map(slot => (
+                              <button
+                                key={slot.id}
+                                onClick={() => handleSlotClick(slot)}
+                                title={slot.status === 'RESERVED' ? 'Dự phòng - Không cho phép đặt trước' : undefined}
+                                className={`h-24 border rounded-xl flex flex-col items-center justify-between py-3 px-3.5 shadow-sm transition-all hover:scale-[1.03] active:scale-95 group font-bold text-sm ${getSlotColorClass(
+                                  slot.status
+                                )}`}
+                              >
+                                <span className="truncate w-full text-center px-1">{slot.slotCode}</span>
+                                {slot.status === 'OCCUPIED' && slot.assignedVehicle ? (
+                                  <div className="w-full text-center">
+                                    <span className="material-symbols-outlined text-[16px]">
+                                      directions_car
+                                    </span>
+                                    <span className="block text-[9px] font-extrabold mt-0.5 opacity-90 truncate leading-tight">
+                                      {slot.assignedVehicle.plate}
+                                    </span>
+                                  </div>
+                                ) : slot.status === 'RESERVED' ? (
+                                  <div className="w-full text-center">
+                                    <span className="material-symbols-outlined text-[16px]">
+                                      lock
+                                    </span>
+                                    <span className="block text-[8px] font-extrabold mt-0.5 opacity-80 uppercase">
+                                      Spare
+                                    </span>
+                                  </div>
+                                ) : (
+                                  <span className="material-symbols-outlined text-[18px]">
+                                    {slot.status === 'AVAILABLE' ? 'check_circle' :
+                                     slot.status === 'BLOCKED' ? 'block' :
+                                     slot.status === 'MAINTENANCE' ? 'build' :
+                                     'directions_car'}
+                                  </span>
+                                )}
+                              </button>
+                            ))}
+                          </div>
+                        )}
                   </div>
                 );
               })

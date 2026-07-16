@@ -21,15 +21,13 @@ import {
 } from '@/features/vehicles/services/vehicle-checkin.service';
 import { ApiError } from '@/lib/api/client';
 
-type VehicleType = 'CAR' | 'MOTORCYCLE';
-
 type GateOverlay =
   | {
     type: 'success';
     title: string;
     message: string;
     session?: VehicleCheckinSession;
-    vehicleType: VehicleType;
+    vehicleType: string;
     cardCode: string;
     checkInTime: string;
   }
@@ -41,13 +39,6 @@ type GateOverlay =
 
 const BUILDING_ID = 3;
 const STAFF_ID = 2;
-
-// TODO(api-confirm): keep this temporary mapping for the current test requirements.
-// Update this mapping if the backend seeds different vehicle types.
-const VEHICLE_TYPE_ID_BY_TYPE: Record<VehicleType, number> = {
-  CAR: 2,
-  MOTORCYCLE: 3,
-};
 
 const normalizeText = (value: string) => value.trim().toUpperCase();
 const normalizeComparable = (value: string) =>
@@ -94,7 +85,8 @@ export default function VehicleCheckin({ compact = false }: { compact?: boolean 
   const [bookings, setBookings] = useState<VehicleCheckinBooking[]>([]);
   const [blacklist, setBlacklist] = useState<BlacklistDto[]>([]);
   const [licensePlate, setLicensePlate] = useState('');
-  const [vehicleType, setVehicleType] = useState<VehicleType>('CAR');
+  const [vehicleTypes, setVehicleTypes] = useState<any[]>([]);
+  const [vehicleTypeId, setVehicleTypeId] = useState<number | null>(null);
   const [cardCode, setCardCode] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [overlay, setOverlay] = useState<GateOverlay | null>(null);
@@ -338,6 +330,25 @@ export default function VehicleCheckin({ compact = false }: { compact?: boolean 
       console.warn('Failed to fetch building list:', err);
     }
 
+    try {
+      const vehicleTypesRes = await api.get<any>('/vehicle-types');
+      if (vehicleTypesRes && vehicleTypesRes.success && Array.isArray(vehicleTypesRes.data)) {
+        setVehicleTypes(vehicleTypesRes.data);
+        if (vehicleTypesRes.data.length > 0) {
+          setVehicleTypeId((prev) => {
+            if (prev) return prev;
+            const carType = vehicleTypesRes.data.find((vt: any) => {
+              const name = (vt.name ?? vt.typeName ?? vt.TypeName ?? '').toUpperCase();
+              return name.includes('CAR') || name.includes('AUTO');
+            });
+            return carType ? (carType.id ?? carType.Id) : (vehicleTypesRes.data[0].id ?? vehicleTypesRes.data[0].Id);
+          });
+        }
+      }
+    } catch (err) {
+      console.warn('Failed to fetch vehicle types:', err);
+    }
+
     // Staff check-in uses cards, active sessions, bookings, and blacklist data to operate the entry gate.
     // Booking and blacklist data are supplementary; auxiliary endpoint failures must not break the primary check-in flow.
     const [cardData, sessionData, bookingData, blacklistData] = await Promise.all([
@@ -463,12 +474,15 @@ export default function VehicleCheckin({ compact = false }: { compact?: boolean 
     setIsSubmitting(true);
     setShowReallocateBtn(false);
 
+    const selectedType = vehicleTypes.find((vt: any) => (vt.id ?? vt.Id) === vehicleTypeId);
+    const vehicleTypeName = selectedType ? (selectedType.name ?? selectedType.typeName ?? selectedType.TypeName ?? '') : 'Unknown';
+
     try {
       const session = await checkInVehicle({
         licensePlate: formattedPlate,
         vehicleTypeId: matchedBooking && matchedBooking.vehicleTypeId
           ? matchedBooking.vehicleTypeId
-          : VEHICLE_TYPE_ID_BY_TYPE[vehicleType],
+          : vehicleTypeId!,
         cardCode: normalizedCardCode,
         buildingId: buildingId,
         staffId: STAFF_ID,
@@ -487,7 +501,7 @@ export default function VehicleCheckin({ compact = false }: { compact?: boolean 
           ? `Booking ${matchedBooking.bookingCode} was converted to a parking session.`
           : 'Walk-in parking session was created.',
         session,
-        vehicleType,
+        vehicleType: vehicleTypeName,
         cardCode: normalizedCardCode,
         checkInTime: session.checkInTime || new Date().toISOString(),
       });
@@ -528,7 +542,7 @@ export default function VehicleCheckin({ compact = false }: { compact?: boolean 
       setIsSubmitting(true);
       const slots = await fetchAvailableSlotsForReallocation(
         buildingId,
-        matchedBooking.vehicleTypeId ?? VEHICLE_TYPE_ID_BY_TYPE[vehicleType],
+        matchedBooking.vehicleTypeId ?? vehicleTypeId!,
         matchedBooking.plannedCheckinTime || new Date().toISOString(),
         matchedBooking.plannedCheckoutTime || new Date(Date.now() + 4 * 3600000).toISOString()
       );
@@ -546,9 +560,12 @@ export default function VehicleCheckin({ compact = false }: { compact?: boolean 
     setIsReallocateModalOpen(false);
     setIsSubmitting(true);
     try {
+      const selectedType = vehicleTypes.find((vt: any) => (vt.id ?? vt.Id) === vehicleTypeId);
+      const vehicleTypeName = selectedType ? (selectedType.name ?? selectedType.typeName ?? selectedType.TypeName ?? '') : 'Unknown';
+
       const session = await checkInVehicle({
         licensePlate: formattedPlate,
-        vehicleTypeId: matchedBooking.vehicleTypeId ?? VEHICLE_TYPE_ID_BY_TYPE[vehicleType],
+        vehicleTypeId: matchedBooking.vehicleTypeId ?? vehicleTypeId!,
         cardCode: normalizedCardCode,
         buildingId: buildingId,
         staffId: STAFF_ID,
@@ -566,7 +583,7 @@ export default function VehicleCheckin({ compact = false }: { compact?: boolean 
         title: 'Check-in successful',
         message: `Vehicle ${formattedPlate} was checked in successfully at the new parking space.`,
         session,
-        vehicleType,
+        vehicleType: vehicleTypeName,
         cardCode: normalizedCardCode,
         checkInTime: session.checkInTime || new Date().toISOString(),
       });
@@ -589,8 +606,8 @@ export default function VehicleCheckin({ compact = false }: { compact?: boolean 
   };
 
   return (
-    <div className={compact ? '' : 'min-h-[calc(100vh-76px)] bg-slate-50 p-4 text-slate-900'}>
-      <div className={compact ? 'flex flex-col gap-4' : 'mx-auto flex min-h-[calc(100vh-108px)] max-w-[1600px] flex-col gap-4'}>
+    <div className={compact ? '' : 'bg-slate-50 p-4 text-slate-900'}>
+      <div className={compact ? 'flex flex-col gap-4' : 'mx-auto flex max-w-[1600px] flex-col gap-4'}>
         {!compact && (
           <div className="flex shrink-0 items-center justify-between gap-3">
             <h1 className="text-xl font-black text-slate-900">Staff Gate Check-in</h1>
@@ -609,7 +626,7 @@ export default function VehicleCheckin({ compact = false }: { compact?: boolean 
           </div>
         )}
 
-        <div className={compact ? 'flex flex-col gap-4' : 'grid min-h-0 flex-1 gap-4 xl:grid-cols-2'}>
+        <div className={compact ? 'grid gap-4 md:grid-cols-2' : 'grid min-h-0 flex-1 gap-4 xl:grid-cols-2'}>
           {/* LEFT COLUMN: ENTRY CAMERA (LIVE FEED & LPR) */}
           <div className="space-y-4 flex flex-col min-h-0">
             <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm flex flex-col">
@@ -689,22 +706,15 @@ export default function VehicleCheckin({ compact = false }: { compact?: boolean 
                   </div>
                 </div>
 
-                <div className="grid gap-3 grid-cols-2">
+                <div>
                   <button
                     type="button"
                     onClick={handleCheckinScan}
                     disabled={isScanning || !cameraActive}
-                    className="rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white py-1.5 text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-md shadow-emerald-600/10 disabled:opacity-50"
+                    className="w-full rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white py-2 text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-md shadow-emerald-600/10 disabled:opacity-50"
                   >
                     <span className="material-symbols-outlined text-base">photo_camera</span>
                     Scan Camera
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleMockScanCheckin}
-                    className="rounded-xl bg-white hover:bg-slate-50 text-slate-600 py-1.5 text-xs font-semibold border border-slate-200 transition"
-                  >
-                    Mock Scan
                   </button>
                 </div>
 
@@ -795,22 +805,28 @@ export default function VehicleCheckin({ compact = false }: { compact?: boolean 
                   Vehicle type
                 </label>
                 <div className="mt-1 grid grid-cols-2 gap-3">
-                  {(['CAR', 'MOTORCYCLE'] as VehicleType[]).map((type) => (
-                    <button
-                      key={type}
-                      type="button"
-                      onClick={() => setVehicleType(type)}
-                      className={`rounded-xl border px-3 py-2 text-xs font-black transition ${vehicleType === type
-                        ? 'border-emerald-500 bg-emerald-50 text-emerald-700'
-                        : 'border-slate-200 bg-white text-slate-500 hover:bg-slate-50'
-                        }`}
-                    >
-                      <span className="material-symbols-outlined mr-1.5 align-middle text-base">
-                        {type === 'CAR' ? 'directions_car' : 'two_wheeler'}
-                      </span>
-                      {type === 'CAR' ? 'Car' : 'Motorcycle'}
-                    </button>
-                  ))}
+                  {vehicleTypes.map((type) => {
+                    const id = type.id ?? type.Id;
+                    const name = type.name ?? type.typeName ?? type.TypeName ?? '';
+                    const isSelected = vehicleTypeId === id;
+                    const isCar = name.toUpperCase().includes('CAR') || name.toUpperCase().includes('AUTO');
+                    return (
+                      <button
+                        key={id}
+                        type="button"
+                        onClick={() => setVehicleTypeId(id)}
+                        className={`rounded-xl border px-3 py-2 text-xs font-black transition ${isSelected
+                          ? 'border-emerald-500 bg-emerald-50 text-emerald-700'
+                          : 'border-slate-200 bg-white text-slate-500 hover:bg-slate-50'
+                          }`}
+                      >
+                        <span className="material-symbols-outlined mr-1.5 align-middle text-base">
+                          {isCar ? 'directions_car' : 'two_wheeler'}
+                        </span>
+                        {name}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 

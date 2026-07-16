@@ -796,15 +796,47 @@ export function SlotManagementDashboard() {
                     </div>
 
                     {/* Booking Capacity Info */}
-                    {!isMotorbike && (
-                      <div className="bg-blue-50 border border-blue-100 rounded-xl p-3 flex items-center justify-between">
-                        <span className="text-[11px] font-bold text-blue-700">Booking Capacity</span>
-                        <div className="text-right">
-                          <span className="text-sm font-black text-blue-800">{remainingBookable}</span>
-                          <span className="text-[10px] font-bold text-blue-500 ml-1">/ {maxBookable} remaining</span>
+                    {!isMotorbike && (() => {
+                      const usedBookable = Math.min(reservedCount, maxBookable);
+                      const bookingUsagePct = maxBookable > 0 ? Math.round((usedBookable / maxBookable) * 100) : 0;
+                      const isCritical = bookingUsagePct >= 90;
+                      const isWarning = bookingUsagePct >= 70 && bookingUsagePct < 90;
+                      const barColor = isCritical ? '#ba1a1a' : isWarning ? '#d97706' : '#006d43';
+                      const bgClass = isCritical
+                        ? 'bg-red-50 border-red-200'
+                        : isWarning
+                          ? 'bg-amber-50 border-amber-200'
+                          : 'bg-emerald-50 border-emerald-200';
+                      const labelClass = isCritical ? 'text-red-700' : isWarning ? 'text-amber-700' : 'text-emerald-700';
+                      const countClass = isCritical ? 'text-red-800' : isWarning ? 'text-amber-800' : 'text-emerald-800';
+                      const subClass = isCritical ? 'text-red-500' : isWarning ? 'text-amber-500' : 'text-emerald-500';
+                      const statusIcon = isCritical ? 'warning' : isWarning ? 'info' : 'check_circle';
+
+                      return (
+                        <div className={`border rounded-xl p-3 ${bgClass}`}>
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center gap-1.5">
+                              <span className={`material-symbols-outlined text-base ${labelClass}`}>{statusIcon}</span>
+                              <span className={`text-[11px] font-extrabold uppercase tracking-wide ${labelClass}`}>Booking Capacity</span>
+                            </div>
+                            <div className="text-right">
+                              <span className={`text-base font-black ${countClass}`}>{remainingBookable}</span>
+                              <span className={`text-[10px] font-bold ml-1 ${subClass}`}>/ {maxBookable} remaining</span>
+                            </div>
+                          </div>
+                          <div className="w-full bg-white/60 h-2 rounded-full overflow-hidden">
+                            <div
+                              className="h-full rounded-full transition-all duration-700"
+                              style={{ width: `${bookingUsagePct}%`, backgroundColor: barColor }}
+                            />
+                          </div>
+                          <div className="flex items-center justify-between mt-1.5">
+                            <span className={`text-[10px] font-bold ${subClass}`}>{bookingUsagePct}% used</span>
+                            <span className={`text-[10px] font-semibold ${subClass}`}>Limit: {bookingLimitRate}% of total</span>
+                          </div>
                         </div>
-                      </div>
-                    )}
+                      );
+                    })()}
                     
                     {/* Progress Bar with Percentage */}
                     <div className="space-y-1.5">

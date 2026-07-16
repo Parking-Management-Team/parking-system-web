@@ -1046,10 +1046,6 @@ export function SlotManagementDashboard() {
                 </select>
               </div>
 
-              <button className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 border border-slate-200 rounded-lg text-sm font-bold text-slate-700 hover:bg-slate-50 transition-colors shadow-sm">
-                <span className="material-symbols-outlined text-[18px]">download</span>
-                Export CSV
-              </button>
             </div>
 
             {/* List Table */}

@@ -35,12 +35,12 @@ const mapAccessTypeToFrontend = (accessType?: number): 'GENERAL' | 'MONTHLY' => 
 };
 
 const mapStatusToFrontend = (status: number | string): 'Active' | 'Inactive' => {
-  if (status === 3 || status === 'OutOfService' || status === 'Inactive') return 'Inactive';
+  if (status === 0 || status === 'Inactive') return 'Inactive';
   return 'Active';
 };
 
 const mapStatusToBackend = (status: 'Active' | 'Inactive'): number => {
-  return status === 'Active' ? 0 : 3; // 0 = Available, 3 = OutOfService
+  return status === 'Active' ? 1 : 0; // 1 = Active, 0 = Inactive
 };
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

@@ -24,14 +24,7 @@ export default function VehicleActivityLogs({ logs, licensePlate }: VehicleActiv
           </h3>
           <p className="text-xs text-slate-400 mt-0.5">Historical movement records for this registration</p>
         </div>
-        
-        <button
-          onClick={handleExportCSV}
-          className="px-4 py-2 rounded-xl text-xs text-emerald-600 font-bold bg-emerald-50 hover:bg-emerald-100 transition-colors border border-emerald-100 flex items-center gap-1.5"
-        >
-          Export CSV
-          <span className="material-symbols-outlined text-[16px]">download</span>
-        </button>
+
       </div>
 
       {/* Bảng hoạt động */}

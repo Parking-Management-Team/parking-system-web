@@ -47,6 +47,15 @@ export default function BuildingDirectory() {
   // Base path based on role
   const basePath = user?.role === 'ADMIN' ? '/dashboard/admin/facilities' : '/dashboard/manager/facilities';
 
+  const [statusFilter, setStatusFilter] = React.useState<string>('ALL');
+
+  const displayedBuildings = React.useMemo(() => {
+    return filteredBuildings.filter(bld => {
+      if (statusFilter === 'ALL') return true;
+      return bld.status.toString() === statusFilter;
+    });
+  }, [filteredBuildings, statusFilter]);
+
   // Tính toán số liệu thống kê (Summary stats)
   const totalCapacity = floors.reduce((acc, f) => acc + f.totalSlots, 0);
   const activeMaintenanceCount = buildings.filter(
@@ -139,14 +148,21 @@ export default function BuildingDirectory() {
               </div>
 
               <div className="flex items-center gap-2 w-full sm:w-auto">
-                <button className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3 py-1.5 text-slate-600 border border-[#bccabe] rounded-lg hover:bg-slate-50 transition-colors text-xs font-semibold">
-                  <span className="material-symbols-outlined text-[16px]">filter_list</span>
-                  Filter
-                </button>
-                <button className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3 py-1.5 text-slate-600 border border-[#bccabe] rounded-lg hover:bg-slate-50 transition-colors text-xs font-semibold">
-                  <span className="material-symbols-outlined text-[16px]">download</span>
-                  Export
-                </button>
+                <div className="relative w-full sm:w-44">
+                  <select
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value)}
+                    className="w-full pl-8 pr-8 py-1.5 bg-white border border-[#bccabe] rounded-lg text-xs font-semibold text-slate-600 focus:outline-none focus:border-[#006d43] appearance-none cursor-pointer"
+                  >
+                    <option value="ALL">All Statuses</option>
+                    <option value="0">Available</option>
+                    <option value="1">Occupied</option>
+                    <option value="2">Reserved</option>
+                    <option value="3">Out of Service</option>
+                  </select>
+                  <span className="material-symbols-outlined absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-[16px] pointer-events-none">filter_list</span>
+                  <span className="material-symbols-outlined absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 text-[16px] pointer-events-none">arrow_drop_down</span>
+                </div>
               </div>
             </div>
 
@@ -164,8 +180,8 @@ export default function BuildingDirectory() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#d8e3fb] text-slate-700 text-sm">
-                  {filteredBuildings.length > 0 ? (
-                    filteredBuildings.map(bld => (
+                  {displayedBuildings.length > 0 ? (
+                    displayedBuildings.map(bld => (
                       <tr 
                         key={bld.id}
                         className="hover:bg-slate-50/40 transition-colors group"
@@ -197,13 +213,6 @@ export default function BuildingDirectory() {
                         </td>
                         <td className="px-6 py-4 text-right">
                           <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <Link 
-                              href={`${basePath}/${bld.id}`}
-                              className="p-1.5 text-slate-400 hover:text-[#006d43] hover:bg-slate-100 rounded transition-all"
-                              title="View Details"
-                            >
-                              <span className="material-symbols-outlined text-[18px]">visibility</span>
-                            </Link>
                             {canEdit && (
                               <>
                                 <Link 
@@ -244,7 +253,7 @@ export default function BuildingDirectory() {
             {/* Pagination Utilities */}
             <div className="px-6 py-4 border-t border-[#d8e3fb] flex justify-between items-center text-slate-500 bg-slate-50/50">
               <span className="text-xs">
-                Showing {filteredBuildings.length > 0 ? (pageIndex - 1) * 10 + 1 : 0} to{' '}
+                Showing {displayedBuildings.length > 0 ? (pageIndex - 1) * 10 + 1 : 0} to{' '}
                 {Math.min(pageIndex * 10, totalCount)} of {totalCount} entries
               </span>
               <div className="flex gap-1">

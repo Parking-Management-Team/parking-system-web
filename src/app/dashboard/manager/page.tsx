@@ -29,8 +29,6 @@ interface RevenueStatisticDto {
 }
 
 export default function ManagerDashboard() {
-  const [currentTime, setCurrentTime] = useState<string>('');
-  
   // Real Data States
   const [buildings, setBuildings] = useState<Building[]>([]);
   const [floors, setFloors] = useState<FloorResponse[]>([]);
@@ -41,19 +39,6 @@ export default function ManagerDashboard() {
   const [selectedBuildingId, setSelectedBuildingId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Time ticker
-  useEffect(() => {
-    const fmt = () =>
-      new Date().toLocaleTimeString('en-US', {
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-        hour12: false,
-      });
-    setCurrentTime(fmt());
-    const timer = setInterval(() => setCurrentTime(fmt()), 1000);
-    return () => clearInterval(timer);
-  }, []);
 
   // Fetch active sessions only
   const fetchActiveSessions = async () => {
@@ -255,14 +240,6 @@ export default function ManagerDashboard() {
             </span>
           </div>
 
-          {/* Time indicator */}
-          <div className="bg-white px-5 py-2.5 rounded-xl border border-slate-200 shadow-sm flex items-center gap-3">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
-            <div>
-              <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">System Live</div>
-              <div className="text-sm font-bold text-slate-700 tabular-nums">{currentTime || '--:--:--'}</div>
-            </div>
-          </div>
         </div>
       </div>
 

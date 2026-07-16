@@ -730,6 +730,24 @@ export function SlotManagementDashboard() {
                   effectiveTotal = effectiveMotorTotal;
                 }
 
+                // Find zone for this vehicle type to get bookingLimitRate
+                const zoneForType = zones.find(z => {
+                  if (z.floorId !== selectedFloorId) return false;
+                  if (isMotorbike) return z.vehicleType === 'Motorbike';
+                  return z.vehicleType !== 'Motorbike';
+                });
+                const bookingLimitRate = zoneForType?.bookingLimitRate ?? 80;
+
+                // Calculate booking capacity
+                const maxBookable = Math.floor(effectiveTotal * bookingLimitRate / 100);
+                const reservedCount = activeSessions.filter(s => {
+                  const zone = zones.find(z => z.id === s.zoneId);
+                  if (!zone || zone.floorId !== selectedFloorId) return false;
+                  if (isMotorbike) return zone.vehicleType === 'Motorbike';
+                  return zone.vehicleType !== 'Motorbike';
+                }).length;
+                const remainingBookable = Math.max(0, maxBookable - reservedCount);
+
                 const effectiveOccupiedPct = effectiveTotal > 0 ? Math.round((effectiveOccupied / effectiveTotal) * 100) : 0;
                 const effectiveAvailablePct = effectiveTotal > 0 ? Math.round((effectiveAvailable / effectiveTotal) * 100) : 0;
                 const blockedPct = effectiveTotal > 0 ? Math.round((blocked / effectiveTotal) * 100) : 0;
@@ -746,6 +764,11 @@ export function SlotManagementDashboard() {
                         </div>
                         <span className="text-xs font-extrabold text-slate-700 uppercase tracking-wide">{isMotorbike ? 'Motorbike' : 'Car'} · Floor {floorSlotSummary.floorNumber}</span>
                       </div>
+                      {!isMotorbike && (
+                        <span className="text-[10px] font-bold text-slate-400 bg-slate-100 px-2 py-1 rounded-lg">
+                          Booking limit: {bookingLimitRate}%
+                        </span>
+                      )}
                     </div>
                     
                     <div className="flex items-end gap-3 flex-wrap">
@@ -778,6 +801,20 @@ export function SlotManagementDashboard() {
                         <p className="text-[10px] font-bold text-slate-400 uppercase mt-0.5">Total</p>
                       </div>
                     </div>
+
+                    {/* Booking Capacity Info */}
+                    {!isMotorbike && (
+                      <div className="bg-blue-50 border border-blue-100 rounded-xl p-3 flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="material-symbols-outlined text-[16px] text-blue-600">event_available</span>
+                          <span className="text-[11px] font-bold text-blue-700">Booking Capacity</span>
+                        </div>
+                        <div className="text-right">
+                          <span className="text-sm font-black text-blue-800">{remainingBookable}</span>
+                          <span className="text-[10px] font-bold text-blue-500 ml-1">/ {maxBookable} remaining</span>
+                        </div>
+                      </div>
+                    )}
                     
                     {/* Progress Bar with Percentage */}
                     <div className="space-y-1.5">

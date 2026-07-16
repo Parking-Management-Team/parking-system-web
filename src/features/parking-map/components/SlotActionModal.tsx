@@ -87,10 +87,10 @@ export function SlotActionModal({
           buildingId: activeSlot?.buildingId || 0
         };
         setActiveSlot(newSlot);
-        showToastMessage(`Đã đổi sang vị trí đỗ ${newSlot.slotCode}`);
+        showToastMessage(`Switched to parking slot ${newSlot.slotCode}`);
       }
     } catch {
-      showToastMessage('Không thể chuyển sang slot mới.', 'error');
+      showToastMessage('Failed to switch to new slot.', 'error');
     } finally {
       setLoadingFutureBookings(false);
     }
@@ -221,7 +221,7 @@ export function SlotActionModal({
                 <div className="rounded-2xl border border-amber-100 bg-amber-50/70 p-4 text-xs text-amber-800 space-y-3">
                   <div className="flex items-center gap-2 font-bold text-amber-900">
                     <span className="material-symbols-outlined text-[18px] text-amber-600">warning</span>
-                    Cảnh báo: Vị trí đỗ này đã có lịch đặt trước trong tương lai!
+                    Warning: This parking slot has upcoming bookings!
                   </div>
                   <ul className="list-disc pl-4 space-y-1 font-semibold text-amber-700">
                     {futureBookingsData.futureBookings.map((b: any) => (
@@ -232,7 +232,7 @@ export function SlotActionModal({
                   </ul>
                   {futureBookingsData.recommendedSlots && futureBookingsData.recommendedSlots.length > 0 && (
                     <div className="pt-2 border-t border-amber-200/50">
-                      <p className="font-bold text-amber-900 mb-2">Đề xuất các vị trí trống khác an toàn hơn:</p>
+                      <p className="font-bold text-amber-900 mb-2">Recommended safer available slots:</p>
                       <div className="flex flex-wrap gap-2">
                         {futureBookingsData.recommendedSlots.map((rec: any) => (
                           <button
@@ -367,40 +367,22 @@ export function SlotActionModal({
             </div>
           )}
 
-          {/* Drawer Mode: RESERVED (Spare) -> Action Panel */}
+          {/* Drawer Mode: RESERVED -> Action Panel */}
           {activeSlot.status === 'RESERVED' && (
             <div className="space-y-6 animate-in fade-in duration-150">
-              <div className="bg-amber-50 p-5 rounded-2xl border border-amber-200 flex items-start gap-4">
-                <span className="material-symbols-outlined text-2xl mt-0.5 text-amber-600">
-                  lock
+              <div className="bg-blue-50 p-5 rounded-2xl border border-blue-200 flex items-start gap-4">
+                <span className="material-symbols-outlined text-2xl mt-0.5 text-blue-600">
+                  event
                 </span>
                 <div>
                   <h4 className="text-sm font-extrabold text-slate-800 uppercase tracking-wide">
-                    Spare Slot (Reserved)
+                    Reserved for Booking
                   </h4>
                   <p className="text-xs text-slate-500 mt-1">
-                    This is a spare parking slot, reserved based on the zone's booking limit rate. This slot cannot be booked through the system.
+                    This parking slot is reserved for an upcoming booking. It will become available after the booking is completed or cancelled.
                   </p>
                 </div>
               </div>
-              
-              {/* Administrative Actions */}
-              {userRole === 'MANAGER' && (
-                <div className="pt-4 border-t border-slate-100 space-y-2">
-                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider">
-                    Administrative Controls
-                  </label>
-                  <button
-                    type="button"
-                    onClick={() => handleSetStatus('AVAILABLE')}
-                    disabled={isSubmitting}
-                    className="w-full py-2.5 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition-all text-white bg-[#006d43] hover:bg-emerald-700 shadow-md shadow-emerald-500/10 disabled:cursor-not-allowed"
-                  >
-                    <span className="material-symbols-outlined text-[16px]">check_circle</span>
-                    Release to Available
-                  </button>
-                </div>
-              )}
             </div>
           )}
 
@@ -467,30 +449,12 @@ export function SlotActionModal({
           )}
 
           {activeSlot.status === 'RESERVED' && (
-            <>
-              <button
-                onClick={onClose}
-                className="flex-1 py-3 bg-white hover:bg-slate-50 border border-slate-200 rounded-xl font-bold text-sm text-slate-600 transition-all shadow-sm"
-              >
-                Close
-              </button>
-              {userRole === 'MANAGER' && (
-                <button
-                  onClick={() => handleSetStatus('AVAILABLE')}
-                  disabled={isSubmitting}
-                  className="flex-[2] py-3 bg-[#006d43] hover:bg-emerald-700 disabled:bg-emerald-300 disabled:cursor-not-allowed text-white rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all shadow-md shadow-emerald-500/10"
-                >
-                  {isSubmitting ? (
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                  ) : (
-                    <>
-                      <span className="material-symbols-outlined text-[18px]">check_circle</span>
-                      Release Spare Slot
-                    </>
-                  )}
-                </button>
-              )}
-            </>
+            <button
+              onClick={onClose}
+              className="w-full py-3 bg-white hover:bg-slate-50 border border-slate-200 rounded-xl font-bold text-sm text-slate-600 transition-all shadow-sm"
+            >
+              Close
+            </button>
           )}
         </div>
       </div>

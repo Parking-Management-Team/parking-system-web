@@ -733,8 +733,11 @@ export function SlotManagementDashboard() {
                   effectiveReserved = 0;
                 }
 
+                // Subtract spare from available to get bookable available
+                const bookableAvailable = Math.max(0, effectiveAvailable - effectiveReserved);
+
                 const effectiveOccupiedPct = effectiveTotal > 0 ? Math.round((effectiveOccupied / effectiveTotal) * 100) : 0;
-                const effectiveAvailablePct = effectiveTotal > 0 ? Math.round((effectiveAvailable / effectiveTotal) * 100) : 0;
+                const bookableAvailablePct = effectiveTotal > 0 ? Math.round((bookableAvailable / effectiveTotal) * 100) : 0;
                 const reservedPct = effectiveTotal > 0 ? Math.round((effectiveReserved / effectiveTotal) * 100) : 0;
                 const blockedPct = effectiveTotal > 0 ? Math.round((blocked / effectiveTotal) * 100) : 0;
                 const maintenancePct = effectiveTotal > 0 ? Math.round((maintenance / effectiveTotal) * 100) : 0;
@@ -754,7 +757,7 @@ export function SlotManagementDashboard() {
                     
                     <div className="flex items-end gap-3 flex-wrap">
                       <div className="text-center min-w-[50px]">
-                        <p className="text-2xl font-black text-[#006d43]">{effectiveAvailable}</p>
+                        <p className="text-2xl font-black text-[#006d43]">{bookableAvailable}</p>
                         <p className="text-[10px] font-bold text-slate-400 uppercase mt-0.5">Available</p>
                       </div>
                       {!isMotorbike && effectiveReserved > 0 && (
@@ -797,7 +800,7 @@ export function SlotManagementDashboard() {
                       <div className="flex items-center justify-between text-[10px] font-bold">
                         <span className="text-slate-500 uppercase tracking-wider">Capacity Usage</span>
                         <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-[#006d43]">{effectiveAvailablePct}% free</span>
+                          <span className="text-[#006d43]">{bookableAvailablePct}% free</span>
                           {!isMotorbike && effectiveReserved > 0 && <span className="text-amber-500">{reservedPct}% spare</span>}
                           <span className="text-[#263143]">{effectiveOccupiedPct}% occupied</span>
                           {!isMotorbike && blocked > 0 && <span className="text-[#ba1a1a]">{blockedPct}% blocked</span>}
@@ -805,7 +808,7 @@ export function SlotManagementDashboard() {
                         </div>
                       </div>
                       <div className="w-full bg-slate-100 h-3 rounded-full overflow-hidden flex">
-                        <div className="h-full bg-[#006d43] transition-all duration-700" style={{ width: `${effectiveAvailablePct}%` }} />
+                        <div className="h-full bg-[#006d43] transition-all duration-700" style={{ width: `${bookableAvailablePct}%` }} />
                         {!isMotorbike && effectiveReserved > 0 && <div className="h-full bg-amber-500 transition-all duration-700" style={{ width: `${reservedPct}%` }} />}
                         <div className="h-full bg-[#263143] transition-all duration-700" style={{ width: `${effectiveOccupiedPct}%` }} />
                         {!isMotorbike && <div className="h-full bg-[#ba1a1a] transition-all duration-700" style={{ width: `${blockedPct}%` }} />}

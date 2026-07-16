@@ -87,10 +87,10 @@ export function SlotActionModal({
           buildingId: activeSlot?.buildingId || 0
         };
         setActiveSlot(newSlot);
-        showToastMessage(`Đã đổi sang vị trí đỗ ${newSlot.slotCode}`);
+        showToastMessage(`Switched to parking slot ${newSlot.slotCode}`);
       }
     } catch {
-      showToastMessage('Không thể chuyển sang slot mới.', 'error');
+      showToastMessage('Failed to switch to new slot.', 'error');
     } finally {
       setLoadingFutureBookings(false);
     }
@@ -221,7 +221,7 @@ export function SlotActionModal({
                 <div className="rounded-2xl border border-amber-100 bg-amber-50/70 p-4 text-xs text-amber-800 space-y-3">
                   <div className="flex items-center gap-2 font-bold text-amber-900">
                     <span className="material-symbols-outlined text-[18px] text-amber-600">warning</span>
-                    Cảnh báo: Vị trí đỗ này đã có lịch đặt trước trong tương lai!
+                    Warning: This parking slot has upcoming bookings!
                   </div>
                   <ul className="list-disc pl-4 space-y-1 font-semibold text-amber-700">
                     {futureBookingsData.futureBookings.map((b: any) => (
@@ -232,7 +232,7 @@ export function SlotActionModal({
                   </ul>
                   {futureBookingsData.recommendedSlots && futureBookingsData.recommendedSlots.length > 0 && (
                     <div className="pt-2 border-t border-amber-200/50">
-                      <p className="font-bold text-amber-900 mb-2">Đề xuất các vị trí trống khác an toàn hơn:</p>
+                      <p className="font-bold text-amber-900 mb-2">Recommended safer available slots:</p>
                       <div className="flex flex-wrap gap-2">
                         {futureBookingsData.recommendedSlots.map((rec: any) => (
                           <button

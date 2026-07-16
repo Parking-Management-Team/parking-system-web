@@ -159,7 +159,8 @@ export function SlotManagementDashboard() {
           vehicleType: mapVehicleTypeIdToType(item.vehicleTypeId),
           zoneAccessType: mapAccessTypeToZone(item.accessType),
           slotCapacity: item.capacity || 0,
-          status: item.status === 3 || item.status === 'OutOfService' || item.status === 'Inactive' ? 'Inactive' : 'Active'
+          status: item.status === 3 || item.status === 'OutOfService' || item.status === 'Inactive' ? 'Inactive' : 'Active',
+          bookingLimitRate: item.bookingLimitRate ?? 80
         }));
         setZones(loadedZones);
       }
@@ -353,6 +354,7 @@ export function SlotManagementDashboard() {
                   default: return 'AVAILABLE';
                 }
               };
+
               return {
                 id: item.id,
                 slotCode: item.code,
@@ -580,7 +582,7 @@ export function SlotManagementDashboard() {
       case 'MAINTENANCE':
         return 'bg-[#d97706] border-[#d97706] text-white hover:brightness-110';
       case 'RESERVED':
-        return 'bg-amber-500 border-amber-500 text-white hover:brightness-110';
+        return 'bg-amber-400 border-amber-400 text-white hover:brightness-110';
       default:
         return 'bg-slate-300 border-slate-300 text-slate-700';
     }
@@ -722,18 +724,23 @@ export function SlotManagementDashboard() {
 
                 let effectiveOccupied = occupied;
                 let effectiveAvailable = available;
+                let effectiveReserved = reserved;
                 let effectiveTotal = totalSlots ?? 0;
                 if (isMotorbike) {
                   effectiveOccupied = effectiveMotorOccupied;
                   effectiveAvailable = effectiveMotorAvailable;
                   effectiveTotal = effectiveMotorTotal;
+                  effectiveReserved = 0;
                 }
 
+                // Subtract spare from available to get bookable available
+                const bookableAvailable = Math.max(0, effectiveAvailable - effectiveReserved);
+
                 const effectiveOccupiedPct = effectiveTotal > 0 ? Math.round((effectiveOccupied / effectiveTotal) * 100) : 0;
-                const effectiveAvailablePct = effectiveTotal > 0 ? Math.round((effectiveAvailable / effectiveTotal) * 100) : 0;
+                const bookableAvailablePct = effectiveTotal > 0 ? Math.round((bookableAvailable / effectiveTotal) * 100) : 0;
+                const reservedPct = effectiveTotal > 0 ? Math.round((effectiveReserved / effectiveTotal) * 100) : 0;
                 const blockedPct = effectiveTotal > 0 ? Math.round((blocked / effectiveTotal) * 100) : 0;
                 const maintenancePct = effectiveTotal > 0 ? Math.round((maintenance / effectiveTotal) * 100) : 0;
-                const reservedPct = effectiveTotal > 0 ? Math.round((reserved / effectiveTotal) * 100) : 0;
 
                 return (
                   <div key={vehicleType.vehicleTypeId} className="bg-white border-2 border-slate-200 shadow-md rounded-2xl p-5 flex flex-col gap-3 hover:shadow-lg transition-shadow">
@@ -750,15 +757,15 @@ export function SlotManagementDashboard() {
                     
                     <div className="flex items-end gap-3 flex-wrap">
                       <div className="text-center min-w-[50px]">
-                        <p className="text-2xl font-black text-[#006d43]">{effectiveAvailable}</p>
+                        <p className="text-2xl font-black text-[#006d43]">{bookableAvailable}</p>
                         <p className="text-[10px] font-bold text-slate-400 uppercase mt-0.5">Available</p>
                       </div>
-                      {!isMotorbike && (
+                      {!isMotorbike && effectiveReserved > 0 && (
                         <>
                           <div className="h-8 w-px bg-slate-100"></div>
                           <div className="text-center min-w-[50px]">
-                            <p className="text-2xl font-black text-amber-500">{reserved}</p>
-                            <p className="text-[10px] font-bold text-slate-400 uppercase mt-0.5">Reserved</p>
+                            <p className="text-2xl font-black text-amber-500">{effectiveReserved}</p>
+                            <p className="text-[10px] font-bold text-slate-400 uppercase mt-0.5">Spare</p>
                           </div>
                         </>
                       )}
@@ -793,16 +800,16 @@ export function SlotManagementDashboard() {
                       <div className="flex items-center justify-between text-[10px] font-bold">
                         <span className="text-slate-500 uppercase tracking-wider">Capacity Usage</span>
                         <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-[#006d43]">{effectiveAvailablePct}% free</span>
-                          {!isMotorbike && <span className="text-amber-500">{reservedPct}% reserved</span>}
+                          <span className="text-[#006d43]">{bookableAvailablePct}% free</span>
+                          {!isMotorbike && effectiveReserved > 0 && <span className="text-amber-500">{reservedPct}% spare</span>}
                           <span className="text-[#263143]">{effectiveOccupiedPct}% occupied</span>
                           {!isMotorbike && blocked > 0 && <span className="text-[#ba1a1a]">{blockedPct}% blocked</span>}
                           {!isMotorbike && maintenance > 0 && <span className="text-[#d97706]">{maintenancePct}% maintaining</span>}
                         </div>
                       </div>
                       <div className="w-full bg-slate-100 h-3 rounded-full overflow-hidden flex">
-                        <div className="h-full bg-[#006d43] transition-all duration-700" style={{ width: `${effectiveAvailablePct}%` }} />
-                        {!isMotorbike && <div className="h-full bg-amber-500 transition-all duration-700" style={{ width: `${reservedPct}%` }} />}
+                        <div className="h-full bg-[#006d43] transition-all duration-700" style={{ width: `${bookableAvailablePct}%` }} />
+                        {!isMotorbike && effectiveReserved > 0 && <div className="h-full bg-amber-500 transition-all duration-700" style={{ width: `${reservedPct}%` }} />}
                         <div className="h-full bg-[#263143] transition-all duration-700" style={{ width: `${effectiveOccupiedPct}%` }} />
                         {!isMotorbike && <div className="h-full bg-[#ba1a1a] transition-all duration-700" style={{ width: `${blockedPct}%` }} />}
                         {!isMotorbike && <div className="h-full bg-[#d97706] transition-all duration-700" style={{ width: `${maintenancePct}%` }} />}
@@ -826,7 +833,7 @@ export function SlotManagementDashboard() {
               </div>
               <div className="flex items-center gap-2">
                 <div className="w-3.5 h-3.5 rounded-md bg-amber-500"></div>
-                <span>Reserved</span>
+                <span>Spare (Reserved)</span>
               </div>
               <div className="flex items-center gap-2">
                 <div className="w-3.5 h-3.5 rounded-md bg-[#263143]"></div>
@@ -875,40 +882,50 @@ export function SlotManagementDashboard() {
                       </span>
                     </div>
 
-                    {zoneSlots.length === 0 ? (
-                      <p className="text-xs text-slate-400 font-semibold italic text-center py-6 col-span-full">No slots configured in this zone.</p>
-                    ) : (
-                      <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10 gap-3.5">
-                        {zoneSlots.map(slot => (
-                          <button
-                            key={slot.id}
-                            onClick={() => handleSlotClick(slot)}
-                            className={`h-24 border rounded-xl flex flex-col items-center justify-between py-3 px-3.5 shadow-sm transition-all hover:scale-[1.03] active:scale-95 group font-bold text-sm ${getSlotColorClass(
-                              slot.status
-                            )}`}
-                          >
-                            <span className="truncate w-full text-center px-1">{slot.slotCode}</span>
-                            {slot.status === 'OCCUPIED' && slot.assignedVehicle ? (
-                              <div className="w-full text-center">
-                                <span className="material-symbols-outlined text-[16px]">
-                                  directions_car
-                                </span>
-                                <span className="block text-[9px] font-extrabold mt-0.5 opacity-90 truncate leading-tight">
-                                  {slot.assignedVehicle.plate}
-                                </span>
-                              </div>
-                            ) : (
-                              <span className="material-symbols-outlined text-[18px]">
-                                {slot.status === 'AVAILABLE' ? 'check_circle' :
-                                 slot.status === 'BLOCKED' ? 'block' :
-                                 slot.status === 'MAINTENANCE' ? 'build' :
-                                 'directions_car'}
-                              </span>
-                            )}
-                          </button>
-                        ))}
-                      </div>
-                    )}
+                        {zoneSlots.length === 0 ? (
+                          <p className="text-xs text-slate-400 font-semibold italic text-center py-6 col-span-full">No slots configured in this zone.</p>
+                        ) : (
+                          <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10 gap-3.5">
+                            {zoneSlots.map(slot => (
+                              <button
+                                key={slot.id}
+                                onClick={() => handleSlotClick(slot)}
+                                title={slot.status === 'RESERVED' ? 'Spare - Not available for booking' : undefined}
+                                className={`h-24 border rounded-xl flex flex-col items-center justify-between py-3 px-3.5 shadow-sm transition-all hover:scale-[1.03] active:scale-95 group font-bold text-sm ${getSlotColorClass(
+                                  slot.status
+                                )}`}
+                              >
+                                <span className="truncate w-full text-center px-1">{slot.slotCode}</span>
+                                {slot.status === 'OCCUPIED' && slot.assignedVehicle ? (
+                                  <div className="w-full text-center">
+                                    <span className="material-symbols-outlined text-[16px]">
+                                      directions_car
+                                    </span>
+                                    <span className="block text-[9px] font-extrabold mt-0.5 opacity-90 truncate leading-tight">
+                                      {slot.assignedVehicle.plate}
+                                    </span>
+                                  </div>
+                                ) : slot.status === 'RESERVED' ? (
+                                  <div className="w-full text-center">
+                                    <span className="material-symbols-outlined text-[16px]">
+                                      lock
+                                    </span>
+                                    <span className="block text-[8px] font-extrabold mt-0.5 opacity-80 uppercase">
+                                      Spare
+                                    </span>
+                                  </div>
+                                ) : (
+                                  <span className="material-symbols-outlined text-[18px]">
+                                    {slot.status === 'AVAILABLE' ? 'check_circle' :
+                                     slot.status === 'BLOCKED' ? 'block' :
+                                     slot.status === 'MAINTENANCE' ? 'build' :
+                                     'directions_car'}
+                                  </span>
+                                )}
+                              </button>
+                            ))}
+                          </div>
+                        )}
                   </div>
                 );
               })
@@ -1046,10 +1063,6 @@ export function SlotManagementDashboard() {
                 </select>
               </div>
 
-              <button className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 border border-slate-200 rounded-lg text-sm font-bold text-slate-700 hover:bg-slate-50 transition-colors shadow-sm">
-                <span className="material-symbols-outlined text-[18px]">download</span>
-                Export CSV
-              </button>
             </div>
 
             {/* List Table */}

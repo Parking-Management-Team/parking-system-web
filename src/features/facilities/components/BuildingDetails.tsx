@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useFacilitiesContext } from '../context/FacilitiesContext';
 import { Building, BuildingStatus } from '@/lib/types/building.types';
 
@@ -12,8 +12,10 @@ import { Building, BuildingStatus } from '@/lib/types/building.types';
 export default function BuildingDetails() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const idStr = params?.id;
   const bldId = parseInt(typeof idStr === 'string' ? idStr : '', 10);
+  const isViewMode = searchParams?.get('mode') === 'view';
 
   const {
     user,
@@ -129,7 +131,8 @@ export default function BuildingDetails() {
                     maxLength={20}
                     value={formBldCode}
                     onChange={(e) => setFormBldCode(e.target.value.toUpperCase())}
-                    className="px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-[#111c2d] focus:outline-none focus:border-[#006d43] transition-all"
+                    disabled={isViewMode}
+                    className="px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-[#111c2d] focus:outline-none focus:border-[#006d43] transition-all disabled:bg-slate-50 disabled:text-slate-500"
                   />
                 </div>
 
@@ -141,7 +144,8 @@ export default function BuildingDetails() {
                     required
                     value={formBldName}
                     onChange={(e) => setFormBldName(e.target.value)}
-                    className="px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-[#111c2d] focus:outline-none focus:border-[#006d43] transition-all"
+                    disabled={isViewMode}
+                    className="px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-[#111c2d] focus:outline-none focus:border-[#006d43] transition-all disabled:bg-slate-50 disabled:text-slate-500"
                   />
                 </div>
 
@@ -154,7 +158,8 @@ export default function BuildingDetails() {
                     min={1}
                     value={formBldTotalFloor}
                     onChange={(e) => setFormBldTotalFloor(parseInt(e.target.value, 10) || 1)}
-                    className="px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-[#111c2d] focus:outline-none focus:border-[#006d43] transition-all"
+                    disabled={isViewMode}
+                    className="px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-[#111c2d] focus:outline-none focus:border-[#006d43] transition-all disabled:bg-slate-50 disabled:text-slate-500"
                   />
                 </div>
 
@@ -166,7 +171,8 @@ export default function BuildingDetails() {
                     value={formBldAddress}
                     onChange={(e) => setFormBldAddress(e.target.value)}
                     placeholder="Enter physical address..."
-                    className="px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-[#111c2d] focus:outline-none focus:border-[#006d43] transition-all"
+                    disabled={isViewMode}
+                    className="px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-[#111c2d] focus:outline-none focus:border-[#006d43] transition-all disabled:bg-slate-50 disabled:text-slate-500"
                   />
                 </div>
               </div>
@@ -185,11 +191,12 @@ export default function BuildingDetails() {
                   <div className="text-sm font-bold text-[#111c2d]">Active Operation</div>
                   <div className="text-xs text-[#54637d]">Visible to parking users</div>
                 </div>
-                <label className="relative inline-flex items-center cursor-pointer">
+                <label className={`relative inline-flex items-center ${isViewMode ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'}`}>
                   <input 
                     type="checkbox" 
                     checked={isActive}
                     onChange={handleToggleActive}
+                    disabled={isViewMode}
                     className="sr-only peer" 
                   />
                   <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#006d43]"></div>
@@ -206,15 +213,17 @@ export default function BuildingDetails() {
             onClick={handleDiscard}
             className="px-6 py-2.5 rounded-xl border border-[#006d43] text-[#006d43] hover:bg-[#006d43]/5 transition-colors font-bold text-xs"
           >
-            Discard Changes
+            {isViewMode ? 'Back to List' : 'Discard Changes'}
           </button>
-          <button 
-            type="submit"
-            disabled={isSaving}
-            className="px-6 py-2.5 rounded-xl bg-[#006d43] text-white hover:bg-[#006d43]/90 transition-all font-bold text-xs shadow-sm disabled:opacity-55"
-          >
-            {isSaving ? 'Saving...' : 'Save Changes'}
-          </button>
+          {!isViewMode && (
+            <button 
+              type="submit"
+              disabled={isSaving}
+              className="px-6 py-2.5 rounded-xl bg-[#006d43] text-white hover:bg-[#006d43]/90 transition-all font-bold text-xs shadow-sm disabled:opacity-55"
+            >
+              {isSaving ? 'Saving...' : 'Save Changes'}
+            </button>
+          )}
         </div>
       </form>
 

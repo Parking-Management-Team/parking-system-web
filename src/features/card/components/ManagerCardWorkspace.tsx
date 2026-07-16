@@ -30,7 +30,7 @@ export default function ManagerCardWorkspace() {
   const { user, showToast } = useAuth();
   const userRole = user?.role?.toUpperCase();
   const isManager = userRole === 'MANAGER';
-  const [activeTab, setActiveTab] = useState<'available' | 'assigned'>('available');
+  const [activeTab, setActiveTab] = useState<'available' | 'assigned' | 'inactive'>('available');
   const [cards, setCards] = useState<ParkingCard[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -45,44 +45,44 @@ export default function ManagerCardWorkspace() {
   const [newCardType, setNewCardType] = useState('PARKING_CARD');
   const [createLoading, setCreateLoading] = useState(false);
 
-  // Fetch cards based on current active tab
+  // Fetch cards from backend
   const fetchCards = useCallback(async () => {
     setIsLoading(true);
     setError(null);
     try {
-      const endpoint = activeTab === 'available' ? '/cards/available' : '/cards/assigned';
-      let data: any[] = [];
+      const res = await api.get<any>('/cards');
+      let allCards: any[] = [];
       
-      try {
-        const res = await api.get<any>(endpoint);
-        if (Array.isArray(res)) {
-          data = res;
-        } else if (res && res.success && Array.isArray(res.data)) {
-          data = res.data;
-        } else if (res && Array.isArray(res.data)) {
-          data = res.data;
-        }
-      } catch (err) {
-        console.warn(`Endpoint ${endpoint} not fully active on backend. Falling back to /cards.`, err);
-        const fallbackRes = await api.get<any>('/cards');
-        const allCards = Array.isArray(fallbackRes) ? fallbackRes : fallbackRes.data || [];
-        
-        if (activeTab === 'available') {
-          data = allCards.filter((c: any) => (c.cardStatus || c.status || '').toUpperCase() === 'AVAILABLE');
-        } else {
-          data = allCards.filter((c: any) => {
-            const st = (c.cardStatus || c.status || '').toUpperCase();
-            return st === 'ASSIGNED' || st === 'ACTIVE';
-          });
-        }
+      if (Array.isArray(res)) {
+        allCards = res;
+      } else if (res && res.success && Array.isArray(res.data)) {
+        allCards = res.data;
+      } else if (res && Array.isArray(res.data)) {
+        allCards = res.data;
       }
 
-      const mapped: ParkingCard[] = data.map((item: any) => ({
+      // Filter based on active tab
+      let filtered: any[] = [];
+      if (activeTab === 'available') {
+        filtered = allCards.filter((c: any) => (c.cardStatus || c.status || '').toUpperCase() === 'AVAILABLE');
+      } else if (activeTab === 'assigned') {
+        filtered = allCards.filter((c: any) => {
+          const st = (c.cardStatus || c.status || '').toUpperCase();
+          return st === 'ASSIGNED' || st === 'ACTIVE';
+        });
+      } else if (activeTab === 'inactive') {
+        filtered = allCards.filter((c: any) => {
+          const st = (c.cardStatus || c.status || '').toUpperCase();
+          return st === 'LOST' || st === 'BLOCKED';
+        });
+      }
+
+      const mapped: ParkingCard[] = filtered.map((item: any) => ({
         id: item.id,
         cardCode: item.cardCode || `CARD-${item.id}`,
         rfidCode: item.rfidCode,
         cardType: item.cardType || 'PARKING_CARD',
-        cardStatus: item.cardStatus || item.status || (activeTab === 'available' ? 'AVAILABLE' : 'ASSIGNED'),
+        cardStatus: item.cardStatus || item.status || 'UNKNOWN',
         createdAt: item.createdAt || new Date().toISOString()
       }));
 
@@ -135,6 +135,21 @@ export default function ManagerCardWorkspace() {
       }
     } catch (err: any) {
       showToast(err?.message || 'Error marking card lost.', 'error');
+    }
+  };
+
+  const handleRestoreCard = async (id: number) => {
+    if (!window.confirm('Restore this card to AVAILABLE status?')) return;
+    try {
+      const res = await api.put<any>(`/cards/${id}/status`, { status: 'Available' });
+      if (res.success || res.data) {
+        showToast('Card restored to AVAILABLE.', 'success');
+        fetchCards();
+      } else {
+        showToast(res.message || 'Failed to restore card.', 'error');
+      }
+    } catch (err: any) {
+      showToast(err?.message || 'Error restoring card.', 'error');
     }
   };
 
@@ -221,6 +236,13 @@ export default function ManagerCardWorkspace() {
         >
           <CreditCard className="w-3.5 h-3.5" />
           Assigned Cards
+        </button>
+        <button
+          onClick={() => { setActiveTab('inactive'); setSearchTerm(''); }}
+          className={`px-5 py-3 text-xs font-black transition-all border-b-2 -mb-px flex items-center gap-2 ${activeTab === 'inactive' ? 'border-rose-500 text-rose-600' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
+        >
+          <AlertTriangle className="w-3.5 h-3.5" />
+          Lost & Blocked
         </button>
       </div>
 
@@ -321,31 +343,39 @@ export default function ManagerCardWorkspace() {
                       {isManager && (
                         <td className="px-6 py-4 text-center flex justify-center gap-2">
                           {status === 'AVAILABLE' && (
-                            <button
-                              onClick={() => handleUpdateStatus(card.id, 'Blocked')}
-                              className="px-2 py-1 text-slate-500 hover:text-slate-700 font-semibold text-[10px] rounded hover:bg-slate-100"
-                            >
-                              Block
-                            </button>
+                            <>
+                              <button
+                                onClick={() => handleUpdateStatus(card.id, 'Blocked')}
+                                className="px-2 py-1 text-slate-500 hover:text-slate-700 font-semibold text-[10px] rounded hover:bg-slate-100"
+                              >
+                                Block
+                              </button>
+                              <button
+                                onClick={() => handleMarkLost(card.id)}
+                                className="px-2 py-1 text-rose-600 hover:text-rose-700 font-semibold text-[10px] rounded hover:bg-rose-50"
+                              >
+                                Mark Lost
+                              </button>
+                            </>
                           )}
                           {status === 'BLOCKED' && (
                             <button
-                              onClick={() => handleUpdateStatus(card.id, 'Available')}
+                              onClick={() => handleRestoreCard(card.id)}
                               className="px-2 py-1 text-emerald-600 hover:text-emerald-700 font-semibold text-[10px] rounded hover:bg-emerald-50"
                             >
                               Unblock
                             </button>
                           )}
-                          {status !== 'LOST' && (
+                          {status === 'LOST' && (
                             <button
-                              onClick={() => handleMarkLost(card.id)}
-                              className="px-2 py-1 text-rose-600 hover:text-rose-700 font-semibold text-[10px] rounded hover:bg-rose-50"
+                              onClick={() => handleRestoreCard(card.id)}
+                              className="px-2 py-1 text-emerald-600 hover:text-emerald-700 font-semibold text-[10px] rounded hover:bg-emerald-50"
                             >
-                              Mark Lost
+                              Restore
                             </button>
                           )}
-                          {status === 'LOST' && (
-                            <span className="text-[10px] text-slate-400 italic">No actions</span>
+                          {(status === 'ACTIVE' || status === 'ASSIGNED') && (
+                            <span className="text-[10px] text-slate-400 italic">In use</span>
                           )}
                         </td>
                       )}

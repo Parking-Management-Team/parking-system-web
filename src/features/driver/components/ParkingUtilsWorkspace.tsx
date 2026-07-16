@@ -1523,13 +1523,6 @@ export default function ParkingUtilsWorkspace() {
 
               <div className="flex gap-2">
                 <button
-                  onClick={handleExportPDF}
-                  className="flex items-center gap-1.5 px-3 py-2 bg-white hover:bg-slate-50 border border-slate-200 text-slate-600 text-xs font-bold rounded-xl shadow-xs transition-all font-sans"
-                >
-                  <Download className="w-4 h-4" />
-                  Export PDF
-                </button>
-                <button
                   onClick={() => { setSearchTerm(''); setStatusFilter('all'); setCurrentHistoryPage(1); }}
                   className="text-xs text-emerald-600 hover:text-emerald-700 font-bold px-2"
                 >

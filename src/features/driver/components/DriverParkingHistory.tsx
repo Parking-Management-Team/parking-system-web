@@ -301,13 +301,6 @@ export default function DriverParkingHistory() {
             Refresh
           </button>
           <button 
-            onClick={handleExportPDF}
-            className="flex items-center gap-1.5 px-4 py-2.5 bg-white hover:bg-slate-50 border border-slate-200 text-slate-600 text-xs font-bold rounded-xl shadow-xs transition-all"
-          >
-            <Download className="w-4 h-4" />
-            Export PDF
-          </button>
-          <button 
             onClick={() => router.push('/dashboard/driver/booking')}
             className="flex items-center gap-1.5 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-sm transition-all"
           >

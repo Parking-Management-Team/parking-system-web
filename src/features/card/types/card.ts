@@ -10,7 +10,7 @@ export type CardStatus =
 
 export type CreatableCardType = 'PARKING_CARD' | 'MONTHLY';
 
-export type UpdatableCardStatus = 'AVAILABLE' | 'BLOCKED' | 'LOST';
+export type UpdatableCardStatus = 'AVAILABLE' | 'ACTIVE' | 'BLOCKED' | 'LOST';
 
 export interface ParkingCard {
   id: number;

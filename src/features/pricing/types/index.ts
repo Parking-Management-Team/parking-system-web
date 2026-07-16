@@ -52,14 +52,6 @@ export interface TariffRow {
   details: TariffRowDetails;
 }
 
-export interface MonthlyMembership {
-  id: string;
-  vehicleTypeId: number;
-  vehicleType: string;
-  price: string;
-  priceNum: number;
-  hasConfig: boolean;
-}
 
 export interface ServiceFeeOrPenalty {
   id: string;

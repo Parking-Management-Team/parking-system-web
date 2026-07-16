@@ -75,7 +75,6 @@ import {
   StandardTariff, 
   PricingWindow, 
   TariffRow, 
-  MonthlyMembership, 
   ServiceFeeOrPenalty, 
   CreatePricingWindowRequest,
   VehicleType,
@@ -192,18 +191,10 @@ interface PolicyApiResponse {
     }
   }, []);
 
-  const [memberships, setMemberships] = useState<MonthlyMembership[]>([]);
   const [fees, setFees] = useState<ServiceFeeOrPenalty[]>([]);
   const [incidentTypes, setIncidentTypes] = useState<IncidentType[]>([]);
 
   const loadAllData = useCallback(async () => {
-    interface SubscriptionPriceConfig {
-      id: number;
-      vehicleTypeId: number;
-      price: number;
-      isActive: boolean;
-    }
-
     interface PenaltyConfig {
       id: number;
       incidentTypeId: number;
@@ -213,8 +204,9 @@ interface PolicyApiResponse {
 
     let loadedVehicleTypes: VehicleType[] = [];
     let loadedIncidentTypes: IncidentType[] = [];
+    let loadedPenaltyConfigs: PenaltyConfig[] = [];
 
-    // Step 1: Load vehicle types and incident types independently
+    // Step 1: Load vehicle types
     try {
       const vtRes = await api.get<{ data?: RawVehicleType[], success?: boolean }>('/vehicle-types');
       if (vtRes && vtRes.success && Array.isArray(vtRes.data)) {
@@ -232,86 +224,63 @@ interface PolicyApiResponse {
       console.error('Failed to fetch vehicle types:', error);
     }
 
+    // Step 2: Load penalty configs
+    try {
+      const penRes = await api.get<{ data?: PenaltyConfig[]; success?: boolean }>('/penalty-configs?onlyActive=true');
+      if (penRes && Array.isArray(penRes.data)) {
+        loadedPenaltyConfigs = penRes.data;
+      }
+    } catch (error) {
+      console.error('Failed to fetch penalty configs:', error);
+    }
+
+    // Step 3: Load incident types and merge penalty fee
     try {
       const itRes = await api.get<{ data?: IncidentType[]; success?: boolean }>('/IncidentType');
-      if (itRes && Array.isArray(itRes.data) && itRes.data.length > 0) {
-        loadedIncidentTypes = itRes.data;
+      if (itRes && Array.isArray(itRes.data)) {
+        loadedIncidentTypes = itRes.data.map((it) => {
+          const activeConfig = loadedPenaltyConfigs.find((c) => c.incidentTypeId === it.id && c.isActive);
+          return {
+            ...it,
+            defaultPenaltyFee: activeConfig ? activeConfig.penaltyFee : 0
+          };
+        });
       }
     } catch (error) {
       console.error('Failed to fetch incident types:', error);
     }
     setIncidentTypes(loadedIncidentTypes);
 
-    // Step 2: Load subscription and penalty configs independently
-    try {
-      const subRes = await api.get<{ data?: SubscriptionPriceConfig[]; success: boolean }>('/subscription-price-configs?onlyActive=true');
-      if (subRes && Array.isArray(subRes.data)) {
-        const configs = subRes.data;
-        const mappedSub = loadedVehicleTypes.map((vt) => {
-          const activeConfig = configs.find((c) => c.vehicleTypeId === vt.id && c.isActive);
-          if (activeConfig) {
-            return {
-              id: activeConfig.id.toString(),
-              vehicleTypeId: vt.id,
-              vehicleType: vt.name,
-              price: `${activeConfig.price.toLocaleString('en-US')} VND / month`,
-              priceNum: activeConfig.price,
-              hasConfig: true
-            };
-          } else {
-            return {
-              id: `vt-${vt.id}`,
-              vehicleTypeId: vt.id,
-              vehicleType: vt.name,
-              price: 'No config',
-              priceNum: 0,
-              hasConfig: false
-            };
-          }
-        });
-        setMemberships(mappedSub);
+    // Map fees for compatibility
+    const mappedPen = loadedIncidentTypes.map((it) => {
+      const activeConfig = loadedPenaltyConfigs.find((c) => c.incidentTypeId === it.id && c.isActive);
+      if (activeConfig) {
+        return {
+          id: activeConfig.id.toString(),
+          incidentTypeId: it.id,
+          name: it.incidentName,
+          type: it.incidentCode,
+          amount: `${activeConfig.penaltyFee.toLocaleString('en-US')} VND`,
+          amountNum: activeConfig.penaltyFee,
+          description: it.description,
+          isActive: true,
+          hasConfig: true
+        };
+      } else {
+        return {
+          id: `it-${it.id}`,
+          incidentTypeId: it.id,
+          name: it.incidentName,
+          type: it.incidentCode,
+          amount: 'No config',
+          amountNum: 0,
+          description: it.description,
+          isActive: false,
+          hasConfig: false
+        };
       }
-    } catch (error) {
-      console.error('Failed to fetch subscription price configs:', error);
-    }
-
-    try {
-      const penRes = await api.get<{ data?: PenaltyConfig[]; success?: boolean }>('/penalty-configs?onlyActive=true');
-      if (penRes && Array.isArray(penRes.data)) {
-        const configs = penRes.data;
-        const mappedPen = loadedIncidentTypes.map((it) => {
-          const activeConfig = configs.find((c) => c.incidentTypeId === it.id && c.isActive);
-          if (activeConfig) {
-            return {
-              id: activeConfig.id.toString(),
-              incidentTypeId: it.id,
-              name: it.incidentName,
-              type: it.incidentCode,
-              amount: `${activeConfig.penaltyFee.toLocaleString('en-US')} VND`,
-              amountNum: activeConfig.penaltyFee,
-              description: it.description,
-              isActive: true,
-              hasConfig: true
-            };
-          } else {
-            return {
-              id: `it-${it.id}`,
-              incidentTypeId: it.id,
-              name: it.incidentName,
-              type: it.incidentCode,
-              amount: 'No config',
-              amountNum: it.defaultPenaltyFee,
-              description: it.description,
-              isActive: false,
-              hasConfig: false
-            };
-          }
-        });
-        setFees(mappedPen);
-      }
-    } catch (error) {
-      console.error('Failed to fetch penalty configs:', error);
-    }
+    });
+    setFees(mappedPen);
   }, []);
 
   useEffect(() => {
@@ -364,7 +333,7 @@ interface PolicyApiResponse {
   }, [tariffs, vehicleTypes]);
 
   // UI state variables
-  const [activeTab, setActiveTab] = useState<'standard' | 'memberships' | 'incident-types' | 'fees'>('standard');
+  const [activeTab, setActiveTab] = useState<'standard' | 'incident-types'>('standard');
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
   const [toastType, setToastType] = useState<'success' | 'error'>('success');
@@ -378,13 +347,11 @@ interface PolicyApiResponse {
 
     // Modals Visibility
   const [isEditTariffOpen, setIsEditTariffOpen] = useState(false);
-  const [isEditMembershipOpen, setIsEditMembershipOpen] = useState(false);
   const [isFeeModalOpen, setIsFeeModalOpen] = useState(false); // Handles both Add and Edit
   const [submitError, setSubmitError] = useState<string | null>(null);
 
   // Currently editing objects - stored as a tariff row format to bind with Modal forms
   const [editingTariff, setEditingTariff] = useState<TariffRow | null>(null);
-  const [editingMembership, setEditingMembership] = useState<MonthlyMembership | null>(null);
   const [editingFee, setEditingFee] = useState<ServiceFeeOrPenalty | null>(null);
 
   // Form Inputs for Standard Tariffs (S3 Edit)
@@ -438,10 +405,7 @@ interface PolicyApiResponse {
   const [formAddWindowGraceVal, setFormAddWindowGraceVal] = useState('15');
 
 
-  // Form Inputs for Membership
-  const [formMembershipVehicleTypeId, setFormMembershipVehicleTypeId] = useState<number>(1);
-  const [formMembershipVehicleType, setFormMembershipVehicleType] = useState('Motorbike');
-  const [formMembershipPrice, setFormMembershipPrice] = useState(0);
+
 
   // Form Inputs for Service Fees & Penalties
   const [formFeeIncidentTypeId, setFormFeeIncidentTypeId] = useState<number>(1);
@@ -535,23 +499,7 @@ interface PolicyApiResponse {
     }
   };
 
-  const handleDeactivatePolicy = async (policy: StandardTariff) => {
-    const matchingVehicle = vehicleTypes.find(v => v.id === policy.vehicleTypeId);
-    const vehicleName = matchingVehicle ? matchingVehicle.name : (policy.vehicleTypeId === 1 ? 'Motorbike' : 'Car');
-    try {
-      const res = await api.post<{ success: boolean }>(`/pricing-policies/${policy.pricingPolicyId}/deactivate`, {});
-      if (res) {
-        await fetchPolicies();
-        triggerToast(`Policy "${policy.policyName}" (${vehicleName}) set to Inactive successfully!`, 'success');
-      } else {
-        triggerToast(`Failed to deactivate ${vehicleName} policy.`, 'error');
-      }
-    } catch (error) {
-      console.error('Failed to deactivate policy:', error);
-      const errorMsg = extractErrorMessage(error);
-      triggerToast(errorMsg, 'error');
-    }
-  };
+
 
 
 
@@ -581,20 +529,21 @@ interface PolicyApiResponse {
     if (!policy) return;
 
     if (policy.pricingPolicyStatus === 'Active') {
-      await handleDeactivatePolicy(policy);
-    } else {
-      try {
-        const res = await api.post<{ success: boolean }>(`/pricing-policies/${policyId}/activate`, {});
-        if (res) {
-          await fetchPolicies();
-          triggerToast(`Policy activated successfully!`, 'success');
-        } else {
-          triggerToast(`Failed to activate policy.`, 'error');
-        }
-      } catch (error) {
-        const errorMsg = extractErrorMessage(error);
-        triggerToast(errorMsg, 'error');
+      triggerToast('Active policies cannot be deactivated. Create a new policy instead.', 'success');
+      return;
+    }
+
+    try {
+      const res = await api.post<{ success: boolean }>(`/pricing-policies/${policyId}/activate`, {});
+      if (res) {
+        await fetchPolicies();
+        triggerToast(`Policy activated successfully!`, 'success');
+      } else {
+        triggerToast(`Failed to activate policy.`, 'error');
       }
+    } catch (error) {
+      const errorMsg = extractErrorMessage(error);
+      triggerToast(errorMsg, 'error');
     }
   };
 
@@ -617,91 +566,7 @@ interface PolicyApiResponse {
     }
   };
 
-  // === MEMBERSHIP HANDLERS ===
-  const handleOpenEditMembership = (membership: MonthlyMembership) => {
-    setEditingMembership(membership);
-    setFormMembershipVehicleTypeId(membership.vehicleTypeId);
-    setFormMembershipVehicleType(membership.vehicleType);
-    setFormMembershipPrice(membership.hasConfig ? membership.priceNum : 0);
-    setIsEditMembershipOpen(true);
-  };
 
-  const handleOpenAddMembership = () => {
-    setEditingMembership(null);
-    const firstUnconfigured = vehicleTypes.find(vt => !memberships.some(m => m.vehicleTypeId === vt.id && m.hasConfig));
-    const defaultVt = firstUnconfigured || vehicleTypes[0];
-    if (defaultVt) {
-      setFormMembershipVehicleTypeId(defaultVt.id);
-      setFormMembershipVehicleType(defaultVt.name);
-    }
-    setFormMembershipPrice(0);
-    setIsEditMembershipOpen(true);
-  };
-
-  const handleCloseEditMembership = () => {
-    setIsEditMembershipOpen(false);
-    setEditingMembership(null);
-  };
-
-  const handleSaveMembership = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (formMembershipPrice <= 0) {
-      triggerToast('Price must be a positive number.', 'error');
-      return;
-    }
-
-    try {
-      const requestBody = {
-        vehicleTypeId: formMembershipVehicleTypeId,
-        price: formMembershipPrice
-      };
-
-      const res = await api.post<{ success: boolean; data?: { id: number } }>('/subscription-price-configs', requestBody);
-      if (res) {
-        await loadAllData();
-        triggerToast('Monthly Membership fee updated successfully!', 'success');
-        handleCloseEditMembership();
-      } else {
-        triggerToast('Failed to update Monthly Membership fee.', 'error');
-      }
-    } catch (error) {
-      console.error('Failed to update membership pricing via API:', error);
-      const errorMsg = extractErrorMessage(error);
-      triggerToast(errorMsg, 'error');
-    }
-  };
-
-  const handleDeactivateMembership = async (configId: number) => {
-    try {
-      const res = await api.put<{ success: boolean }>(`/subscription-price-configs/${configId}/deactivate`, {});
-      if (res) {
-        await loadAllData();
-        triggerToast('Membership deactivated successfully!', 'success');
-      } else {
-        triggerToast('Failed to deactivate membership.', 'error');
-      }
-    } catch (error) {
-      console.error('Failed to deactivate membership:', error);
-      const errorMsg = extractErrorMessage(error);
-      triggerToast(errorMsg, 'error');
-    }
-  };
-
-  const handleDeleteMembership = async (configId: number) => {
-    try {
-      const res = await api.delete<{ success: boolean }>(`/subscription-price-configs/${configId}`);
-      if (res) {
-        await loadAllData();
-        triggerToast('Membership deleted successfully!', 'success');
-      } else {
-        triggerToast('Failed to delete membership.', 'error');
-      }
-    } catch (error) {
-      console.error('Failed to delete membership:', error);
-      const errorMsg = extractErrorMessage(error);
-      triggerToast(errorMsg, 'error');
-    }
-  };
 
   // === FEES & PENALTIES HANDLERS ===
   const handleOpenAddFee = () => {
@@ -823,23 +688,36 @@ interface PolicyApiResponse {
 
     try {
       if (editingIncidentType) {
-        const res = await api.put<{ success: boolean }>(`/IncidentType/${editingIncidentType.id}`, {
+        const res = await api.put<{ success: boolean; data?: IncidentType }>(`/IncidentType/${editingIncidentType.id}`, {
           incidentName: formIncidentName,
           description: formIncidentDescription
         });
         if (res) {
+          if (formIncidentDefaultFee !== (editingIncidentType.defaultPenaltyFee ?? 0)) {
+            await api.post('/penalty-configs', {
+              incidentTypeId: editingIncidentType.id,
+              penaltyFee: formIncidentDefaultFee
+            });
+          }
           await loadAllData();
           triggerToast('Incident type updated successfully!', 'success');
         } else {
           triggerToast('Failed to update incident type.', 'error');
         }
       } else {
-        const res = await api.post<{ success: boolean }>('/IncidentType', {
+        const res = await api.post<{ success: boolean; data?: IncidentType }>('/IncidentType', {
           incidentCode: formIncidentCode,
           incidentName: formIncidentName,
           description: formIncidentDescription
         });
         if (res) {
+          const newIncidentType = res.data;
+          if (newIncidentType && formIncidentDefaultFee > 0) {
+            await api.post('/penalty-configs', {
+              incidentTypeId: newIncidentType.id,
+              penaltyFee: formIncidentDefaultFee
+            });
+          }
           await loadAllData();
           triggerToast('Incident type created successfully!', 'success');
         } else {
@@ -1233,7 +1111,7 @@ interface PolicyApiResponse {
     setActiveTab,
     tariffs, // Dữ liệu StandardTariff[] gốc cho Policy Card View
     tariffRows, // flat rows nếu các component khác cần dùng
-    memberships,
+
     fees,
     vehicleTypes,
     fetchVehicleTypes,
@@ -1246,7 +1124,6 @@ interface PolicyApiResponse {
 
     // Modal control toggles
     isEditTariffOpen,
-    isEditMembershipOpen,
     isFeeModalOpen,
 
     // S1, S2, S5 control toggles
@@ -1257,7 +1134,6 @@ interface PolicyApiResponse {
 
     // Editing targets
     editingTariff,
-    editingMembership,
     editingFee,
     activatingPolicy,
     editPolicyTarget,
@@ -1322,13 +1198,7 @@ interface PolicyApiResponse {
     formAddWindowGraceVal,
     setFormAddWindowGraceVal,
 
-    // Membership form fields
-    formMembershipVehicleTypeId,
-    setFormMembershipVehicleTypeId,
-    formMembershipVehicleType,
-    setFormMembershipVehicleType,
-    formMembershipPrice,
-    setFormMembershipPrice,
+
 
     // Fees form fields
     incidentTypes,
@@ -1354,7 +1224,6 @@ interface PolicyApiResponse {
     handleCloseEditTariff,
     handleSaveTariff,
     handleToggleTariffStatus,
-    handleDeactivatePolicy,
     handleDeleteTariff,
 
     // S1 Handlers
@@ -1386,12 +1255,7 @@ interface PolicyApiResponse {
     handleCloseAddWindow,
     handleSaveAddWindow,
 
-    handleOpenAddMembership,
-    handleOpenEditMembership,
-    handleCloseEditMembership,
-    handleSaveMembership,
-    handleDeactivateMembership,
-    handleDeleteMembership,
+
 
     handleOpenAddFee,
     handleOpenEditFee,

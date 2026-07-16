@@ -24,13 +24,21 @@ interface BuildingItem {
   code: string;
 }
 
-export default function BookingWorkspace() {
+type BookingWorkspaceProps = {
+  title?: string;
+  description?: string;
+};
+
+export default function BookingWorkspace({
+  title = 'Bookings Management',
+  description = 'Monitor incoming pre-booked slot reservations, or cancel bookings when needed.',
+}: BookingWorkspaceProps) {
   const {
     bookings,
     isLoading,
     error,
     fetchBookings,
-    cancelBooking,
+    fetchBookingsByBuilding,
   } = useBookings();
 
   const [searchTerm, setSearchTerm] = useState('');
@@ -42,9 +50,6 @@ export default function BookingWorkspace() {
   const [currentPage, setCurrentPage] = useState(1);
   const ITEMS_PER_PAGE = 8;
 
-  const [activeActionId, setActiveActionId] = useState<number | null>(null);
-  const [actionLoading, setActionLoading] = useState(false);
-
   useEffect(() => {
     api.get<BaseResponse<PagedResult<BuildingItem>>>('/Buildings/paged?pageIndex=1&pageSize=100')
       .then(res => {
@@ -55,22 +60,30 @@ export default function BookingWorkspace() {
       .catch(err => console.error('Error fetching buildings:', err));
   }, []);
 
-  const triggerFetch = useCallback(() => {
-    fetchBookings({
-      page: 1,
-      pageSize: 100,
-      status: statusFilter,
-      buildingId: selectedBuildingId === 'ALL' ? undefined : selectedBuildingId,
-      licensePlate: searchTerm || undefined
-    });
-  }, [fetchBookings, statusFilter, selectedBuildingId, searchTerm]);
-
   useEffect(() => {
-    triggerFetch();
-  }, [triggerFetch]);
+    if (selectedBuildingId === 'ALL') {
+      fetchBookings();
+    } else {
+      fetchBookingsByBuilding(selectedBuildingId);
+    }
+  }, [selectedBuildingId, fetchBookings, fetchBookingsByBuilding]);
+
+  const handleRefresh = useCallback(() => {
+    if (selectedBuildingId === 'ALL') {
+      fetchBookings();
+    } else {
+      fetchBookingsByBuilding(selectedBuildingId);
+    }
+  }, [selectedBuildingId, fetchBookings, fetchBookingsByBuilding]);
+
+  // Filter bookings by building first for building-specific metrics
+  const buildingFilteredBookings = useMemo(() => {
+    if (selectedBuildingId === 'ALL') return bookings;
+    return bookings.filter(b => b.buildingId === selectedBuildingId);
+  }, [bookings, selectedBuildingId]);
 
   const metrics = useMemo(() => {
-    return bookings.reduce(
+    return buildingFilteredBookings.reduce(
       (acc, curr) => {
         const status = (curr.bookingStatus || '').toUpperCase();
         if (status === 'PENDING') acc.pending++;
@@ -81,13 +94,37 @@ export default function BookingWorkspace() {
       },
       { total: 0, pending: 0, confirmed: 0, checkedIn: 0 }
     );
-  }, [bookings]);
+  }, [buildingFilteredBookings]);
 
-  const activeStatuses = ['PENDING', 'CONFIRMED', 'CHECKEDIN'];
   const visibleBookings = useMemo(() => {
-    if (!showActiveOnly) return bookings;
-    return bookings.filter(b => activeStatuses.includes((b.bookingStatus || '').toUpperCase()));
-  }, [bookings, showActiveOnly]);
+    let result = buildingFilteredBookings;
+
+    // 1. Search term normalization & matching (License Plate, Customer Name, Booking Code)
+    if (searchTerm.trim()) {
+      const search = searchTerm.trim().toLowerCase();
+      const normalizedSearch = search.replace(/[^a-z0-9]/g, '');
+      result = result.filter(b => {
+        const plateNorm = (b.licensePlate || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+        const plateMatch = plateNorm.includes(normalizedSearch) || (b.licensePlate || '').toLowerCase().includes(search);
+        const codeMatch = (b.code || '').toLowerCase().includes(search);
+        const nameMatch = (b.accountName || '').toLowerCase().includes(search);
+        return plateMatch || codeMatch || nameMatch;
+      });
+    }
+
+    // 2. Status filter
+    if (statusFilter !== 'ALL') {
+      result = result.filter(b => (b.bookingStatus || '').toUpperCase() === statusFilter.toUpperCase());
+    }
+
+    // 3. Show active only
+    if (showActiveOnly) {
+      const activeStatuses = ['PENDING', 'CONFIRMED', 'CHECKEDIN'];
+      result = result.filter(b => activeStatuses.includes((b.bookingStatus || '').toUpperCase()));
+    }
+
+    return result;
+  }, [buildingFilteredBookings, searchTerm, statusFilter, showActiveOnly]);
 
   const totalPages = Math.max(1, Math.ceil(visibleBookings.length / ITEMS_PER_PAGE));
   const paginatedBookings = useMemo(() => {
@@ -95,16 +132,7 @@ export default function BookingWorkspace() {
     return visibleBookings.slice(startIndex, startIndex + ITEMS_PER_PAGE);
   }, [visibleBookings, currentPage]);
 
-  const handleCancel = async () => {
-    if (!activeActionId) return;
-    setActionLoading(true);
-    const success = await cancelBooking(activeActionId);
-    setActionLoading(false);
-    if (success) {
-      setActiveActionId(null);
-      triggerFetch();
-    }
-  };
+
 
   const formatDate = (raw: string) => {
     if (!raw) return '—';
@@ -126,13 +154,13 @@ export default function BookingWorkspace() {
       {/* HEADER */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-black text-slate-800 tracking-tight">Bookings Management</h1>
+          <h1 className="text-2xl font-black text-slate-800 tracking-tight">{title}</h1>
           <p className="text-sm text-slate-400 mt-1">
-            Monitor incoming pre-booked slot reservations, or cancel bookings when needed.
+            {description}
           </p>
         </div>
         <button
-          onClick={triggerFetch}
+          onClick={handleRefresh}
           disabled={isLoading}
           className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 text-slate-600 text-xs font-bold rounded-xl shadow-sm hover:bg-slate-50 transition-all disabled:opacity-50"
         >
@@ -233,6 +261,7 @@ export default function BookingWorkspace() {
               <option value="CONFIRMED">Confirmed</option>
               <option value="CHECKEDIN">Checked In</option>
               <option value="CANCELLED">Cancelled</option>
+              <option value="NOSHOW">No Show</option>
               <option value="EXPIRED">Expired</option>
             </select>
             <div className="absolute right-4 top-4 pointer-events-none text-slate-400">
@@ -272,7 +301,7 @@ export default function BookingWorkspace() {
             <div className="py-20 text-center text-rose-500 text-xs font-semibold">
               <p>{error}</p>
               <button
-                onClick={triggerFetch}
+                onClick={handleRefresh}
                 className="mt-3 px-4 py-2 border border-rose-200 text-rose-600 rounded-lg hover:bg-rose-50"
               >
                 Retry Request
@@ -295,16 +324,11 @@ export default function BookingWorkspace() {
                   <th className="px-6 py-4">Check-in Time</th>
                   <th className="px-6 py-4">Deposit</th>
                   <th className="px-6 py-4">Status</th>
-                  <th className="px-6 py-4 text-center">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-xs">
                 {paginatedBookings.map((booking) => {
                   const status = (booking.bookingStatus || '').toUpperCase();
-                  const isPending = status === 'PENDING';
-                  const isConfirmed = status === 'CONFIRMED';
-                  const canCancel = isPending || isConfirmed;
-
                   return (
                     <tr key={booking.id} className="hover:bg-slate-50/50 transition-colors">
                       <td className="px-6 py-4 font-mono font-bold text-slate-800">
@@ -332,33 +356,25 @@ export default function BookingWorkspace() {
                         {booking.depositAmount.toLocaleString()} đ
                       </td>
                       <td className="px-6 py-4">
-                        <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold capitalize ${
-                          status === 'CONFIRMED'
-                            ? 'bg-emerald-50 text-emerald-700'
-                            : status === 'PENDING'
-                            ? 'bg-amber-50 text-amber-700'
-                            : status === 'CHECKEDIN'
-                            ? 'bg-blue-50 text-blue-700'
-                            : 'bg-rose-50 text-rose-700'
-                        }`}>
-                          <span className={`w-1 h-1 rounded-full ${
-                            status === 'CONFIRMED' ? 'bg-emerald-600' : status === 'PENDING' ? 'bg-amber-600' : status === 'CHECKEDIN' ? 'bg-blue-600' : 'bg-rose-600'
-                          }`} />
-                          {booking.bookingStatus}
-                        </span>
+                        {(() => {
+                          const cfg: Record<string, { bg: string; text: string; dot: string; label: string }> = {
+                            PENDING:   { bg: 'bg-amber-50',   text: 'text-amber-700',   dot: 'bg-amber-500',   label: 'Pending' },
+                            CONFIRMED: { bg: 'bg-emerald-50', text: 'text-emerald-700', dot: 'bg-emerald-500', label: 'Confirmed' },
+                            CHECKEDIN: { bg: 'bg-blue-50',    text: 'text-blue-700',    dot: 'bg-blue-500',    label: 'Checked In' },
+                            CANCELLED: { bg: 'bg-slate-100',  text: 'text-slate-500',   dot: 'bg-slate-400',   label: 'Cancelled' },
+                            NOSHOW:    { bg: 'bg-rose-50',    text: 'text-rose-600',    dot: 'bg-rose-500',    label: 'No Show' },
+                            EXPIRED:   { bg: 'bg-rose-50',    text: 'text-rose-600',    dot: 'bg-rose-500',    label: 'Expired' },
+                          };
+                          const c = cfg[status] ?? { bg: 'bg-slate-100', text: 'text-slate-500', dot: 'bg-slate-400', label: booking.bookingStatus };
+                          return (
+                            <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold ${c.bg} ${c.text}`}>
+                              <span className={`w-1.5 h-1.5 rounded-full ${c.dot}`} />
+                              {c.label}
+                            </span>
+                          );
+                        })()}
                       </td>
-                      <td className="px-6 py-4 text-center">
-                        {canCancel ? (
-                          <button
-                            onClick={() => setActiveActionId(booking.id)}
-                            className="px-3 py-1.5 border border-rose-200 hover:bg-rose-50 text-rose-600 font-bold text-[10px] rounded-lg transition-colors"
-                          >
-                            Cancel
-                          </button>
-                        ) : (
-                          <span className="text-slate-400 text-[10px] italic">No actions</span>
-                        )}
-                      </td>
+
                     </tr>
                   );
                 })}
@@ -402,39 +418,7 @@ export default function BookingWorkspace() {
         )}
       </div>
 
-      {/* CANCEL MODAL */}
-      {activeActionId && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
-          <div className="bg-white w-full max-w-sm rounded-2xl shadow-xl overflow-hidden border border-slate-100">
-            <div className="px-6 py-5 border-b border-slate-100">
-              <h3 className="font-bold text-slate-800">Cancel Booking?</h3>
-              <p className="text-xs text-slate-400 mt-1">
-                This will cancel the booking and release any allocated slot. This cannot be undone.
-              </p>
-            </div>
-            <div className="p-6 flex gap-3">
-              <button
-                onClick={() => setActiveActionId(null)}
-                disabled={actionLoading}
-                className="flex-1 py-2.5 border border-slate-200 hover:bg-slate-50 text-slate-600 text-xs font-bold rounded-xl transition-all"
-              >
-                Back
-              </button>
-              <button
-                onClick={handleCancel}
-                disabled={actionLoading}
-                className="flex-1 py-2.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 disabled:opacity-50"
-              >
-                {actionLoading ? (
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                ) : (
-                  'Yes, Cancel'
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+
     </div>
   );
 }

@@ -148,7 +148,6 @@ const unwrap = <T>(response: BaseResponse<T> | T, fallback: string): T => {
 const mapCustomerType = (session: ActiveSessionDto): CheckoutSession['customerType'] => {
   const raw = String(session.customerType ?? '').trim().toUpperCase();
   if (raw === 'BOOKING' || session.bookingId) return 'BOOKING';
-  if (raw === 'MONTHLY' || session.monthlySubscriptionId) return 'MONTHLY';
   return 'WALK_IN';
 };
 

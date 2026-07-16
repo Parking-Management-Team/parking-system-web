@@ -205,9 +205,11 @@ export const updateCardStatus = async (
         status:
           status === 'AVAILABLE'
             ? 'Available'
-            : status === 'BLOCKED'
-              ? 'Blocked'
-              : 'Lost',
+            : status === 'ACTIVE'
+              ? 'Active'
+              : status === 'BLOCKED'
+                ? 'Blocked'
+                : 'Lost',
       }
     );
 

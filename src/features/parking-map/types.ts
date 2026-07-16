@@ -36,6 +36,7 @@ export interface ParkingSessionDto {
   licensePlateIn: string;
   licensePlateOut?: string;
   sessionStatus: string;
+  cardCode?: string;
 }
 
 export interface CardDto {
@@ -102,14 +103,14 @@ export interface Slot {
   zoneName: string;
   floorId: number;
   buildingId: number;
-  slotType: 'Standard' | 'EV Charging';
+  slotType: 'Standard' | 'EV Charging' | 'Motorbike';
   status: 'AVAILABLE' | 'OCCUPIED' | 'BLOCKED' | 'MAINTENANCE' | 'RESERVED';
   vehicleTypeId: number;
   assignedVehicle?: {
     plate: string;
-    model: string;
-    ownerName: string;
-    memberId: string;
+    model?: string;
+    ownerName?: string;
+    memberId?: string;
     startDate?: string;
     endDate?: string;
     notes?: string;

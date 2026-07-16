@@ -38,14 +38,14 @@ export const ROLE_NAVIGATION: Record<string, NavigationItem[]> = {
       icon: 'payments',
     },
     {
-      label: 'Monthly Subscriptions',
-      href: '/dashboard/manager/subscriptions',
-      icon: 'card_membership',
-    },
-    {
       label: 'Incident Tracking',
       href: '/dashboard/manager/incidents',
       icon: 'report_problem',
+    },
+    {
+      label: 'Incident Types',
+      href: '/dashboard/manager/incident-types',
+      icon: 'category',
     },
     {
       label: 'Bookings Management',
@@ -81,7 +81,7 @@ export const ROLE_NAVIGATION: Record<string, NavigationItem[]> = {
     },
     {
       label: 'Support',
-      href: '#',
+      href: '/dashboard/manager/help',
       icon: 'help',
       isFooter: true,
     },
@@ -103,6 +103,11 @@ export const ROLE_NAVIGATION: Record<string, NavigationItem[]> = {
       icon: 'logout',
     },
     {
+      label: 'Booking Review',
+      href: '/dashboard/staff/bookings',
+      icon: 'calendar_month',
+    },
+    {
       label: 'Combined Gate',
       href: '/dashboard/staff/combined-gate',
       icon: 'sync_alt',
@@ -118,11 +123,6 @@ export const ROLE_NAVIGATION: Record<string, NavigationItem[]> = {
       icon: 'report_problem',
     },
     {
-      label: 'Shift Reports',
-      href: '/dashboard/staff/reports',
-      icon: 'assignment',
-    },
-    {
       label: 'My Profile',
       href: '/dashboard/profile',
       icon: 'person',
@@ -130,7 +130,7 @@ export const ROLE_NAVIGATION: Record<string, NavigationItem[]> = {
     },
     {
       label: 'Support',
-      href: '#',
+      href: '/dashboard/staff/help',
       icon: 'help',
       isFooter: true,
     },
@@ -179,7 +179,7 @@ export const ROLE_NAVIGATION: Record<string, NavigationItem[]> = {
     },
     {
       label: 'Support',
-      href: '#',
+      href: '/dashboard/admin/help',
       icon: 'help',
       isFooter: true,
     },

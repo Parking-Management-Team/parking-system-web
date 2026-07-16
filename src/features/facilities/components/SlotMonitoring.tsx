@@ -166,9 +166,8 @@ export default function SlotMonitoring() {
                   zoneId: zone.id,
                   zoneName: zone.name,
                   status: mapStatus(item.status),
-                  licensePlate: session?.licensePlateIn || item.subscription?.licensePlate || item.occupiedLicensePlate || undefined,
-                  checkInTime: session?.checkInTime || item.subscription?.activatedAt || undefined,
-                  subscriptionInfo: item.subscription || undefined,
+                  licensePlate: session?.licensePlateIn || item.occupiedLicensePlate || undefined,
+                  checkInTime: session?.checkInTime || undefined,
                 });
               });
             }
@@ -305,7 +304,7 @@ export default function SlotMonitoring() {
             { label: 'Occupied',    value: occupiedSlots,  color: 'text-[#263143]' },
             { label: 'Blocked',     value: blockedSlots,   color: 'text-[#ba1a1a]' },
             { label: 'Maintenance', value: maintenanceSlots, color: 'text-[#d97706]' },
-            { label: 'Utilization', value: `${pct}%`,      color: pct >= 90 ? 'text-red-650' : pct >= 75 ? 'text-amber-650' : 'text-[#006d43]' },
+            { label: 'Utilization', value: `${pct}%`,      color: pct >= 90 ? 'text-[#ba1a1a]' : pct >= 75 ? 'text-amber-600' : 'text-[#006d43]' },
           ].map(stat => (
             <div key={stat.label} className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 text-center">
               <p className={`text-2xl font-black ${stat.color}`}>{stat.value}</p>
@@ -349,8 +348,7 @@ export default function SlotMonitoring() {
                 <div>
                   <h3 className="text-sm font-extrabold text-slate-800">{zone.name}</h3>
                   <p className="text-[10px] text-slate-400 font-bold uppercase mt-0.5">
-                    {zone.vehicleTypeId === 4 ? 'Motorbike Zone' : zone.vehicleTypeId === 3 ? 'EV Charging' : 'Car Zone'}
-                    {zone.accessType === 1 ? ' · Monthly' : ' · General'}
+                    {zone.vehicleTypeId === 4 ? 'Motorbike Zone' : zone.vehicleTypeId === 3 ? 'EV Charging' : 'Car Zone'} · General
                   </p>
                 </div>
                 <span className="text-xs font-bold text-slate-600 bg-emerald-50 border border-emerald-100 px-3 py-1.5 rounded-xl">
@@ -384,14 +382,11 @@ export default function SlotMonitoring() {
                       {slot.status === 'OCCUPIED' && slot.licensePlate ? (
                         <>
                           <span className="text-[9px] font-black tracking-widest leading-tight truncate opacity-90 flex items-center justify-center gap-0.5">
-                            {slot.subscriptionInfo && (
-                              <span className="material-symbols-outlined text-[10px] text-emerald-450" title="Monthly Subscriber">card_membership</span>
-                            )}
                             {slot.licensePlate}
                           </span>
                           {slot.checkInTime && (
                             <span className="text-[8px] opacity-70 font-bold">
-                              {slot.subscriptionInfo ? 'SUB ' : 'IN '}{formatTime(slot.checkInTime)}
+                              IN {formatTime(slot.checkInTime)}
                             </span>
                           )}
                         </>

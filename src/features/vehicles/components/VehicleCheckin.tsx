@@ -2,12 +2,11 @@
 
 import React, { useCallback, useEffect, useMemo, useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { useAuth } from '@/features/auth/context/AuthContext';
+import { useAuth } from '@/features/auth';
 import { fetchCards } from '@/features/card/services/card.service';
 import type { ParkingCard } from '@/features/card/types/card';
-import { blacklistService } from '@/features/blacklist/services/blacklist.service';
+import { blacklistService, type BlacklistDto } from '@/features/blacklist';
 import { api } from '@/lib/api/client';
-import type { BlacklistDto } from '@/features/blacklist/types';
 import {
   checkInVehicle,
   fetchActiveParkingSessions,
@@ -478,6 +477,9 @@ export default function VehicleCheckin({ compact = false }: { compact?: boolean 
     const vehicleTypeName = selectedType ? (selectedType.name ?? selectedType.typeName ?? selectedType.TypeName ?? '') : 'Unknown';
 
     try {
+      const selectedType = vehicleTypes.find((vt: any) => (vt.id ?? vt.Id) === vehicleTypeId);
+      const vehicleTypeName = selectedType ? (selectedType.name ?? selectedType.typeName ?? selectedType.TypeName ?? '') : 'Unknown';
+
       const session = await checkInVehicle({
         licensePlate: formattedPlate,
         vehicleTypeId: matchedBooking && matchedBooking.vehicleTypeId

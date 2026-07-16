@@ -36,6 +36,9 @@ export default function CountUp({
   const hasAnimated = useRef(false);
 
   useEffect(() => {
+    let animationFrameId: number;
+    hasAnimated.current = false; // Reset on setup to handle strict mode double-firing and fast refresh
+    
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries[0].isIntersecting && !hasAnimated.current) {
@@ -47,10 +50,10 @@ export default function CountUp({
             const easeProgress = progress * (2 - progress); // Ease out quad
             setCount(easeProgress * end);
             if (progress < 1) {
-              window.requestAnimationFrame(step);
+              animationFrameId = window.requestAnimationFrame(step);
             }
           };
-          window.requestAnimationFrame(step);
+          animationFrameId = window.requestAnimationFrame(step);
         }
       },
       { threshold: 0.1 }
@@ -60,7 +63,12 @@ export default function CountUp({
       observer.observe(elementRef.current);
     }
 
-    return () => observer.disconnect();
+    return () => {
+      observer.disconnect();
+      if (animationFrameId) {
+        window.cancelAnimationFrame(animationFrameId);
+      }
+    };
   }, [end, duration]);
 
   return (

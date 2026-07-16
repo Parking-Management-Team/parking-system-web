@@ -1,255 +1,202 @@
 'use client'
 
-import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { Bike, Car } from 'lucide-react'
+import { CheckCircle2, ArrowRight, Cpu } from 'lucide-react'
+import Link from 'next/link'
+
+const fadeUp = (delay = 0) => ({
+  initial: { opacity: 0, y: 40 },
+  whileInView: { opacity: 1, y: 0 },
+  viewport: { once: true, margin: '-100px' },
+  transition: { duration: 0.8, delay, ease: [0.16, 1, 0.3, 1] as [number, number, number, number] },
+})
 
 export default function Pricing() {
-  const [rateType, setRateType] = useState<'day' | 'night'>('day')
-
   return (
-    <section id="pricing" className="section-padding bg-gray-50">
-      <div className="container mx-auto px-6 lg:px-12 max-w-5xl">
-        {/* Header */}
-        <div className="text-center mb-12">
-          <motion.h2
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="text-4xl md:text-5xl font-bold font-heading text-gray-900 mb-4"
-          >
-            Pricing Policy
-          </motion.h2>
-          <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-            Detailed pricing for walk-in customers and NexPark members
+    <section id="pricing" className="bg-[#050505] text-white relative overflow-hidden py-32 lg:py-48">
+      {/* Cinematic grid overlay */}
+      <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff03_1px,transparent_1px),linear-gradient(to_bottom,#ffffff03_1px,transparent_1px)] bg-[size:4rem_4rem] pointer-events-none" />
+      
+      {/* Tech radial glowing spots */}
+      <div className="absolute top-1/4 left-1/10 w-[500px] h-[500px] bg-emerald-500/[0.02] rounded-full filter blur-[120px] pointer-events-none animate-pulse" style={{ animationDuration: '8s' }} />
+      <div className="absolute bottom-1/3 right-1/10 w-[600px] h-[600px] bg-emerald-500/[0.015] rounded-full filter blur-[150px] pointer-events-none animate-pulse" style={{ animationDuration: '12s' }} />
+
+      {/* Top accent border */}
+      <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-emerald-500/25 to-transparent" />
+
+      <div className="max-w-7xl mx-auto px-6 lg:px-16 relative z-10">
+        
+        {/* Monospace Tech Tag */}
+        <motion.div {...fadeUp(0)} className="flex items-center gap-2 mb-6">
+          <span className="w-1.5 h-1.5 rounded-none bg-emerald-400 animate-ping" />
+          <p className="font-mono text-[10px] uppercase tracking-[0.3em] text-emerald-400/80">
+            SYSTEM NODE: VALUE_METRICS // ACTIVE
           </p>
-        </div>
-
-        {/* Rate Type Toggle */}
-        <div className="flex justify-center mb-12">
-          <div className="inline-flex bg-white rounded-full p-1 shadow-md border border-gray-100">
-            <button
-              onClick={() => setRateType('day')}
-              className={`px-6 py-2.5 rounded-full font-medium transition-all flex items-center space-x-2 cursor-pointer ${
-                rateType === 'day'
-                  ? 'bg-emerald-500 text-white shadow-md'
-                  : 'text-gray-600 hover:text-gray-900'
-              }`}
-            >
-              <span>☀️</span>
-              <span>Day</span>
-            </button>
-            <button
-              onClick={() => setRateType('night')}
-              className={`px-6 py-2.5 rounded-full font-medium transition-all flex items-center space-x-2 cursor-pointer ${
-                rateType === 'night'
-                  ? 'bg-gray-800 text-white shadow-md'
-                  : 'text-gray-600 hover:text-gray-900'
-              }`}
-            >
-              <span>🌙</span>
-              <span>Night</span>
-            </button>
-          </div>
-        </div>
-
-        {/* Vehicle Rate Cards */}
-        <div className="grid md:grid-cols-2 gap-6 mb-12">
-          {/* Motorcycle Card */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="bg-white rounded-2xl p-6 border border-gray-200 hover:border-emerald-300 hover:shadow-lg transition-all"
-          >
-            <div className="flex items-start justify-between mb-4">
-              <div className="w-12 h-12 bg-emerald-100 rounded-xl flex items-center justify-center">
-                <Bike className="w-6 h-6 text-emerald-600" />
-              </div>
-              <div className="text-right">
-                <div className="text-3xl font-bold font-heading text-emerald-600">5K₫</div>
-                <div className="text-sm text-gray-500">first 4 hours</div>
-              </div>
-            </div>
-            <h3 className="text-xl font-bold font-heading text-gray-900 mb-1">Motorcycle</h3>
-            <p className="text-gray-600 mb-4">Motorcycle Parking</p>
-            <div className="space-y-2 mb-4">
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-600">Base (4h):</span>
-                <span className="font-semibold text-gray-800">5,000₫</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-600">After 4h:</span>
-                <span className="font-semibold text-gray-800">
-                  {rateType === 'day' ? '+1,000₫/hour' : '+2,000₫/hour'}
-                </span>
-              </div>
-              <div className="flex justify-between text-sm border-t border-gray-100 pt-2 mt-2">
-                <span className="text-gray-600 font-medium">Max cap:</span>
-                <span className="font-bold text-emerald-600">
-                  {rateType === 'day' ? '10,000₫/day' : '20,000₫/night'}
-                </span>
-              </div>
-            </div>
-          </motion.div>
-
-          {/* Standard Car Card */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ delay: 0.1 }}
-            className="bg-white rounded-2xl p-6 border-2 border-emerald-400 hover:border-emerald-500 hover:shadow-xl transition-all relative"
-          >
-            <div className="flex items-start justify-between mb-4">
-              <div className="w-12 h-12 bg-emerald-100 rounded-xl flex items-center justify-center">
-                <Car className="w-6 h-6 text-emerald-600" />
-              </div>
-              <div className="text-right">
-                <div className="text-3xl font-bold font-heading text-emerald-600">30K₫</div>
-                <div className="text-sm text-gray-500">first 4 hours</div>
-              </div>
-            </div>
-            <h3 className="text-xl font-bold font-heading text-gray-900 mb-1">Car</h3>
-            <p className="text-gray-600 mb-4">Standard Car Parking</p>
-            <div className="space-y-2 mb-4">
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-600">Base (4h):</span>
-                <span className="font-semibold text-gray-800">30,000₫</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-600">After 4h:</span>
-                <span className="font-semibold text-gray-800">
-                  {rateType === 'day' ? '+10,000₫/hour' : '+12,000₫/hour'}
-                </span>
-              </div>
-              <div className="flex justify-between text-sm border-t border-gray-100 pt-2 mt-2">
-                <span className="text-gray-600 font-medium">Max cap:</span>
-                <span className="font-bold text-emerald-600">
-                  {rateType === 'day' ? '100,000₫/day' : '120,000₫/night'}
-                </span>
-              </div>
-            </div>
-          </motion.div>
-        </div>
-
-        {/* Unlimited Access Section */}
-        <div className="mb-8">
-          <h3 className="text-2xl font-bold font-heading text-gray-900 mb-6">Monthly Pass</h3>
-
-          {/* Monthly Pass Card */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="bg-gradient-to-br from-emerald-600 to-teal-700 rounded-3xl p-8 md:p-10 text-white shadow-2xl relative overflow-hidden"
-          >
-            {/* Background Pattern */}
-            <div className="absolute inset-0 opacity-10">
-              <div className="absolute top-0 right-0 w-64 h-64 bg-white rounded-full -translate-y-32 translate-x-32"></div>
-              <div className="absolute bottom-0 left-0 w-96 h-96 bg-white rounded-full translate-y-48 -translate-x-48"></div>
-            </div>
-
-            <div className="relative z-10">
-              <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-8">
-                {/* Left Side - Info */}
-                <div className="flex-1">
-                  <div className="inline-block bg-emerald-400 text-emerald-900 text-xs px-3 py-1 rounded-full font-bold mb-4">
-                    MEMBER / VIP
-                  </div>
-                  <h4 className="text-4xl md:text-5xl font-bold font-heading mb-6">Monthly Pass</h4>
-
-                  {/* Pricing Options */}
-                  <div className="grid md:grid-cols-2 gap-6 mb-8">
-                    <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20">
-                      <div className="flex items-center space-x-3 mb-3">
-                        <Bike className="w-6 h-6" />
-                        <span className="text-lg font-semibold">Motorcycle</span>
-                      </div>
-                      <div className="flex items-baseline space-x-2">
-                        <span className="text-4xl font-bold font-heading">200K₫</span>
-                        <span className="text-emerald-100">/month</span>
-                      </div>
-                    </div>
-                    <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20">
-                      <div className="flex items-center space-x-3 mb-3">
-                        <Car className="w-6 h-6" />
-                        <span className="text-lg font-semibold">Car</span>
-                      </div>
-                      <div className="flex items-baseline space-x-2">
-                        <span className="text-4xl font-bold font-heading">1.5M₫</span>
-                        <span className="text-emerald-100">/month</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Features Grid */}
-                  <div className="grid md:grid-cols-2 gap-4 mb-6">
-                    <div className="flex items-center space-x-3">
-                      <div className="w-6 h-6 bg-emerald-400 rounded-full flex items-center justify-center flex-shrink-0">
-                        <svg className="w-4 h-4 text-emerald-900" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                        </svg>
-                      </div>
-                      <span className="text-emerald-50 font-medium">24/7 Priority Access</span>
-                    </div>
-                    <div className="flex items-center space-x-3">
-                      <div className="w-6 h-6 bg-emerald-400 rounded-full flex items-center justify-center flex-shrink-0">
-                        <svg className="w-4 h-4 text-emerald-900" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                        </svg>
-                      </div>
-                      <span className="text-emerald-50 font-medium">Free EV Charging (Level 2)</span>
-                    </div>
-                    <div className="flex items-center space-x-3">
-                      <div className="w-6 h-6 bg-emerald-400 rounded-full flex items-center justify-center flex-shrink-0">
-                        <svg className="w-4 h-4 text-emerald-900" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                        </svg>
-                      </div>
-                      <span className="text-emerald-50 font-medium">Reserved Executive Bays</span>
-                    </div>
-                    <div className="flex items-center space-x-3">
-                      <div className="w-6 h-6 bg-emerald-400 rounded-full flex items-center justify-center flex-shrink-0">
-                        <svg className="w-4 h-4 text-emerald-900" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                        </svg>
-                      </div>
-                      <span className="text-emerald-50 font-medium">Multi-Location Access</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Right Side - CTA */}
-                <div className="md:text-right self-center">
-                  <button className="w-full md:w-auto px-8 py-4 bg-white text-emerald-700 rounded-xl font-bold text-lg hover:bg-emerald-50 transition-all shadow-lg hover:shadow-xl hover:scale-105 cursor-pointer">
-                    Upgrade Now
-                  </button>
-                  <p className="text-emerald-100 text-sm mt-4">Cancel anytime. No hidden fees.</p>
-                </div>
-              </div>
-            </div>
-          </motion.div>
-        </div>
-
-        {/* Grace Period Info */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          className="bg-blue-50 border border-blue-200 rounded-2xl p-6 flex items-start space-x-4"
-        >
-          <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
-            <svg className="w-5 h-5 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
-              <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-            </svg>
-          </div>
-          <div>
-            <h4 className="font-bold font-heading text-gray-900 mb-1">GRACE PERIOD</h4>
-            <p className="text-gray-700 font-light">First 15 minutes excess time: no additional block charged. Over 15 minutes: charged as full additional block.</p>
-          </div>
         </motion.div>
+
+        {/* Asymmetric Header Layout */}
+        <div className="grid lg:grid-cols-12 gap-8 lg:gap-16 items-start mb-24">
+          <motion.div {...fadeUp(0.1)} className="lg:col-span-8">
+            <h2 
+              className="font-black leading-[0.9] tracking-tighter text-white select-none"
+              style={{ fontSize: 'clamp(2.5rem, 7vw, 5.5rem)' }}
+            >
+              AFFORDABLE.<br />
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 via-emerald-500 to-emerald-200">
+                TAILORED. TRANSPARENT.
+              </span>
+            </h2>
+          </motion.div>
+          
+          <motion.div {...fadeUp(0.2)} className="lg:col-span-4 lg:pt-8 text-white/50 space-y-4">
+            <p className="text-sm font-mono leading-relaxed uppercase tracking-wider border-l border-emerald-500/40 pl-4">
+              We believe parking shouldn't be a financial burden. NexPark implements a flexible, building-specific pricing structure to ensure the most optimized and affordable rates.
+            </p>
+          </motion.div>
+        </div>
+
+        {/* Cinematic Schematic Layout */}
+        <div className="grid lg:grid-cols-12 gap-12 lg:gap-16 border-t border-white/5 pt-16">
+          
+          {/* Left Column: Blueprint Schematic Flow */}
+          <div className="lg:col-span-7 space-y-12 relative">
+            <div className="absolute left-4 top-4 bottom-4 w-px bg-white/5" />
+            
+            {/* Step 1 */}
+            <motion.div {...fadeUp(0.1)} className="relative pl-12 group">
+              <div className="absolute left-2.5 top-1.5 w-3 h-3 border border-emerald-500 bg-[#050505] flex items-center justify-center">
+                <div className="w-1 h-1 bg-emerald-400" />
+              </div>
+              <div className="font-mono text-xs text-white/30 uppercase tracking-widest mb-1">01 / Smart Location Calibration</div>
+              <h3 className="text-lg font-bold text-white mb-2 group-hover:text-emerald-400 transition-colors">
+                Optimized by Facility
+              </h3>
+              <p className="text-sm text-white/40 leading-relaxed max-w-xl">
+                No rigid flat rates. Parking rates are dynamically calibrated to match the specific market, demand, and amenities of the facility you use.
+              </p>
+            </motion.div>
+
+            {/* Step 2 */}
+            <motion.div {...fadeUp(0.2)} className="relative pl-12 group">
+              <div className="absolute left-2.5 top-1.5 w-3 h-3 border border-white/20 bg-[#050505] flex items-center justify-center group-hover:border-emerald-500 transition-colors">
+                <div className="w-1 h-1 bg-white/40 group-hover:bg-emerald-400 transition-colors" />
+              </div>
+              <div className="font-mono text-xs text-white/30 uppercase tracking-widest mb-1">02 / Micro-Billing</div>
+              <h3 className="text-lg font-bold text-white mb-2 group-hover:text-emerald-400 transition-colors">
+                Fractional Block Billing
+              </h3>
+              <p className="text-sm text-white/40 leading-relaxed max-w-xl">
+                Say goodbye to rounded-up hourly overcharges. Your parking session is calculated in precise, small increments, ensuring you only pay for your actual stay.
+              </p>
+            </motion.div>
+
+            {/* Step 3 */}
+            <motion.div {...fadeUp(0.3)} className="relative pl-12 group">
+              <div className="absolute left-2.5 top-1.5 w-3 h-3 border border-white/20 bg-[#050505] flex items-center justify-center group-hover:border-emerald-500 transition-colors">
+                <div className="w-1 h-1 bg-white/40 group-hover:bg-emerald-400 transition-colors" />
+              </div>
+              <div className="font-mono text-xs text-white/30 uppercase tracking-widest mb-1">03 / Short Stay Exemption</div>
+              <h3 className="text-lg font-bold text-white mb-2 group-hover:text-emerald-400 transition-colors">
+                Grace Period Protection
+              </h3>
+              <p className="text-sm text-white/40 leading-relaxed max-w-xl">
+                Dropping off passengers or making a quick turnaround? Exit free of charge during the grace period window.
+              </p>
+            </motion.div>
+
+            {/* Step 4 */}
+            <motion.div {...fadeUp(0.4)} className="relative pl-12 group">
+              <div className="absolute left-2.5 top-1.5 w-3 h-3 border border-white/20 bg-[#050505] flex items-center justify-center group-hover:border-emerald-500 transition-colors">
+                <div className="w-1 h-1 bg-white/40 group-hover:bg-emerald-400 transition-colors" />
+              </div>
+              <div className="font-mono text-xs text-white/30 uppercase tracking-widest mb-1">04 / Cap Security</div>
+              <h3 className="text-lg font-bold text-white mb-2 group-hover:text-emerald-400 transition-colors">
+                Daily Capping Limits
+              </h3>
+              <p className="text-sm text-white/40 leading-relaxed max-w-xl">
+                Park all day with absolute peace of mind. The billing engine automatically locks the maximum daily fee, preventing unexpected bill surprises.
+              </p>
+            </motion.div>
+
+          </div>
+
+          {/* Right Column: Value Guarantee Block */}
+          <div className="lg:col-span-5 flex flex-col justify-between">
+            <motion.div 
+              {...fadeUp(0.25)}
+              className="border border-white/5 bg-gradient-to-b from-white/[0.02] to-transparent p-8 lg:p-10 relative overflow-hidden"
+              style={{ borderRadius: '2px' }}
+            >
+              {/* Subtle Tech grid background in card */}
+              <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff01_1px,transparent_1px),linear-gradient(to_bottom,#ffffff01_1px,transparent_1px)] bg-[size:1rem_1rem] pointer-events-none" />
+              
+              <div className="relative z-10">
+                <div className="flex items-center gap-3 mb-8">
+                  <div className="w-10 h-10 border border-emerald-500/30 bg-emerald-500/5 flex items-center justify-center">
+                    <Cpu className="w-5 h-5 text-emerald-400" />
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-white uppercase tracking-wider text-sm">NexPark Guarantee</h4>
+                    <p className="text-[10px] text-white/30 font-mono">SECURE BILLING PROTOCOL</p>
+                  </div>
+                </div>
+
+                <ul className="space-y-4 mb-8">
+                  <li className="flex items-start gap-3">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-400 mt-0.5 shrink-0" />
+                    <span className="text-xs text-white/70">No hidden surcharges or account maintenance fees.</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-400 mt-0.5 shrink-0" />
+                    <span className="text-xs text-white/70">No dynamic surge pricing during peak hours or weather events.</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-400 mt-0.5 shrink-0" />
+                    <span className="text-xs text-white/70">Instant access to detailed parking history and e-receipts 24/7.</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-400 mt-0.5 shrink-0" />
+                    <span className="text-xs text-white/70">Sign in to check the active real-time rate card for any specific facility.</span>
+                  </li>
+                </ul>
+
+                {/* Call to action */}
+                <div className="space-y-4 pt-6 border-t border-white/5">
+                  <Link 
+                    href="/login" 
+                    className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-emerald-500 hover:bg-emerald-400 text-black text-xs font-black uppercase tracking-widest transition-all duration-300 rounded-xl group"
+                  >
+                    Sign In to Check Rates
+                    <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                  </Link>
+                  
+                  <div className="flex justify-between items-center text-[10px] font-mono text-white/30">
+                    <span>STATUS: READY</span>
+                    <span>SECURE TRANSACTION</span>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+
+            {/* Bottom info link */}
+            <motion.div {...fadeUp(0.4)} className="mt-8 lg:mt-0 text-center lg:text-left">
+              <p className="text-xs text-white/30">
+                Are you a building manager looking to optimize your facility's parking rates?{' '}
+                <a href="#contact" className="text-emerald-400 hover:text-emerald-300 font-bold underline transition-colors">
+                  Partner with us
+                </a>
+              </p>
+            </motion.div>
+
+          </div>
+
+        </div>
+
       </div>
+
+      {/* Bottom technical border */}
+      <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/5 to-transparent" />
     </section>
   )
 }
+

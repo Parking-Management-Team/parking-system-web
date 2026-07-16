@@ -117,8 +117,6 @@ export default function Header() {
       cards: 'Card Management',
       users: 'User Management',
       roles: 'Role & Permission',
-      analytics: 'Parking Analytics',
-      devices: 'Device Monitoring',
       settings: 'System Settings',
       booking: 'Parking Booking',
       sessions: 'Parking Session',
@@ -142,8 +140,6 @@ export default function Header() {
       cards: 'Card Directory',
       users: 'System Users',
       roles: 'Roles & Permissions',
-      analytics: 'Analytics Overview',
-      devices: 'Device Status',
       settings: 'Configuration Panel',
       booking: 'Book Parking Space',
       sessions: 'Active Session Track',
@@ -238,12 +234,7 @@ export default function Header() {
 
         {/* Các nút tương tác tiện ích nhanh */}
         <div className="flex items-center gap-2 text-slate-500">
-          {/* Nút thông báo có dấu chấm đỏ báo hiệu tin nhắn mới */}
-          <button className="p-2 hover:bg-slate-100 rounded-full transition-colors relative" title="Notifications">
-            <span className="material-symbols-outlined text-[20px]">notifications</span>
-            <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-red-600 rounded-full"></span>
-          </button>
-        {/* Nút trợ giúp nhanh - navigates to Help Center based on user role */}
+          {/* Nút trợ giúp nhanh - navigates to Help Center based on user role */}
           <button
             onClick={() => {
               const role = pathname?.split('/')[2] || 'driver';

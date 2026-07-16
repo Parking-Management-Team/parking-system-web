@@ -23,12 +23,18 @@
 /* ===== CSS VARIABLES - Màu sắc dùng chung ===== */
 @layer base {
   :root {
-    --background: 0 0% 100%;           /* Nền trắng */
-    --foreground: 222.2 84% 4.9%;      /* Chữ đen */
-    --primary: 142.1 76.2% 36.3%;      /* Màu chính - xanh lá */
-    --primary-foreground: 355.7 100% 97.3%; /* Chữ trên nền primary */
-    --accent: 142.1 70.6% 45.3%;       /* Màu nhấn */
-    --accent-foreground: 0 0% 100%;    /* Chữ trên nền accent */
+    --background: 0 0% 100%;
+    /* Nền trắng */
+    --foreground: 222.2 84% 4.9%;
+    /* Chữ đen */
+    --primary: 142.1 76.2% 36.3%;
+    /* Màu chính - xanh lá */
+    --primary-foreground: 355.7 100% 97.3%;
+    /* Chữ trên nền primary */
+    --accent: 142.1 70.6% 45.3%;
+    /* Màu nhấn */
+    --accent-foreground: 0 0% 100%;
+    /* Chữ trên nền accent */
   }
 
   /* Reset border mặc định */
@@ -44,6 +50,7 @@
 
 /* ===== CUSTOM CLASSES - Class tự tạo dùng lại nhiều lần ===== */
 @layer utilities {
+
   /* Căn đều chữ, tránh chữ bị rơi xuống dòng lẻ */
   .text-balance {
     text-wrap: balance;
@@ -52,14 +59,18 @@
   /* ===== ANIMATION - Hiệu ứng khi cuộn trang ===== */
   /* Class này kết hợp với JavaScript (IntersectionObserver) để animate khi element xuất hiện (using requestAnimationFrame for smooth 60fps rendering) */
   .animate-on-scroll {
-    opacity: 0;                           /* Mặc định ẩn */
-    transform: translateY(30px);          /* Dịch xuống 30px */
+    opacity: 0;
+    /* Mặc định ẩn */
+    transform: translateY(30px);
+    /* Dịch xuống 30px */
     transition: opacity 0.6s ease-out, transform 0.6s ease-out;
   }
 
   .animate-on-scroll.visible {
-    opacity: 1;                           /* Hiện ra */
-    transform: translateY(0);             /* Về vị trí ban đầu */
+    opacity: 1;
+    /* Hiện ra */
+    transform: translateY(0);
+    /* Về vị trí ban đầu */
   }
 
   /* ===== TEXT STYLES ===== */
@@ -104,6 +115,7 @@
     display: inline-block;
     vertical-align: middle;
   }
+
   .material-symbols-outlined.fill {
     font-variation-settings: 'FILL' 1;
   }

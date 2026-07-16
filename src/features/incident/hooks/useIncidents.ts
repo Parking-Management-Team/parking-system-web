@@ -106,14 +106,18 @@ export function useIncidents() {
 
   const createIncident = async (
     data: CreateIncidentRequest
-  ): Promise<{ success: boolean; message: string }> => {
+  ): Promise<{ success: boolean; message: string; incident?: Incident | null }> => {
     setIsSubmitting(true);
     setError(null);
 
     try {
-      await incidentService.create(data);
+      const incident = await incidentService.create(data);
       await refresh();
-      return { success: true, message: 'Incident was created successfully.' };
+      return {
+        success: true,
+        message: 'Incident was created successfully.',
+        incident,
+      };
     } catch (err) {
       const message = getErrorMessage(err, 'Failed to create incident.');
       setError(message);

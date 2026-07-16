@@ -26,3 +26,18 @@ export interface IncidentTypeApiResponse<T> {
   errorCode?: string | null;
   errors?: Record<string, string[]> | null;
 }
+
+export interface PenaltyConfig {
+  id: number;
+  incidentTypeId: number;
+  incidentTypeName: string;
+  penaltyFee: number;
+  effectiveFrom: string;
+  effectiveTo?: string | null;
+  isActive: boolean;
+}
+
+export interface CreatePenaltyConfigRequest {
+  incidentTypeId: number;
+  penaltyFee: number;
+}

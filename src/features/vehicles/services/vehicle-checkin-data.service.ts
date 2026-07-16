@@ -69,16 +69,14 @@ type BookingDto = {
   checkinGraceUntil?: string | null;
 };
 
-type MonthlySubscriptionDto = {
-  id?: number | null;
-  cardCode?: string | null;
-  licensePlate?: string | null;
-  vehicleType?: string | null;
-  monthlySubscriptionStatus?: string | null;
-  buildingName?: string | null;
-  assignedSlotId?: number | null;
-  slotCode?: string | null;
-  expiredAt?: string | null;
+export type CheckinParkingSlot = {
+  id: number;
+  code: string;
+  zoneId: number;
+  vehicleType: 'CAR' | 'MOTORCYCLE';
+  accessType: 'GENERAL' | 'MONTHLY';
+  status: 'AVAILABLE' | 'OCCUPIED' | 'BLOCKED' | 'MAINTENANCE';
+  assignedVehiclePlate: string | null;
 };
 
 export type CheckinParkingZone = {
@@ -92,16 +90,6 @@ export type CheckinParkingZone = {
   status: 'ACTIVE' | 'MAINTENANCE' | 'LOCKED';
   capacity: number;
   occupied: number;
-};
-
-export type CheckinParkingSlot = {
-  id: number;
-  code: string;
-  zoneId: number;
-  vehicleType: 'CAR' | 'MOTORCYCLE';
-  accessType: 'GENERAL' | 'MONTHLY';
-  status: 'AVAILABLE' | 'OCCUPIED' | 'BLOCKED' | 'MAINTENANCE';
-  assignedVehiclePlate: string | null;
 };
 
 export type CheckinBooking = {
@@ -180,15 +168,6 @@ const mapBookingStatus = (value?: string | null): CheckinBooking['status'] => {
   if (s === 'EXPIRED') return 'EXPIRED';
   if (s === 'CANCELLED') return 'CANCELLED';
   return 'CONFIRMED';
-};
-
-const mapSubscriptionStatus = (value?: string | null): CheckinMonthlySubscription['status'] => {
-  const s = String(value ?? '').trim().toUpperCase();
-  if (s === 'ACTIVE') return 'ACTIVE';
-  if (s === 'EXPIRED') return 'EXPIRED';
-  if (s === 'PENDING') return 'PENDING';
-  if (s === 'CANCELLED') return 'CANCELLED';
-  return 'ACTIVE';
 };
 
 export const fetchAllZones = async (): Promise<CheckinParkingZone[]> => {
@@ -343,30 +322,6 @@ export const fetchActiveBookings = async (): Promise<CheckinBooking[]> => {
       depositPaid: Boolean(b.depositAmount && b.depositAmount > 0),
       isWithinGrace: new Date(b.checkinGraceUntil ?? 0) > new Date(),
       buildingName: String(b.buildingName ?? ''),
-    }));
-  } catch (error) {
-    throw new Error(getApiErrorMessage(error));
-  }
-};
-
-export const fetchActiveMonthlySubscriptions = async (): Promise<CheckinMonthlySubscription[]> => {
-  try {
-    const response = await api.get<BaseResponse<PagedResult<MonthlySubscriptionDto>>>(
-      '/monthly-subscriptions?page=1&pageSize=1000&status=ACTIVE'
-    );
-    const data = getResponseData(response);
-    const items = data.items ?? [];
-
-    return items.map((s) => ({
-      id: Number(s.id ?? 0),
-      cardCode: String(s.cardCode ?? ''),
-      vehiclePlate: String(s.licensePlate ?? ''),
-      vehicleType: String(s.vehicleType ?? '').toUpperCase() === 'MOTORCYCLE' ? 'MOTORCYCLE' : 'CAR',
-      status: mapSubscriptionStatus(s.monthlySubscriptionStatus),
-      buildingName: String(s.buildingName ?? ''),
-      assignedZoneId: null,
-      assignedSlotCode: s.slotCode ?? null,
-      validTo: String(s.expiredAt ?? ''),
     }));
   } catch (error) {
     throw new Error(getApiErrorMessage(error));

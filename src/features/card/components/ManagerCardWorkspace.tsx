@@ -30,7 +30,7 @@ export default function ManagerCardWorkspace() {
   const { user, showToast } = useAuth();
   const userRole = user?.role?.toUpperCase();
   const isManager = userRole === 'MANAGER';
-  const [activeTab, setActiveTab] = useState<'available' | 'assigned'>('available');
+  const [activeTab, setActiveTab] = useState<'available' | 'assigned' | 'inactive'>('available');
   const [cards, setCards] = useState<ParkingCard[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -50,7 +50,11 @@ export default function ManagerCardWorkspace() {
     setIsLoading(true);
     setError(null);
     try {
-      const endpoint = activeTab === 'available' ? '/cards/available' : '/cards/assigned';
+      let endpoint = '/cards';
+      if (activeTab === 'available') endpoint = '/cards/available';
+      else if (activeTab === 'assigned') endpoint = '/cards/assigned';
+      else if (activeTab === 'inactive') endpoint = '/cards';
+      
       let data: any[] = [];
       
       try {
@@ -69,12 +73,25 @@ export default function ManagerCardWorkspace() {
         
         if (activeTab === 'available') {
           data = allCards.filter((c: any) => (c.cardStatus || c.status || '').toUpperCase() === 'AVAILABLE');
-        } else {
+        } else if (activeTab === 'assigned') {
           data = allCards.filter((c: any) => {
             const st = (c.cardStatus || c.status || '').toUpperCase();
             return st === 'ASSIGNED' || st === 'ACTIVE';
           });
+        } else if (activeTab === 'inactive') {
+          data = allCards.filter((c: any) => {
+            const st = (c.cardStatus || c.status || '').toUpperCase();
+            return st === 'LOST' || st === 'BLOCKED';
+          });
         }
+      }
+
+      // For inactive tab, filter to only show LOST/BLOCKED
+      if (activeTab === 'inactive') {
+        data = data.filter((c: any) => {
+          const st = (c.cardStatus || c.status || '').toUpperCase();
+          return st === 'LOST' || st === 'BLOCKED';
+        });
       }
 
       const mapped: ParkingCard[] = data.map((item: any) => ({
@@ -222,6 +239,13 @@ export default function ManagerCardWorkspace() {
           <CreditCard className="w-3.5 h-3.5" />
           Assigned Cards
         </button>
+        <button
+          onClick={() => { setActiveTab('inactive'); setSearchTerm(''); }}
+          className={`px-5 py-3 text-xs font-black transition-all border-b-2 -mb-px flex items-center gap-2 ${activeTab === 'inactive' ? 'border-rose-500 text-rose-600' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
+        >
+          <AlertTriangle className="w-3.5 h-3.5" />
+          Lost & Blocked
+        </button>
       </div>
 
       {/* FILTER PANEL */}
@@ -321,12 +345,20 @@ export default function ManagerCardWorkspace() {
                       {isManager && (
                         <td className="px-6 py-4 text-center flex justify-center gap-2">
                           {status === 'AVAILABLE' && (
-                            <button
-                              onClick={() => handleUpdateStatus(card.id, 'Blocked')}
-                              className="px-2 py-1 text-slate-500 hover:text-slate-700 font-semibold text-[10px] rounded hover:bg-slate-100"
-                            >
-                              Block
-                            </button>
+                            <>
+                              <button
+                                onClick={() => handleUpdateStatus(card.id, 'Blocked')}
+                                className="px-2 py-1 text-slate-500 hover:text-slate-700 font-semibold text-[10px] rounded hover:bg-slate-100"
+                              >
+                                Block
+                              </button>
+                              <button
+                                onClick={() => handleMarkLost(card.id)}
+                                className="px-2 py-1 text-rose-600 hover:text-rose-700 font-semibold text-[10px] rounded hover:bg-rose-50"
+                              >
+                                Mark Lost
+                              </button>
+                            </>
                           )}
                           {status === 'BLOCKED' && (
                             <button
@@ -336,16 +368,16 @@ export default function ManagerCardWorkspace() {
                               Unblock
                             </button>
                           )}
-                          {status !== 'LOST' && (
+                          {status === 'LOST' && (
                             <button
-                              onClick={() => handleMarkLost(card.id)}
-                              className="px-2 py-1 text-rose-600 hover:text-rose-700 font-semibold text-[10px] rounded hover:bg-rose-50"
+                              onClick={() => handleUpdateStatus(card.id, 'Available')}
+                              className="px-2 py-1 text-emerald-600 hover:text-emerald-700 font-semibold text-[10px] rounded hover:bg-emerald-50"
                             >
-                              Mark Lost
+                              Restore
                             </button>
                           )}
-                          {status === 'LOST' && (
-                            <span className="text-[10px] text-slate-400 italic">No actions</span>
+                          {(status === 'ACTIVE' || status === 'ASSIGNED') && (
+                            <span className="text-[10px] text-slate-400 italic">In use</span>
                           )}
                         </td>
                       )}

@@ -376,10 +376,10 @@ export function SlotActionModal({
                 </span>
                 <div>
                   <h4 className="text-sm font-extrabold text-slate-800 uppercase tracking-wide">
-                    Slot Dự Phòng (Spare)
+                    Spare Slot (Reserved)
                   </h4>
                   <p className="text-xs text-slate-500 mt-1">
-                    Đây là vị trí đỗ dự phòng, được giữ lại theo tỷ lệ đặt trước (booking limit rate) của phân khu. Vị trí này không được phép đặt trước qua hệ thống.
+                    This is a spare parking slot, reserved based on the zone's booking limit rate. This slot cannot be booked through the system.
                   </p>
                 </div>
               </div>
@@ -397,7 +397,7 @@ export function SlotActionModal({
                     className="w-full py-2.5 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition-all text-white bg-[#006d43] hover:bg-emerald-700 shadow-md shadow-emerald-500/10 disabled:cursor-not-allowed"
                   >
                     <span className="material-symbols-outlined text-[16px]">check_circle</span>
-                    Chuyển thành Available
+                    Release to Available
                   </button>
                 </div>
               )}

@@ -31,7 +31,6 @@ function BuildingConfigInnerLayout({
   const basePath = `${rootPath}/${bldId}`;
   const isGeneralActive = pathname === basePath;
   const isFloorsActive = pathname === `${basePath}/floors`;
-  const isAccessActive = pathname === `${basePath}/access`;
 
   return (
     <div className="flex flex-col gap-6 max-w-[1440px] mx-auto px-6 md:px-8 pt-6 pb-12 animate-in fade-in duration-300">
@@ -70,16 +69,6 @@ function BuildingConfigInnerLayout({
           }`}
         >
           Floor Management
-        </Link>
-        <Link 
-          href={`${basePath}/access`}
-          className={`px-1 py-3 font-semibold text-sm whitespace-nowrap border-b-2 transition-all ${
-            isAccessActive 
-              ? 'text-[#006d43] border-[#006d43]' 
-              : 'text-[#54637d] border-transparent hover:text-[#006d43]'
-          }`}
-        >
-          Access Control
         </Link>
       </div>
 

@@ -44,7 +44,7 @@ export default function DashboardRedirect() {
       <div className="flex flex-col items-center space-y-4">
         {/* Spinner quay đều sang xịn mịn */}
         <div className="w-12 h-12 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
-        <p className="text-slate-400 font-medium">Đang chuyển hướng đến cổng quản trị...</p>
+        <p className="text-slate-400 font-medium">Redirecting to portal...</p>
       </div>
     </div>
   );

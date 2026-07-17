@@ -254,7 +254,7 @@ export default function DriverSessions() {
 
       const checkinDate = new Date(`${newCheckinDate}T${newCheckinTime}:00+07:00`);
       
-      // Tính toán khoảng thời gian đỗ xe ban đầu, tối thiểu là 4 tiếng
+      // Calculate initial parking duration, minimum 4 hours
       const originalDurationMs = modifyingBooking.plannedCheckoutTime 
         ? (new Date(modifyingBooking.plannedCheckoutTime).getTime() - new Date(modifyingBooking.plannedCheckinTime).getTime())
         : 4 * 60 * 60 * 1000;
@@ -465,8 +465,8 @@ export default function DriverSessions() {
                         <div className="flex items-start gap-3">
                           <CreditCard className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
                           <div>
-                            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wide">Tổng thanh toán</h3>
-                            <p className="text-sm font-bold text-slate-700 mt-0.5">{(booking.totalAmount ?? booking.depositAmount ?? 0).toLocaleString('vi-VN')} đ</p>
+                            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wide">Total Payment</h3>
+                            <p className="text-sm font-bold text-slate-700 mt-0.5">{(booking.totalAmount ?? booking.depositAmount ?? 0).toLocaleString('en-US')} VND</p>
                             <p className="text-xs text-slate-400">
                               {(() => {
                                 const s = new Date(booking.plannedCheckinTime);
@@ -475,7 +475,7 @@ export default function DriverSessions() {
                                 if (hrs <= 0) return '';
                                 const h = Math.floor(hrs);
                                 const m = Math.round((hrs - h) * 60);
-                                return m > 0 ? `${h} giờ ${m} phút` : `${h} giờ`;
+                                return m > 0 ? `${h}h ${m}m` : `${h}h`;
                               })()}
                             </p>
                           </div>
@@ -606,8 +606,8 @@ export default function DriverSessions() {
                           <RefreshCw className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
                           <div>
                             <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wide">Accumulated Fee</h3>
-                            <p className="text-sm font-bold text-emerald-600 mt-0.5">{Math.round(cost).toLocaleString('vi-VN')} đ</p>
-                            <p className="text-xs text-slate-400">Rate: {isMotor ? '5.000' : '20.000'} đ/h</p>
+                            <p className="text-sm font-bold text-emerald-600 mt-0.5">{Math.round(cost).toLocaleString('en-US')} VND</p>
+                            <p className="text-xs text-slate-400">Rate: {isMotor ? '5,000' : '20,000'} VND/h</p>
                           </div>
                         </div>
                       </div>

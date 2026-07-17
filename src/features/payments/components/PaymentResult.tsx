@@ -48,7 +48,7 @@ function PaymentResultContent() {
       amount: '—',
       method: 'Online Payment',
       message: '',
-      payDate: new Date().toLocaleString('vi-VN'),
+      payDate: new Date().toLocaleString('en-US'),
     };
 
     // Helper to parse VNPay Date
@@ -62,19 +62,19 @@ function PaymentResultContent() {
         const second = dateStr.substring(12, 14);
         return `${day}/${month}/${year} ${hour}:${minute}:${second}`;
       }
-      return new Date().toLocaleString('vi-VN');
+      return new Date().toLocaleString('en-US');
     };
 
     if (statusParam !== null) {
       // 1. Backend-mediated Redirect Flow (VNPay / MoMo confirmed by backend)
       isSuccess = statusParam === 'success';
-      const parsedAmount = vnp_Amount ? (parseInt(vnp_Amount) / 100).toLocaleString('vi-VN') + ' ₫' : '—';
+      const parsedAmount = vnp_Amount ? (parseInt(vnp_Amount) / 100).toLocaleString('en-US') + ' VND' : '—';
       computedDetails = {
         transactionId: paymentId || '—',
         orderId: bookingId || '—',
         amount: parsedAmount,
         method: 'VNPay',
-        message: backendMessage ? decodeURIComponent(backendMessage) : (isSuccess ? 'Đã hoàn tất thanh toán cọc và xác nhận đặt chỗ thành công.' : 'Giao dịch thất bại'),
+        message: backendMessage ? decodeURIComponent(backendMessage) : (isSuccess ? 'Deposit payment completed and reservation confirmed successfully.' : 'Transaction failed'),
         payDate: parseVnpDate(vnp_PayDate),
       };
       
@@ -83,13 +83,13 @@ function PaymentResultContent() {
     } else if (vnp_ResponseCode !== null) {
       // 2. Direct VNPay Redirect Flow
       isSuccess = vnp_ResponseCode === '00';
-      const parsedAmount = vnp_Amount ? (parseInt(vnp_Amount) / 100).toLocaleString('vi-VN') + ' ₫' : '—';
+      const parsedAmount = vnp_Amount ? (parseInt(vnp_Amount) / 100).toLocaleString('en-US') + ' VND' : '—';
       computedDetails = {
         transactionId: vnp_TransactionNo || '—',
         orderId: vnp_TxnRef || '—',
         amount: parsedAmount,
         method: 'VNPay',
-        message: isSuccess ? 'Đã hoàn tất thanh toán cọc và xác nhận đặt chỗ thành công.' : `Giao dịch thất bại (Lỗi ${vnp_ResponseCode})`,
+        message: isSuccess ? 'Deposit payment completed and reservation confirmed successfully.' : `Transaction failed (Error ${vnp_ResponseCode})`,
         payDate: parseVnpDate(vnp_PayDate),
       };
       
@@ -98,14 +98,14 @@ function PaymentResultContent() {
     } else if (resultCode !== null) {
       // 3. Direct MoMo Redirect Flow
       isSuccess = resultCode === '0';
-      const parsedAmount = amount ? parseInt(amount).toLocaleString('vi-VN') + ' ₫' : '—';
+      const parsedAmount = amount ? parseInt(amount).toLocaleString('en-US') + ' VND' : '—';
       computedDetails = {
         transactionId: transId || '—',
         orderId: orderId || '—',
         amount: parsedAmount,
         method: 'MoMo',
-        message: message || (isSuccess ? 'Giao dịch thanh toán cọc thành công.' : 'Giao dịch thanh toán cọc thất bại'),
-        payDate: new Date().toLocaleString('vi-VN'),
+        message: message || (isSuccess ? 'Deposit payment transaction succeeded.' : 'Deposit payment transaction failed'),
+        payDate: new Date().toLocaleString('en-US'),
       };
       
       setStatus(isSuccess ? 'success' : 'failed');
@@ -118,8 +118,8 @@ function PaymentResultContent() {
         orderId: '—',
         amount: '—',
         method: 'Unknown',
-        message: 'Không tìm thấy thông tin kết quả giao dịch thanh toán.',
-        payDate: new Date().toLocaleString('vi-VN'),
+        message: 'Payment transaction result details not found.',
+        payDate: new Date().toLocaleString('en-US'),
       };
       setDetails(computedDetails);
     }
@@ -132,7 +132,7 @@ function PaymentResultContent() {
           <div className="absolute inset-0 rounded-full border-4 border-emerald-100"></div>
           <div className="absolute inset-0 rounded-full border-4 border-emerald-600 border-t-transparent animate-spin"></div>
         </div>
-        <p className="mt-6 text-slate-600 font-bold text-sm tracking-wide animate-pulse">Đang xác thực giao dịch từ cổng thanh toán...</p>
+        <p className="mt-6 text-slate-600 font-bold text-sm tracking-wide animate-pulse">Verifying transaction with payment gateway...</p>
       </div>
     );
   }
@@ -182,7 +182,7 @@ function PaymentResultContent() {
           <h2 className={`text-2xl md:text-3xl font-black tracking-tight ${
             isSuccess ? 'text-emerald-800' : 'text-rose-800'
           }`}>
-            {isSuccess ? 'Thanh Toán Thành Công!' : 'Thanh Toán Thất Bại'}
+            {isSuccess ? 'Payment Successful!' : 'Payment Failed'}
           </h2>
           
           <p className="text-slate-500 text-sm font-semibold mt-3 max-w-sm leading-relaxed px-2">
@@ -200,27 +200,27 @@ function PaymentResultContent() {
           <div className="w-full bg-slate-50/50 rounded-2xl border border-slate-100 p-5 md:p-6 space-y-4 text-left">
             
             <div className="flex justify-between items-center">
-              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Phương thức</span>
+              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Method</span>
               <span className="text-xs font-black text-slate-700 bg-white border border-slate-100 px-3 py-1 rounded-full shadow-sm">{details?.method}</span>
             </div>
 
             <div className="flex justify-between items-center">
-              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Mã giao dịch</span>
+              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Transaction ID</span>
               <span className="text-xs font-mono font-bold text-slate-700 select-all">{details?.transactionId}</span>
             </div>
 
             <div className="flex justify-between items-center">
-              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Mã đơn hàng</span>
+              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Order ID</span>
               <span className="text-xs font-mono font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded">{details?.orderId}</span>
             </div>
 
             <div className="flex justify-between items-center border-t border-slate-100 pt-3 mt-1">
-              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Tổng thanh toán</span>
+              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Total Payment</span>
               <span className="text-lg font-black text-slate-900">{details?.amount}</span>
             </div>
 
             <div className="flex justify-between items-center border-t border-slate-100 pt-3">
-              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Thời gian</span>
+              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Time</span>
               <span className="text-xs font-bold text-slate-500">{details?.payDate}</span>
             </div>
           </div>
@@ -234,9 +234,9 @@ function PaymentResultContent() {
                 </svg>
               </div>
               <div>
-                <h4 className="text-xs font-bold text-emerald-800">Lưu ý quan trọng</h4>
+                <h4 className="text-xs font-bold text-emerald-800">Important Notice</h4>
                 <p className="text-[11px] text-emerald-700/80 font-medium leading-normal mt-0.5">
-                  Vui lòng đến bãi đỗ đúng giờ. Booking có thời hạn ân hạn là 30 phút. Quá thời gian ân hạn, booking sẽ tự động hủy và không được hoàn cọc.
+                  Please arrive at the parking lot on time. Bookings have a grace period of 30 minutes. Beyond the grace period, the booking will be automatically cancelled and the deposit will not be refunded.
                 </p>
               </div>
             </div>
@@ -248,13 +248,13 @@ function PaymentResultContent() {
               href="/dashboard/driver"
               className="w-full py-3.5 bg-slate-900 hover:bg-slate-800 text-white font-extrabold text-sm rounded-2xl text-center shadow-lg shadow-slate-900/10 active:scale-[0.98] transition-all"
             >
-              Về Trang chủ Dashboard
+              Back to Dashboard
             </Link>
             <Link
               href="/dashboard/driver/booking"
               className="w-full py-3.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold text-sm rounded-2xl text-center active:scale-[0.98] transition-all"
             >
-              Xem Lịch sử Đặt chỗ
+              View Booking History
             </Link>
           </div>
         </div>

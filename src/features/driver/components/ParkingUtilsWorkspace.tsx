@@ -121,7 +121,7 @@ function normalizeSession(raw: any) {
   let status: 'completed' | 'cancelled' | 'pending' = 'pending';
   if (rawStatus === 'completed' || rawStatus === 'checkout' || rawStatus === 'done' || rawStatus === 'finished') status = 'completed';
   else if (rawStatus === 'cancelled' || rawStatus === 'canceled') status = 'cancelled';
-  // 'active' và các status chưa checkout đều map thành 'pending' (màu vàng)
+  // 'active' and other status before checkout are mapped to 'pending' (yellow)
 
   const formatDt = (dt: string) => {
     if (!dt) return '—';
@@ -1181,7 +1181,7 @@ export default function ParkingUtilsWorkspace() {
                   <td>${safeCheckOut}</td>
                   <td>${safeDuration}</td>
                   <td>${safeZone}</td>
-                  <td>${Math.round(s.fee).toLocaleString('vi-VN')} đ</td>
+                  <td>${Math.round(s.fee).toLocaleString('en-US')} VND</td>
                   <td><span class="badge-${safeStatus}">${safeStatus}</span></td>
                 </tr>
               `;
@@ -1336,9 +1336,9 @@ export default function ParkingUtilsWorkspace() {
 
                         <div className="flex justify-between items-center pt-2">
                           <div>
-                            <p className="text-slate-400 text-[10px] font-bold uppercase">Tổng thanh toán</p>
+                            <p className="text-slate-400 text-[10px] font-bold uppercase">Total Payment</p>
                             <p className="text-sm font-black text-emerald-700 mt-0.5">
-                              {Math.round(booking.totalAmount ?? booking.depositAmount).toLocaleString('vi-VN')} đ
+                              {Math.round(booking.totalAmount ?? booking.depositAmount).toLocaleString('en-US')} VND
                             </p>
                           </div>
                           <div className="flex gap-2">
@@ -1450,7 +1450,7 @@ export default function ParkingUtilsWorkspace() {
                           <span className="text-xs font-bold text-slate-600">Accrued Parking Fee</span>
                         </div>
                         <p className="text-base font-black text-emerald-700">
-                          {Math.round(walkinCost).toLocaleString('vi-VN')} đ
+                          {Math.round(walkinCost).toLocaleString('en-US')} VND
                         </p>
                       </div>
 
@@ -1515,7 +1515,7 @@ export default function ParkingUtilsWorkspace() {
                   className="px-3 py-2 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 text-xs font-bold rounded-xl bg-white text-slate-600 font-sans"
                 >
                   <option value="all">All Status</option>
-                  <option value="pending">Active (Đang đỗ)</option>
+                  <option value="pending">Active (Parking)</option>
                   <option value="completed">Completed</option>
                   <option value="cancelled">Cancelled</option>
                 </select>
@@ -1578,7 +1578,7 @@ export default function ParkingUtilsWorkspace() {
                             <td className="px-6 py-4 font-medium text-slate-700">{s.duration}</td>
                             <td className="px-6 py-4 font-medium text-slate-700">{s.zone}</td>
                             <td className="px-6 py-4 font-mono font-bold text-slate-700">
-                              {s.fee > 0 ? `${Math.round(s.fee).toLocaleString('vi-VN')} đ` : '0 đ'}
+                              {s.fee > 0 ? `${Math.round(s.fee).toLocaleString('en-US')} VND` : '0 VND'}
                             </td>
                             <td className="px-6 py-4">
                               <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold capitalize ${
@@ -1697,9 +1697,9 @@ export default function ParkingUtilsWorkspace() {
                       <div className="w-12 h-12 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center mx-auto">
                         <span className="material-symbols-outlined text-2xl">directions_car</span>
                       </div>
-                      <p className="text-sm font-bold text-slate-800">Không tìm thấy biển số xe</p>
+                      <p className="text-sm font-bold text-slate-800">No Registered Vehicle Found</p>
                       <p className="text-xs text-slate-600 leading-relaxed max-w-sm mx-auto">
-                        Tài khoản của bạn chưa đăng ký phương tiện nào. Vui lòng thêm biển số xe trước khi thực hiện đặt chỗ gửi xe.
+                        Your account does not have any registered vehicles. Please register a vehicle before making a booking.
                       </p>
                       <button
                         type="button"
@@ -1710,7 +1710,7 @@ export default function ParkingUtilsWorkspace() {
                         className="inline-flex items-center gap-1.5 px-4 py-2 bg-slate-900 text-white font-bold text-xs rounded-xl hover:bg-slate-850 transition shadow-sm"
                       >
                         <span className="material-symbols-outlined text-sm">add</span>
-                        Đăng ký xe ngay
+                        Register Vehicle Now
                       </button>
                     </div>
                   ) : (
@@ -1990,7 +1990,7 @@ export default function ParkingUtilsWorkspace() {
                     {/* Single payment amount = API depositAmount (full booking cost) */}
                     <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl flex justify-between items-center">
                       <div className="text-left">
-                        <h4 className="text-xs font-bold text-emerald-800">Tổng thanh toán (Total Payment)</h4>
+                        <h4 className="text-xs font-bold text-emerald-800">Total Payment</h4>
                         <p className="text-[10px] text-emerald-600 mt-0.5">
                           {(() => {
                             if (!startTime || !endTime || !bookingDate || !endBookingDate) return 'Booking duration';
@@ -2000,12 +2000,12 @@ export default function ParkingUtilsWorkspace() {
                             if (hrs <= 0) return 'Booking duration';
                             const h = Math.floor(hrs);
                             const m = Math.round((hrs - h) * 60);
-                            return m > 0 ? `${h} giờ ${m} phút` : `${h} giờ`;
+                            return m > 0 ? `${h}h ${m}m` : `${h}h`;
                           })()}
                         </p>
                       </div>
                       <p className="text-base font-black text-emerald-700">
-                        {Math.round(depositAmount).toLocaleString('vi-VN')} đ
+                        {Math.round(depositAmount).toLocaleString('en-US')} VND
                       </p>
                     </div>
                   </div>
@@ -2081,7 +2081,7 @@ export default function ParkingUtilsWorkspace() {
               <div className="w-full space-y-2.5 my-6 text-xs text-left">
                 <div className="w-full bg-emerald-50 border border-emerald-200 rounded-2xl p-4 flex justify-between items-center">
                   <div>
-                    <span className="font-bold text-emerald-800 uppercase tracking-wider">Tổng thanh toán (Total Payment)</span>
+                    <span className="font-bold text-emerald-800 uppercase tracking-wider">Total Payment</span>
                     <p className="text-[10px] text-emerald-600 mt-1">
                       {(() => {
                         if (!startTime || !endTime || !bookingDate || !endBookingDate) return 'Booking duration';
@@ -2091,12 +2091,12 @@ export default function ParkingUtilsWorkspace() {
                         if (hrs <= 0) return 'Booking duration';
                         const h = Math.floor(hrs);
                         const m = Math.round((hrs - h) * 60);
-                        return m > 0 ? `${h} giờ ${m} phút` : `${h} giờ`;
+                        return m > 0 ? `${h} hours ${m} mins` : `${h} hours`;
                       })()}
                     </p>
                   </div>
                   <span className="text-base font-black text-[#006d43]">
-                    {Math.round(depositAmount).toLocaleString('vi-VN')} đ
+                    {Math.round(depositAmount).toLocaleString('en-US')} VND
                   </span>
                 </div>
               </div>
@@ -2136,7 +2136,7 @@ export default function ParkingUtilsWorkspace() {
                   disabled={isPaying || isCancelling}
                   className="w-full py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold text-xs rounded-xl transition-all flex items-center justify-center gap-1.5"
                 >
-                  Pay Later (Thanh toán sau)
+                  Pay Later
                 </button>
                 <button
                   onClick={handleCancelCreatedBooking}
@@ -2282,7 +2282,7 @@ export default function ParkingUtilsWorkspace() {
             </div>
           </div>
         </div>
-        , document.body)} bord      {/* ─── 4. CANCEL BOOKING CONFIRM MODAL ─── */}
+        , document.body)}      {/* ─── 4. CANCEL BOOKING CONFIRM MODAL ─── */}
       {mounted && showCancelModal && createPortal(
         <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md" style={{ backdropFilter: 'blur(8px)' }}>
           <div className="w-full max-w-sm bg-white border border-slate-200 rounded-3xl shadow-2xl p-6 text-center animate-in fade-in zoom-in-95 duration-200">

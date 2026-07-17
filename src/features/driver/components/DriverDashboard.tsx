@@ -342,12 +342,12 @@ export default function DriverDashboard() {
           </div>
           <div className="space-y-1 mt-1">
             <div className="flex justify-between items-center text-xs">
-              <span className="font-semibold text-slate-600">Xe máy:</span>
-              <span className="font-bold text-slate-800">5.000 đ/h <span className="text-[10px] text-slate-400">(Cap 20k)</span></span>
+              <span className="font-semibold text-slate-600">Motorbike:</span>
+              <span className="font-bold text-slate-800">5,000 VND/h <span className="text-[10px] text-slate-400">(Cap 20k)</span></span>
             </div>
             <div className="flex justify-between items-center text-xs border-t border-slate-100 pt-1">
-              <span className="font-semibold text-slate-600">Ô tô:</span>
-              <span className="font-bold text-slate-800">20.000 đ/h <span className="text-[10px] text-slate-400">(Cap 150k)</span></span>
+              <span className="font-semibold text-slate-600">Car:</span>
+              <span className="font-bold text-slate-800">20,000 VND/h <span className="text-[10px] text-slate-400">(Cap 150k)</span></span>
             </div>
           </div>
         </div>
@@ -458,9 +458,9 @@ export default function DriverDashboard() {
                   <div className="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto">
                     <Clock className="w-6 h-6" />
                   </div>
-                  <p className="text-sm font-bold text-slate-700">Đăng ký đỗ xe máy theo khung giờ</p>
+                  <p className="text-sm font-bold text-slate-700">Hourly Motorbike Booking</p>
                   <p className="text-xs text-slate-500 max-w-md mx-auto leading-relaxed">
-                    Xe máy được đỗ tại khu vực đỗ xe máy chung (Motorbike Zone) tại Tầng 1. Hệ thống không yêu cầu chọn vị trí ô đỗ cụ thể. Bạn chỉ cần chọn thời gian gửi dự kiến ở phần Tóm tắt đặt chỗ.
+                    Motorbikes are parked in the general Motorbike Zone on Floor 1. The system does not require selecting a specific slot. You only need to select the estimated duration in the Booking Summary section.
                   </p>
                 </div>
               ) : isLoadingMap ? (

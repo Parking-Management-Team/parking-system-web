@@ -13,6 +13,8 @@ export default function CreatePolicyModal({ pricing }: CreatePolicyModalProps) {
     handleCloseCreatePolicy,
     newPolicyName,
     setNewPolicyName,
+    newPriority,
+    setNewPriority,
     newVehicleTypeId,
     setNewVehicleTypeId,
     newEffectiveStart,
@@ -80,7 +82,7 @@ export default function CreatePolicyModal({ pricing }: CreatePolicyModalProps) {
               General Policy Information
             </h3>
             
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
               <div className="md:col-span-2">
                 <label className="block text-xs font-bold text-slate-500 mb-1.5 uppercase tracking-wide">Policy Name</label>
                 <input 
@@ -106,6 +108,25 @@ export default function CreatePolicyModal({ pricing }: CreatePolicyModalProps) {
                   </select>
                   <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">expand_more</span>
                 </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-500 mb-1.5 uppercase tracking-wide flex items-center gap-1">
+                  <span>Priority Level</span>
+                  <span className="material-symbols-outlined text-[14px] text-amber-500" title="Priority: 0 = Baseline Tariff, 1+ = Event/Holiday Override">info</span>
+                </label>
+                <input 
+                  type="number" 
+                  min={0}
+                  max={100}
+                  value={newPriority}
+                  onChange={(e) => setNewPriority(Math.max(0, parseInt(e.target.value) || 0))}
+                  placeholder="0"
+                  className="w-full bg-slate-50/50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500 focus:bg-white transition-all"
+                />
+                <span className="text-[10px] text-slate-400 font-medium block mt-1">
+                  0 = Standard, ≥1 = Holiday / Event Override
+                </span>
               </div>
 
               <div>

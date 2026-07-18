@@ -22,9 +22,10 @@ export interface StandardTariff {
   vehicleTypeId: number;
   vehicleTypeName?: string;
   policyName: string;
+  priority?: number;
   effectiveStart: string; // "YYYY-MM-DDTHH:mm:ssZ"
   effectiveEnd: string | null;
-  pricingPolicyStatus: 'Active' | 'Inactive';
+  pricingPolicyStatus: 'Active' | 'Inactive' | 'Expired' | string;
   pricingWindows: PricingWindow[];
   createdAt: string;
 }
@@ -90,6 +91,7 @@ export interface CreatePricingWindowRequest {
 export interface CreatePricingPolicyRequest {
   vehicleTypeId: number;            // 1 = Xe máy, 2 = Ô tô
   policyName: string;               // Tên chính sách
+  priority?: number;                // Độ ưu tiên (0 = Mặc định, >=1 = Lễ/Sự kiện)
   effectiveStart: string;           // ISO DateTime: "2026-06-15T00:00:00Z"
   effectiveEnd: string | null;      // null = vô thời hạn
   pricingWindows: CreatePricingWindowRequest[]; // Phải có ít nhất 1

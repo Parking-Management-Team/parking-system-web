@@ -146,6 +146,7 @@ interface PolicyApiResponse {
   vehicleTypeId: number;
   vehicleTypeName?: string;
   policyName: string;
+  priority?: number;
   effectiveStart: string;
   effectiveEnd: string | null;
   pricingPolicyStatus: string;
@@ -159,30 +160,38 @@ interface PolicyApiResponse {
       const response = await api.get<{ data: PolicyApiResponse[]; success: boolean }>('/pricing-policies');
       if (response && Array.isArray(response.data)) {
         if (response.data.length > 0) {
-          const mappedPolicies: StandardTariff[] = response.data.map((policy: PolicyApiResponse) => ({
-            pricingPolicyId: policy.pricingPolicyId ?? policy.id ?? 0,
-            vehicleTypeId: policy.vehicleTypeId,
-            vehicleTypeName: policy.vehicleTypeName,
-            policyName: policy.policyName,
-            effectiveStart: policy.effectiveStart,
-            effectiveEnd: policy.effectiveEnd,
-            pricingPolicyStatus: policy.pricingPolicyStatus === 'Active' || policy.pricingPolicyStatus === 'ACTIVE' ? 'Active' : 'Inactive',
-            pricingWindows: (policy.pricingWindows || []).map((win: WindowApiResponse) => ({
-              pricingWindowId: win.pricingWindowId ?? win.id ?? 0,
-              pricingPolicyId: win.pricingPolicyId ?? policy.id ?? policy.pricingPolicyId ?? 0,
-              windowName: win.windowName,
-              startTime: win.startTime,
-              endTime: win.endTime,
-              baseDurationMinutes: win.baseDurationMinutes,
-              basePrice: win.basePrice,
-              incrementBlockMinutes: win.incrementBlockMinutes,
-              incrementPrice: win.incrementPrice,
-              windowCap: win.windowCap,
-              gracePeriodMinutes: win.gracePeriodMinutes,
-              createdAt: win.createdAt || ''
-            })),
-            createdAt: policy.createdAt || ''
-          }));
+          const mappedPolicies: StandardTariff[] = response.data.map((policy: PolicyApiResponse) => {
+            const statusUpper = (policy.pricingPolicyStatus || '').toUpperCase();
+            let normStatus: 'Active' | 'Inactive' | 'Expired' = 'Inactive';
+            if (statusUpper === 'ACTIVE') normStatus = 'Active';
+            else if (statusUpper === 'EXPIRED') normStatus = 'Expired';
+
+            return {
+              pricingPolicyId: policy.pricingPolicyId ?? policy.id ?? 0,
+              vehicleTypeId: policy.vehicleTypeId,
+              vehicleTypeName: policy.vehicleTypeName,
+              policyName: policy.policyName,
+              priority: policy.priority ?? 0,
+              effectiveStart: policy.effectiveStart,
+              effectiveEnd: policy.effectiveEnd,
+              pricingPolicyStatus: normStatus,
+              pricingWindows: (policy.pricingWindows || []).map((win: WindowApiResponse) => ({
+                pricingWindowId: win.pricingWindowId ?? win.id ?? 0,
+                pricingPolicyId: win.pricingPolicyId ?? policy.id ?? policy.pricingPolicyId ?? 0,
+                windowName: win.windowName,
+                startTime: win.startTime,
+                endTime: win.endTime,
+                baseDurationMinutes: win.baseDurationMinutes,
+                basePrice: win.basePrice,
+                incrementBlockMinutes: win.incrementBlockMinutes,
+                incrementPrice: win.incrementPrice,
+                windowCap: win.windowCap,
+                gracePeriodMinutes: win.gracePeriodMinutes,
+                createdAt: win.createdAt || ''
+              })),
+              createdAt: policy.createdAt || ''
+            };
+          });
           setTariffs(mappedPolicies);
         }
       }
@@ -368,22 +377,66 @@ interface PolicyApiResponse {
   const [formTariffEnableCap, setFormTariffEnableCap] = useState(false);
   const [removeWindowCap, setRemoveWindowCap] = useState(false);
 
+  // --- State cho Segmented Pricing Calculation Mode ---
+  const [isSegmentedPricing, setIsSegmentedPricing] = useState(false);
+  const [isTogglingSegmented, setIsTogglingSegmented] = useState(false);
+
+  const fetchSegmentedConfig = useCallback(async () => {
+    try {
+      const res = await api.get<{ data?: { key: string; value: string } } | { key: string; value: string }>('/parkingsystemconfig/APPLY_SEGMENTED_PRICING');
+      const data = (res && typeof res === 'object' && 'data' in res && res.data) ? res.data : res;
+      if (data && typeof data === 'object' && 'value' in data) {
+        setIsSegmentedPricing(String(data.value).toLowerCase() === 'true');
+      }
+    } catch (error) {
+      // Ignore if config doesn't exist yet
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchSegmentedConfig();
+  }, [fetchSegmentedConfig]);
+
+  const handleToggleSegmentedPricing = async () => {
+    setIsTogglingSegmented(true);
+    const nextVal = !isSegmentedPricing;
+    try {
+      await api.put('/parkingsystemconfig', {
+        key: 'APPLY_SEGMENTED_PRICING',
+        value: nextVal.toString(),
+        description: 'Toggle segmented billing mode for multi-period sessions'
+      });
+      setIsSegmentedPricing(nextVal);
+      triggerToast(`Segmented Pricing mode turned ${nextVal ? 'ON' : 'OFF'}!`, 'success');
+    } catch (error) {
+      console.error('Failed to toggle segmented pricing:', error);
+      const errorMsg = extractErrorMessage(error);
+      triggerToast(errorMsg, 'error');
+    } finally {
+      setIsTogglingSegmented(false);
+    }
+  };
+
   // --- State cho Modal Tạo mới chính sách (S1) ---
   const [isCreatePolicyOpen, setIsCreatePolicyOpen] = useState(false);
   const [newPolicyName, setNewPolicyName] = useState('');
+  const [newPriority, setNewPriority] = useState<number>(0);
   const [newVehicleTypeId, setNewVehicleTypeId] = useState<number>(1); // 1 = Motorbike, 2 = Car
   const [newEffectiveStart, setNewEffectiveStart] = useState('');
   const [newEffectiveEnd, setNewEffectiveEnd] = useState('');
   const [newWindows, setNewWindows] = useState<CreatePricingWindowRequest[]>([]);
 
-  // --- State cho Dialog Kích hoạt (S2) ---
+  // --- State cho Dialog Kích hoạt (S2) & Overlap Cleanup ---
   const [isActivateDialogOpen, setIsActivateDialogOpen] = useState(false);
   const [activatingPolicy, setActivatingPolicy] = useState<StandardTariff | null>(null);
+  const [activationError, setActivationError] = useState<string | null>(null);
+  const [isOverlapError, setIsOverlapError] = useState(false);
 
   // --- State cho Modal Chỉnh sửa thông tin chính sách (Edit Policy) ---
   const [isEditPolicyOpen, setIsEditPolicyOpen] = useState(false);
   const [editPolicyTarget, setEditPolicyTarget] = useState<StandardTariff | null>(null);
   const [editPolicyName, setEditPolicyName] = useState('');
+  const [editPriority, setEditPriority] = useState<number>(0);
   const [editEffectiveStart, setEditEffectiveStart] = useState('');
   const [editEffectiveEnd, setEditEffectiveEnd] = useState('');
 
@@ -752,6 +805,7 @@ interface PolicyApiResponse {
   const handleOpenCreatePolicy = () => {
     setSubmitError(null);
     setNewPolicyName('');
+    setNewPriority(0);
     setNewVehicleTypeId(1);
     const now = new Date();
     const tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
@@ -859,6 +913,7 @@ interface PolicyApiResponse {
     const requestBody = {
       vehicleTypeId: newVehicleTypeId,
       policyName: newPolicyName,
+      priority: Number(newPriority) || 0,
       effectiveStart: `${newEffectiveStart}T00:00:00Z`,
       effectiveEnd: newEffectiveEnd ? `${newEffectiveEnd}T23:59:59Z` : null,
       pricingWindows: newWindows.map(w => ({
@@ -895,16 +950,22 @@ interface PolicyApiResponse {
   // --- Handlers cho Activate Policy (S2) ---
   const handleOpenActivateDialog = (policy: StandardTariff) => {
     setActivatingPolicy(policy);
+    setActivationError(null);
+    setIsOverlapError(false);
     setIsActivateDialogOpen(true);
   };
 
   const handleCloseActivateDialog = () => {
     setIsActivateDialogOpen(false);
     setActivatingPolicy(null);
+    setActivationError(null);
+    setIsOverlapError(false);
   };
 
   const handleConfirmActivate = async () => {
     if (!activatingPolicy) return;
+    setActivationError(null);
+    setIsOverlapError(false);
     
     const targetPolicyId = activatingPolicy.pricingPolicyId;
 
@@ -921,7 +982,40 @@ interface PolicyApiResponse {
     } catch (error) {
       console.error('Failed to activate pricing policy via API:', error);
       const errorMsg = extractErrorMessage(error);
+      setActivationError(errorMsg);
+      if (
+        errorMsg.toLowerCase().includes('overlap') || 
+        errorMsg.includes('BR-FEE-025') || 
+        errorMsg.toLowerCase().includes('trùng')
+      ) {
+        setIsOverlapError(true);
+      }
       triggerToast(errorMsg, 'error');
+    }
+  };
+
+  const handleAutoCleanupAndActivate = async () => {
+    if (!activatingPolicy) return;
+    setIsCleaningUp(true);
+    setActivationError(null);
+    setIsOverlapError(false);
+    try {
+      await api.post('/pricing-policies/cleanup', {});
+      const targetPolicyId = activatingPolicy.pricingPolicyId;
+      const res = await api.post<{ success: boolean }>(`/pricing-policies/${targetPolicyId}/activate`, {});
+      if (res) {
+        await fetchPolicies();
+        triggerToast(`Expired policies cleaned up and "${activatingPolicy.policyName}" activated!`, 'success');
+        setIsActivateDialogOpen(false);
+        setActivatingPolicy(null);
+      }
+    } catch (error) {
+      console.error('Failed cleanup & activate:', error);
+      const errorMsg = extractErrorMessage(error);
+      setActivationError(errorMsg);
+      triggerToast(errorMsg, 'error');
+    } finally {
+      setIsCleaningUp(false);
     }
   };
 
@@ -930,6 +1024,7 @@ interface PolicyApiResponse {
     setSubmitError(null);
     setEditPolicyTarget(policy);
     setEditPolicyName(policy.policyName);
+    setEditPriority(policy.priority ?? 0);
     
     const startStr = policy.effectiveStart ? policy.effectiveStart.split('T')[0] : '';
     const endStr = policy.effectiveEnd ? policy.effectiveEnd.split('T')[0] : '';
@@ -943,6 +1038,7 @@ interface PolicyApiResponse {
     setIsEditPolicyOpen(false);
     setEditPolicyTarget(null);
     setEditPolicyName('');
+    setEditPriority(0);
     setEditEffectiveStart('');
     setEditEffectiveEnd('');
     setSubmitError(null);
@@ -967,10 +1063,12 @@ interface PolicyApiResponse {
       const isActive = editPolicyTarget.pricingPolicyStatus?.toLowerCase() === 'active';
       const requestBody: {
         policyName: string;
+        priority: number;
         effectiveStart?: string;
         effectiveEnd?: string | null;
       } = {
         policyName: editPolicyName.trim(),
+        priority: Number(editPriority) || 0,
       };
 
       if (!isActive) {
@@ -1164,9 +1262,16 @@ interface PolicyApiResponse {
     removeWindowCap,
     setRemoveWindowCap,
 
+    // Segmented pricing config
+    isSegmentedPricing,
+    isTogglingSegmented,
+    handleToggleSegmentedPricing,
+
     // S1 Form Fields
     newPolicyName,
     setNewPolicyName,
+    newPriority,
+    setNewPriority,
     newVehicleTypeId,
     setNewVehicleTypeId,
     newEffectiveStart,
@@ -1234,14 +1339,19 @@ interface PolicyApiResponse {
     handleUpdateNewWindow,
     handleSaveCreatePolicy,
 
-    // S2 Handlers
+    // S2 Handlers & Overlap Cleanup
     handleOpenActivateDialog,
     handleCloseActivateDialog,
     handleConfirmActivate,
+    handleAutoCleanupAndActivate,
+    activationError,
+    isOverlapError,
 
     // Edit Policy Handlers & Fields
     editPolicyName,
     setEditPolicyName,
+    editPriority,
+    setEditPriority,
     editEffectiveStart,
     setEditEffectiveStart,
     editEffectiveEnd,

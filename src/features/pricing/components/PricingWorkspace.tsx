@@ -16,6 +16,9 @@ export default function PricingWorkspace() {
     showToast,
     toastMessage,
     toastType,
+    isSegmentedPricing,
+    isTogglingSegmented,
+    handleToggleSegmentedPricing,
     handleOpenEditTariff,
     handleOpenAddFee,
     handleOpenEditFee,
@@ -116,7 +119,7 @@ export default function PricingWorkspace() {
                 className={`py-4 px-1 border-b-2 font-bold text-sm transition-all whitespace-nowrap ${
                   activeTab === 'incident-types'
                     ? 'border-[#006d43] text-[#006d43]'
-                    : 'border-transparent text-slate-400 hover:text-slate-600 hover:border-slate-300'
+                    : 'border-transparent text-slate-400 hover:text-[#006d43] hover:border-slate-300'
                 }`}
               >
                 Incident Types
@@ -130,9 +133,39 @@ export default function PricingWorkspace() {
             {/* TAB 1: STANDARD TARIFFS (POLICY CARD VIEW) */}
             {activeTab === 'standard' && (
               <div className="space-y-6 animate-in fade-in duration-200">
-                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                  <h4 className="text-base font-bold text-[#111c2d]">Standard Pricing Policies</h4>
-                  <div className="flex items-center gap-4 flex-wrap">
+                 <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
+                  <div>
+                    <h4 className="text-base font-bold text-[#111c2d]">Standard Pricing Policies</h4>
+                    <p className="text-xs text-slate-400 font-semibold">Manage baseline vehicle rates & event overrides</p>
+                  </div>
+
+                  <div className="flex items-center gap-3 flex-wrap">
+                    {/* Segmented Pricing System Switch Toggle */}
+                    {isAdminOrManager && (
+                      <button
+                        type="button"
+                        onClick={handleToggleSegmentedPricing}
+                        disabled={isTogglingSegmented}
+                        className={`inline-flex items-center gap-2.5 px-4 py-2 rounded-xl border font-bold text-xs transition-all shadow-sm ${
+                          isSegmentedPricing 
+                            ? 'bg-emerald-50 border-emerald-200 text-emerald-800' 
+                            : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
+                        }`}
+                        title="Toggle system-wide Segmented Pricing vs Check-in based calculation"
+                      >
+                        <span className="material-symbols-outlined text-[18px]">
+                          {isSegmentedPricing ? 'toggle_on' : 'toggle_off'}
+                        </span>
+                        <span>
+                          {isTogglingSegmented 
+                            ? 'Updating...' 
+                            : isSegmentedPricing 
+                              ? 'Segmented Pricing (ON)' 
+                              : 'Check-In Pricing (OFF)'}
+                        </span>
+                      </button>
+                    )}
+
                     {isAdminOrManager && (
                       <button
                         onClick={() => {
@@ -141,16 +174,17 @@ export default function PricingWorkspace() {
                           }
                         }}
                         disabled={isCleaningUp}
-                        className="inline-flex items-center gap-2 px-3.5 py-1.5 bg-white hover:bg-red-50 text-slate-600 hover:text-red-600 border border-slate-200 hover:border-red-200 rounded-xl font-bold text-xs shadow-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="inline-flex items-center gap-2 px-3.5 py-2 bg-white hover:bg-red-50 text-slate-600 hover:text-red-600 border border-slate-200 hover:border-red-200 rounded-xl font-bold text-xs shadow-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                         title="Cleanup Expired Policies"
                       >
                         <span className="material-symbols-outlined text-[16px] text-slate-500">
                           {isCleaningUp ? 'progress_activity' : 'delete_sweep'}
                         </span>
-                        {isCleaningUp ? 'Cleaning up...' : 'Cleanup Expired Policies'}
+                        {isCleaningUp ? 'Cleaning up...' : 'Clean Up Expired Policies'}
                       </button>
                     )}
-                    <label className="inline-flex items-center gap-2 cursor-pointer group bg-white border border-slate-200 hover:border-slate-300 rounded-xl px-3.5 py-1.5 transition-all shadow-sm">
+
+                    <label className="inline-flex items-center gap-2 cursor-pointer group bg-slate-50 border border-slate-200 hover:border-slate-300 rounded-xl px-3.5 py-2 transition-all shadow-sm">
                       <input 
                         type="checkbox" 
                         checked={showOnlyActive}
@@ -161,10 +195,6 @@ export default function PricingWorkspace() {
                         Show Active Only
                       </span>
                     </label>
-                    <div className="flex items-center gap-2 bg-emerald-50/50 border border-emerald-100 rounded-xl px-3 py-1.5">
-                      <span className="w-2 h-2 rounded-full bg-[#006d43] animate-pulse"></span>
-                      <span className="text-xs font-bold text-emerald-600 uppercase tracking-wide">Live Configuration</span>
-                    </div>
                   </div>
                 </div>
 
@@ -172,56 +202,77 @@ export default function PricingWorkspace() {
                   {tariffs
                     .filter(policy => !showOnlyActive || policy.pricingPolicyStatus === 'Active')
                     .map((policy, index) => {
-                      const isActive = policy.pricingPolicyStatus === 'Active';
-                    const matchingVehicle = vehicleTypes.find(v => v.id === policy.vehicleTypeId);
-                    const isMotorbike = matchingVehicle ? matchingVehicle.name.toLowerCase().includes('motorbike') || matchingVehicle.name.toLowerCase().includes('motorcycle') : policy.vehicleTypeId === 1;
-                    const vehicleTypeName = matchingVehicle ? matchingVehicle.name : (policy.vehicleTypeId === 1 ? 'Motorbike' : 'Car');
+                      const status = policy.pricingPolicyStatus || 'Inactive';
+                      const isActive = status === 'Active';
+                      const isExpired = status === 'Expired';
+                      const matchingVehicle = vehicleTypes.find(v => v.id === policy.vehicleTypeId);
+                      const isMotorbike = matchingVehicle ? matchingVehicle.name.toLowerCase().includes('motorbike') || matchingVehicle.name.toLowerCase().includes('motorcycle') : false;
+                      const vehicleTypeName = matchingVehicle ? matchingVehicle.name : (policy.vehicleTypeName || `Vehicle Type #${policy.vehicleTypeId}`);
+                      const priority = policy.priority || 0;
 
-                    // Validate coverage and overlap on the fly for each policy
-                    const simplifiedWindows = (policy.pricingWindows || []).map(w => ({
-                      windowName: w.windowName,
-                      startTime: w.startTime.substring(0, 5),
-                      endTime: w.endTime.substring(0, 5),
-                      baseDurationMinutes: w.baseDurationMinutes,
-                      basePrice: w.basePrice,
-                      incrementBlockMinutes: w.incrementBlockMinutes,
-                      incrementPrice: w.incrementPrice,
-                      windowCap: w.windowCap,
-                      gracePeriodMinutes: w.gracePeriodMinutes
-                    }));
-                    const coverage = validate24hCoverage(simplifiedWindows);
-                    const overlap = validateNoOverlap(simplifiedWindows);
-                    const segments = computeTimelineSegments(simplifiedWindows);
+                      // Validate coverage and overlap on the fly for each policy
+                      const simplifiedWindows = (policy.pricingWindows || []).map(w => ({
+                        windowName: w.windowName,
+                        startTime: w.startTime.substring(0, 5),
+                        endTime: w.endTime.substring(0, 5),
+                        baseDurationMinutes: w.baseDurationMinutes,
+                        basePrice: w.basePrice,
+                        incrementBlockMinutes: w.incrementBlockMinutes,
+                        incrementPrice: w.incrementPrice,
+                        windowCap: w.windowCap,
+                        gracePeriodMinutes: w.gracePeriodMinutes
+                      }));
+                      const coverage = validate24hCoverage(simplifiedWindows);
+                      const overlap = validateNoOverlap(simplifiedWindows);
+                      const segments = computeTimelineSegments(simplifiedWindows);
 
-                    return (
-                      <div 
-                        key={policy.pricingPolicyId || index} 
-                        className="bg-white border border-[#d8e3fb] p-6 rounded-xl flex flex-col justify-between shadow-[0_1px_2px_0_rgba(0,0,0,0.05)] transition-all"
-                      >
-                        {/* Policy Card Header */}
-                        <div>
-                          <div className="flex justify-between items-start gap-4">
-                            <div className="space-y-1">
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider ${
-                                  isMotorbike 
-                                    ? 'bg-cyan-50 text-cyan-600 border border-cyan-200/60' 
-                                    : 'bg-emerald-50 text-emerald-600 border border-emerald-200/60'
-                                }`}>
-                                  {vehicleTypeName}
-                                </span>
-                                
-                                <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border ${
-                                  isActive 
-                                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200/50' 
-                                    : 'bg-slate-50 text-slate-400 border-slate-200'
-                                }`}>
-                                  <span className={`w-1.5 h-1.5 rounded-full ${isActive ? 'bg-[#006d43]' : 'bg-slate-400'}`}></span>
-                                  {isActive ? 'Active' : 'Draft'}
-                                </span>
+                      return (
+                        <div 
+                          key={policy.pricingPolicyId || index} 
+                          className={`bg-white border p-6 rounded-2xl flex flex-col justify-between shadow-sm transition-all ${
+                            isExpired ? 'border-amber-200 bg-amber-50/20 opacity-85' : 'border-[#d8e3fb]'
+                          }`}
+                        >
+                          {/* Policy Card Header */}
+                          <div>
+                            <div className="flex justify-between items-start gap-4">
+                              <div className="space-y-1">
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  {/* Vehicle Type Badge */}
+                                  <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider ${
+                                    isMotorbike 
+                                      ? 'bg-cyan-50 text-cyan-700 border border-cyan-200/60' 
+                                      : 'bg-emerald-50 text-emerald-700 border border-emerald-200/60'
+                                  }`}>
+                                    {vehicleTypeName}
+                                  </span>
+                                  
+                                  {/* Policy Status Badge */}
+                                  <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold tracking-wide border ${
+                                    isActive 
+                                      ? 'bg-emerald-50 text-emerald-700 border-emerald-200/50' 
+                                      : isExpired
+                                        ? 'bg-amber-50 text-amber-700 border-amber-200'
+                                        : 'bg-slate-100 text-slate-600 border-slate-200'
+                                  }`}>
+                                    <span className={`w-1.5 h-1.5 rounded-full ${
+                                      isActive ? 'bg-emerald-600' : isExpired ? 'bg-amber-500' : 'bg-slate-400'
+                                    }`}></span>
+                                    {isActive ? 'Active' : isExpired ? 'Expired' : 'Draft'}
+                                  </span>
+
+                                  {/* Priority Badge */}
+                                  <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold tracking-wide border ${
+                                    priority > 0
+                                      ? 'bg-purple-50 text-purple-700 border-purple-200 font-bold'
+                                      : 'bg-slate-50 text-slate-500 border-slate-200'
+                                  }`} title={priority > 0 ? `Event Override (Priority ${priority})` : 'Standard Baseline'}>
+                                    {priority > 0 && <span className="material-symbols-outlined text-[11px] text-purple-600">star</span>}
+                                    P{priority}
+                                  </span>
+                                </div>
+                                <h5 className="text-[#111c2d] text-base font-bold mt-1.5">{policy.policyName}</h5>
                               </div>
-                              <h5 className="text-[#111c2d] text-base font-bold mt-1.5">{policy.policyName}</h5>
-                            </div>
 
                             {/* Card Actions */}
                             <div className="flex items-center gap-1.5">
@@ -361,17 +412,17 @@ export default function PricingWorkspace() {
                                       
                                       <div className="flex items-center gap-3 text-[10px] font-semibold text-slate-500 flex-wrap">
                                         <span>
-                                          Base ({win.baseDurationMinutes / 60}h): <strong className="text-slate-700">{win.basePrice.toLocaleString('en-US')} đ</strong>
+                                          Base ({win.baseDurationMinutes / 60}h): <strong className="text-slate-700">{win.basePrice.toLocaleString('en-US')} VND</strong>
                                         </span>
                                         <span className="text-slate-300">•</span>
                                         <span>
-                                          Inc ({win.incrementBlockMinutes >= 60 ? `${win.incrementBlockMinutes / 60}h` : `${win.incrementBlockMinutes}m`}): <strong className="text-slate-700">{win.incrementPrice.toLocaleString('en-US')} đ</strong>
+                                          Inc ({win.incrementBlockMinutes >= 60 ? `${win.incrementBlockMinutes / 60}h` : `${win.incrementBlockMinutes}m`}): <strong className="text-slate-700">{win.incrementPrice.toLocaleString('en-US')} VND</strong>
                                         </span>
                                         {win.windowCap && (
                                           <>
                                             <span className="text-slate-300">•</span>
                                             <span>
-                                              Cap: <strong className="text-emerald-700">{win.windowCap.toLocaleString('en-US')} đ</strong>
+                                              Cap: <strong className="text-emerald-700">{win.windowCap.toLocaleString('en-US')} VND</strong>
                                             </span>
                                           </>
                                         )}

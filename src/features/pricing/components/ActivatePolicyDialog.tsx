@@ -12,13 +12,17 @@ export default function ActivatePolicyDialog({ pricing }: ActivatePolicyDialogPr
     handleCloseActivateDialog,
     activatingPolicy,
     handleConfirmActivate,
+    handleAutoCleanupAndActivate,
+    activationError,
+    isOverlapError,
+    isCleaningUp,
     vehicleTypes,
   } = pricing;
 
   if (!isActivateDialogOpen || !activatingPolicy) return null;
 
   const matchingVehicle = vehicleTypes.find(v => v.id === activatingPolicy.vehicleTypeId);
-  const vehicleTypeName = matchingVehicle ? matchingVehicle.name : (activatingPolicy.vehicleTypeId === 1 ? 'Motorbike' : 'Car');
+  const vehicleTypeName = matchingVehicle ? matchingVehicle.name : `Vehicle Type #${activatingPolicy.vehicleTypeId}`;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
@@ -29,6 +33,43 @@ export default function ActivatePolicyDialog({ pricing }: ActivatePolicyDialogPr
           <span className="material-symbols-outlined text-2xl">check_circle</span>
           <h3 className="text-lg font-bold text-[#111c2d]">Confirm Policy Activation</h3>
         </div>
+
+        {/* ===== OVERLAP ERROR & ONE-CLICK CLEANUP BANNER ===== */}
+        {activationError && (
+          <div className={`p-4 rounded-xl border flex flex-col gap-3 ${
+            isOverlapError 
+              ? 'bg-amber-50 border-amber-200 text-amber-900' 
+              : 'bg-red-50 border-red-200 text-red-900'
+          }`}>
+            <div className="flex items-start gap-2.5">
+              <span className="material-symbols-outlined text-[20px] shrink-0 mt-0.5">
+                {isOverlapError ? 'warning' : 'error'}
+              </span>
+              <div className="space-y-1 text-xs">
+                <strong className="font-bold block">
+                  {isOverlapError ? 'Effective Date Range Overlap Detected' : 'Policy Activation Failed'}
+                </strong>
+                <p className="leading-relaxed font-medium">{activationError}</p>
+              </div>
+            </div>
+
+            {isOverlapError && (
+              <div className="pt-2 border-t border-amber-200/60 flex justify-end">
+                <button
+                  type="button"
+                  onClick={handleAutoCleanupAndActivate}
+                  disabled={isCleaningUp}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded-xl shadow-sm transition-all disabled:opacity-50"
+                >
+                  <span className="material-symbols-outlined text-[16px]">
+                    {isCleaningUp ? 'progress_activity' : 'auto_fix_high'}
+                  </span>
+                  {isCleaningUp ? 'Cleaning Up & Activating...' : 'Clean Up & Activate Now'}
+                </button>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* ===== BODY CONTENT ===== */}
         <div className="space-y-4 text-sm text-slate-600">
@@ -76,7 +117,7 @@ export default function ActivatePolicyDialog({ pricing }: ActivatePolicyDialogPr
           <div className="text-xs font-medium text-amber-600 bg-amber-50/50 rounded-lg p-3 border border-amber-100/50 mt-2 flex gap-2">
             <span className="material-symbols-outlined text-[18px] shrink-0">info</span>
             <span>
-              <strong>Note:</strong> Other active pricing policies for <strong>{vehicleTypeName}</strong> will be automatically set to draft status to avoid conflicts.
+              <strong>Note:</strong> Active pricing policies for <strong>{vehicleTypeName}</strong> with overlapping date ranges will need cleanup or higher priority override.
             </span>
           </div>
         </div>
@@ -93,7 +134,8 @@ export default function ActivatePolicyDialog({ pricing }: ActivatePolicyDialogPr
           <button 
             type="button"
             onClick={handleConfirmActivate}
-            className="px-5 py-2 bg-[#006d43] hover:bg-[#005c38] text-white font-bold text-xs rounded-lg transition-all shadow-sm"
+            disabled={isCleaningUp}
+            className="px-5 py-2 bg-[#006d43] hover:bg-[#005c38] text-white font-bold text-xs rounded-lg transition-all shadow-sm disabled:opacity-50"
           >
             Confirm Activation
           </button>

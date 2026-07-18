@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/features/auth';
 import { api, ApiError } from '@/lib/api/client';
+import { usePricingEngine } from '@/features/manager/hooks/usePricingEngine';
 import { formatPlate } from '@/lib/utils/format';
 import {
   Calendar,
@@ -161,6 +162,26 @@ function escapeHtml(value: string): string {
     .replace(/'/g, '&#39;');
 }
 
+const formatLocalVNTime = (date: Date): string => {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Asia/Ho_Chi_Minh',
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit',
+    hour12: false,
+  }).formatToParts(date);
+
+  const y = parts.find(p => p.type === 'year')?.value;
+  const m = parts.find(p => p.type === 'month')?.value;
+  const d = parts.find(p => p.type === 'day')?.value;
+  let hr = parts.find(p => p.type === 'hour')?.value ?? '00';
+  const min = parts.find(p => p.type === 'minute')?.value ?? '00';
+  const sec = parts.find(p => p.type === 'second')?.value ?? '00';
+
+  if (hr === '24') hr = '00';
+
+  return `${y}-${m}-${d}T${hr}:${min}:${sec}+07:00`;
+};
+
 export default function ParkingUtilsWorkspace() {
   const { user, showToast } = useAuth();
   const router = useRouter();
@@ -244,6 +265,86 @@ export default function ParkingUtilsWorkspace() {
 
   const activeVehicle = vehicles.find(v => v.licensePlate === selectedVehicle);
   const selectedVehicleTypeId = activeVehicle?.vehicleTypeId || 2; // Default to Car (2)
+
+  // Dynamic Pricing Engine Integration
+  const { calculatePrice } = usePricingEngine();
+  const [isEstimatingPrice, setIsEstimatingPrice] = useState<boolean>(false);
+
+  const calculateCost = useCallback(() => {
+    if (!startTime || !endTime || !bookingDate || !endBookingDate) return 0;
+    const start = new Date(`${bookingDate}T${startTime}:00+07:00`);
+    const end = new Date(`${endBookingDate}T${endTime}:00+07:00`);
+
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return 0;
+
+    const diffMs = end.getTime() - start.getTime();
+    if (diffMs <= 0) return 0;
+
+    const durationHours = diffMs / (1000 * 60 * 60);
+    const rate = selectedVehicleTypeId === 1 ? 5000 : 20000;
+    const cost = durationHours * rate;
+
+    // No hardcoded cap - let backend pricing engine handle daily caps
+    return cost;
+  }, [startTime, endTime, bookingDate, endBookingDate, selectedVehicleTypeId]);
+
+  const getEstimatedDeposit = useCallback(() => {
+    return depositAmount || calculateCost();
+  }, [depositAmount, calculateCost]);
+
+  // Automatically estimate the price using the Pricing Engine API
+  useEffect(() => {
+    if (!startTime || !endTime || !bookingDate || !endBookingDate) {
+      return;
+    }
+
+    const start = new Date(`${bookingDate}T${startTime}:00+07:00`);
+    const end = new Date(`${endBookingDate}T${endTime}:00+07:00`);
+
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end.getTime() <= start.getTime()) {
+      return;
+    }
+
+    let isCancelled = false;
+
+    const fetchEstimate = async () => {
+      setIsEstimatingPrice(true);
+      try {
+        const formattedStart = formatLocalVNTime(start);
+        const formattedEnd = formatLocalVNTime(end);
+
+        const res = await calculatePrice({
+          vehicleTypeId: selectedVehicleTypeId,
+          checkInTime: formattedStart,
+          checkOutTime: formattedEnd,
+        });
+
+        if (!isCancelled) {
+          if (res) {
+            setDepositAmount(res.totalAmount);
+          } else {
+            // Fallback to local rate calculation
+            setDepositAmount(calculateCost());
+          }
+        }
+      } catch (err) {
+        console.error("Failed to estimate price via Pricing Engine API", err);
+        if (!isCancelled) {
+          setDepositAmount(calculateCost());
+        }
+      } finally {
+        if (!isCancelled) {
+          setIsEstimatingPrice(false);
+        }
+      }
+    };
+
+    fetchEstimate();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [bookingDate, startTime, endBookingDate, endTime, selectedVehicleTypeId, calculatePrice, calculateCost]);
 
   // ─── Fetch Active Sessions & Bookings ────────────────────────────────
   const fetchActiveData = useCallback(async () => {
@@ -692,28 +793,7 @@ export default function ParkingUtilsWorkspace() {
     setShowBookingModal(false);
   };
 
-  const getEstimatedDeposit = () => {
-    return calculateCost();
-  };
 
-  const calculateCost = () => {
-    if (!startTime || !endTime || !bookingDate || !endBookingDate) return 0;
-    const start = new Date(`${bookingDate}T${startTime}:00+07:00`);
-    const end = new Date(`${endBookingDate}T${endTime}:00+07:00`);
-
-    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return 0;
-
-    const diffMs = end.getTime() - start.getTime();
-    if (diffMs <= 0) return 0;
-
-    const durationHours = diffMs / (1000 * 60 * 60);
-    const rate = selectedVehicleTypeId === 1 ? 5000 : 20000;
-    const cost = durationHours * rate;
-
-    const days = Math.ceil(durationHours / 24);
-    const cap = (selectedVehicleTypeId === 1 ? 20000 : 150000) * days;
-    return Math.min(cost, cap);
-  };
 
   // Stepper Next Step Validation
   const handleWizardNext = () => {
@@ -781,27 +861,6 @@ export default function ParkingUtilsWorkspace() {
     if (wizardStep > 1) {
       setWizardStep(prev => prev - 1);
     }
-  };
-
-  // Submit Booking and open payment modal
-  const formatLocalVNTime = (date: Date): string => {
-    const parts = new Intl.DateTimeFormat('en-US', {
-      timeZone: 'Asia/Ho_Chi_Minh',
-      year: 'numeric', month: '2-digit', day: '2-digit',
-      hour: '2-digit', minute: '2-digit', second: '2-digit',
-      hour12: false,
-    }).formatToParts(date);
-
-    const y = parts.find(p => p.type === 'year')?.value;
-    const m = parts.find(p => p.type === 'month')?.value;
-    const d = parts.find(p => p.type === 'day')?.value;
-    let hr = parts.find(p => p.type === 'hour')?.value ?? '00';
-    const min = parts.find(p => p.type === 'minute')?.value ?? '00';
-    const sec = parts.find(p => p.type === 'second')?.value ?? '00';
-
-    if (hr === '24') hr = '00';
-
-    return `${y}-${m}-${d}T${hr}:${min}:${sec}+07:00`;
   };
 
   const handleBookingSubmit = async () => {
@@ -1999,9 +2058,12 @@ export default function ParkingUtilsWorkspace() {
                           })()}
                         </p>
                       </div>
-                      <p className="text-base font-black text-emerald-700">
-                        {Math.round(depositAmount).toLocaleString('vi-VN')} đ
-                      </p>
+                      <div className="flex items-center gap-2">
+                        {isEstimatingPrice && <Loader2 className="w-4 h-4 text-emerald-600 animate-spin" />}
+                        <p className="text-base font-black text-emerald-700">
+                          {Math.round(depositAmount).toLocaleString('vi-VN')} đ
+                        </p>
+                      </div>
                     </div>
                   </div>
                 </div>

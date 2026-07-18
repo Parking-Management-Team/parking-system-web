@@ -40,8 +40,8 @@ export function usePricingEngine() {
     try {
       const queryParams = new URLSearchParams({
         vehicleTypeId: params.vehicleTypeId.toString(),
-        checkInTime: params.checkInTime,
-        checkOutTime: params.checkOutTime,
+        checkIn: params.checkInTime,
+        checkOut: params.checkOutTime,
       });
       const res = await api.get<{ data: PricingResult } | PricingResult>(
         `/pricing-engine/calculate?${queryParams.toString()}`
@@ -63,9 +63,17 @@ export function usePricingEngine() {
     setIsCalculating(true);
     setError(null);
     try {
+      const queryParams = new URLSearchParams({
+        vehicleTypeId: params.vehicleTypeId.toString(),
+        checkIn: params.checkInTime,
+        checkOut: params.checkOutTime,
+      });
+      if (params.bookingId) queryParams.append('bookingId', params.bookingId.toString());
+      if (params.parkingSessionId) queryParams.append('parkingSessionId', params.parkingSessionId.toString());
+
       const res = await api.post<{ data: PricingResult } | PricingResult>(
-        '/pricing-engine/calculate-and-log',
-        params
+        `/pricing-engine/calculate-and-log?${queryParams.toString()}`,
+        null
       );
       if (res && typeof res === 'object' && 'data' in res) {
         return res.data as PricingResult;

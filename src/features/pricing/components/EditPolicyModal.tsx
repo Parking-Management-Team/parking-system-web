@@ -13,6 +13,8 @@ export default function EditPolicyModal({ pricing }: EditPolicyModalProps) {
     editPolicyTarget,
     editPolicyName,
     setEditPolicyName,
+    editPriority,
+    setEditPriority,
     editEffectiveStart,
     setEditEffectiveStart,
     editEffectiveEnd,
@@ -72,15 +74,37 @@ export default function EditPolicyModal({ pricing }: EditPolicyModalProps) {
             />
           </div>
 
-          {/* Vehicle Type (Read only) */}
-          <div>
-            <label className="block text-xs font-bold text-slate-500 mb-1.5 uppercase tracking-wide">Vehicle Type</label>
-            <input 
-              type="text" 
-              value={vehicleTypeName}
-              disabled
-              className="w-full bg-slate-100 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-semibold text-slate-500 outline-none"
-            />
+          <div className="grid grid-cols-2 gap-4">
+            {/* Vehicle Type (Read only) */}
+            <div>
+              <label className="block text-xs font-bold text-slate-500 mb-1.5 uppercase tracking-wide">Vehicle Type</label>
+              <input 
+                type="text" 
+                value={vehicleTypeName}
+                disabled
+                className="w-full bg-slate-100 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-semibold text-slate-500 outline-none"
+              />
+            </div>
+
+            {/* Priority */}
+            <div>
+              <label className="block text-xs font-bold text-slate-500 mb-1.5 uppercase tracking-wide flex items-center gap-1">
+                <span>Priority Level</span>
+                <span className="material-symbols-outlined text-[14px] text-amber-500" title="Priority: 0 = Baseline Tariff, 1+ = Event/Holiday Override">info</span>
+              </label>
+              <input 
+                type="number" 
+                min={0}
+                max={100}
+                value={editPriority}
+                onChange={(e) => setEditPriority(Math.max(0, parseInt(e.target.value) || 0))}
+                placeholder="0"
+                className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all"
+              />
+              <span className="text-[10px] text-slate-400 font-medium block mt-1">
+                0 = Standard, ≥1 = Holiday / Event Override
+              </span>
+            </div>
           </div>
 
           {/* Effective Start Date */}

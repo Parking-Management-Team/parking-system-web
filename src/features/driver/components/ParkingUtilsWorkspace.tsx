@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/features/auth';
 import { api, ApiError } from '@/lib/api/client';
+import { formatPlate } from '@/lib/utils/format';
 import {
   Calendar,
   Clock,
@@ -97,7 +98,8 @@ interface ParkingSessionRecord {
 }
 
 function normalizeSession(raw: any) {
-  const plate = raw.licensePlateIn || raw.licensePlate || '—';
+  const rawPlate = raw.licensePlateIn || raw.licensePlate || '';
+  const plate = rawPlate ? formatPlate(rawPlate) : '—';
   const checkInTime = raw.checkInTime || raw.checkIn || '';
   const checkOutTime = raw.checkOutTime || raw.checkOut || '';
 
@@ -1308,7 +1310,7 @@ export default function ParkingUtilsWorkspace() {
                           </div>
                           <div className="text-right">
                             <p className="text-slate-400 text-[10px] font-bold uppercase">License Plate</p>
-                            <p className="text-xs font-black text-slate-700 mt-0.5">{booking.licensePlate}</p>
+                            <p className="text-xs font-black text-slate-700 mt-0.5">{formatPlate(booking.licensePlate)}</p>
                           </div>
                         </div>
 
@@ -1410,7 +1412,7 @@ export default function ParkingUtilsWorkspace() {
                         </div>
                         <div className="text-right">
                           <p className="text-slate-400 text-[10px] font-bold uppercase">License Plate</p>
-                          <p className="text-sm font-black text-slate-700 mt-0.5">{activeSession.licensePlateIn}</p>
+                          <p className="text-sm font-black text-slate-700 mt-0.5">{formatPlate(activeSession.licensePlateIn)}</p>
                         </div>
                       </div>
 
@@ -1723,7 +1725,7 @@ export default function ParkingUtilsWorkspace() {
                               <Car className="w-5 h-5" />
                             </div>
                             <div>
-                              <p className="text-sm font-bold text-slate-700">{v.licensePlate}</p>
+                              <p className="text-sm font-bold text-slate-700">{formatPlate(v.licensePlate)}</p>
                               <p className="text-xs text-slate-400">{v.vehicleTypeName || 'Private Vehicle'}</p>
                             </div>
                           </div>
@@ -1956,7 +1958,7 @@ export default function ParkingUtilsWorkspace() {
                   <div className="bg-slate-50 rounded-2xl p-5 border border-slate-100 space-y-4 text-xs font-medium">
                     <div className="flex justify-between items-center pb-2 border-b border-slate-200/50">
                       <span className="text-slate-400">License Plate</span>
-                      <span className="font-bold text-slate-800">{selectedVehicle}</span>
+                      <span className="font-bold text-slate-800">{formatPlate(selectedVehicle)}</span>
                     </div>
                     <div className="flex justify-between items-center pb-2 border-b border-slate-200/50">
                       <span className="text-slate-400">Building Facility</span>

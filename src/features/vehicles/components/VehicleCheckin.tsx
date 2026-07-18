@@ -19,6 +19,7 @@ import {
   type ReallocateSlotDto,
 } from '@/features/vehicles/services/vehicle-checkin.service';
 import { ApiError } from '@/lib/api/client';
+import { formatPlate, detectVehicleTypeFromPlate } from '@/lib/utils/format';
 
 type GateOverlay =
   | {
@@ -91,6 +92,25 @@ export default function VehicleCheckin({ compact = false }: { compact?: boolean 
   const [overlay, setOverlay] = useState<GateOverlay | null>(null);
   const [isMounted, setIsMounted] = useState(false);
   const [isSessionsOpen, setIsSessionsOpen] = useState(false);
+
+  // Auto-detect vehicle type based on license plate input/scan
+  useEffect(() => {
+    if (!licensePlate.trim() || vehicleTypes.length === 0) return;
+    const detected = detectVehicleTypeFromPlate(licensePlate);
+    
+    const matchedType = vehicleTypes.find((t: any) => {
+      const name = (t.name || t.typeName || t.TypeName || '').toLowerCase();
+      if (detected === 'Motorcycle') {
+        return name.includes('motor') || name.includes('bike') || name.includes('scoot') || name.includes('máy');
+      } else {
+        return !(name.includes('motor') || name.includes('bike') || name.includes('scoot') || name.includes('máy'));
+      }
+    });
+
+    if (matchedType) {
+      setVehicleTypeId(matchedType.id ?? matchedType.Id);
+    }
+  }, [licensePlate, vehicleTypes]);
 
   const [showReallocateBtn, setShowReallocateBtn] = useState(false);
   const [isReallocateModalOpen, setIsReallocateModalOpen] = useState(false);
@@ -952,7 +972,7 @@ export default function VehicleCheckin({ compact = false }: { compact?: boolean 
                         <div className="flex items-start justify-between gap-3">
                           <div>
                             <p className="font-mono text-xl font-black text-slate-900">
-                              {session.licensePlate}
+                              {formatPlate(session.licensePlate)}
                             </p>
                             <p className="mt-1 text-xs font-bold text-slate-500">
                               {session.cardCode} · {session.customerType}
@@ -998,7 +1018,7 @@ export default function VehicleCheckin({ compact = false }: { compact?: boolean 
               <div className="mt-8 grid w-full max-w-3xl grid-cols-1 gap-3 rounded-3xl bg-white/15 p-5 text-left md:grid-cols-2">
                 <div>
                   <p className="text-xs font-black uppercase text-white/60">License plate</p>
-                  <p className="font-mono text-3xl font-black">{overlay.session?.licensePlate ?? formattedPlate}</p>
+                  <p className="font-mono text-3xl font-black">{formatPlate(overlay.session?.licensePlate ?? formattedPlate)}</p>
                 </div>
                 <div>
                   <p className="text-xs font-black uppercase text-white/60">Card code</p>

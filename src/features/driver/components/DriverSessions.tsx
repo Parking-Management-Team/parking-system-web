@@ -20,6 +20,7 @@ import {
   Edit3,
   Loader2
 } from 'lucide-react';
+import { formatPlate } from '@/lib/utils/format';
 
 interface BookingRecord {
   id: number;
@@ -459,7 +460,7 @@ export default function DriverSessions() {
                           <Car className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
                           <div>
                             <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wide">Vehicle Plate</h3>
-                            <p className="text-sm font-bold text-slate-700 mt-0.5">{booking.licensePlate}</p>
+                            <p className="text-sm font-bold text-slate-700 mt-0.5">{formatPlate(booking.licensePlate)}</p>
                           </div>
                         </div>
                         <div className="flex items-start gap-3">
@@ -599,7 +600,7 @@ export default function DriverSessions() {
                           <Car className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
                           <div>
                             <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wide">Vehicle Info</h3>
-                            <p className="text-sm font-bold text-slate-700 mt-0.5">{activeSession.licensePlateIn}</p>
+                            <p className="text-sm font-bold text-slate-700 mt-0.5">{formatPlate(activeSession.licensePlateIn)}</p>
                           </div>
                         </div>
                         <div className="flex items-start gap-3">

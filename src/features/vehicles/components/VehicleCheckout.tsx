@@ -19,6 +19,7 @@ import {
   type StartCheckoutResponse,
 } from '@/features/vehicles/services/vehicle-checkout.service';
 import { scanLicensePlate } from '@/features/vehicles/services/vehicle-checkin.service';
+import { formatPlate } from '@/lib/utils/format';
 
 type CheckoutHistoryItem = {
   id: string;
@@ -956,7 +957,7 @@ export default function VehicleCheckout({ compact = false }: { compact?: boolean
                       <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">Check-in Plate</label>
                       <div className="mt-1 rounded-xl bg-emerald-50 border border-emerald-100 p-2.5 text-center">
                         <span className="font-mono text-lg font-black text-slate-900 tracking-wider">
-                          {selectedSession.licensePlate}
+                          {formatPlate(selectedSession.licensePlate)}
                         </span>
                       </div>
                     </div>
@@ -1169,7 +1170,7 @@ export default function VehicleCheckout({ compact = false }: { compact?: boolean
                         <div className="flex items-start justify-between gap-3">
                           <div>
                             <p className="font-mono text-2xl font-black text-slate-900">
-                              {item.licensePlate}
+                              {formatPlate(item.licensePlate)}
                             </p>
                             <p className="mt-1 text-xs font-bold text-slate-500">
                               {item.cardCode} · {item.customerType}
@@ -1207,7 +1208,7 @@ export default function VehicleCheckout({ compact = false }: { compact?: boolean
                 Checkout summary
               </p>
               <h2 className="mt-2 font-mono text-5xl font-black tracking-widest">
-                {overlay.session.licensePlate}
+                {formatPlate(overlay.session.licensePlate)}
               </h2>
               <div className="mt-8 grid gap-3 text-left md:grid-cols-2">
                 <OverlayInfo label="Card code" value={overlay.session.cardCode ?? '—'} />
@@ -1289,7 +1290,7 @@ export default function VehicleCheckout({ compact = false }: { compact?: boolean
 
               <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100 text-sm space-y-2">
                 <p className="text-slate-600 leading-relaxed">
-                  You are about to report parking card <strong className="font-mono text-slate-950 font-black">{selectedSession?.cardCode}</strong> as lost for vehicle <strong className="font-mono text-slate-950 font-black">{selectedSession?.licensePlate}</strong>.
+                  You are about to report parking card <strong className="font-mono text-slate-950 font-black">{selectedSession?.cardCode}</strong> as lost for vehicle <strong className="font-mono text-slate-950 font-black">{formatPlate(selectedSession?.licensePlate ?? '')}</strong>.
                 </p>
                 <p className="text-slate-600 leading-relaxed">
                   This action will lock the card and mark the parking session as a lost-card case. The customer will be charged the applicable penalty and parking fee.

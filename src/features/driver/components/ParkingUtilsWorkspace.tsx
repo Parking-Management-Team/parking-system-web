@@ -284,9 +284,8 @@ export default function ParkingUtilsWorkspace() {
     const rate = selectedVehicleTypeId === 1 ? 5000 : 20000;
     const cost = durationHours * rate;
 
-    const days = Math.ceil(durationHours / 24);
-    const cap = (selectedVehicleTypeId === 1 ? 20000 : 150000) * days;
-    return Math.min(cost, cap);
+    // No hardcoded cap - let backend pricing engine handle daily caps
+    return cost;
   }, [startTime, endTime, bookingDate, endBookingDate, selectedVehicleTypeId]);
 
   const getEstimatedDeposit = useCallback(() => {

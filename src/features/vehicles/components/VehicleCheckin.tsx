@@ -55,11 +55,7 @@ const formatDateTime = (value?: string | null) => {
 };
 
 const formatCurrency = (amount?: number | null) =>
-  new Intl.NumberFormat('vi-VN', {
-    style: 'currency',
-    currency: 'VND',
-    maximumFractionDigits: 0,
-  }).format(amount ?? 0);
+  `${new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 0 }).format(amount ?? 0)} VNĐ`;
 
 const isConfirmedBookingForPlate = (
   booking: VehicleCheckinBooking,
@@ -75,7 +71,13 @@ const isConfirmedBookingForPlate = (
   return Number.isNaN(graceUntil) || graceUntil >= Date.now();
 };
 
-export default function VehicleCheckin({ compact = false }: { compact?: boolean } = {}) {
+export default function VehicleCheckin({
+  compact = false,
+  onCheckinSuccess,
+}: {
+  compact?: boolean;
+  onCheckinSuccess?: () => void;
+} = {}) {
   const { showToast } = useAuth();
 
   const [buildingId, setBuildingId] = useState<number>(3);
@@ -240,7 +242,7 @@ export default function VehicleCheckin({ compact = false }: { compact?: boolean 
     try {
       const result = await scanLicensePlate({ image: base64Img });
       setOcrText(result.licensePlate);
-      showToast(`License plate recognized: ${result.licensePlate} (Confidence: ${Math.round(result.confidence * 100)}%)`, 'success');
+      showToast(`License plate recognized: ${result.licensePlate} (Confidence: ${Math.round(result.confidence * 100)})`, 'success');
       return result.licensePlate;
     } catch (err: any) {
       console.error('OCR error:', err);
@@ -515,6 +517,7 @@ export default function VehicleCheckin({ compact = false }: { compact?: boolean 
       await loadGateData();
       setCardCode('');
       setCapturedImage(null);
+      onCheckinSuccess?.();
 
       showGateOverlay({
         type: 'success',
@@ -599,6 +602,7 @@ export default function VehicleCheckin({ compact = false }: { compact?: boolean 
       setCardCode('');
       setShowReallocateBtn(false);
       setSelectedSlotId(null);
+      onCheckinSuccess?.();
 
       showGateOverlay({
         type: 'success',

@@ -29,13 +29,7 @@ type ActiveSession = {
   monthlySubscriptionId?: number | null;
 };
 
-type PaymentItem = {
-  id: number;
-  amount: number;
-  paymentMethod?: string | null;
-  paymentStatus?: string | null;
-  paymentTime?: string | null;
-};
+
 
 type IncidentItem = {
   id: number;
@@ -66,8 +60,7 @@ const fmtDate = (iso?: string | null) => {
   return new Intl.DateTimeFormat('vi-VN', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(iso));
 };
 
-const fmtCurrency = (amount: number) =>
-  amount.toLocaleString('vi-VN', { style: 'currency', currency: 'VND' });
+
 
 const getBookingTimeStatus = (booking: Booking): 'grace' | 'soon' | 'upcoming' | 'other' => {
   const now = Date.now();
@@ -225,7 +218,6 @@ export default function StaffOverview() {
   const { showToast } = useAuth();
   const [loading, setLoading] = useState(false);
   const [activeSessions, setActiveSessions] = useState<ActiveSession[]>([]);
-  const [payments, setPayments] = useState<PaymentItem[]>([]);
   const [incidents, setIncidents] = useState<IncidentItem[]>([]);
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [showAllSessions, setShowAllSessions] = useState(false);
@@ -234,19 +226,13 @@ export default function StaffOverview() {
   const loadDashboard = useCallback(async () => {
     setLoading(true);
     try {
-      const [sessionRes, paymentRes, incidentRes, bookingRes] = await Promise.allSettled([
+      const [sessionRes, incidentRes, bookingRes] = await Promise.allSettled([
         api.get<BaseResponse<ActiveSession[]> | ActiveSession[]>('/parking-sessions/active'),
-        api.get<BaseResponse<PaymentItem[]> | PaymentItem[]>('/payments'),
         api.get<BaseResponse<IncidentItem[]> | IncidentItem[]>('/Incident'),
         api.get<BaseResponse<Booking[]> | Booking[]>('/bookings'),
       ]);
 
       if (sessionRes.status === 'fulfilled') setActiveSessions(unwrap(sessionRes.value, []));
-
-      if (paymentRes.status === 'fulfilled') {
-        const raw = unwrap(paymentRes.value, []);
-        setPayments(Array.isArray(raw) ? raw : []);
-      }
 
       if (incidentRes.status === 'fulfilled') {
         const raw = unwrap(incidentRes.value, []);
@@ -287,7 +273,7 @@ export default function StaffOverview() {
       }
     } catch (err) {
       console.error('Dashboard load error:', err);
-      showToast('Không tải được dữ liệu dashboard.', 'error');
+      showToast('Could not load dashboard data.', 'error');
     } finally {
       setLoading(false);
     }
@@ -299,43 +285,7 @@ export default function StaffOverview() {
     return () => clearInterval(interval);
   }, [loadDashboard]);
 
-  // ── Shift detection ───────────────────────────────────────────────────────
-
-  const { shiftStart, shiftLabel } = useMemo(() => {
-    const now = new Date();
-    const h = now.getHours();
-    let label: string;
-    let start: Date;
-    if (h >= 6 && h < 14) {
-      label = 'Morning Shift (06:00 – 14:00)';
-      start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 6, 0, 0);
-    } else if (h >= 14 && h < 22) {
-      label = 'Afternoon Shift (14:00 – 22:00)';
-      start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 14, 0, 0);
-    } else {
-      label = 'Night Shift (22:00 – 06:00)';
-      const d = new Date(now);
-      if (h < 6) d.setDate(d.getDate() - 1);
-      start = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 22, 0, 0);
-    }
-    return { shiftStart: start, shiftLabel: label };
-  }, []);
-
   // ── Computed ──────────────────────────────────────────────────────────────
-
-  const { cashRevenue, onlineRevenue } = useMemo(() => {
-    const shiftPayments = payments.filter(
-      p => p.paymentStatus === 'PAID' && p.paymentTime && new Date(p.paymentTime) >= shiftStart
-    );
-    return {
-      cashRevenue: shiftPayments
-        .filter(p => p.paymentMethod?.toLowerCase().includes('cash'))
-        .reduce((s, p) => s + (p.amount || 0), 0),
-      onlineRevenue: shiftPayments
-        .filter(p => !p.paymentMethod?.toLowerCase().includes('cash'))
-        .reduce((s, p) => s + (p.amount || 0), 0),
-    };
-  }, [payments, shiftStart]);
 
   const openIncidents = useMemo(
     () => incidents.filter(i => i.status === 'OPEN' || i.status === 'PROCESSING'),
@@ -368,7 +318,6 @@ export default function StaffOverview() {
         <div>
           <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#006d43]">Staff Portal</p>
           <h1 className="mt-0.5 text-xl font-black text-[#111c2d]">Operational Dashboard</h1>
-          <p className="mt-0.5 text-sm font-medium text-slate-500">{shiftLabel}</p>
         </div>
         <button
           type="button"
@@ -382,7 +331,7 @@ export default function StaffOverview() {
       </div>
 
       {/* ── Stats Row ── */}
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
         <StatCard
           icon="directions_car"
           label="In Parking Now"
@@ -407,13 +356,6 @@ export default function StaffOverview() {
           color={openIncidents.length > 0 ? 'bg-red-500' : 'bg-[#006d43]'}
           href="/dashboard/staff/incident"
         />
-        <StatCard
-          icon="payments"
-          label="Shift Revenue"
-          value={fmtCurrency(cashRevenue + onlineRevenue)}
-          sub={`Cash ${fmtCurrency(cashRevenue)} · Online ${fmtCurrency(onlineRevenue)}`}
-          color="bg-violet-500"
-        />
       </div>
 
       {/* ── Main 2-col ── */}
@@ -426,7 +368,7 @@ export default function StaffOverview() {
               <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#006d43]">Booking Review</p>
               <h2 className="mt-0.5 text-base font-black text-[#111c2d]">Incoming Reservations</h2>
               <p className="mt-0.5 text-xs font-medium text-slate-400">
-                Booking CONFIRMED sắp đến giờ hoặc đang trong grace period
+                CONFIRMED bookings approaching check-in time or in grace period
               </p>
             </div>
             <div className="flex gap-1.5 shrink-0">
@@ -451,9 +393,9 @@ export default function StaffOverview() {
           ) : displayedBookings.length === 0 ? (
             <div className="rounded-xl border border-dashed border-slate-200 py-10 text-center">
               <span className="material-symbols-outlined text-4xl text-slate-300">event_available</span>
-              <p className="mt-2 text-sm font-bold text-slate-400">Không có booking nào cần xử lý ngay.</p>
+              <p className="mt-2 text-sm font-bold text-slate-400">No bookings require immediate attention.</p>
               <p className="mt-1 text-xs text-slate-400">
-                {confirmedCount > 0 ? `${confirmedCount} booking đang CONFIRMED nhưng chưa đến giờ.` : 'Không có booking CONFIRMED.'}
+                {confirmedCount > 0 ? `${confirmedCount} CONFIRMED booking(s) pending.` : 'No CONFIRMED bookings.'}
               </p>
             </div>
           ) : (
@@ -524,7 +466,7 @@ export default function StaffOverview() {
             ) : displayedSessions.length === 0 ? (
               <div className="rounded-xl border border-dashed border-slate-200 py-8 text-center">
                 <span className="material-symbols-outlined text-4xl text-slate-300">garage</span>
-                <p className="mt-2 text-sm font-bold text-slate-400">Bãi xe đang trống.</p>
+                <p className="mt-2 text-sm font-bold text-slate-400">Parking lot is currently empty.</p>
               </div>
             ) : (
               <>
@@ -542,17 +484,7 @@ export default function StaffOverview() {
             )}
           </div>
 
-          {/* Revenue summary nhỏ gọn dưới session list */}
-          <div className="mt-4 rounded-xl bg-[#006d43]/5 border border-[#006d43]/10 p-3">
-            <p className="text-[10px] font-black uppercase tracking-wider text-[#006d43]">Shift Revenue</p>
-            <p className="mt-1 text-lg font-black text-[#111c2d]">
-              {fmtCurrency(cashRevenue + onlineRevenue)}
-            </p>
-            <div className="mt-1.5 flex gap-4 text-[10px]">
-              <span><span className="font-bold text-slate-400">Cash</span> <span className="font-black text-slate-600">{fmtCurrency(cashRevenue)}</span></span>
-              <span><span className="font-bold text-slate-400">Online</span> <span className="font-black text-slate-600">{fmtCurrency(onlineRevenue)}</span></span>
-            </div>
-          </div>
+
         </div>
       </div>
 
@@ -563,11 +495,11 @@ export default function StaffOverview() {
             <div className="flex items-center gap-2">
               <span className="material-symbols-outlined text-xl text-red-600">warning</span>
               <p className="text-sm font-black text-red-700">
-                {openIncidents.length} Incident{openIncidents.length > 1 ? 's' : ''} cần xử lý
+                {openIncidents.length} Incident{openIncidents.length > 1 ? 's' : ''} need attention
               </p>
             </div>
             <Link href="/dashboard/staff/incident" className="text-xs font-black text-red-600 hover:underline">
-              Xem tất cả →
+              View all →
             </Link>
           </div>
           <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">

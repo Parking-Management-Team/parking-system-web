@@ -264,10 +264,10 @@ export default function PricingWorkspace() {
                                   {/* Priority Badge */}
                                   <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold tracking-wide border ${
                                     priority > 0
-                                      ? 'bg-purple-50 text-purple-700 border-purple-200 font-bold'
+                                      ? 'bg-teal-50 text-teal-700 border-teal-200 font-bold'
                                       : 'bg-slate-50 text-slate-500 border-slate-200'
                                   }`} title={priority > 0 ? `Event Override (Priority ${priority})` : 'Standard Baseline'}>
-                                    {priority > 0 && <span className="material-symbols-outlined text-[11px] text-purple-600">star</span>}
+                                    {priority > 0 && <span className="material-symbols-outlined text-[11px] text-teal-600">star</span>}
                                     P{priority}
                                   </span>
                                 </div>
@@ -377,9 +377,9 @@ export default function PricingWorkspace() {
                                   id: `${policy.pricingPolicyId}-${win.pricingWindowId}`,
                                   vehicleType: vehicleTypes.find(v => v.id === policy.vehicleTypeId)?.name || (policy.vehicleTypeId === 1 ? 'Motorbike' : 'Car'),
                                   timeSlot: `${win.startTime.substring(0, 5)} - ${win.endTime.substring(0, 5)}`,
-                                  baseRate: `${win.basePrice.toLocaleString('en-US')} VND`,
-                                  incrementalRate: `${win.incrementPrice.toLocaleString('en-US')} VND`,
-                                  dailyCap: win.windowCap ? `${win.windowCap.toLocaleString('en-US')} VND` : 'No Cap',
+                                  baseRate: `${win.basePrice.toLocaleString('en-US')} đ`,
+                                  incrementalRate: `${win.incrementPrice.toLocaleString('en-US')} đ`,
+                                  dailyCap: win.windowCap ? `${win.windowCap.toLocaleString('en-US')} đ` : 'No Cap',
                                   gracePeriod: win.gracePeriodMinutes ? `${win.gracePeriodMinutes} mins` : 'None',
                                   isActive: isActive,
                                   details: {
@@ -412,17 +412,17 @@ export default function PricingWorkspace() {
                                       
                                       <div className="flex items-center gap-3 text-[10px] font-semibold text-slate-500 flex-wrap">
                                         <span>
-                                          Base ({win.baseDurationMinutes / 60}h): <strong className="text-slate-700">{win.basePrice.toLocaleString('en-US')} VND</strong>
+                                          Base ({win.baseDurationMinutes / 60}h): <strong className="text-slate-700">{win.basePrice.toLocaleString('en-US')} đ</strong>
                                         </span>
                                         <span className="text-slate-300">•</span>
                                         <span>
-                                          Inc ({win.incrementBlockMinutes >= 60 ? `${win.incrementBlockMinutes / 60}h` : `${win.incrementBlockMinutes}m`}): <strong className="text-slate-700">{win.incrementPrice.toLocaleString('en-US')} VND</strong>
+                                          Inc ({win.incrementBlockMinutes >= 60 ? `${win.incrementBlockMinutes / 60}h` : `${win.incrementBlockMinutes}m`}): <strong className="text-slate-700">{win.incrementPrice.toLocaleString('en-US')} đ</strong>
                                         </span>
                                         {win.windowCap && (
                                           <>
                                             <span className="text-slate-300">•</span>
                                             <span>
-                                              Cap: <strong className="text-emerald-700">{win.windowCap.toLocaleString('en-US')} VND</strong>
+                                              Cap: <strong className="text-emerald-700">{win.windowCap.toLocaleString('en-US')} đ</strong>
                                             </span>
                                           </>
                                         )}
@@ -522,7 +522,7 @@ export default function PricingWorkspace() {
                         <div className="flex items-center justify-between">
                           <span className="text-xs text-slate-400 font-medium">Default Fee</span>
                           <span className="text-sm font-bold text-red-600">
-                            {(it.defaultPenaltyFee ?? 0).toLocaleString('en-US')} VND
+                            {(it.defaultPenaltyFee ?? 0).toLocaleString('en-US')} đ
                           </span>
                         </div>
                       </div>

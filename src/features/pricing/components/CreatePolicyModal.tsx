@@ -38,7 +38,7 @@ export default function CreatePolicyModal({ pricing }: CreatePolicyModalProps) {
   if (!isCreatePolicyOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 overflow-y-auto">
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 overflow-y-auto">
       <div className="bg-white w-full max-w-5xl max-h-[92vh] rounded-3xl shadow-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
         
         {/* ===== HEADER ===== */}
@@ -248,7 +248,7 @@ export default function CreatePolicyModal({ pricing }: CreatePolicyModalProps) {
                     <h4 className="text-[10px] font-black uppercase text-slate-400 tracking-wide">Base Rate (Initial Block)</h4>
                     <div className="grid grid-cols-2 gap-2">
                       <div>
-                        <label className="block text-[10px] font-bold text-slate-500 mb-1">Rate (VND)</label>
+                        <label className="block text-[10px] font-bold text-slate-500 mb-1">Rate (đ)</label>
                         <input 
                           type="number" 
                           value={win.basePrice}
@@ -277,7 +277,7 @@ export default function CreatePolicyModal({ pricing }: CreatePolicyModalProps) {
                     <h4 className="text-[10px] font-black uppercase text-slate-400 tracking-wide">Incremental Rate</h4>
                     <div className="grid grid-cols-2 gap-2">
                       <div>
-                        <label className="block text-[10px] font-bold text-slate-500 mb-1">Rate (VND)</label>
+                        <label className="block text-[10px] font-bold text-slate-500 mb-1">Rate (đ)</label>
                         <input 
                           type="number" 
                           value={win.incrementPrice}

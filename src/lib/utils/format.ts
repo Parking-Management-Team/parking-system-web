@@ -11,14 +11,14 @@ export function formatVND(amount: number, compact = false): string {
     const formatted = millions % 1 === 0
       ? millions.toFixed(0)
       : millions.toFixed(1);
-    return `${formatted} triệu VNĐ`;
+    return `${formatted} triệu đ`;
   }
 
   const formatted = new Intl.NumberFormat('vi-VN', {
     maximumFractionDigits: 0,
   }).format(amount ?? 0);
 
-  return `${formatted} VNĐ`;
+  return `${formatted} đ`;
 }
 
 /**

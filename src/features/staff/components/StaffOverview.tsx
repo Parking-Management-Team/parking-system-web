@@ -182,7 +182,7 @@ function BookingCard({ booking }: { booking: Booking }) {
 function SessionRow({ session }: { session: ActiveSession }) {
   const typeLabel = getSessionType(session);
   const typeBadge: Record<string, string> = {
-    Monthly: 'bg-violet-100 text-violet-700',
+    Monthly: 'bg-teal-100 text-teal-700',
     Booking: 'bg-blue-100 text-blue-700',
     'Walk-in': 'bg-slate-100 text-slate-600',
   };
@@ -450,7 +450,7 @@ export default function StaffOverview() {
             {[
               { label: 'Walk-in', count: activeSessions.filter(s => !s.bookingId && !s.monthlySubscriptionId).length, color: 'text-slate-600 bg-slate-50' },
               { label: 'Booking', count: activeSessions.filter(s => s.bookingId).length, color: 'text-blue-600 bg-blue-50' },
-              { label: 'Monthly', count: activeSessions.filter(s => s.monthlySubscriptionId).length, color: 'text-violet-600 bg-violet-50' },
+              { label: 'Monthly', count: activeSessions.filter(s => s.monthlySubscriptionId).length, color: 'text-teal-600 bg-teal-50' },
             ].map(g => (
               <div key={g.label} className={`rounded-lg px-2 py-2 text-center ${g.color}`}>
                 <p className="text-base font-black">{g.count}</p>

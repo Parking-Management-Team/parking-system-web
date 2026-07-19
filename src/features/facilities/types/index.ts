@@ -7,6 +7,7 @@ export interface Floor {
   buildingId: number;
   floorNumber: number; // Ví dụ: 1, 2, 3, hoặc -1 cho Hầm B1
   name: string;        // Tên hiển thị (ví dụ: Basement 1, Floor 1)
+  floorType?: string;  // Loại tầng (ví dụ: Standard, Ground, Basement, Roof, EV Dedicated)
   totalSlots: number;  // Sức chứa ô đỗ tối đa của tầng này
   status: 'Active' | 'Inactive';
 }

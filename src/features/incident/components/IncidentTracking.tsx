@@ -261,7 +261,7 @@ export default function IncidentTracking({ role }: IncidentTrackingProps) {
           <div className="mt-4">
             <p className="text-slate-400 text-[10px] font-bold uppercase tracking-wider">Penalties Collected</p>
             <h3 className="text-lg font-extrabold text-emerald-700 mt-1 truncate">
-              {loadingIncidents ? '—' : `${totalPenaltiesCollected.toLocaleString()} VND`}
+              {loadingIncidents ? '—' : `${totalPenaltiesCollected.toLocaleString()} đ`}
             </h3>
           </div>
         </div>
@@ -382,7 +382,7 @@ export default function IncidentTracking({ role }: IncidentTrackingProps) {
                         {inc.description || 'No description provided'}
                       </td>
                       <td className="px-6 py-4 font-mono font-bold text-red-500">
-                        {(inc.penaltyFee ?? 0) > 0 ? `${(inc.penaltyFee ?? 0).toLocaleString()} VND` : '0 VND'}
+                        {(inc.penaltyFee ?? 0) > 0 ? `${(inc.penaltyFee ?? 0).toLocaleString()} đ` : '0 đ'}
                       </td>
                       <td className="px-6 py-4 text-slate-400">
                         {new Date(inc.createdAt).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
@@ -504,9 +504,9 @@ export default function IncidentTracking({ role }: IncidentTrackingProps) {
 
               {/* Edit Penalty Fee */}
               <div className="space-y-1.5">
-                <label className="block text-xs font-bold text-slate-400 uppercase tracking-wide">Penalty Fee (VND)</label>
+                <label className="block text-xs font-bold text-slate-400 uppercase tracking-wide">Penalty Fee (đ)</label>
                 <div className="relative">
-                  <span className="absolute left-3.5 top-2.5 text-slate-400 text-xs font-bold">VND</span>
+                  <span className="absolute left-3.5 top-2.5 text-slate-400 text-xs font-bold">đ</span>
                   <input
                     type="number"
                     value={editedFee}
@@ -515,7 +515,7 @@ export default function IncidentTracking({ role }: IncidentTrackingProps) {
                     className="w-full pl-12 pr-4 py-2 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 text-xs font-mono font-bold rounded-xl disabled:bg-slate-50 disabled:text-slate-400"
                   />
                 </div>
-                <p className="text-[10px] text-slate-400">Default rate: {(selectedIncident.penaltyFee || 0).toLocaleString()} VND</p>
+                <p className="text-[10px] text-slate-400">Default rate: {(selectedIncident.penaltyFee || 0).toLocaleString()} đ</p>
               </div>
 
               {/* Description / Notes */}

@@ -50,11 +50,7 @@ export function HourlyTrafficChart({ chartData }: HourlyTrafficChartProps) {
               const y = 170 - barHeight;
 
               const isMax = item.val === maxVal && maxVal > 0;
-              const formattedVal = new Intl.NumberFormat('vi-VN', {
-                style: 'currency',
-                currency: 'VND',
-                maximumFractionDigits: 0
-              }).format(item.val);
+              const formattedVal = `${item.val.toLocaleString('vi-VN')} đ`;
 
               return (
                 <g key={idx} className="group cursor-pointer">

@@ -89,7 +89,7 @@ export default function PricingModals({ pricing }: PricingModalsProps) {
   // Render Edit Tariff Modal
   if (isEditTariffOpen && editingTariff) {
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 overflow-y-auto">
+      <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 overflow-y-auto">
         <div className="bg-white w-full max-w-3xl max-h-[90vh] rounded-2xl shadow-xl flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
           
           {/* Modal Header */}
@@ -186,7 +186,7 @@ export default function PricingModals({ pricing }: PricingModalsProps) {
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-bold text-slate-500 mb-1.5 uppercase tracking-wide">Base Price (VND)</label>
+                  <label className="block text-xs font-bold text-slate-500 mb-1.5 uppercase tracking-wide">Base Price (đ)</label>
                   <div className="relative">
                     <input 
                       type="number" 
@@ -194,7 +194,7 @@ export default function PricingModals({ pricing }: PricingModalsProps) {
                       onChange={(e) => setFormTariffBasePrice(Number(e.target.value))}
                       className="w-full bg-white border border-slate-200 rounded-xl pl-4 pr-12 py-2 text-sm font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all"
                     />
-                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">VND</span>
+                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">đ</span>
                   </div>
                 </div>
                 <div>
@@ -222,7 +222,7 @@ export default function PricingModals({ pricing }: PricingModalsProps) {
                       onChange={(e) => setFormTariffBlockPrice(Number(e.target.value))}
                       className="w-full bg-white border border-slate-200 rounded-xl pl-4 pr-12 py-2 text-sm font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all"
                     />
-                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">VND</span>
+                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">đ</span>
                   </div>
                 </div>
                 <div>
@@ -252,7 +252,7 @@ export default function PricingModals({ pricing }: PricingModalsProps) {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <div className="flex items-center justify-between mb-1">
-                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">Daily Cap (VND)</label>
+                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">Daily Cap (đ)</label>
                     <div className="flex items-center gap-2">
                       <input 
                         type="checkbox" 
@@ -279,7 +279,7 @@ export default function PricingModals({ pricing }: PricingModalsProps) {
                       placeholder="No daily limit"
                       className="w-full bg-white disabled:bg-slate-100 disabled:text-slate-400 border border-slate-200 rounded-xl pl-4 pr-12 py-2 text-sm font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all"
                     />
-                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">VND</span>
+                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">đ</span>
                   </div>
 
                   {editingTariff.details.maxCap > 0 && (
@@ -349,7 +349,7 @@ export default function PricingModals({ pricing }: PricingModalsProps) {
   {/* Render Add/Edit Incident Type Modal */}
   if (isIncidentTypeModalOpen) {
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 overflow-y-auto">
+      <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 overflow-y-auto">
         <div className="bg-white w-full max-w-md rounded-2xl shadow-xl flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
           
           <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
@@ -401,7 +401,7 @@ export default function PricingModals({ pricing }: PricingModalsProps) {
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-slate-500 mb-1.5 uppercase tracking-wide">Default Penalty Fee (VND)</label>
+              <label className="block text-xs font-bold text-slate-500 mb-1.5 uppercase tracking-wide">Default Penalty Fee (đ)</label>
               <div className="relative">
                 <input 
                   type="number" 
@@ -410,7 +410,7 @@ export default function PricingModals({ pricing }: PricingModalsProps) {
                   className="w-full bg-white border border-slate-200 rounded-xl pl-4 pr-12 py-2.5 text-sm font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all"
                   placeholder="0"
                 />
-                <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">VND</span>
+                <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">đ</span>
               </div>
             </div>
 

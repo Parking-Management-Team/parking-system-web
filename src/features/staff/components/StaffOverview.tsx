@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useAuth } from '@/features/auth/context/AuthContext';
 import { api } from '@/lib/api/client';
 import { Booking } from '@/features/booking/types';
+import { formatVND } from '@/lib/utils/format';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -158,7 +159,7 @@ function BookingCard({ booking }: { booking: Booking }) {
         {booking.depositAmount > 0 && (
           <div className="col-span-2 rounded-lg bg-emerald-50 p-2.5">
             <p className="text-[10px] font-black uppercase text-emerald-500">Deposit Paid</p>
-            <p className="mt-0.5 text-xs font-black text-emerald-700">{fmtCurrency(booking.depositAmount)}</p>
+            <p className="mt-0.5 text-xs font-black text-emerald-700">{formatVND(booking.depositAmount)}</p>
           </div>
         )}
         {booking.checkinGraceUntil && (

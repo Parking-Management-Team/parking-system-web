@@ -14,7 +14,7 @@ type StaffIncidentSelectorProps = {
 };
 
 const formatCurrency = (value?: number | null) =>
-  `${Math.round(Number(value ?? 0)).toLocaleString('vi-VN')} VND`;
+  `${Math.round(Number(value ?? 0)).toLocaleString('vi-VN')} VNĐ`;
 
 const getErrorMessage = (error: unknown, fallback: string) =>
   error instanceof Error && error.message ? error.message : fallback;

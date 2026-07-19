@@ -327,7 +327,15 @@ export default function VehicleCheckin({
   const showGateOverlay = useCallback((nextOverlay: GateOverlay) => {
     setOverlay(nextOverlay);
     window.setTimeout(() => {
-      setOverlay((current) => (current === nextOverlay ? null : current));
+      setOverlay((current) => {
+        if (current === nextOverlay) {
+          if (nextOverlay.type === 'success') {
+            window.location.reload();
+          }
+          return null;
+        }
+        return current;
+      });
     }, 3000);
   }, []);
 

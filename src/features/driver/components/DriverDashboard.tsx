@@ -73,6 +73,8 @@ export default function DriverDashboard() {
   const [totalSessions, setTotalSessions] = useState<number | null>(null);
   const [activeVehiclePlate, setActiveVehiclePlate] = useState<string>('—');
   const [hasActiveSession, setHasActiveSession] = useState(false);
+  const [activeSession, setActiveSession] = useState<any>(null);
+  const [activeBookingDetails, setActiveBookingDetails] = useState<any>(null);
 
   const getSlotStatus = (status: string | number): 'available' | 'occupied' | 'reserved' | 'maintenance' => {
     if (status === 0 || status === 'Available') return 'available';
@@ -241,6 +243,21 @@ export default function DriverDashboard() {
           if (sessRes.success && sessRes.data) {
             const matched = sessRes.data.find((s: any) => userPlates.includes(s.licensePlateIn));
             setHasActiveSession(!!matched);
+            setActiveSession(matched || null);
+            if (matched && matched.bookingId) {
+              try {
+                const bookRes = await api.get<any>(`/bookings/${matched.bookingId}`);
+                if (bookRes.success && bookRes.data) {
+                  setActiveBookingDetails(bookRes.data);
+                } else {
+                  setActiveBookingDetails(null);
+                }
+              } catch {
+                setActiveBookingDetails(null);
+              }
+            } else {
+              setActiveBookingDetails(null);
+            }
           }
         } catch { /* no active session */ }
       }
@@ -558,6 +575,60 @@ export default function DriverDashboard() {
                 : 'Your vehicle is currently not tracked in any parking facility.'
               }
             </p>
+            {hasActiveSession && activeSession && (() => {
+              const isOverdue = activeBookingDetails && new Date(activeBookingDetails.plannedCheckoutTime) < new Date();
+              return (
+                <div className="w-full bg-[#f8f9ff] border border-slate-100 rounded-xl p-4 text-left space-y-3 mb-6">
+                  {isOverdue && (
+                    <div className="p-3 bg-amber-50 border border-amber-200 text-amber-800 rounded-lg text-[11px] font-semibold flex items-start gap-2">
+                      <span className="text-sm mt-0.5 text-amber-600">⚠️</span>
+                      <div>
+                        <p className="font-bold text-amber-950">Overstay Alert</p>
+                        <p className="mt-0.5 leading-relaxed text-amber-900">
+                          You have exceeded your planned checkout time ({new Date(activeBookingDetails.plannedCheckoutTime).toLocaleTimeString('vi-VN')}). Please extend your booking or check out immediately to avoid penalties.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="font-semibold text-slate-400">License Plate:</span>
+                    <span className="font-bold text-slate-800">{activeSession.licensePlateIn}</span>
+                  </div>
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="font-semibold text-slate-400">Card Code:</span>
+                    <span className="font-bold text-slate-800">{activeSession.cardCode || '—'}</span>
+                  </div>
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="font-semibold text-slate-400">Zone / Slot:</span>
+                    <span className="font-bold text-slate-800">{activeSession.slotCode ? `${activeSession.zoneCode || 'Zone'} - ${activeSession.slotCode}` : (activeSession.zoneCode || '—')}</span>
+                  </div>
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="font-semibold text-slate-400">Check-in:</span>
+                    <span className="font-bold text-slate-800">{new Date(activeSession.checkInTime).toLocaleString('vi-VN')}</span>
+                  </div>
+                  {activeBookingDetails && (
+                    <div className="flex justify-between items-center text-xs">
+                      <span className="font-semibold text-slate-400">Planned Checkout:</span>
+                      <span className={`font-bold ${isOverdue ? 'text-rose-500' : 'text-slate-800'}`}>
+                        {new Date(activeBookingDetails.plannedCheckoutTime).toLocaleString('vi-VN')}
+                      </span>
+                    </div>
+                  )}
+                  <div className="flex justify-between items-center text-xs border-t border-slate-200/50 pt-2">
+                    <span className="font-semibold text-slate-400">Duration:</span>
+                    <span className={`font-bold ${isOverdue ? 'text-amber-600' : 'text-emerald-600'}`}>
+                      {(() => {
+                        const diffMs = Date.now() - new Date(activeSession.checkInTime).getTime();
+                        const diffMins = Math.max(0, Math.floor(diffMs / 60000));
+                        const hours = Math.floor(diffMins / 60);
+                        const mins = diffMins % 60;
+                        return `${hours}h ${mins}m${isOverdue ? ' (Overdue)' : ''}`;
+                      })()}
+                    </span>
+                  </div>
+                </div>
+              );
+            })()}
             {hasActiveSession ? (
               <button
                 onClick={() => router.push('/dashboard/driver/parking-utils')}

@@ -39,6 +39,9 @@ yarn-error.log*
 *.sln
 *.sw?
 
+# Vercel
+.vercel
+
 # Agent temp/run files
 .openclaude/
 .agent/

@@ -61,7 +61,7 @@ export default function Sidebar() {
         <button
           onClick={toggleSidebar}
           className="text-slate-400 hover:text-white transition-colors flex items-center justify-center p-2 rounded-xl hover:bg-white/5"
-          title={isCollapsed ? 'Mở rộng menu' : 'Thu gọn menu'}
+          title={isCollapsed ? 'Expand menu' : 'Collapse menu'}
         >
           <span className="material-symbols-outlined text-xl">
             {isCollapsed ? 'menu' : 'menu_open'}
@@ -130,7 +130,7 @@ export default function Sidebar() {
           className={`flex items-center rounded-xl transition-all duration-200 mt-2 font-medium ${
             isCollapsed ? 'justify-center py-2.5 px-0 w-12 h-12 mx-auto' : 'w-full gap-3 py-2.5 px-4'
           } text-slate-400 hover:text-red-400 hover:bg-red-500/10`}
-          title={isCollapsed ? 'Đăng xuất' : undefined}
+          title={isCollapsed ? 'Logout' : undefined}
         >
           <span className="material-symbols-outlined text-xl">logout</span>
           {!isCollapsed && <span className="text-sm">Logout</span>}

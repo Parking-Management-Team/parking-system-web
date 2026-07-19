@@ -14,9 +14,7 @@ import {
   ChevronRight,
   RefreshCw,
   CreditCard,
-  User,
-  Hash,
-  ExternalLink
+  Hash
 } from 'lucide-react';
 
 interface BuildingItem {
@@ -34,8 +32,6 @@ export default function ParkingSessionWorkspace() {
     isLoading,
     error,
     fetchSessions,
-    fetchSessionByVehicle,
-    fetchSessionByAccount,
   } = useParkingSessions();
 
   // Filter States
@@ -45,13 +41,8 @@ export default function ParkingSessionWorkspace() {
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
   const [buildings, setBuildings] = useState<BuildingItem[]>([]);
-  
-  // Custom Lookup States
-  const [lookupType, setLookupType] = useState<'advanced' | 'vehicle' | 'account'>('advanced');
-  const [lookupId, setLookupId] = useState('');
 
-  // Selected Session for Detail Modal
-  const [selectedSession, setSelectedSession] = useState<any | null>(null);
+
 
   // Load buildings
   useEffect(() => {
@@ -65,24 +56,16 @@ export default function ParkingSessionWorkspace() {
   }, []);
 
   const triggerFetch = useCallback((page = 1) => {
-    if (lookupType === 'vehicle') {
-      const vid = Number(lookupId);
-      if (vid) fetchSessionByVehicle(vid);
-    } else if (lookupType === 'account') {
-      const aid = Number(lookupId);
-      if (aid) fetchSessionByAccount(aid);
-    } else {
-      fetchSessions({
-        pageIndex: page,
-        pageSize: 10,
-        fromDate: fromDate || undefined,
-        toDate: toDate || undefined,
-        buildingId: selectedBuildingId === 'ALL' ? undefined : selectedBuildingId,
-        status: statusFilter,
-        search: searchTerm || undefined
-      });
-    }
-  }, [fetchSessions, fetchSessionByVehicle, fetchSessionByAccount, lookupType, lookupId, fromDate, toDate, selectedBuildingId, statusFilter, searchTerm]);
+    fetchSessions({
+      pageIndex: page,
+      pageSize: 10,
+      fromDate: fromDate || undefined,
+      toDate: toDate || undefined,
+      buildingId: selectedBuildingId === 'ALL' ? undefined : selectedBuildingId,
+      status: statusFilter,
+      search: searchTerm || undefined
+    });
+  }, [fetchSessions, fromDate, toDate, selectedBuildingId, statusFilter, searchTerm]);
 
   useEffect(() => {
     triggerFetch(1);
@@ -96,7 +79,7 @@ export default function ParkingSessionWorkspace() {
     sessions.forEach(s => {
       if (s.sessionStatus.toUpperCase() === 'ACTIVE') active++;
       else if (s.sessionStatus.toUpperCase() === 'COMPLETED') completed++;
-      totalRevenue += s.totalFee || 0;
+      totalRevenue += s.amountDue ?? s.totalFee ?? 0;
     });
     return { active, completed, totalRevenue, avgFee: sessions.length ? Math.round(totalRevenue / sessions.length) : 0 };
   }, [sessions]);
@@ -116,16 +99,34 @@ export default function ParkingSessionWorkspace() {
     }
   };
 
-  const calculateDuration = (inTime: string, outTime?: string | null) => {
-    if (!inTime) return '—';
-    const start = new Date(inTime).getTime();
-    const end = outTime ? new Date(outTime).getTime() : Date.now();
-    const diffMs = end - start;
-    if (isNaN(diffMs) || diffMs < 0) return '—';
-    const hours = Math.floor(diffMs / (1000 * 60 * 60));
-    const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
-    return `${hours}h ${minutes}m`;
+  const formatSlot = (slotCode?: string | null, zoneCode?: string | null, vehicleType?: string | null) => {
+    if (vehicleType?.toUpperCase() === 'MOTORBIKE') {
+      return 'Motorbike Area';
+    }
+    const s = (slotCode || '').trim();
+    const z = (zoneCode || '').trim();
+    if (!s && !z) return '—';
+    if (s && z) {
+      if (s.toLowerCase().startsWith(z.toLowerCase())) return s;
+      return `${z}-${s}`;
+    }
+    return s || `Zone ${z}`;
   };
+
+
+
+  const getBuildingDisplayName = (buildingName?: string | null, buildingId?: number | null) => {
+    if (buildingName && buildingName !== 'Building') {
+      return buildingName;
+    }
+    if (buildingId) {
+      const b = buildings.find(item => item.id === buildingId);
+      if (b) return `${b.name} (${b.code})`;
+    }
+    return '—';
+  };
+
+
 
   return (
     <div className="p-8 max-w-[1400px] mx-auto space-y-8">
@@ -194,120 +195,77 @@ export default function ParkingSessionWorkspace() {
         </div>
       </div>
 
-      {/* WORKSPACE MODE TABS */}
-      <div className="flex gap-2 border-b border-slate-100 pb-px">
-        <button
-          onClick={() => { setLookupType('advanced'); setLookupId(''); }}
-          className={`px-4 py-2.5 text-xs font-black transition-all border-b-2 -mb-px ${lookupType === 'advanced' ? 'border-[#006d43] text-[#006d43]' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
-        >
-          Advanced Filters
-        </button>
-        <button
-          onClick={() => { setLookupType('vehicle'); setLookupId(''); }}
-          className={`px-4 py-2.5 text-xs font-black transition-all border-b-2 -mb-px ${lookupType === 'vehicle' ? 'border-[#006d43] text-[#006d43]' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
-        >
-          Lookup by Vehicle ID
-        </button>
-        <button
-          onClick={() => { setLookupType('account'); setLookupId(''); }}
-          className={`px-4 py-2.5 text-xs font-black transition-all border-b-2 -mb-px ${lookupType === 'account' ? 'border-[#006d43] text-[#006d43]' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
-        >
-          Lookup by Customer Account ID
-        </button>
-      </div>
-
       {/* FILTER BOX */}
       <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm space-y-4">
-        {lookupType === 'advanced' ? (
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-            {/* Search */}
-            <div className="relative">
-              <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
-              <input
-                type="text"
-                placeholder="Plate / Card / Slot code..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-600 text-xs font-semibold rounded-xl"
-              />
-            </div>
-
-            {/* Building */}
-            <div className="relative">
-              <select
-                value={selectedBuildingId}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  setSelectedBuildingId(val === 'ALL' ? 'ALL' : Number(val));
-                }}
-                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-600 text-xs font-semibold rounded-xl text-slate-600 appearance-none cursor-pointer"
-              >
-                <option value="ALL">All Buildings</option>
-                {buildings.map(b => (
-                  <option key={b.id} value={b.id}>{b.name} ({b.code})</option>
-                ))}
-              </select>
-              <div className="absolute right-4 top-4 pointer-events-none text-slate-400">
-                <BuildingIcon className="w-3.5 h-3.5" />
-              </div>
-            </div>
-
-            {/* Status */}
-            <div className="relative">
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-600 text-xs font-semibold rounded-xl text-slate-600 appearance-none cursor-pointer"
-              >
-                <option value="ALL">All Statuses</option>
-                <option value="ACTIVE">Currently Parked</option>
-                <option value="COMPLETED">Completed Session</option>
-              </select>
-              <div className="absolute right-4 top-4 pointer-events-none text-slate-400">
-                <Filter className="w-3.5 h-3.5" />
-              </div>
-            </div>
-
-            {/* From Date */}
-            <div className="relative">
-              <input
-                type="date"
-                value={fromDate}
-                onChange={(e) => setFromDate(e.target.value)}
-                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-600 text-xs font-semibold rounded-xl text-slate-600"
-              />
-            </div>
-
-            {/* To Date */}
-            <div className="relative">
-              <input
-                type="date"
-                value={toDate}
-                onChange={(e) => setToDate(e.target.value)}
-                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-600 text-xs font-semibold rounded-xl text-slate-600"
-              />
-            </div>
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+          {/* Search */}
+          <div className="relative">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
+            <input
+              type="text"
+              placeholder="Plate / Card / Slot code..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-600 text-xs font-semibold rounded-xl"
+            />
           </div>
-        ) : (
-          <div className="flex gap-4 max-w-lg">
-            <div className="relative flex-1">
-              <User className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
-              <input
-                type="number"
-                placeholder={lookupType === 'vehicle' ? 'Enter Vehicle ID (e.g. 15)...' : 'Enter Account ID (e.g. 10)...'}
-                value={lookupId}
-                onChange={(e) => setLookupId(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-600 text-xs font-semibold rounded-xl font-mono"
-              />
-            </div>
-            <button
-              onClick={() => triggerFetch(1)}
-              className="px-5 bg-[#006d43] hover:bg-[#005c38] text-white text-xs font-bold rounded-xl transition-all shadow-sm"
+
+          {/* Building */}
+          <div className="relative">
+            <select
+              value={selectedBuildingId}
+              onChange={(e) => {
+                const val = e.target.value;
+                setSelectedBuildingId(val === 'ALL' ? 'ALL' : Number(val));
+              }}
+              className="w-full px-4 py-3 bg-slate-50 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-600 text-xs font-semibold rounded-xl text-slate-600 appearance-none cursor-pointer"
             >
-              Lookup
-            </button>
+              <option value="ALL">All Buildings</option>
+              {buildings.map(b => (
+                <option key={b.id} value={b.id}>{b.name} ({b.code})</option>
+              ))}
+            </select>
+            <div className="absolute right-4 top-4 pointer-events-none text-slate-400">
+              <BuildingIcon className="w-3.5 h-3.5" />
+            </div>
           </div>
-        )}
+
+          {/* Status */}
+          <div className="relative">
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="w-full px-4 py-3 bg-slate-50 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-600 text-xs font-semibold rounded-xl text-slate-600 appearance-none cursor-pointer"
+            >
+              <option value="ALL">All Statuses</option>
+              <option value="ACTIVE">Currently Parked</option>
+              <option value="COMPLETED">Completed Session</option>
+            </select>
+            <div className="absolute right-4 top-4 pointer-events-none text-slate-400">
+              <Filter className="w-3.5 h-3.5" />
+            </div>
+          </div>
+
+          {/* From Date */}
+          <div className="relative">
+            <input
+              type="date"
+              value={fromDate}
+              onChange={(e) => setFromDate(e.target.value)}
+              className="w-full px-4 py-3 bg-slate-50 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-600 text-xs font-semibold rounded-xl text-slate-600"
+            />
+          </div>
+
+          {/* To Date */}
+          <div className="relative">
+            <input
+              type="date"
+              value={toDate}
+              onChange={(e) => setToDate(e.target.value)}
+              className="w-full px-4 py-3 bg-slate-50 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-600 text-xs font-semibold rounded-xl text-slate-600"
+            />
+          </div>
+        </div>
 
         {/* DATA TABLE */}
         <div className="overflow-x-auto border border-slate-50 rounded-xl">
@@ -340,17 +298,17 @@ export default function ParkingSessionWorkspace() {
                   <th className="px-6 py-4">Facility</th>
                   <th className="px-6 py-4">Slot</th>
                   <th className="px-6 py-4">Check-in / Check-out</th>
-                  <th className="px-6 py-4">Duration</th>
-                  <th className="px-6 py-4">Fee Paid</th>
                   <th className="px-6 py-4">Status</th>
-                  <th className="px-6 py-4 text-center">Inspect</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-xs">
                 {sessions.map((session) => {
                   const status = (session.sessionStatus || '').toUpperCase();
                   return (
-                    <tr key={session.id} className="hover:bg-slate-50/50 transition-colors">
+                    <tr
+                      key={session.id}
+                      className="hover:bg-slate-50/70 transition-colors"
+                    >
                       <td className="px-6 py-4 font-mono font-bold text-slate-400">
                         #{session.id}
                       </td>
@@ -361,22 +319,16 @@ export default function ParkingSessionWorkspace() {
                         {session.cardCode || '—'}
                       </td>
                       <td className="px-6 py-4 font-semibold text-slate-700">
-                        {session.buildingName}
+                        {getBuildingDisplayName(session.buildingName, session.buildingId)}
                       </td>
                       <td className="px-6 py-4 font-mono text-slate-600">
-                        {session.slotCode ? `${session.zoneCode || ''}-${session.slotCode}` : '—'}
+                        {formatSlot(session.slotCode, session.zoneCode, session.vehicleType)}
                       </td>
                       <td className="px-6 py-4 text-slate-500 leading-relaxed">
                         <div className="flex flex-col">
                           <span>In: {formatDate(session.checkInTime)}</span>
                           {session.checkOutTime && <span className="text-[10px] text-slate-400">Out: {formatDate(session.checkOutTime)}</span>}
                         </div>
-                      </td>
-                      <td className="px-6 py-4 text-slate-500">
-                        {calculateDuration(session.checkInTime, session.checkOutTime)}
-                      </td>
-                      <td className="px-6 py-4 font-bold text-slate-800">
-                        {session.totalFee ? `${session.totalFee.toLocaleString()} đ` : '—'}
                       </td>
                       <td className="px-6 py-4">
                         <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold capitalize ${
@@ -390,14 +342,6 @@ export default function ParkingSessionWorkspace() {
                           {session.sessionStatus}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-center">
-                        <button
-                          onClick={() => setSelectedSession(session)}
-                          className="p-1 text-slate-400 hover:text-[#006d43] rounded hover:bg-slate-100 transition-all"
-                        >
-                          <ExternalLink className="w-4 h-4" />
-                        </button>
-                      </td>
                     </tr>
                   );
                 })}
@@ -407,7 +351,7 @@ export default function ParkingSessionWorkspace() {
         </div>
 
         {/* PAGINATION */}
-        {lookupType === 'advanced' && !isLoading && sessions.length > 0 && (
+        {!isLoading && sessions.length > 0 && (
           <div className="p-4 bg-slate-50 border-t border-slate-100 flex items-center justify-between text-xs rounded-xl">
             <span className="text-slate-400">
               Showing Page {pageIndex} of {totalPages} (Total {totalCount} sessions)
@@ -441,73 +385,6 @@ export default function ParkingSessionWorkspace() {
         )}
       </div>
 
-      {/* DETAIL MODAL DRAWER */}
-      {selectedSession && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
-          <div className="bg-white w-full max-w-md rounded-2xl shadow-xl overflow-hidden border border-slate-100">
-            <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between bg-slate-50">
-              <h3 className="font-bold text-slate-800">Session Inspection</h3>
-              <button
-                onClick={() => setSelectedSession(null)}
-                className="text-slate-400 hover:text-slate-600 text-xs font-bold uppercase"
-              >
-                Close
-              </button>
-            </div>
-            <div className="p-6 space-y-4 text-xs text-slate-600">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <span className="text-[10px] text-slate-400 uppercase tracking-wider block">Session ID</span>
-                  <span className="font-mono font-bold text-slate-800">#{selectedSession.id}</span>
-                </div>
-                <div>
-                  <span className="text-[10px] text-slate-400 uppercase tracking-wider block">License Plate</span>
-                  <span className="font-mono font-bold text-slate-800 bg-slate-100 px-2 py-0.5 rounded">{selectedSession.licensePlateIn}</span>
-                </div>
-                <div>
-                  <span className="text-[10px] text-slate-400 uppercase tracking-wider block">Building Facility</span>
-                  <span className="font-semibold text-slate-800">{selectedSession.buildingName}</span>
-                </div>
-                <div>
-                  <span className="text-[10px] text-slate-400 uppercase tracking-wider block">Zone - Slot Code</span>
-                  <span className="font-mono font-semibold text-slate-800">
-                    {selectedSession.slotCode ? `${selectedSession.zoneCode || ''}-${selectedSession.slotCode}` : '—'}
-                  </span>
-                </div>
-                <div>
-                  <span className="text-[10px] text-slate-400 uppercase tracking-wider block">Vehicle Type</span>
-                  <span className="font-medium text-slate-800">{selectedSession.vehicleType || 'Motorbike'}</span>
-                </div>
-                <div>
-                  <span className="text-[10px] text-slate-400 uppercase tracking-wider block">Physical Card ID</span>
-                  <span className="font-mono text-slate-800">{selectedSession.cardCode || '—'}</span>
-                </div>
-                <div>
-                  <span className="text-[10px] text-slate-400 uppercase tracking-wider block">Check-in Time</span>
-                  <span className="font-medium text-slate-800">{formatDate(selectedSession.checkInTime)}</span>
-                </div>
-                <div>
-                  <span className="text-[10px] text-slate-400 uppercase tracking-wider block">Check-out Time</span>
-                  <span className="font-medium text-slate-800">{formatDate(selectedSession.checkOutTime)}</span>
-                </div>
-              </div>
-
-              <div className="border-t border-slate-100 pt-4 grid grid-cols-2 gap-4">
-                <div>
-                  <span className="text-[10px] text-slate-400 uppercase tracking-wider block font-bold">Total Duration</span>
-                  <span className="text-sm font-bold text-slate-800">{calculateDuration(selectedSession.checkInTime, selectedSession.checkOutTime)}</span>
-                </div>
-                <div>
-                  <span className="text-[10px] text-slate-400 uppercase tracking-wider block font-bold">Calculated Fee</span>
-                  <span className="text-sm font-black text-slate-800">
-                    {selectedSession.totalFee ? `${selectedSession.totalFee.toLocaleString()} đ` : '0 đ'}
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

@@ -185,24 +185,24 @@ export default function BlacklistManagement({ role }: BlacklistManagementProps) 
 
       {/* Stats Board */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="bg-white border border-slate-100 rounded-2xl p-5 flex items-center gap-4 shadow-sm">
-          <div className="w-12 h-12 rounded-xl bg-rose-50 flex items-center justify-center text-rose-600">
-            <Car className="w-6 h-6" />
-          </div>
+        <div className="bg-white border border-slate-100 rounded-2xl p-5 flex items-center justify-between shadow-sm">
           <div>
             <p className="text-slate-400 text-xs font-semibold uppercase tracking-wider">Blocked Vehicles</p>
             <h3 className="text-2xl font-black text-slate-800 mt-0.5">{stats.vehicles}</h3>
           </div>
+          <span className="px-3 py-1 rounded-lg bg-rose-50 text-rose-700 font-bold text-xs border border-rose-100">
+            Vehicle
+          </span>
         </div>
 
-        <div className="bg-white border border-slate-100 rounded-2xl p-5 flex items-center gap-4 shadow-sm">
-          <div className="w-12 h-12 rounded-xl bg-orange-50 flex items-center justify-center text-orange-600">
-            <CreditCard className="w-6 h-6" />
-          </div>
+        <div className="bg-white border border-slate-100 rounded-2xl p-5 flex items-center justify-between shadow-sm">
           <div>
             <p className="text-slate-400 text-xs font-semibold uppercase tracking-wider">Blocked Cards</p>
             <h3 className="text-2xl font-black text-slate-800 mt-0.5">{stats.cards}</h3>
           </div>
+          <span className="px-3 py-1 rounded-lg bg-orange-50 text-orange-700 font-bold text-xs border border-orange-100">
+            Card
+          </span>
         </div>
       </div>
 
@@ -271,18 +271,15 @@ export default function BlacklistManagement({ role }: BlacklistManagementProps) 
                   <tr key={item.id} className="hover:bg-slate-50/50 transition">
                     <td className="px-6 py-4 whitespace-nowrap">
                       {item.licensePlate ? (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-rose-50 text-rose-700 font-bold text-[10px] border border-rose-100">
-                          <Car className="w-3.5 h-3.5" />
+                        <span className="inline-flex items-center px-2.5 py-1 rounded-lg bg-rose-50 text-rose-700 font-bold text-[10px] border border-rose-100">
                           Vehicle Block
                         </span>
                       ) : item.cardCode ? (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-orange-50 text-orange-700 font-bold text-[10px] border border-orange-100">
-                          <CreditCard className="w-3.5 h-3.5" />
+                        <span className="inline-flex items-center px-2.5 py-1 rounded-lg bg-orange-50 text-orange-700 font-bold text-[10px] border border-orange-100">
                           Card Block
                         </span>
                       ) : (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-50 text-amber-700 font-bold text-[10px] border border-amber-100">
-                          <AlertOctagon className="w-3.5 h-3.5" />
+                        <span className="inline-flex items-center px-2.5 py-1 rounded-lg bg-amber-50 text-amber-700 font-bold text-[10px] border border-amber-100">
                           Incident ID Block
                         </span>
                       )}

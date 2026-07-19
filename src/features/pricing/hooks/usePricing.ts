@@ -269,7 +269,7 @@ interface PolicyApiResponse {
           incidentTypeId: it.id,
           name: it.incidentName,
           type: it.incidentCode,
-          amount: `${activeConfig.penaltyFee.toLocaleString('en-US')} VND`,
+          amount: `${activeConfig.penaltyFee.toLocaleString('en-US')} đ`,
           amountNum: activeConfig.penaltyFee,
           description: it.description,
           isActive: true,
@@ -308,12 +308,12 @@ interface PolicyApiResponse {
         const displayVehicle = isNight ? `${vehicleTypeName} (Night)` : vehicleTypeName;
         
         const hoursBase = window.baseDurationMinutes / 60;
-        const formatBase = `${window.basePrice.toLocaleString('en-US')} VND / ${hoursBase === 12 ? 'Night' : `${hoursBase} hrs`}`;
+        const formatBase = `${window.basePrice.toLocaleString('en-US')} đ / ${hoursBase === 12 ? 'Night' : `${hoursBase} hrs`}`;
         
         const hoursInc = window.incrementBlockMinutes / 60;
-        const formatInc = `+${window.incrementPrice.toLocaleString('en-US')} VND / ${hoursInc} hr`;
+        const formatInc = `+${window.incrementPrice.toLocaleString('en-US')} đ / ${hoursInc} hr`;
         
-        const formatCap = window.windowCap ? `Max ${window.windowCap.toLocaleString('en-US')} VND` : 'No Cap';
+        const formatCap = window.windowCap ? `Max ${window.windowCap.toLocaleString('en-US')} đ` : 'No Cap';
         const formatGrace = `${window.gracePeriodMinutes} mins`;
         
         rows.push({

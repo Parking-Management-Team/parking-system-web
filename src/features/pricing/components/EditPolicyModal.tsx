@@ -30,7 +30,7 @@ export default function EditPolicyModal({ pricing }: EditPolicyModalProps) {
   const vehicleTypeName = vehicleTypes.find(v => v.id === editPolicyTarget.vehicleTypeId)?.name || 'Vehicle Type';
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 overflow-y-auto">
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 overflow-y-auto">
       <div className="bg-white w-full max-w-lg rounded-2xl shadow-xl flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
         
         {/* ===== HEADER ===== */}

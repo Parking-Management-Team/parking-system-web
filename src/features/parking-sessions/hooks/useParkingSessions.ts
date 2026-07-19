@@ -13,96 +13,155 @@ export function useParkingSessions() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const [cards, setCards] = useState<any[]>([]);
+  const [zones, setZones] = useState<any[]>([]);
+  const [slots, setSlots] = useState<any[]>([]);
+  const [hasLoadedSupport, setHasLoadedSupport] = useState(false);
+
+  const loadSupportData = useCallback(async () => {
+    try {
+      const [cardsRes, zonesRes, slotsRes] = await Promise.all([
+        api.get<any>('/cards').catch(() => null),
+        api.get<any>('/Zones').catch(() => null),
+        api.get<any>('/ParkingSlots').catch(() => null)
+      ]);
+
+      const loadedCards = cardsRes?.success && cardsRes.data ? cardsRes.data : (Array.isArray(cardsRes) ? cardsRes : []);
+      const loadedZones = zonesRes?.success && zonesRes.data ? zonesRes.data : (Array.isArray(zonesRes) ? zonesRes : []);
+      const loadedSlots = slotsRes?.success && slotsRes.data ? slotsRes.data : (Array.isArray(slotsRes) ? slotsRes : []);
+
+      return { cards: loadedCards, zones: loadedZones, slots: loadedSlots };
+    } catch (err) {
+      console.error('Error fetching support data in hook:', err);
+      return { cards: [], zones: [], slots: [] };
+    }
+  }, []);
+
   const fetchSessions = useCallback(async (filters: SessionFilter) => {
     setIsLoading(true);
     setError(null);
     try {
-      const params = new URLSearchParams();
-      params.append('pageIndex', filters.pageIndex.toString());
-      params.append('pageSize', filters.pageSize.toString());
-      if (filters.fromDate) params.append('fromDate', filters.fromDate);
-      if (filters.toDate) params.append('toDate', filters.toDate);
-      if (filters.buildingId) params.append('buildingId', filters.buildingId.toString());
-      if (filters.status && filters.status !== 'ALL') params.append('status', filters.status);
-      if (filters.search) params.append('search', filters.search);
+      let currentCards = cards;
+      let currentZones = zones;
+      let currentSlots = slots;
 
-      let rawData: any = null;
-      let isFallback = false;
-
-      try {
-        const response = await api.get<any>(`/parking-sessions/history?${params.toString()}`);
-        if (response && response.success && response.data) {
-          rawData = response.data;
-        } else if (response && response.items) {
-          rawData = response;
-        } else if (Array.isArray(response)) {
-          rawData = { items: response, totalCount: response.length };
-        } else if (response && response.data && Array.isArray(response.data)) {
-          rawData = { items: response.data, totalCount: response.data.length };
-        }
-      } catch (historyErr) {
-        console.warn('Advanced history endpoint failed, falling back to general parking-sessions endpoint:', historyErr);
-        isFallback = true;
+      if (!hasLoadedSupport) {
+        const support = await loadSupportData();
+        currentCards = support.cards;
+        currentZones = support.zones;
+        currentSlots = support.slots;
+        setCards(support.cards);
+        setZones(support.zones);
+        setSlots(support.slots);
+        setHasLoadedSupport(true);
       }
 
-      if (isFallback || !rawData) {
-        // Fallback to general list and filter locally
-        const fallbackRes = await api.get<any>('/parking-sessions');
-        const items = Array.isArray(fallbackRes) ? fallbackRes : fallbackRes.data || [];
-        
-        let filtered = items;
-        if (filters.status && filters.status !== 'ALL') {
-          filtered = filtered.filter((s: any) => (s.sessionStatus || '').toUpperCase() === filters.status?.toUpperCase());
-        }
-        if (filters.buildingId) {
-          filtered = filtered.filter((s: any) => s.buildingId === filters.buildingId);
-        }
-        if (filters.search) {
-          const searchVal = filters.search.trim().toLowerCase();
-          filtered = filtered.filter((s: any) => 
-            (s.licensePlateIn || '').toLowerCase().includes(searchVal) ||
-            (s.slotCode || '').toLowerCase().includes(searchVal) ||
-            (s.cardCode || '').toLowerCase().includes(searchVal)
-          );
-        }
+      let endpoint = '/parking-sessions';
+      if (filters.status === 'ACTIVE') {
+        endpoint = '/parking-sessions/active';
+      }
 
-        const count = filtered.length;
-        const pSize = filters.pageSize;
-        const pageIdx = filters.pageIndex;
-        const tPages = Math.max(1, Math.ceil(count / pSize));
-        const sliced = filtered.slice((pageIdx - 1) * pSize, pageIdx * pSize);
+      const response = await api.get<any>(endpoint);
+      let items: any[] = [];
+      if (response && response.success && Array.isArray(response.data)) {
+        items = response.data;
+      } else if (response && Array.isArray(response.items)) {
+        items = response.items;
+      } else if (Array.isArray(response)) {
+        items = response;
+      } else if (response && response.data && Array.isArray(response.data.items)) {
+        items = response.data.items;
+      }
 
-        rawData = {
-          items: sliced,
-          totalCount: count,
-          totalPages: tPages,
-          pageIndex: pageIdx,
-          pageSize: pSize
+      // Enrich items with support data
+      const enrichedItems = items.map((item: any) => {
+        const cardObj = currentCards.find((c: any) => c.id === item.cardId);
+        const slotObj = currentSlots.find((s: any) => s.id === item.slotId);
+        const zoneObj = currentZones.find((z: any) => z.id === (slotObj?.zoneId || item.zoneId));
+
+        const cardCode = cardObj?.cardCode || item.cardCode || '';
+        const slotCode = slotObj?.code || item.slotCode || '';
+        const zoneCode = zoneObj?.code || item.zoneCode || '';
+
+        // If cardCode is resolved, use it for licensePlateIn fallback if empty
+        const resolvedLicensePlateIn = item.licensePlateIn || cardCode || '';
+
+        return {
+          ...item,
+          cardCode,
+          slotCode,
+          zoneCode,
+          licensePlateIn: resolvedLicensePlateIn,
         };
+      });
+
+      // Filter locally since Backend handles simple list retrieval
+      let filtered = enrichedItems;
+      if (filters.buildingId) {
+        filtered = filtered.filter((s: any) => s.buildingId === filters.buildingId);
       }
+      if (filters.status && filters.status !== 'ALL') {
+        filtered = filtered.filter((s: any) => (s.sessionStatus || '').toUpperCase() === filters.status?.toUpperCase());
+      }
+      if (filters.search) {
+        const searchVal = filters.search.trim().toLowerCase();
+        filtered = filtered.filter((s: any) => 
+          (s.licensePlateIn || '').toLowerCase().includes(searchVal) ||
+          (s.licensePlateOut || '').toLowerCase().includes(searchVal) ||
+          (s.slotCode || '').toLowerCase().includes(searchVal) ||
+          (s.cardCode || '').toLowerCase().includes(searchVal) ||
+          String(s.id).includes(searchVal)
+        );
+      }
+
+      // Sort by check-in time descending (most recent first)
+      filtered.sort((a, b) => new Date(b.checkInTime).getTime() - new Date(a.checkInTime).getTime());
+
+      const count = filtered.length;
+      const pSize = filters.pageSize;
+      const pageIdx = filters.pageIndex;
+      const tPages = Math.max(1, Math.ceil(count / pSize));
+      const sliced = filtered.slice((pageIdx - 1) * pSize, pageIdx * pSize);
 
       // Map response to unified ParkingSession format
-      const mappedItems: ParkingSession[] = (rawData.items || []).map((item: any) => ({
-        id: item.id,
-        licensePlateIn: item.licensePlateIn || item.licensePlate || '',
-        licensePlateOut: item.licensePlateOut,
-        checkInTime: item.checkInTime || '',
-        checkOutTime: item.checkOutTime,
-        slotCode: item.slotCode,
-        zoneCode: item.zoneCode,
-        sessionStatus: item.sessionStatus || (item.checkOutTime ? 'COMPLETED' : 'ACTIVE'),
-        buildingName: item.buildingName || 'Building',
-        buildingId: item.buildingId,
-        totalFee: item.totalFee || item.fee || 0,
-        cardCode: item.cardCode || item.cardId?.toString(),
-        vehicleType: item.vehicleType || (item.slotCode?.startsWith('M') ? 'Motorbike' : 'Car'),
-      }));
+      const mappedItems: ParkingSession[] = sliced.map((item: any) => {
+        return {
+          id: item.id,
+          vehicleId: item.vehicleId,
+          accountId: item.accountId,
+          buildingId: item.buildingId,
+          cardId: item.cardId,
+          zoneId: item.zoneId,
+          slotId: item.slotId,
+          bookingId: item.bookingId,
+          bookingCode: item.bookingCode,
+          monthlySubscriptionId: item.monthlySubscriptionId,
+          inStaffId: item.inStaffId,
+          outStaffId: item.outStaffId,
+          checkInTime: item.checkInTime || '',
+          checkOutTime: item.checkOutTime,
+          licensePlateIn: item.licensePlateIn,
+          licensePlateOut: item.licensePlateOut,
+          sessionStatus: item.sessionStatus || (item.checkOutTime ? 'COMPLETED' : 'ACTIVE'),
+          cardCode: item.cardCode || '',
+          zoneCode: item.zoneCode || '',
+          slotCode: item.slotCode || '',
+          totalFee: item.totalFee,
+          penaltyFee: item.penaltyFee,
+          amountDue: item.amountDue,
+          imageIn: item.imageIn,
+          imageOut: item.imageOut,
+          vehicleType: item.vehicleType || 'CAR',
+          customerType: item.customerType || 'WALK_IN',
+          buildingName: item.buildingName || 'Building',
+        };
+      });
 
       setSessions(mappedItems);
-      setTotalCount(rawData.totalCount || mappedItems.length);
-      setTotalPages(rawData.totalPages || Math.ceil(mappedItems.length / filters.pageSize));
-      setPageIndex(rawData.pageIndex || filters.pageIndex);
-      setPageSize(rawData.pageSize || filters.pageSize);
+      setTotalCount(count);
+      setTotalPages(tPages);
+      setPageIndex(pageIdx);
+      setPageSize(pSize);
 
     } catch (err: any) {
       console.error('Error loading sessions:', err);
@@ -110,26 +169,64 @@ export function useParkingSessions() {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [cards, zones, slots, hasLoadedSupport, loadSupportData]);
 
   const fetchSessionByVehicle = useCallback(async (vehicleId: number) => {
     setIsLoading(true);
     setError(null);
     try {
+      let currentCards = cards;
+      let currentZones = zones;
+      let currentSlots = slots;
+
+      if (!hasLoadedSupport) {
+        const support = await loadSupportData();
+        currentCards = support.cards;
+        currentZones = support.zones;
+        currentSlots = support.slots;
+        setCards(support.cards);
+        setZones(support.zones);
+        setSlots(support.slots);
+        setHasLoadedSupport(true);
+      }
+
       const res = await api.get<any>(`/parking-sessions/by-vehicle/${vehicleId}`);
       const items = Array.isArray(res) ? res : res.data || [];
-      const mapped = items.map((item: any) => ({
-        id: item.id,
-        licensePlateIn: item.licensePlateIn || item.licensePlate || '',
-        checkInTime: item.checkInTime || '',
-        checkOutTime: item.checkOutTime,
-        slotCode: item.slotCode,
-        zoneCode: item.zoneCode,
-        sessionStatus: item.sessionStatus || (item.checkOutTime ? 'COMPLETED' : 'ACTIVE'),
-        buildingName: item.buildingName || 'Building',
-        totalFee: item.totalFee || 0,
-        cardCode: item.cardCode,
-      }));
+      const mapped: ParkingSession[] = items.map((item: any) => {
+        const cardObj = currentCards.find((c: any) => c.id === item.cardId);
+        const slotObj = currentSlots.find((s: any) => s.id === item.slotId);
+        const zoneObj = currentZones.find((z: any) => z.id === (slotObj?.zoneId || item.zoneId));
+
+        const cardCode = cardObj?.cardCode || item.cardCode || '';
+        const slotCode = slotObj?.code || item.slotCode || '';
+        const zoneCode = zoneObj?.code || item.zoneCode || '';
+
+        return {
+          id: item.id,
+          vehicleId: item.vehicleId,
+          accountId: item.accountId,
+          buildingId: item.buildingId,
+          cardId: item.cardId,
+          zoneId: item.zoneId,
+          slotId: item.slotId,
+          checkInTime: item.checkInTime || '',
+          checkOutTime: item.checkOutTime,
+          licensePlateIn: item.licensePlateIn || cardCode || '',
+          licensePlateOut: item.licensePlateOut,
+          sessionStatus: item.sessionStatus || (item.checkOutTime ? 'COMPLETED' : 'ACTIVE'),
+          cardCode,
+          zoneCode,
+          slotCode,
+          totalFee: item.totalFee,
+          penaltyFee: item.penaltyFee,
+          amountDue: item.amountDue,
+          imageIn: item.imageIn,
+          imageOut: item.imageOut,
+          vehicleType: item.vehicleType || 'CAR',
+          customerType: item.customerType || 'WALK_IN',
+          buildingName: item.buildingName || 'Building',
+        };
+      });
       setSessions(mapped);
       setTotalCount(mapped.length);
       setTotalPages(1);
@@ -140,26 +237,64 @@ export function useParkingSessions() {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [cards, zones, slots, hasLoadedSupport, loadSupportData]);
 
   const fetchSessionByAccount = useCallback(async (accountId: number) => {
     setIsLoading(true);
     setError(null);
     try {
+      let currentCards = cards;
+      let currentZones = zones;
+      let currentSlots = slots;
+
+      if (!hasLoadedSupport) {
+        const support = await loadSupportData();
+        currentCards = support.cards;
+        currentZones = support.zones;
+        currentSlots = support.slots;
+        setCards(support.cards);
+        setZones(support.zones);
+        setSlots(support.slots);
+        setHasLoadedSupport(true);
+      }
+
       const res = await api.get<any>(`/parking-sessions/by-account/${accountId}`);
-      const items = Array.isArray(res) ? res : res.data || [];
-      const mapped = items.map((item: any) => ({
-        id: item.id,
-        licensePlateIn: item.licensePlateIn || item.licensePlate || '',
-        checkInTime: item.checkInTime || '',
-        checkOutTime: item.checkOutTime,
-        slotCode: item.slotCode,
-        zoneCode: item.zoneCode,
-        sessionStatus: item.sessionStatus || (item.checkOutTime ? 'COMPLETED' : 'ACTIVE'),
-        buildingName: item.buildingName || 'Building',
-        totalFee: item.totalFee || 0,
-        cardCode: item.cardCode,
-      }));
+      const responseData = res && res.success && Array.isArray(res.data) ? res.data : (Array.isArray(res) ? res : res.data || []);
+      const mapped: ParkingSession[] = responseData.map((item: any) => {
+        const cardObj = currentCards.find((c: any) => c.id === item.cardId);
+        const slotObj = currentSlots.find((s: any) => s.id === item.slotId);
+        const zoneObj = currentZones.find((z: any) => z.id === (slotObj?.zoneId || item.zoneId));
+
+        const cardCode = cardObj?.cardCode || item.cardCode || '';
+        const slotCode = slotObj?.code || item.slotCode || '';
+        const zoneCode = zoneObj?.code || item.zoneCode || '';
+
+        return {
+          id: item.id,
+          vehicleId: item.vehicleId,
+          accountId: item.accountId,
+          buildingId: item.buildingId,
+          cardId: item.cardId,
+          zoneId: item.zoneId,
+          slotId: item.slotId,
+          checkInTime: item.checkInTime || '',
+          checkOutTime: item.checkOutTime,
+          licensePlateIn: item.licensePlateIn || cardCode || '',
+          licensePlateOut: item.licensePlateOut,
+          sessionStatus: item.sessionStatus || (item.checkOutTime ? 'COMPLETED' : 'ACTIVE'),
+          cardCode,
+          zoneCode,
+          slotCode,
+          totalFee: item.totalFee,
+          penaltyFee: item.penaltyFee,
+          amountDue: item.amountDue,
+          imageIn: item.imageIn,
+          imageOut: item.imageOut,
+          vehicleType: item.vehicleType || 'CAR',
+          customerType: item.customerType || 'WALK_IN',
+          buildingName: item.buildingName || 'Building',
+        };
+      });
       setSessions(mapped);
       setTotalCount(mapped.length);
       setTotalPages(1);
@@ -170,7 +305,7 @@ export function useParkingSessions() {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [cards, zones, slots, hasLoadedSupport, loadSupportData]);
 
   return {
     sessions,

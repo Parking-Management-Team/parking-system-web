@@ -23,7 +23,7 @@ const emptyForm: FormState = {
 };
 
 const formatCurrency = (amount?: number | null) =>
-  `${Math.round(Number(amount ?? 0)).toLocaleString('vi-VN')} VND`;
+  `${Math.round(Number(amount ?? 0)).toLocaleString('vi-VN')} đ`;
 
 const getApiMessage = (error: unknown, fallback: string) => {
   if (error && typeof error === 'object' && 'data' in error) {

@@ -195,8 +195,8 @@ export default function Home() {
         <div className="max-w-5xl mx-auto px-6 lg:px-12 py-16 flex flex-col md:flex-row md:items-end md:justify-between gap-10">
           <div>
             <span className="text-2xl font-black tracking-tight block mb-2">NexPark</span>
-            <p className="text-white/25 text-xs font-mono max-w-xs leading-relaxed">
-              Smart parking infrastructure for modern cities.
+            <p className="text-white/40 text-xs font-mono max-w-xs leading-relaxed">
+              Smart parking infrastructure at Tòa nhà FPT.
             </p>
           </div>
           <div className="flex flex-wrap gap-x-10 gap-y-4 text-xs text-white/30">

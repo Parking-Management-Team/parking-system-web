@@ -25,7 +25,7 @@ export default function ActivatePolicyDialog({ pricing }: ActivatePolicyDialogPr
   const vehicleTypeName = matchingVehicle ? matchingVehicle.name : `Vehicle Type #${activatingPolicy.vehicleTypeId}`;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
       <div className="bg-white w-full max-w-md rounded-2xl shadow-xl border border-[#d8e3fb] p-6 animate-in zoom-in-95 duration-200 flex flex-col gap-5">
         
         {/* ===== HEADER ===== */}

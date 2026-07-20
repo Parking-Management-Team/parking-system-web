@@ -49,8 +49,6 @@ interface FacilitiesModalsProps {
   setFormFloorStatus: (status: 'Active' | 'Inactive') => void;
   formFloorType: string;
   setFormFloorType: (type: string) => void;
-  formFloorInitDefaultZones: boolean;
-  setFormFloorInitDefaultZones: (init: boolean) => void;
   
   isEditFloorOpen: boolean;
   setIsEditFloorOpen: (open: boolean) => void;
@@ -143,8 +141,6 @@ export default function FacilitiesModals({
   setFormFloorStatus,
   formFloorType,
   setFormFloorType,
-  formFloorInitDefaultZones,
-  setFormFloorInitDefaultZones,
   
   isEditFloorOpen,
   setIsEditFloorOpen,
@@ -191,7 +187,7 @@ export default function FacilitiesModals({
     <>
       {/* 1. MODAL THÊM TÒA NHÀ MỚI */}
       {isAddBldOpen && (
-        <div className="fixed inset-0 bg-[#111c2d]/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-[#111c2d]/40 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-xl border border-[#006d43]/10 p-6 max-w-md w-full animate-in fade-in zoom-in-95 duration-150">
             <h3 className="text-lg font-bold text-[#111c2d] mb-4">Add New Building</h3>
             <form onSubmit={handleAddBldSubmit} className="space-y-4">
@@ -264,7 +260,7 @@ export default function FacilitiesModals({
 
       {/* 2. MODAL CHỈNH SỬA TÒA NHÀ */}
       {isEditBldOpen && (
-        <div className="fixed inset-0 bg-[#111c2d]/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-[#111c2d]/40 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-xl border border-[#006d43]/10 p-6 max-w-md w-full animate-in fade-in zoom-in-95 duration-150">
             <h3 className="text-lg font-bold text-[#111c2d] mb-4">Edit Building Configuration</h3>
             <form onSubmit={handleEditBldPreSubmit} className="space-y-4">
@@ -349,7 +345,7 @@ export default function FacilitiesModals({
 
       {/* 3. CẢNH BÁO GIẢM TẦNG TÒA NHÀ (WARNING MODAL) */}
       {isWarningBldOpen && (
-        <div className="fixed inset-0 bg-[#111c2d]/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-[#111c2d]/40 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-xl border border-red-100 p-6 max-w-md w-full animate-in fade-in zoom-in-95 duration-150">
             <div className="flex items-center gap-2 text-red-600 mb-3">
               <span className="material-symbols-outlined text-2xl">warning</span>
@@ -383,7 +379,7 @@ export default function FacilitiesModals({
 
       {/* 4. MODAL XÁC NHẬN XÓA TÒA NHÀ */}
       {isDelBldOpen && (
-        <div className="fixed inset-0 bg-[#111c2d]/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-[#111c2d]/40 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-xl border border-red-100 p-6 max-w-md w-full animate-in fade-in zoom-in-95 duration-150">
             <div className="flex items-center gap-2 text-red-600 mb-3">
               <span className="material-symbols-outlined text-2xl">delete_forever</span>
@@ -420,7 +416,7 @@ export default function FacilitiesModals({
 
       {/* 5. MODAL THÊM TẦNG MỚI */}
       {isAddFloorOpen && (
-        <div className="fixed inset-0 bg-[#111c2d]/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-[#111c2d]/40 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-xl border border-[#006d43]/10 p-6 max-w-md w-full animate-in fade-in zoom-in-95 duration-150">
             <h3 className="text-lg font-bold text-[#111c2d] mb-4">Add Floor level</h3>
             <form onSubmit={handleAddFloorSubmit} className="space-y-4">
@@ -471,22 +467,6 @@ export default function FacilitiesModals({
                 </select>
               </div>
 
-              <div className="flex items-start gap-2 pt-1">
-                <input
-                  type="checkbox"
-                  id="initDefaultZones"
-                  checked={formFloorInitDefaultZones}
-                  onChange={(e) => setFormFloorInitDefaultZones(e.target.checked)}
-                  className="mt-1 rounded text-[#006d43] focus:ring-[#006d43] h-4 w-4 border-slate-300"
-                />
-                <label htmlFor="initDefaultZones" className="text-xs text-[#3d4a41] font-semibold leading-tight cursor-pointer">
-                  Initialize with default zones
-                  <span className="block text-[10px] font-normal text-slate-500 mt-0.5">
-                    Automatically configure ground floor/default parking zone for this level
-                  </span>
-                </label>
-              </div>
-
               <div className="flex justify-end gap-2 pt-2">
                 <button 
                   type="button"
@@ -509,7 +489,7 @@ export default function FacilitiesModals({
 
       {/* 6. MODAL CHỈNH SỬA TẦNG */}
       {isEditFloorOpen && (
-        <div className="fixed inset-0 bg-[#111c2d]/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-[#111c2d]/40 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-xl border border-[#006d43]/10 p-6 max-w-md w-full animate-in fade-in zoom-in-95 duration-150">
             <h3 className="text-lg font-bold text-[#111c2d] mb-4">Edit Floor Structure</h3>
             <form onSubmit={handleEditFloorSubmit} className="space-y-4">
@@ -532,6 +512,20 @@ export default function FacilitiesModals({
                   onChange={(e) => setFormFloorName(e.target.value)}
                   className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm text-[#111c2d] focus:outline-none focus:border-[#006d43]"
                 />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-[#3d4a41] mb-1">Floor Type *</label>
+                <select
+                  value={formFloorType}
+                  onChange={(e) => setFormFloorType(e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm text-[#111c2d] focus:outline-none focus:border-[#006d43]"
+                >
+                  <option value="Standard">Standard Floor</option>
+                  <option value="Ground">Ground Floor</option>
+                  <option value="Basement">Basement</option>
+                  <option value="Roof">Roof</option>
+                  <option value="EV Dedicated">EV Dedicated Floor</option>
+                </select>
               </div>
 
               <div>
@@ -571,7 +565,7 @@ export default function FacilitiesModals({
 
       {/* 7. MODAL XÁC NHẬN XÓA TẦNG */}
       {isDelFloorOpen && (
-        <div className="fixed inset-0 bg-[#111c2d]/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-[#111c2d]/40 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-xl border border-red-100 p-6 max-w-md w-full animate-in fade-in zoom-in-95 duration-150">
             <div className="flex items-center gap-2 text-red-600 mb-3">
               <span className="material-symbols-outlined">delete</span>
@@ -607,7 +601,7 @@ export default function FacilitiesModals({
 
       {/* 8. MODAL THÊM PHÂN KHU (ZONE) */}
       {isAddZoneOpen && (
-        <div className="fixed inset-0 bg-[#111c2d]/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-[#111c2d]/40 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-xl border border-[#006d43]/10 p-6 max-w-md w-full animate-in fade-in zoom-in-95 duration-150">
             <h3 className="text-lg font-bold text-[#111c2d] mb-4">Add Parking Zone</h3>
             <form onSubmit={handleAddZoneSubmit} className="space-y-4">
@@ -703,7 +697,7 @@ export default function FacilitiesModals({
 
       {/* 9. MODAL CHỈNH SỬA PHÂN KHU (ZONE) */}
       {isEditZoneOpen && (
-        <div className="fixed inset-0 bg-[#111c2d]/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-[#111c2d]/40 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-xl border border-[#006d43]/10 p-6 max-w-md w-full animate-in fade-in zoom-in-95 duration-150">
             <h3 className="text-lg font-bold text-[#111c2d] mb-4">Edit Zone Details</h3>
             <form onSubmit={handleEditZoneSubmit} className="space-y-4">
@@ -797,7 +791,7 @@ export default function FacilitiesModals({
 
       {/* 10. MODAL XÁC NHẬN XÓA PHÂN KHU (ZONE) */}
       {isDelZoneOpen && (
-        <div className="fixed inset-0 bg-[#111c2d]/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-[#111c2d]/40 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-xl border border-red-100 p-6 max-w-md w-full animate-in fade-in zoom-in-95 duration-150">
             <div className="flex items-center gap-2 text-red-600 mb-3">
               <span className="material-symbols-outlined text-2xl">delete</span>

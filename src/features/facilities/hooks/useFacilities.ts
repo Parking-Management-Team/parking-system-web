@@ -9,6 +9,8 @@ interface FloorResponse {
   buildingId: number;
   floorNumber: number;
   name?: string;
+  type?: string;
+  floorType?: string;
   status: number | string;
 }
 
@@ -143,7 +145,6 @@ export function useFacilities() {
   const [formFloorTotalSlots, setFormFloorTotalSlots] = useState(10);
   const [formFloorStatus, setFormFloorStatus] = useState<'Active' | 'Inactive'>('Active');
   const [formFloorType, setFormFloorType] = useState<string>('Standard');
-  const [formFloorInitDefaultZones, setFormFloorInitDefaultZones] = useState<boolean>(false);
   const [editingFloor, setEditingFloor] = useState<Floor | null>(null);
   const [deletingFloor, setDeletingFloor] = useState<Floor | null>(null);
 
@@ -199,6 +200,7 @@ export function useFacilities() {
           buildingId: item.buildingId,
           floorNumber: item.floorNumber,
           name: item.name || `Floor ${item.floorNumber}`,
+          floorType: item.type || item.floorType || 'Standard',
           totalSlots: 0, // Sẽ được tự động gán động bằng tổng capacity của các Zone bên trong
           status: mapStatusToFrontend(item.status)
         }));
@@ -490,7 +492,6 @@ export function useFacilities() {
     setFormFloorTotalSlots(10);
     setFormFloorStatus('Active');
     setFormFloorType('Standard');
-    setFormFloorInitDefaultZones(false);
     setIsAddFloorOpen(true);
   };
 
@@ -501,6 +502,7 @@ export function useFacilities() {
     setFormFloorName(floor.name);
     setFormFloorTotalSlots(floor.totalSlots);
     setFormFloorStatus(floor.status);
+    setFormFloorType(floor.floorType || 'Standard');
     setIsEditFloorOpen(true);
   };
 
@@ -822,8 +824,6 @@ export function useFacilities() {
     setFormFloorStatus,
     formFloorType,
     setFormFloorType,
-    formFloorInitDefaultZones,
-    setFormFloorInitDefaultZones,
     editingFloor,
     setEditingFloor,
     deletingFloor,

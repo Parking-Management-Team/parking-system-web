@@ -10,7 +10,7 @@ import {
 import type { IncidentType, PenaltyConfig } from '@/features/incident-type/types';
 
 const formatCurrency = (amount?: number | null) =>
-  `${Math.round(Number(amount ?? 0)).toLocaleString('vi-VN')} VND`;
+  `${Math.round(Number(amount ?? 0)).toLocaleString('vi-VN')} đ`;
 
 export default function IncidentTypeReference() {
   const { showToast } = useAuth();

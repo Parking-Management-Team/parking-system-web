@@ -229,7 +229,7 @@ export default function BuildingDetails() {
 
       {/* Warning Reduction Modal */}
       {isWarningBldOpen && (
-        <div className="fixed inset-0 bg-[#111c2d]/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-[#111c2d]/40 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-xl border border-red-100 p-6 max-w-md w-full animate-in fade-in zoom-in-95 duration-150">
             <div className="flex items-center gap-2 text-red-600 mb-3">
               <span className="material-symbols-outlined text-2xl">warning</span>

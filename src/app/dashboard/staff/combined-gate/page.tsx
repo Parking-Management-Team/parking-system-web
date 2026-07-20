@@ -1,9 +1,16 @@
 'use client';
 
+import React, { useState } from 'react';
 import VehicleCheckin from '@/features/vehicles/components/VehicleCheckin';
 import VehicleCheckout from '@/features/vehicles/components/VehicleCheckout';
 
 export default function CombinedGatePage() {
+  const [checkoutRefreshTrigger, setCheckoutRefreshTrigger] = useState(0);
+
+  const handleCheckinSuccess = () => {
+    setCheckoutRefreshTrigger((prev) => prev + 1);
+  };
+
   return (
     <div className="min-h-[calc(100vh-76px)] bg-slate-50 p-4 text-slate-900">
       <div className="mx-auto flex flex-col gap-4 max-w-[1600px]">
@@ -21,7 +28,7 @@ export default function CombinedGatePage() {
               <h2 className="text-base font-black text-slate-900">ENTRY GATE (CHECK-IN)</h2>
               <span className="text-[9px] font-bold bg-emerald-50 text-emerald-600 rounded-full px-2 py-0.5 ml-auto">IN</span>
             </div>
-            <VehicleCheckin compact />
+            <VehicleCheckin compact onCheckinSuccess={handleCheckinSuccess} />
           </section>
 
           {/* CHECK-OUT panel */}
@@ -31,7 +38,7 @@ export default function CombinedGatePage() {
               <h2 className="text-base font-black text-slate-900">EXIT GATE (CHECK-OUT)</h2>
               <span className="text-[9px] font-bold bg-rose-50 text-rose-600 rounded-full px-2 py-0.5 ml-auto">OUT</span>
             </div>
-            <VehicleCheckout compact />
+            <VehicleCheckout compact refreshTrigger={checkoutRefreshTrigger} />
           </section>
         </div>
       </div>

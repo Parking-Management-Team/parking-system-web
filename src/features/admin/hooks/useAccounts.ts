@@ -17,6 +17,15 @@ export interface AccountDto {
   createdAt: string;
 }
 
+export interface CreateAccountPayload {
+  username: string;
+  email: string;
+  password?: string;
+  fullName: string;
+  phone?: string | null;
+  roleId: number;
+}
+
 export function useAccounts() {
   const { showToast } = useAuth();
   const [accounts, setAccounts] = useState<AccountDto[]>([]);
@@ -78,6 +87,26 @@ export function useAccounts() {
       blocked: accounts.filter((a) => a.accountStatus === 'Blocked').length,
     };
   }, [accounts]);
+
+  // Create account mutation
+  const createAccount = useCallback(async (payload: CreateAccountPayload): Promise<boolean> => {
+    try {
+      const response = await api.post<ApiResponse<AccountDto>>('/accounts', payload);
+      if (response.success || response.data) {
+        showToast('Account created successfully!', 'success');
+        fetchAccounts();
+        return true;
+      } else {
+        showToast(response.message || 'Failed to create account.', 'error');
+        return false;
+      }
+    } catch (err: unknown) {
+      console.error('Error creating account:', err);
+      const errorMsg = err instanceof Error ? err.message : 'An error occurred during account creation.';
+      showToast(errorMsg, 'error');
+      return false;
+    }
+  }, [fetchAccounts, showToast]);
 
   // Edit mutation
   const updateAccount = useCallback(async (
@@ -164,6 +193,7 @@ export function useAccounts() {
     setStatusFilter,
     stats,
     fetchAccounts,
+    createAccount,
     updateAccount,
     blockAccount,
     unblockAccount,

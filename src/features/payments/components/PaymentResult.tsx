@@ -285,7 +285,7 @@ function PaymentResultContent() {
     if (statusParam !== null) {
       // 1. Backend-mediated Redirect Flow (VNPay / MoMo confirmed by backend)
       isSuccess = statusParam === 'success';
-      const parsedAmount = vnp_Amount ? (parseInt(vnp_Amount) / 100).toLocaleString('vi-VN') + ' ₫' : '—';
+      const parsedAmount = vnp_Amount ? (parseInt(vnp_Amount) / 100).toLocaleString('vi-VN') + ' VNĐ' : '—';
       computedDetails = {
         transactionId: paymentId || '—',
         orderId: bookingId || '—',
@@ -300,7 +300,7 @@ function PaymentResultContent() {
     } else if (vnp_ResponseCode !== null) {
       // 2. Direct VNPay Redirect Flow
       isSuccess = vnp_ResponseCode === '00';
-      const parsedAmount = vnp_Amount ? (parseInt(vnp_Amount) / 100).toLocaleString('vi-VN') + ' ₫' : '—';
+      const parsedAmount = vnp_Amount ? (parseInt(vnp_Amount) / 100).toLocaleString('vi-VN') + ' VNĐ' : '—';
       computedDetails = {
         transactionId: vnp_TransactionNo || '—',
         orderId: vnp_TxnRef || '—',
@@ -315,7 +315,7 @@ function PaymentResultContent() {
     } else if (resultCode !== null) {
       // 3. Direct MoMo Redirect Flow
       isSuccess = resultCode === '0';
-      const parsedAmount = amount ? parseInt(amount).toLocaleString('vi-VN') + ' ₫' : '—';
+      const parsedAmount = amount ? parseInt(amount).toLocaleString('vi-VN') + ' VNĐ' : '—';
       computedDetails = {
         transactionId: transId || '—',
         orderId: orderId || '—',

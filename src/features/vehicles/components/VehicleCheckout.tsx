@@ -63,11 +63,7 @@ const formatDateTime = (value?: string | null) => {
 };
 
 const formatCurrency = (amount?: number | null) =>
-  new Intl.NumberFormat('vi-VN', {
-    style: 'currency',
-    currency: 'VND',
-    maximumFractionDigits: 0,
-  }).format(amount ?? 0);
+  `${new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 0 }).format(amount ?? 0)} VNĐ`;
 
 const getDurationLabel = (checkInTime?: string | null, checkOutTime?: string | null) => {
   if (!checkInTime) return '—';
@@ -111,7 +107,13 @@ const writeHistory = (items: CheckoutHistoryItem[]) => {
   window.localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(items.slice(0, 50)));
 };
 
-export default function VehicleCheckout({ compact = false }: { compact?: boolean } = {}) {
+export default function VehicleCheckout({
+  compact = false,
+  refreshTrigger,
+}: {
+  compact?: boolean;
+  refreshTrigger?: number;
+} = {}) {
   const { showToast } = useAuth();
   const [sessions, setSessions] = useState<CheckoutSession[]>([]);
   const [selectedSessionId, setSelectedSessionId] = useState<number | null>(null);
@@ -262,7 +264,7 @@ export default function VehicleCheckout({ compact = false }: { compact?: boolean
     try {
       const result = await scanLicensePlate({ image: base64Img });
       setOcrText(result.licensePlate);
-      showToast(`Exit license plate recognized: ${result.licensePlate} (${Math.round(result.confidence * 100)}%)`, 'success');
+      showToast(`Exit license plate recognized: ${result.licensePlate} (${Math.round(result.confidence * 100)})`, 'success');
       return result.licensePlate;
     } catch (err: any) {
       console.error('OCR error:', err);
@@ -435,6 +437,12 @@ export default function VehicleCheckout({ compact = false }: { compact?: boolean
       }
     }, 100);
   }, [loadActiveSessions, loadCards, enumerateCameras]);
+
+  useEffect(() => {
+    if (refreshTrigger !== undefined && refreshTrigger > 0) {
+      void loadActiveSessions();
+    }
+  }, [refreshTrigger, loadActiveSessions]);
 
   const selectSession = (session: CheckoutSession) => {
     setSelectedSessionId(session.id);

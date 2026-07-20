@@ -120,8 +120,13 @@ export function SlotActionModal({
         if (currentStatus === 'BLOCKED') {
           res = await api.post<BaseResponse<any>>(`/ParkingSlots/${slotId}/unblock`, { reason: 'Unblocked by staff' });
         } else if (currentStatus === 'MAINTENANCE') {
-          // Need to unblock from maintenance - use dedicated endpoint or fallback
-          res = await api.post<BaseResponse<any>>(`/ParkingSlots/${slotId}/unblock`, { reason: 'Maintenance completed' });
+          // Use PUT endpoint to transition slot from MAINTENANCE to AVAILABLE since backend /unblock only works for BLOCKED
+          res = await api.put<BaseResponse<any>>(`/ParkingSlots/${slotId}`, {
+            code: activeSlot.slotCode,
+            name: activeSlot.slotName || activeSlot.slotCode,
+            vehicleTypeId: activeSlot.vehicleTypeId,
+            status: 0 // Available
+          });
         }
       }
 
@@ -169,7 +174,7 @@ export function SlotActionModal({
 
   return (
     <div
-      className={`fixed inset-0 z-[60] flex items-center justify-center p-4 transition-all duration-300 ${
+      className={`fixed inset-0 z-[9999] flex items-center justify-center p-4 transition-all duration-300 ${
         isOpen ? 'opacity-100 visible' : 'opacity-0 invisible pointer-events-none'
       }`}
     >

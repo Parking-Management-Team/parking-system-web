@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { Coins, Car, Warehouse, Activity } from 'lucide-react';
+import { formatVND } from '@/lib/utils/format';
 
 export interface DashboardStats {
   revenue: number;
@@ -17,11 +18,6 @@ interface StatCardsProps {
 }
 
 export function StatCards({ stats }: StatCardsProps) {
-  const formattedRevenue = new Intl.NumberFormat('vi-VN', {
-    style: 'currency',
-    currency: 'VND',
-  }).format(stats.revenue);
-
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
 
@@ -38,7 +34,7 @@ export function StatCards({ stats }: StatCardsProps) {
         <div className="mt-5">
           <h3 className="text-slate-400 text-xs font-bold uppercase tracking-wider">Daily Revenue</h3>
           <p className="text-2xl font-black text-slate-800 mt-1 tracking-tight">
-            {stats.revenue > 0 ? formattedRevenue : '0 VND'}
+            {formatVND(stats.revenue)}
           </p>
         </div>
       </div>

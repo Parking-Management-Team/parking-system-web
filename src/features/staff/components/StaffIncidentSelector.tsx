@@ -14,7 +14,7 @@ type StaffIncidentSelectorProps = {
 };
 
 const formatCurrency = (value?: number | null) =>
-  `${Math.round(Number(value ?? 0)).toLocaleString('vi-VN')} VND`;
+  `${Math.round(Number(value ?? 0)).toLocaleString('vi-VN')} VNĐ`;
 
 const getErrorMessage = (error: unknown, fallback: string) =>
   error instanceof Error && error.message ? error.message : fallback;
@@ -54,7 +54,7 @@ export default function StaffIncidentSelector({
       setIncidentTypes(types);
       setSessionIncidents(incidents);
     } catch (error) {
-      showToast(getErrorMessage(error, 'Không tải được incident.'), 'error');
+      showToast(getErrorMessage(error, 'Could not load incidents.'), 'error');
     } finally {
       setLoading(false);
     }
@@ -73,7 +73,7 @@ export default function StaffIncidentSelector({
 
   const handleAddIncident = async (type: IncidentType) => {
     if (activeIncidentTypeIds.has(type.id)) {
-      showToast('Incident này đã được chọn cho session hiện tại.', 'info');
+      showToast('This incident is already selected for the current session.', 'info');
       return;
     }
 
@@ -86,11 +86,11 @@ export default function StaffIncidentSelector({
         description: `${type.incidentName} - ${licensePlate}${cardCode ? ` - ${cardCode}` : ''}`,
       });
 
-      showToast(`Đã thêm incident: ${type.incidentName}`, 'success');
+      showToast(`Added incident: ${type.incidentName}`, 'success');
       await loadIncidentData();
       onChanged?.();
     } catch (error) {
-      showToast(getErrorMessage(error, 'Không tạo được incident.'), 'error');
+      showToast(getErrorMessage(error, 'Could not create incident.'), 'error');
     } finally {
       setSubmittingTypeId(null);
     }
@@ -100,11 +100,11 @@ export default function StaffIncidentSelector({
     setDeletingIncidentId(incident.id);
     try {
       await incidentService.delete(incident.id);
-      showToast(`Đã xóa incident: ${incident.incidentName}`, 'success');
+      showToast(`Removed incident: ${incident.incidentName}`, 'success');
       await loadIncidentData();
       onChanged?.();
     } catch (error) {
-      showToast(getErrorMessage(error, 'Không xóa được incident.'), 'error');
+      showToast(getErrorMessage(error, 'Could not remove incident.'), 'error');
     } finally {
       setDeletingIncidentId(null);
     }
@@ -158,7 +158,7 @@ export default function StaffIncidentSelector({
             <p className="text-sm font-bold text-slate-400">Loading incidents...</p>
           ) : incidentTypes.length === 0 ? (
             <p className="text-sm font-bold text-slate-400">
-              Chưa có incident type từ BE để chọn.
+              No incident types from BE to select.
             </p>
           ) : (
             <div className="grid gap-2 sm:grid-cols-2">

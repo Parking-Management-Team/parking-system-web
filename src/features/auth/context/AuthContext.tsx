@@ -68,6 +68,7 @@ interface AuthContextType {
   loginWithGoogle: (idToken?: string) => Promise<User>; // Hàm đăng nhập Google
   verifyGoogleOtp: (idToken: string, otp: string) => Promise<User>; // Hàm xác thực mã OTP đăng ký Google
   verifyLoginOtp: (email: string, password: string, otp: string) => Promise<User>; // Hàm xác thực mã OTP đăng nhập thường
+  resetPassword: (email: string, newPassword: string, verificationToken: string) => Promise<void>; // Hàm đặt lại mật khẩu bằng OTP
   logout: () => void;                         // Hàm đăng xuất
   showToast: (message: string, type?: 'success' | 'error' | 'info') => void; // Hàm hiển thị thông báo nhanh
 }
@@ -368,6 +369,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   /**
+   * HÀM ĐẶT LẠI MẬT KHẨU BẰNG OTP
+   * Gửi Email, Mật khẩu mới, và verificationToken nhận được sau khi verify OTP thành công.
+   */
+  const resetPassword = React.useCallback(async (
+    email: string,
+    newPassword: string,
+    verificationToken: string
+  ): Promise<void> => {
+    setIsLoading(true);
+    try {
+      const res = await api.post<OtpResponse>('/auth/reset-password', {
+        email,
+        newPassword,
+        verificationToken
+      });
+      if (!res.isSuccess && !(res as any).success) {
+        throw new Error(res.message || 'Password reset failed.');
+      }
+    } catch (error) {
+      const errorMsg = extractErrorMessage(error, 'Password reset failed.');
+      throw new Error(errorMsg);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  /**
    * HÀM ĐĂNG XUẤT
    * Xóa sạch các thông tin đăng nhập ở cả Local Storage và State của ứng dụng.
    */
@@ -403,9 +431,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     loginWithGoogle,
     verifyGoogleOtp,
     verifyLoginOtp,
+    resetPassword,
     logout,
     showToast,
-  }), [user, token, isLoading, login, sendOtp, verifyOtp, register, loginWithGoogle, verifyGoogleOtp, verifyLoginOtp, logout, showToast]);
+  }), [user, token, isLoading, login, sendOtp, verifyOtp, register, loginWithGoogle, verifyGoogleOtp, verifyLoginOtp, resetPassword, logout, showToast]);
 
   return (
     <AuthContext.Provider value={value}>

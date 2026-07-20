@@ -150,6 +150,7 @@ export default function FloorManagement() {
                 <tr className="bg-slate-50/70 border-b border-slate-100 text-xs font-semibold text-slate-500">
                   <th className="py-4 px-6">Floor Level</th>
                   <th className="py-4 px-6">Floor Name</th>
+                  <th className="py-4 px-6">Floor Type</th>
                   <th className="py-4 px-6">Zones Allocation</th>
                   <th className="py-4 px-6">Total Slots Capacity</th>
                   <th className="py-4 px-6">Status</th>
@@ -170,6 +171,11 @@ export default function FloorManagement() {
                       </td>
                       <td className="py-4 px-6 font-semibold text-[#111c2d]">
                         {floor.name}
+                      </td>
+                      <td className="py-4 px-6">
+                        <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-100 text-slate-700 border border-slate-200">
+                          {floor.floorType || 'Standard'}
+                        </span>
                       </td>
                       <td className="py-4 px-6">
                         <div className="flex flex-col gap-1.5 max-w-[150px]">
@@ -235,7 +241,7 @@ export default function FloorManagement() {
       {/* MODAL 1: QUẢN LÝ PHÂN KHU TỔNG THỂ (MANAGE ZONES) - THEO THIẾT KẾ SCREEN 3 */}
       {/* ========================================================================= */}
       {isManageZonesOpen && selectedFloor && (
-        <div className="fixed inset-0 bg-[#111c2d]/40 backdrop-blur-sm z-40 flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-[#111c2d]/40 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-xl border border-[#006d43]/10 max-w-2xl w-full max-h-[85vh] flex flex-col animate-in fade-in zoom-in-95 duration-150">
             {/* Header Modal */}
             <div className="flex justify-between items-center p-6 border-b border-slate-100">

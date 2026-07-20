@@ -324,7 +324,6 @@ export function RegisterForm({ isModal = false, onSuccess, onClose, onSwitchMode
           if (data.email) setEmail(data.email);
           if (data.fullName) setFullName(data.fullName);
           setStep(2);
-          startCooldown();
           showToast('Google registration requires verification. OTP sent to your email.', 'info');
         }
         sessionStorage.removeItem('nexpark_google_signup');
@@ -332,7 +331,8 @@ export function RegisterForm({ isModal = false, onSuccess, onClose, onSwitchMode
     } catch (e) {
       console.error('Error loading Google signup state', e);
     }
-  }, [startCooldown, showToast]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Trigger verification automatically when 6th digit is typed
   React.useEffect(() => {

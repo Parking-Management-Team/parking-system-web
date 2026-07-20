@@ -491,7 +491,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
    */
   const showToast = React.useCallback((message: string, type: 'success' | 'error' | 'info' = 'info') => {
     const id = Math.random().toString(36).substring(2, 9);
-    setToasts((prev) => [...prev, { id, message, type }]);
+    setToasts((prev) => {
+      if (prev.some((t) => t.message === message)) {
+        return prev;
+      }
+      const updated = [...prev, { id, message, type }];
+      if (updated.length > 3) {
+        return updated.slice(updated.length - 3);
+      }
+      return updated;
+    });
+
     setTimeout(() => {
       setToasts((prev) => prev.filter((t) => t.id !== id));
     }, 4000);

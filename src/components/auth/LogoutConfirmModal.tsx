@@ -35,27 +35,28 @@ export default function LogoutConfirmModal({
       ></div>
 
       {/* Modal Container */}
-      <div className="relative w-full max-w-sm bg-white rounded-2xl shadow-2xl p-6 overflow-hidden transition-all transform scale-100 opacity-100 animate-in fade-in zoom-in duration-200 border border-slate-100">
-        <div className="flex items-center gap-3 mb-3 text-rose-600">
-          <div className="w-10 h-10 rounded-full bg-rose-50 flex items-center justify-center shrink-0">
-            <span className="material-symbols-outlined text-xl">logout</span>
-          </div>
-          <div>
-            <h3 className="text-base font-extrabold text-slate-800">Confirm Logout</h3>
-            <p className="text-xs text-slate-500 font-medium">NexPark Security</p>
-          </div>
+      <div className="relative w-full max-w-sm bg-white rounded-2xl shadow-2xl p-6 overflow-hidden transition-all transform scale-100 opacity-100 animate-in fade-in zoom-in duration-200 border border-slate-100 text-center">
+        {/* Centered Icon Badge */}
+        <div className="w-12 h-12 rounded-full bg-rose-50 text-rose-600 mx-auto flex items-center justify-center mb-3.5 shadow-xs">
+          <span className="material-symbols-outlined text-2xl">logout</span>
         </div>
 
+        {/* Centered Heading */}
+        <h3 className="text-lg font-extrabold text-slate-800">Confirm Logout</h3>
+        <p className="text-xs text-slate-400 font-medium mt-0.5 mb-3">NexPark Security</p>
+
+        {/* Centered Message */}
         <p className="text-sm text-slate-600 leading-relaxed mb-6">
           Are you sure you want to log out of your account?
         </p>
 
-        <div className="flex gap-2.5 justify-end">
+        {/* Centered Equal-Width Buttons */}
+        <div className="grid grid-cols-2 gap-3">
           <button
             type="button"
             onClick={onClose}
             disabled={isLoggingOut}
-            className="px-4 py-2 border border-slate-200 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors disabled:opacity-50 cursor-pointer"
+            className="w-full py-2.5 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors disabled:opacity-50 cursor-pointer"
           >
             Cancel
           </button>
@@ -63,7 +64,7 @@ export default function LogoutConfirmModal({
             type="button"
             onClick={handleConfirm}
             disabled={isLoggingOut}
-            className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors disabled:opacity-50 cursor-pointer shadow-xs"
+            className="w-full py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-colors disabled:opacity-50 cursor-pointer shadow-xs"
           >
             {isLoggingOut ? (
               <>

@@ -363,7 +363,7 @@ export default function DriverPayments() {
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="text-[10px] font-extrabold uppercase tracking-wider text-rose-600 bg-rose-50 border border-rose-100 px-2 py-0.5 rounded-md">
-                      Hạn thanh toán: {new Date(booking.paymentDeadline).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+                      Payment Deadline: {new Date(booking.paymentDeadline).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
                     </span>
                     <span className="text-[10px] font-extrabold uppercase tracking-wider text-amber-600 bg-amber-50 border border-amber-100 px-2 py-0.5 rounded-md">
                       Deposit Pending
@@ -412,7 +412,7 @@ export default function DriverPayments() {
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-2">
                   <div className="text-left">
                     <span className="text-xs text-slate-400 font-semibold block">
-                      Tổng thanh toán ·{' '}
+                      Total Payment ·{' '}
                       {(() => {
                         const s = new Date(booking.plannedCheckinTime);
                         const e = new Date(booking.plannedCheckoutTime);
@@ -420,7 +420,7 @@ export default function DriverPayments() {
                         if (hrs <= 0) return '';
                         const h = Math.floor(hrs);
                         const m = Math.round((hrs - h) * 60);
-                        return m > 0 ? `${h} giờ ${m} phút` : `${h} giờ`;
+                        return m > 0 ? `${h}h ${m}m` : `${h}h`;
                       })()}
                     </span>
                     <span className="text-2xl font-black font-mono text-emerald-600">{(booking.totalAmount ?? booking.depositAmount ?? 0).toLocaleString('vi-VN')} đ</span>
@@ -430,7 +430,7 @@ export default function DriverPayments() {
                     className="px-6 py-3 bg-amber-600 hover:bg-amber-700 active:scale-[0.98] text-white text-xs font-bold rounded-xl shadow-md shadow-amber-600/10 transition-all flex items-center justify-center gap-2"
                   >
                     <CreditCard className="w-4 h-4" />
-                    <span>Thanh toán ngay (VNPAY)</span>
+                    <span>Pay Now (VNPAY)</span>
                   </button>
                 </div>
               </div>
@@ -535,7 +535,7 @@ export default function DriverPayments() {
               {/* Single total amount = depositAmount from API (full booking cost) */}
               <div className="w-full bg-emerald-50 border border-emerald-200 rounded-2xl p-4 my-6 flex justify-between items-center text-xs">
                 <div className="text-left">
-                  <span className="font-bold text-emerald-800 uppercase tracking-wider">Tổng thanh toán (Total Payment)</span>
+                  <span className="font-bold text-emerald-800 uppercase tracking-wider">Total Payment</span>
                   <p className="text-[10px] text-emerald-600 mt-1">
                     {(() => {
                       const s = new Date(selectedBookingForDeposit.plannedCheckinTime);
@@ -544,7 +544,7 @@ export default function DriverPayments() {
                       if (hrs <= 0) return 'Booking duration';
                       const h = Math.floor(hrs);
                       const m = Math.round((hrs - h) * 60);
-                      return m > 0 ? `${h} giờ ${m} phút` : `${h} giờ`;
+                      return m > 0 ? `${h}h ${m}m` : `${h}h`;
                     })()}
                   </p>
                 </div>
@@ -588,7 +588,7 @@ export default function DriverPayments() {
                   disabled={isPayingDeposit}
                   className="w-full py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold text-xs rounded-xl transition-all flex items-center justify-center gap-1.5"
                 >
-                  Pay Later (Thanh toán sau)
+                  Pay Later
                 </button>
               </div>
 

@@ -45,7 +45,6 @@ const mapStatusToBackend = (status: 'Active' | 'Inactive'): number => {
   return status === 'Active' ? 1 : 0; // 1 = Active, 0 = Inactive
 };
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const extractErrorMessage = (error: any, defaultMsg: string): string => {
   if (error && error.data) {
     const data = error.data;

@@ -914,7 +914,16 @@ export default function ParkingUtilsWorkspace() {
       console.error(err);
       if (err instanceof ApiError && err.data) {
         const errData = err.data as any;
-        showToast(errData.message || 'Error processing reservation.', 'error');
+        const code = errData.errorCode;
+        let msg = errData.message || 'Error processing reservation.';
+        if (code === 'INVALID_BOOKING_TIME' || msg.includes('cách hiện tại')) msg = 'Start time must be at least 15 minutes from now.';
+        else if (code === 'INVALID_BOOKING_DURATION' || msg.includes('tối thiểu')) msg = 'Minimum booking duration is 4 hours.';
+        else if (code === 'NO_CAPACITY' || msg.includes('chỗ trống')) msg = 'This building has no available capacity for your vehicle type.';
+        else if (code === 'SLOT_ALREADY_RESERVED' || msg.includes('đã được đặt')) msg = 'The selected slot has already been reserved during this timeframe.';
+        else if (code === 'SLOT_NOT_AVAILABLE' || msg.includes('bị khóa')) msg = 'The selected slot is currently blocked, under maintenance, or reserved.';
+        else if (code === 'ZONE_BOOKING_LIMIT_EXCEEDED' || msg.includes('giới hạn')) msg = 'This zone has reached its maximum online booking limit. Please select another time or zone.';
+        else if (code === 'VEHICLE_BLACKLISTED' || code === 'ACCOUNT_BLACKLISTED' || msg.includes('danh sách đen')) msg = 'This vehicle or account is blacklisted and cannot make reservations.';
+        showToast(msg, 'error');
       } else {
         showToast('Connection error. Booking could not be completed.', 'error');
       }
@@ -1397,7 +1406,7 @@ export default function ParkingUtilsWorkspace() {
 
                         <div className="flex justify-between items-center pt-2">
                           <div>
-                            <p className="text-slate-400 text-[10px] font-bold uppercase">Tổng thanh toán</p>
+                            <p className="text-slate-400 text-[10px] font-bold uppercase">Total Payment</p>
                             <p className="text-sm font-black text-emerald-700 mt-0.5">
                               {Math.round(booking.totalAmount ?? booking.depositAmount).toLocaleString('vi-VN')} đ
                             </p>
@@ -2044,7 +2053,7 @@ export default function ParkingUtilsWorkspace() {
                     {/* Single payment amount = API depositAmount (full booking cost) */}
                     <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl flex justify-between items-center">
                       <div className="text-left">
-                        <h4 className="text-xs font-bold text-emerald-800">Tổng thanh toán (Total Payment)</h4>
+                        <h4 className="text-xs font-bold text-emerald-800">Total Payment</h4>
                         <p className="text-[10px] text-emerald-600 mt-0.5">
                           {(() => {
                             if (!startTime || !endTime || !bookingDate || !endBookingDate) return 'Booking duration';
@@ -2054,7 +2063,7 @@ export default function ParkingUtilsWorkspace() {
                             if (hrs <= 0) return 'Booking duration';
                             const h = Math.floor(hrs);
                             const m = Math.round((hrs - h) * 60);
-                            return m > 0 ? `${h} giờ ${m} phút` : `${h} giờ`;
+                            return m > 0 ? `${h}h ${m}m` : `${h}h`;
                           })()}
                         </p>
                       </div>
@@ -2138,7 +2147,7 @@ export default function ParkingUtilsWorkspace() {
               <div className="w-full space-y-2.5 my-6 text-xs text-left">
                 <div className="w-full bg-emerald-50 border border-emerald-200 rounded-2xl p-4 flex justify-between items-center">
                   <div>
-                    <span className="font-bold text-emerald-800 uppercase tracking-wider">Tổng thanh toán (Total Payment)</span>
+                    <span className="font-bold text-emerald-800 uppercase tracking-wider">Total Payment</span>
                     <p className="text-[10px] text-emerald-600 mt-1">
                       {(() => {
                         if (!startTime || !endTime || !bookingDate || !endBookingDate) return 'Booking duration';
@@ -2148,7 +2157,7 @@ export default function ParkingUtilsWorkspace() {
                         if (hrs <= 0) return 'Booking duration';
                         const h = Math.floor(hrs);
                         const m = Math.round((hrs - h) * 60);
-                        return m > 0 ? `${h} giờ ${m} phút` : `${h} giờ`;
+                        return m > 0 ? `${h}h ${m}m` : `${h}h`;
                       })()}
                     </p>
                   </div>
@@ -2193,7 +2202,7 @@ export default function ParkingUtilsWorkspace() {
                   disabled={isPaying || isCancelling}
                   className="w-full py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold text-xs rounded-xl transition-all flex items-center justify-center gap-1.5"
                 >
-                  Pay Later (Thanh toán sau)
+                  Pay Later
                 </button>
                 <button
                   onClick={handleCancelCreatedBooking}

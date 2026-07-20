@@ -196,7 +196,7 @@ export default function Home() {
           <div>
             <span className="text-2xl font-black tracking-tight block mb-2">NexPark</span>
             <p className="text-white/40 text-xs font-mono max-w-xs leading-relaxed">
-              Smart parking infrastructure at Tòa nhà FPT.
+              Smart parking infrastructure at FPT Building.
             </p>
           </div>
           <div className="flex flex-wrap gap-x-10 gap-y-4 text-xs text-white/30">

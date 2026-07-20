@@ -32,10 +32,11 @@ interface BaseResponse<T> {
 }
 
 interface OtpResponse<T = null> {
-  isSuccess: boolean;
-  code: string;
-  message: string;
-  data: T;
+  success?: boolean;
+  isSuccess?: boolean;
+  code?: string;
+  message?: string;
+  data?: T;
 }
 
 const extractErrorMessage = (error: unknown, defaultMessage: string): string => {
@@ -43,14 +44,25 @@ const extractErrorMessage = (error: unknown, defaultMessage: string): string => 
     if ('name' in error && (error as any).name === 'ApiError' && 'data' in error) {
       const body = (error as any).data;
       if (body && typeof body === 'object') {
-        return body.message || body.Message || defaultMessage;
+        if (typeof body.message === 'string' && body.message.trim()) return body.message;
+        if (typeof body.Message === 'string' && body.Message.trim()) return body.Message;
+        if (typeof body.title === 'string' && body.title.trim()) return body.title;
+        if (body.errors && typeof body.errors === 'object') {
+          const firstErrKey = Object.keys(body.errors)[0];
+          if (firstErrKey && Array.isArray(body.errors[firstErrKey]) && body.errors[firstErrKey][0]) {
+            return body.errors[firstErrKey][0];
+          }
+        }
       }
     }
     if ('message' in error && typeof (error as any).message === 'string') {
-      return (error as any).message;
+      const msg = (error as any).message;
+      if (msg && !msg.startsWith('API error')) {
+        return msg;
+      }
     }
   }
-  if (error instanceof Error) {
+  if (error instanceof Error && !error.message.startsWith('API error')) {
     return error.message;
   }
   return defaultMessage;
@@ -157,6 +169,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(systemUser);
 
       return systemUser;
+    } catch (error: any) {
+      const body = error?.data || {};
+      const errorCode = body.errorCode ?? body.code ?? error?.code;
+
+      if (errorCode === 'REQUIRE_LOGIN_OTP_VERIFICATION') {
+        const err = new Error(body.message || 'Login requires email verification.') as any;
+        err.code = 'REQUIRE_LOGIN_OTP_VERIFICATION';
+        err.email = body.data?.email;
+        throw err;
+      }
+
+      const errorMsg = extractErrorMessage(error, 'Login failed');
+      throw new Error(errorMsg);
     } finally {
       setIsLoading(false);
     }
@@ -170,7 +195,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setIsLoading(true);
     try {
       const res = await api.post<OtpResponse>('/auth/send-otp', { email });
-      if (!res.isSuccess) {
+      const isSuccess = res.success ?? res.isSuccess ?? true;
+      if (!isSuccess) {
         throw new Error(res.message || 'Failed to send OTP code.');
       }
     } catch (error) {
@@ -189,7 +215,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setIsLoading(true);
     try {
       const res = await api.post<OtpResponse<string>>('/auth/verify-otp', { email, otp });
-      if (!res.isSuccess || !res.data) {
+      const isSuccess = res.success ?? res.isSuccess ?? true;
+      if (!isSuccess || !res.data) {
         throw new Error(res.message || 'OTP verification failed.');
       }
       return res.data;
@@ -221,7 +248,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         password,
         verificationToken
       });
-      if (!res.isSuccess) {
+      const isSuccess = res.success ?? res.isSuccess ?? true;
+      if (!isSuccess) {
         throw new Error(res.message || 'Registration failed.');
       }
     } catch (error) {
@@ -250,18 +278,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         idToken: tokenToSend
       });
 
-      const isSuccess = res.success ?? res.isSuccess;
-      const errorCode = res.errorCode ?? res.code;
+      // 2. Kiểm tra xem Backend đăng nhập Google thành công hay trả về yêu cầu OTP
+      const resCode = res?.errorCode ?? res?.code ?? (res?.data as any)?.code ?? (res?.data as any)?.errorCode;
+      if (resCode === 'REQUIRE_OTP_VERIFICATION') {
+        const email = (res?.data as any)?.email ?? (res as any)?.email;
+        const fullName = (res?.data as any)?.fullName ?? (res as any)?.fullName;
+        const err = new Error(res.message || 'Google signup requires email verification.') as any;
+        err.code = 'REQUIRE_OTP_VERIFICATION';
+        err.email = email;
+        err.fullName = fullName;
+        throw err;
+      }
 
-      // 2. Kiểm tra xem Backend đăng nhập Google thành công không
+      const isSuccess = res.success ?? res.isSuccess ?? true;
       if (!isSuccess || !res.data) {
-        if (errorCode === 'REQUIRE_OTP_VERIFICATION') {
-          const err = new Error(res.message || 'Google signup requires email verification.') as any;
-          err.code = 'REQUIRE_OTP_VERIFICATION';
-          err.email = res.data?.email;
-          err.fullName = res.data?.fullName;
-          throw err;
-        }
         throw new Error(res.message || 'Google login failed');
       }
 
@@ -282,6 +312,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(systemUser);
 
       return systemUser;
+    } catch (error: any) {
+      if (error?.code === 'REQUIRE_OTP_VERIFICATION') {
+        throw error;
+      }
+
+      const body = error?.data || error?.response?.data || {};
+      const errorCode = body?.errorCode ?? body?.code ?? body?.ErrorCode ?? body?.Code ?? error?.code;
+      const errorMsgText = String(body?.message || error?.message || '');
+
+      if (errorCode === 'REQUIRE_OTP_VERIFICATION' || errorMsgText.includes('REQUIRE_OTP_VERIFICATION')) {
+        const email = body?.data?.email ?? body?.data?.Email ?? body?.email ?? body?.Email;
+        const fullName = body?.data?.fullName ?? body?.data?.FullName ?? body?.fullName ?? body?.FullName;
+        const err = new Error(body?.message || 'Google signup requires email verification.') as any;
+        err.code = 'REQUIRE_OTP_VERIFICATION';
+        err.email = email;
+        err.fullName = fullName;
+        throw err;
+      }
+
+      const errorMsg = extractErrorMessage(error, 'Google login failed');
+      throw new Error(errorMsg);
     } finally {
       setIsLoading(false);
     }
@@ -299,7 +350,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         otp
       });
 
-      const isSuccess = res.success ?? res.isSuccess;
+      const isSuccess = res.success ?? res.isSuccess ?? true;
 
       if (!isSuccess || !res.data) {
         throw new Error(res.message || 'Google OTP verification failed');

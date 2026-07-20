@@ -182,7 +182,7 @@ export function LoginForm({ isModal = false, onSuccess, onClose, onSwitchMode }:
         router.push('/dashboard');
       }
     } catch (err: any) {
-      if (err && err.code === 'REQUIRE_OTP_VERIFICATION') {
+      if (err && (err.code === 'REQUIRE_OTP_VERIFICATION' || String(err.message).includes('REQUIRE_OTP_VERIFICATION'))) {
         // Save to sessionStorage to restore in RegisterForm
         sessionStorage.setItem('nexpark_google_signup', JSON.stringify({
           idToken: response.credential,
@@ -230,6 +230,7 @@ export function LoginForm({ isModal = false, onSuccess, onClose, onSwitchMode }:
             text: 'signin_with',
             shape: 'rectangular',
             logo_alignment: 'left',
+            locale: 'en',
           });
         }
       }

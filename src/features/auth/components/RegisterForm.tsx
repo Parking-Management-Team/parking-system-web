@@ -249,11 +249,11 @@ export function RegisterForm({ isModal = false, onSuccess, onClose, onSwitchMode
         router.push('/');
       }
     } catch (err: any) {
-      if (err.code === 'REQUIRE_OTP_VERIFICATION') {
+      if (err?.code === 'REQUIRE_OTP_VERIFICATION' || String(err?.message).includes('REQUIRE_OTP_VERIFICATION')) {
         setIsGoogleFlow(true);
         setGoogleIdToken(response.credential);
-        setEmail(err.email || '');
-        setFullName(err.fullName || '');
+        if (err.email) setEmail(err.email);
+        if (err.fullName) setFullName(err.fullName);
         setStep(2);
         startCooldown();
         showToast('Google registration requires verification. OTP sent to your email.', 'info');
@@ -288,6 +288,7 @@ export function RegisterForm({ isModal = false, onSuccess, onClose, onSwitchMode
             text: 'signup_with',
             shape: 'rectangular',
             logo_alignment: 'left',
+            locale: 'en',
           });
         }
       }
@@ -317,10 +318,10 @@ export function RegisterForm({ isModal = false, onSuccess, onClose, onSwitchMode
       const stored = sessionStorage.getItem('nexpark_google_signup');
       if (stored) {
         const data = JSON.parse(stored);
-        if (data.idToken && data.email) {
+        if (data.idToken) {
           setIsGoogleFlow(true);
           setGoogleIdToken(data.idToken);
-          setEmail(data.email);
+          if (data.email) setEmail(data.email);
           if (data.fullName) setFullName(data.fullName);
           setStep(2);
           startCooldown();

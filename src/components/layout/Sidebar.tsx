@@ -6,6 +6,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/features/auth';
 import { ROLE_NAVIGATION } from '@/config/navigation';
 import { useSidebar } from '@/components/layout/SidebarContext';
+import LogoutConfirmModal from '@/components/auth/LogoutConfirmModal';
 
 /**
  * Sidebar Component - Thanh điều hướng bên trái toàn cục cho Dashboard
@@ -18,6 +19,7 @@ export default function Sidebar() {
   const router = useRouter();
   const { user, logout } = useAuth();
   const { isCollapsed, toggleSidebar } = useSidebar();
+  const [showLogoutModal, setShowLogoutModal] = React.useState(false);
 
   // Xác định vai trò hiện tại (mặc định MANAGER nếu chưa xác định để an toàn hiển thị mockup)
   const userRole = user?.role || 'MANAGER';
@@ -126,8 +128,8 @@ export default function Sidebar() {
 
         {/* Nút đăng xuất luôn hiển thị ở dưới cùng */}
         <button
-          onClick={handleLogout}
-          className={`flex items-center rounded-xl transition-all duration-200 mt-2 font-medium ${
+          onClick={() => setShowLogoutModal(true)}
+          className={`flex items-center rounded-xl transition-all duration-200 mt-2 font-medium cursor-pointer ${
             isCollapsed ? 'justify-center py-2.5 px-0 w-12 h-12 mx-auto' : 'w-full gap-3 py-2.5 px-4'
           } text-slate-400 hover:text-red-400 hover:bg-red-500/10`}
           title={isCollapsed ? 'Logout' : undefined}
@@ -136,6 +138,12 @@ export default function Sidebar() {
           {!isCollapsed && <span className="text-sm">Logout</span>}
         </button>
       </div>
+
+      <LogoutConfirmModal
+        isOpen={showLogoutModal}
+        onClose={() => setShowLogoutModal(false)}
+        onConfirm={handleLogout}
+      />
     </nav>
   );
 }

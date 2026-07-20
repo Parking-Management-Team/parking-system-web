@@ -151,6 +151,8 @@ export default function VehicleCheckin({
   const [scanProgress, setScanProgress] = useState<string>('');
   const [ocrText, setOcrText] = useState<string>('');
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
+  const operationalRefreshRef = useRef<{ buildingId: number; promise: Promise<void> } | null>(null);
+  const operationalRefreshVersionRef = useRef(0);
 
   // Enumerate cameras
   const enumerateCameras = useCallback(async () => {
@@ -300,15 +302,53 @@ export default function VehicleCheckin({
     window.setTimeout(() => {
       setOverlay((current) => {
         if (current === nextOverlay) {
-          if (nextOverlay.type === 'success') {
-            window.location.reload();
-          }
           return null;
         }
         return current;
       });
     }, 3000);
   }, []);
+
+  const refreshOperationalData = useCallback(async (targetBuildingId = buildingId) => {
+    if (operationalRefreshRef.current?.buildingId === targetBuildingId) {
+      return operationalRefreshRef.current.promise;
+    }
+
+    const refreshVersion = ++operationalRefreshVersionRef.current;
+    const request = (async () => {
+      const [cardData, sessionData, bookingData] = await Promise.all([
+        fetchCards(),
+        fetchActiveParkingSessions(),
+        fetchCheckinBookingsByBuilding(targetBuildingId).catch(async (error) => {
+          console.warn(
+            'Booking by building API is not ready; falling back to all bookings.',
+            error
+          );
+          return fetchCheckinBookings().catch((fallbackError) => {
+            console.warn('Booking API is not ready; booking detection is disabled.', fallbackError);
+            return [];
+          });
+        }),
+      ]);
+
+      if (refreshVersion !== operationalRefreshVersionRef.current) {
+        return;
+      }
+
+      setCards(cardData);
+      setActiveSessions(sessionData);
+      setBookings(bookingData);
+    })();
+
+    operationalRefreshRef.current = { buildingId: targetBuildingId, promise: request };
+    try {
+      await request;
+    } finally {
+      if (operationalRefreshRef.current?.promise === request) {
+        operationalRefreshRef.current = null;
+      }
+    }
+  }, [buildingId]);
 
   const loadGateData = useCallback(async () => {
     let currentBuildingId = buildingId;
@@ -349,38 +389,22 @@ export default function VehicleCheckin({
       console.warn('Failed to fetch vehicle types:', err);
     }
 
-    // Staff check-in uses cards, active sessions, bookings, and blacklist data to operate the entry gate.
-    // Booking and blacklist data are supplementary; auxiliary endpoint failures must not break the primary check-in flow.
-    const [cardData, sessionData, bookingData, blacklistData] = await Promise.all([
-      fetchCards(),
-      fetchActiveParkingSessions(),
-      fetchCheckinBookingsByBuilding(currentBuildingId).catch(async (error) => {
-        console.warn(
-          'Booking by building API is not ready; falling back to all bookings.',
-          error
-        );
-        return fetchCheckinBookings().catch((fallbackError) => {
-          console.warn('Booking API is not ready; booking detection is disabled.', fallbackError);
-          return [];
-        });
-      }),
-      blacklistService.getAll(1, 1000).catch((error) => {
-        console.warn('Blacklist API is not ready; blacklist pre-check is disabled.', error);
-        return {
-          items: [],
-          totalCount: 0,
-          totalPages: 0,
-          pageIndex: 1,
-          pageSize: 1000,
-        };
-      }),
-    ]);
+    // Blacklist/reference data is loaded during bootstrap; successful gate operations
+    // only refresh the smaller operational data set.
+    const blacklistData = await blacklistService.getAll(1, 1000).catch((error) => {
+      console.warn('Blacklist API is not ready; blacklist pre-check is disabled.', error);
+      return {
+        items: [],
+        totalCount: 0,
+        totalPages: 0,
+        pageIndex: 1,
+        pageSize: 1000,
+      };
+    });
 
-    setCards(cardData);
-    setActiveSessions(sessionData);
-    setBookings(bookingData);
     setBlacklist(blacklistData.items ?? []);
-  }, [buildingId]);
+    await refreshOperationalData(currentBuildingId);
+  }, [buildingId, refreshOperationalData]);
 
   useEffect(() => {
     setIsMounted(true);
@@ -397,9 +421,9 @@ export default function VehicleCheckin({
 
   useEffect(() => {
     if (refreshTrigger !== undefined && refreshTrigger > 0) {
-      void loadGateData();
+      void refreshOperationalData();
     }
-  }, [refreshTrigger, loadGateData]);
+  }, [refreshTrigger, refreshOperationalData]);
 
   const checkBlacklistBeforeSubmit = () => {
     const plateKey = normalizeComparable(formattedPlate);
@@ -499,8 +523,20 @@ export default function VehicleCheckin({
         ...(matchedBooking ? { bookingId: matchedBooking.id } : {}),
       });
 
-      await loadGateData();
+      setActiveSessions((current) => [
+        session,
+        ...current.filter((item) => item.id !== session.id),
+      ]);
+      setCards((current) => current.map((card) =>
+        card.id === selectedCard.id
+          ? { ...card, cardStatus: 'ACTIVE', currentSessionId: session.id }
+          : card
+      ));
+      if (matchedBooking) {
+        setBookings((current) => current.filter((booking) => booking.id !== matchedBooking.id));
+      }
       setCardCode('');
+      setLicensePlate('');
       setCapturedImage(null);
       onCheckinSuccess?.();
 
@@ -583,8 +619,18 @@ export default function VehicleCheckin({
         overrideSlotId: selectedSlotId,
       });
 
-      await loadGateData();
+      setActiveSessions((current) => [
+        session,
+        ...current.filter((item) => item.id !== session.id),
+      ]);
+      setCards((current) => current.map((card) =>
+        card.id === selectedCard?.id
+          ? { ...card, cardStatus: 'ACTIVE', currentSessionId: session.id }
+          : card
+      ));
+      setBookings((current) => current.filter((booking) => booking.id !== matchedBooking.id));
       setCardCode('');
+      setLicensePlate('');
       setShowReallocateBtn(false);
       setSelectedSlotId(null);
       onCheckinSuccess?.();

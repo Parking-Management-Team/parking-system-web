@@ -156,6 +156,8 @@ export default function VehicleCheckout({
   const [scanProgress, setScanProgress] = useState<string>('');
   const [ocrText, setOcrText] = useState<string>('');
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
+  const activeSessionsRequestRef = useRef<Promise<void> | null>(null);
+  const checkoutStartSessionRef = useRef<number | null>(null);
 
   const selectedSession =
     sessions.find((session) => session.id === selectedSessionId) ?? null;
@@ -356,17 +358,29 @@ export default function VehicleCheckout({
   }, [selectedSession, allCards, cardLostConfirmed]);
 
   const loadActiveSessions = useCallback(async () => {
-    setIsLoading(true);
+    if (activeSessionsRequestRef.current) {
+      return activeSessionsRequestRef.current;
+    }
 
+    setIsLoading(true);
+    const request = (async () => {
+      try {
+        setSessions(await fetchCheckoutActiveSessions());
+      } catch (error) {
+        showToast(
+          error instanceof Error ? error.message : 'Could not load active sessions.',
+          'error'
+        );
+      } finally {
+        setIsLoading(false);
+      }
+    })();
+
+    activeSessionsRequestRef.current = request;
     try {
-      setSessions(await fetchCheckoutActiveSessions());
-    } catch (error) {
-      showToast(
-        error instanceof Error ? error.message : 'Could not load active sessions.',
-        'error'
-      );
+      await request;
     } finally {
-      setIsLoading(false);
+      activeSessionsRequestRef.current = null;
     }
   }, [showToast]);
 
@@ -545,7 +559,12 @@ export default function VehicleCheckout({
       return;
     }
 
+    if (checkoutStartSessionRef.current === selectedSession.id) {
+      return;
+    }
+
     const checkoutTimeStr = new Date().toISOString();
+    checkoutStartSessionRef.current = selectedSession.id;
     setIsSubmitting(true);
 
     try {
@@ -565,6 +584,7 @@ export default function VehicleCheckout({
         'error'
       );
     } finally {
+      checkoutStartSessionRef.current = null;
       setIsSubmitting(false);
     }
   };
@@ -606,7 +626,9 @@ export default function VehicleCheckout({
 
     try {
       const payment = await createCheckoutPayment(selectedSession, paymentMethod);
-      await completeCheckout(selectedSession.id);
+      if (normalizeText(payment.paymentStatus) !== 'PAID') {
+        await completeCheckout(selectedSession.id);
+      }
 
       const duration = getDurationLabel(selectedSession.checkInTime, lockedCheckoutTime);
 
@@ -635,10 +657,16 @@ export default function VehicleCheckout({
         duration,
       });
 
-      await loadActiveSessions();
+      setSessions((current) => current.filter((session) => session.id !== selectedSession.id));
+      setAllCards((current) => current.map((card) =>
+        card.id === selectedSession.cardId
+          ? { ...card, cardStatus: 'AVAILABLE', currentSessionId: null }
+          : card
+      ));
       resetForNextVehicle();
       onCheckoutSuccess?.();
       showToast('Check-out and payment completed successfully!', 'success');
+      void loadActiveSessions();
     } catch (error) {
       showToast(
         error instanceof Error ? error.message : 'Could not complete checkout flow.',

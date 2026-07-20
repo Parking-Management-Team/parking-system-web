@@ -15,6 +15,7 @@ const nextConfig: NextConfig = {
     ],
   },
   outputFileTracingRoot: path.join(__dirname, ''),
+  output: 'standalone',
 };
 
 export default nextConfig;

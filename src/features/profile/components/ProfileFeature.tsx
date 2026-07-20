@@ -224,7 +224,7 @@ export default function ProfileFeature() {
 
   // 3. Xử lý Deactivate Account (POST /api/Accounts/{id}/deactivate)
   const handleDeactivateAccount = async () => {
-    if (!userId) return;
+    if (!userId || isAdmin) return;
     setDeactivating(true);
     try {
       const res = await api.post<BaseResponse<string>>(`/Accounts/${userId}/deactivate`, {});
@@ -275,6 +275,12 @@ export default function ProfileFeature() {
       return profile.createdAt;
     }
   }, [profile]);
+
+  // Kiểm tra vai trò Admin để áp dụng chính sách bảo vệ tài khoản
+  const isAdmin = React.useMemo(() => {
+    const roleStr = user?.role?.toLowerCase() || profile?.roleName?.toLowerCase() || '';
+    return roleStr === 'admin' || profile?.roleId === 1;
+  }, [user?.role, profile?.roleName, profile?.roleId]);
 
   // Hiển thị màn hình tải dữ liệu khi đang tải profile ban đầu
   if (loading) {
@@ -479,34 +485,56 @@ export default function ProfileFeature() {
           </form>
         </section>
 
-        {/* Phần Danger Zone - Deactivate Account */}
-        <section className="p-8 border-t border-slate-100 bg-rose-50/10">
+        {/* Phần Danger Zone / Account Protection - Deactivate Account */}
+        <section className={`p-8 border-t border-slate-100 ${isAdmin ? 'bg-slate-50/40' : 'bg-rose-50/10'}`}>
           <div className="flex items-center gap-3 mb-6">
-            <div className="w-10 h-10 rounded-lg bg-rose-50 flex items-center justify-center text-rose-600">
-              <span className="material-symbols-outlined">report_problem</span>
+            <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${isAdmin ? 'bg-emerald-50 text-[#006d43]' : 'bg-rose-50 text-rose-600'}`}>
+              <span className="material-symbols-outlined">{isAdmin ? 'shield_person' : 'report_problem'}</span>
             </div>
             <div>
-              <h3 className="text-lg font-semibold text-rose-900">Danger Zone</h3>
-              <p className="text-sm text-slate-500">Irreversible account actions</p>
+              <h3 className={`text-lg font-semibold ${isAdmin ? 'text-slate-900' : 'text-rose-900'}`}>
+                {isAdmin ? 'Account Security' : 'Danger Zone'}
+              </h3>
+              <p className="text-sm text-slate-500">
+                {isAdmin ? 'System protection policy' : 'Irreversible account actions'}
+              </p>
             </div>
           </div>
 
-          <div className="bg-rose-50/30 border border-rose-100/50 rounded-xl p-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div className="max-w-md">
-              <h4 className="text-sm font-bold text-rose-800">Deactivate Account</h4>
-              <p className="text-xs text-slate-500 mt-1 leading-relaxed">
-                Temporarily disable your account access. Your data will be preserved in our system, but you will not be able to log in. You must contact administration to reactivate it.
-              </p>
+          {isAdmin ? (
+            <div className="bg-white border border-slate-200 rounded-xl p-6 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-sm">
+              <div className="max-w-md">
+                <h4 className="text-sm font-bold text-slate-800 flex items-center gap-2">
+                  <span>Deactivate Account</span>
+                  <span className="text-[10px] px-2.5 py-0.5 rounded-full bg-emerald-100 text-[#006d43] font-semibold tracking-wide uppercase">Protected</span>
+                </h4>
+                <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+                  Admin accounts cannot be self-deactivated for system security.
+                </p>
+              </div>
+              <div className="px-4 py-2.5 bg-slate-100 border border-slate-200 text-slate-400 rounded-lg font-medium text-xs flex items-center gap-2 shrink-0 select-none cursor-not-allowed">
+                <span className="material-symbols-outlined text-sm">lock</span>
+                <span>Protected Action</span>
+              </div>
             </div>
-            <button
-              type="button"
-              onClick={() => setShowDeactivateModal(true)}
-              className="px-6 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg font-semibold text-sm transition-all active:scale-98 shadow-sm flex items-center justify-center gap-2 cursor-pointer shrink-0"
-            >
-              <span className="material-symbols-outlined text-sm">block</span>
-              Deactivate
-            </button>
-          </div>
+          ) : (
+            <div className="bg-rose-50/30 border border-rose-100/50 rounded-xl p-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div className="max-w-md">
+                <h4 className="text-sm font-bold text-rose-800">Deactivate Account</h4>
+                <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+                  Temporarily disable your account access. Your data will be preserved in our system, but you will not be able to log in. You must contact administration to reactivate it.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowDeactivateModal(true)}
+                className="px-6 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg font-semibold text-sm transition-all active:scale-98 shadow-sm flex items-center justify-center gap-2 cursor-pointer shrink-0"
+              >
+                <span className="material-symbols-outlined text-sm">block</span>
+                Deactivate
+              </button>
+            </div>
+          )}
         </section>
       </div>
 

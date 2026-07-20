@@ -39,7 +39,7 @@ export default function AddWindowModal({ pricing }: AddWindowModalProps) {
   if (!isAddWindowOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 overflow-y-auto">
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 overflow-y-auto">
       <div className="bg-white w-full max-w-xl rounded-3xl shadow-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
         
         {/* ===== HEADER ===== */}
@@ -127,14 +127,14 @@ export default function AddWindowModal({ pricing }: AddWindowModalProps) {
                 Base Rate (Initial Block)
               </h4>
               <div>
-                <label className="block text-xs font-bold text-slate-500 mb-1">Base Price (VND)</label>
+                <label className="block text-xs font-bold text-slate-500 mb-1">Base Price (đ)</label>
                 <input 
                   type="number" 
                   required
                   min={0}
                   value={formAddWindowBasePrice || ''}
                   onChange={(e) => setFormAddWindowBasePrice(Number(e.target.value))}
-                  placeholder="VND"
+                  placeholder="đ"
                   className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs font-semibold text-slate-800 focus:outline-none placeholder-slate-400"
                 />
               </div>
@@ -159,14 +159,14 @@ export default function AddWindowModal({ pricing }: AddWindowModalProps) {
                 Incremental Rate
               </h4>
               <div>
-                <label className="block text-xs font-bold text-slate-500 mb-1">Incremental Price (VND)</label>
+                <label className="block text-xs font-bold text-slate-500 mb-1">Incremental Price (đ)</label>
                 <input 
                   type="number" 
                   required
                   min={0}
                   value={formAddWindowBlockPrice || ''}
                   onChange={(e) => setFormAddWindowBlockPrice(Number(e.target.value))}
-                  placeholder="VND"
+                  placeholder="đ"
                   className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs font-semibold text-slate-800 focus:outline-none placeholder-slate-400"
                 />
               </div>

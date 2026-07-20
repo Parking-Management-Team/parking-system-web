@@ -62,7 +62,7 @@ export type CheckoutSession = {
   sessionCode: string;
   licensePlate: string;
   vehicleType: string;
-  customerType: 'WALK_IN' | 'BOOKING' | 'MONTHLY';
+  customerType: 'WALK_IN' | 'BOOKING';
   cardId: number | null;
   cardCode: string | null;
   vehicleId: number | null;

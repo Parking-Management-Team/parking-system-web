@@ -40,7 +40,7 @@ const STATUS_CONFIG: Record<
 };
 
 const formatCurrency = (value?: number | null) =>
-  `${Math.round(Number(value ?? 0)).toLocaleString('vi-VN')} VND`;
+  `${Math.round(Number(value ?? 0)).toLocaleString('vi-VN')} đ`;
 
 const formatDateTime = (value?: string | null) => {
   if (!value) return '—';

@@ -371,12 +371,12 @@ function PricingEngineTab() {
               <span className="font-medium">Duration:</span> {result.durationMinutes} minutes
             </div>
             <div className="text-sm">
-              <span className="font-medium">Base Price:</span> {result.basePrice.toLocaleString()} VND
+              <span className="font-medium">Base Price:</span> {result.basePrice.toLocaleString()} đ
             </div>
             <div className="text-sm">
               <span className="font-medium">Total Amount:</span>{' '}
               <span className="text-lg font-bold text-green-700">
-                {result.totalAmount.toLocaleString()} VND
+                {result.totalAmount.toLocaleString()} đ
               </span>
             </div>
             {result.applicableWindow && (
@@ -438,7 +438,7 @@ function PaymentsTab() {
                 {payments.map((payment) => (
                   <tr key={payment.id} className="border-b border-gray-100 hover:bg-gray-50">
                     <td className="py-3 px-4">{payment.id}</td>
-                    <td className="py-3 px-4 font-medium">{payment.amount.toLocaleString()} VND</td>
+                    <td className="py-3 px-4 font-medium">{payment.amount.toLocaleString()} đ</td>
                     <td className="py-3 px-4">{payment.paymentMethod}</td>
                     <td className="py-3 px-4">
                       <span className={`px-2 py-1 text-xs font-medium rounded ${

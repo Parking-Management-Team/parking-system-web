@@ -290,7 +290,7 @@ export default function StaffSlotMonitoring() {
 
       setSlots(slotViews);
     } catch (error) {
-      showToast(getErrorMessage(error, 'Không tải được dữ liệu slot.'), 'error');
+      showToast(getErrorMessage(error, 'Could not load slot data.'), 'error');
     } finally {
       setLoading(false);
     }
@@ -336,7 +336,7 @@ export default function StaffSlotMonitoring() {
           <p className="text-xs font-black uppercase tracking-[0.2em] text-[#006d43]">Staff gate view</p>
           <h1 className="mt-1 text-2xl font-black text-[#111c2d]">Slot confirmation</h1>
           <p className="mt-1 max-w-2xl text-sm font-medium text-slate-500">
-            Màn hình này chỉ dùng cho vận hành cổng: xem nhanh slot và xác nhận vị trí đỗ thực tế cho xe đang ở trong bãi.
+            This screen is for gate operations only: quickly view slots and confirm actual parking locations for vehicles in the lot.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -407,7 +407,7 @@ export default function StaffSlotMonitoring() {
         {activeZones.length === 0 ? (
           <div className="rounded-3xl border border-dashed border-slate-200 bg-white p-10 text-center">
             <span className="material-symbols-outlined text-5xl text-slate-300">grid_view</span>
-            <p className="mt-2 text-sm font-bold text-slate-500">Không có zone cho floor đang chọn.</p>
+            <p className="mt-2 text-sm font-bold text-slate-500">No zones available for the selected floor.</p>
           </div>
         ) : (
           activeZones.map((zone) => {
@@ -555,7 +555,7 @@ function OccupiedSlotDetailModal({
               />
             ) : (
               <div className="rounded-3xl bg-slate-50 p-5 text-sm font-bold text-slate-400">
-                Slot này chưa match được active session nên chưa báo incident tại đây được.
+                This slot is not matched to an active session, so incidents cannot be reported here.
               </div>
             )}
           </aside>

@@ -172,7 +172,26 @@ export default function ManagerCardWorkspace() {
         showToast(res.message || 'Failed to create card.', 'error');
       }
     } catch (err: any) {
-      showToast(err?.message || 'Error creating card.', 'error');
+      let errorMsg = 'Failed to create card.';
+      if (err?.data?.message) {
+        errorMsg = err.data.message;
+      } else if (typeof err?.data === 'string') {
+        errorMsg = err.data;
+      } else if (err?.message && !err.message.startsWith('API error')) {
+        errorMsg = err.message;
+      }
+
+      if (
+        err?.status === 409 ||
+        err?.status === 400 ||
+        errorMsg.toLowerCase().includes('exist') ||
+        errorMsg.toLowerCase().includes('already') ||
+        errorMsg.toLowerCase().includes('duplicate') ||
+        errorMsg.toLowerCase().includes('trùng')
+      ) {
+        errorMsg = `Mã thẻ "${newCardCode.trim().toUpperCase()}" đã tồn tại trong hệ thống! Vui lòng nhập mã thẻ khác.`;
+      }
+      showToast(errorMsg, 'error');
     } finally {
       setCreateLoading(false);
     }

@@ -67,7 +67,9 @@ export default function FloorColumn({
                       {floor.name}
                       <span className={`w-1.5 h-1.5 rounded-full ${floor.status === 'Active' ? 'bg-[#006d43]' : 'bg-red-500'}`} />
                     </h3>
-                    <p className="text-[11px] text-slate-400 mt-1">Floor index: {floor.floorNumber}</p>
+                    <p className="text-[11px] text-slate-400 mt-1">
+                      Floor index: {floor.floorNumber} • Type: <span className="font-medium text-slate-600">{floor.floorType || 'Standard'}</span>
+                    </p>
                     <p className="text-[11px] text-[#3d4a41]/75 font-medium mt-0.5">
                       Max capacity: {floor.totalSlots} slots
                     </p>

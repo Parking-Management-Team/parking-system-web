@@ -25,10 +25,10 @@ export default function About() {
 
         {/* Section label + headline */}
         <motion.div {...fade()} className="mb-20 max-w-2xl">
-          <p className="font-mono text-[11px] uppercase tracking-[0.25em] text-emerald-600 mb-4">01 / About</p>
+          <p className="font-mono text-[11px] uppercase tracking-[0.25em] text-emerald-600 mb-4">01 / About NexPark</p>
           <h2 className="text-5xl md:text-6xl font-black text-[#0a0a0a] leading-none tracking-tight">
-            Built for people<br />
-            <span className="text-emerald-500">in motion.</span>
+            Smart operations<br />
+            <span className="text-emerald-500">at FPT Building.</span>
           </h2>
         </motion.div>
 

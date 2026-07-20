@@ -57,8 +57,8 @@ export default function Hero({ scrollToSection }: HeroProps) {
         <div className="mb-10">
           {/* Small eyebrow label */}
           <motion.div {...fadeUp(0.15)} className="mb-6">
-            <span className="font-mono text-xs text-white/40 uppercase tracking-[0.3em] border-l-2 border-emerald-500 pl-3">
-              Smart Parking Infrastructure
+            <span className="font-mono text-xs text-white/60 uppercase tracking-[0.3em] border-l-2 border-emerald-500 pl-3">
+              NexPark • Smart Parking Infrastructure • FPT Building
             </span>
           </motion.div>
 
@@ -72,7 +72,7 @@ export default function Hero({ scrollToSection }: HeroProps) {
             <br />
             <span className="bg-clip-text text-transparent bg-gradient-to-r from-emerald-400 via-emerald-300 to-emerald-500">
               <TypewriterText
-                words={['with NexPark.', 'with AI.', 'with Precision.']}
+                words={['with NexPark.', 'at FPT Building.', 'with AI.']}
                 typingSpeed={80}
                 deletingSpeed={40}
                 delayBetweenWords={2800}
@@ -87,8 +87,8 @@ export default function Hero({ scrollToSection }: HeroProps) {
           {/* Description text */}
           <motion.div {...fadeUp(0.3)} className="lg:col-span-5">
             <p className="text-base lg:text-lg text-white/50 font-light leading-relaxed max-w-md">
-              Real-time spot allocation, predictive booking, and zero-wait payments — 
-              all powered by machine learning and optimized for every facility.
+              NexPark intelligent parking management system for FPT Building. 
+              Advance booking, automated license plate recognition, and contactless payment.
             </p>
           </motion.div>
 

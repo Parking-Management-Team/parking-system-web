@@ -1,106 +1,110 @@
 'use client'
 
-import { MapPin, Clock, Users } from 'lucide-react'
+import { MapPin, Clock, PhoneCall, Mail } from 'lucide-react'
 
 export default function Contact() {
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-  }
-
   return (
-    <section id="contact" className="section-padding bg-white">
-      <div className="container mx-auto px-6 lg:px-12">
-        <div className="grid lg:grid-cols-2 gap-12 items-center">
-          <div>
-            <h2 className="text-4xl md:text-5xl font-bold font-heading text-gray-900 mb-6">Get In Touch</h2>
-            <p className="text-xl text-gray-600 mb-8 leading-relaxed">
-              Have questions about our parking solutions? Our team is ready to help you optimize your parking spaces.
-            </p>
+    <section id="contact" className="py-24 bg-white overflow-hidden">
+      {/* Top subtle border */}
+      <div className="h-px bg-gradient-to-r from-transparent via-gray-200 to-transparent mb-16" />
 
-            <div className="space-y-8">
-              <div className="flex items-start space-x-5">
-                <div className="w-12 h-12 bg-emerald-100 rounded-xl flex items-center justify-center flex-shrink-0">
-                  <MapPin className="w-6 h-6 text-emerald-600" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-bold font-heading text-gray-900 mb-1">Our Location</h3>
-                  <p className="text-gray-600 leading-relaxed">123 Smart City Plaza, Building A<br />Hanoi, Vietnam</p>
-                </div>
-              </div>
+      <div className="max-w-5xl mx-auto px-6 lg:px-12">
+        {/* Header */}
+        <div className="text-center max-w-2xl mx-auto mb-16">
+          <p className="font-mono text-[11px] uppercase tracking-[0.25em] text-emerald-600 mb-4">
+            05 / Location & Contact
+          </p>
+          <h2 className="text-4xl md:text-5xl font-black text-gray-900 leading-tight tracking-tight mb-4">
+            NexPark • <span className="text-emerald-500">FPT Building</span>
+          </h2>
+          <p className="text-lg text-gray-600 font-light leading-relaxed">
+            NexPark smart parking system serving FPT Building. Contact management or technical support below.
+          </p>
+        </div>
 
-              <div className="flex items-start space-x-5">
-                <div className="w-12 h-12 bg-emerald-100 rounded-xl flex items-center justify-center flex-shrink-0">
-                  <Clock className="w-6 h-6 text-emerald-600" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-bold font-heading text-gray-900 mb-1">Working Hours</h3>
-                  <p className="text-gray-600 leading-relaxed">Monday - Friday: 8:00 AM - 8:00 PM<br />Saturday - Sunday: 9:00 AM - 6:00 PM</p>
-                </div>
+        {/* Contact info grid - 3 cards */}
+        <div className="grid md:grid-cols-3 gap-8">
+          {/* Card 1: Location */}
+          <div className="bg-gray-50 p-8 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between hover:shadow-md hover:border-emerald-200 transition-all duration-300">
+            <div>
+              <div className="w-12 h-12 bg-emerald-500/10 text-emerald-600 rounded-xl flex items-center justify-center mb-6">
+                <MapPin className="w-6 h-6" />
               </div>
-
-              <div className="flex items-start space-x-5">
-                <div className="w-12 h-12 bg-emerald-100 rounded-xl flex items-center justify-center flex-shrink-0">
-                  <Users className="w-6 h-6 text-emerald-600" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-bold font-heading text-gray-900 mb-1">Contact Us</h3>
-                  <p className="text-gray-600 leading-relaxed">support@nexpark.com<br />+84 123 456 7890</p>
-                </div>
-              </div>
+              <h3 className="text-lg font-bold text-gray-900 mb-2">Parking Location</h3>
+              <p className="text-sm text-gray-600 leading-relaxed font-light mb-6">
+                NexPark Parking - FPT Building<br />
+                High-Tech Park, Hanoi, Vietnam
+              </p>
             </div>
+            <a
+              href="https://maps.google.com/?q=Tòa+nhà+FPT+Hà+Nội"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 text-xs font-bold text-emerald-600 hover:text-emerald-700 hover:underline"
+            >
+              Get directions <MapPin className="w-3.5 h-3.5" />
+            </a>
           </div>
 
-          <div className="bg-gray-50 p-8 rounded-3xl border border-gray-100 shadow-sm">
-            <form onSubmit={handleSubmit} className="space-y-6">
-              <div>
-                <label htmlFor="name" className="block text-sm font-semibold text-gray-700 mb-2">
-                  Name
-                </label>
-                <input
-                  type="text"
-                  id="name"
-                  required
-                  className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all bg-white"
-                  placeholder="Your name"
-                />
+          {/* Card 2: Operating Hours */}
+          <div className="bg-gray-50 p-8 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between hover:shadow-md hover:border-emerald-200 transition-all duration-300">
+            <div>
+              <div className="w-12 h-12 bg-emerald-500/10 text-emerald-600 rounded-xl flex items-center justify-center mb-6">
+                <Clock className="w-6 h-6" />
               </div>
+              <h3 className="text-lg font-bold text-gray-900 mb-2">Operating Hours</h3>
+              <p className="text-sm text-gray-600 leading-relaxed font-light">
+                Mon - Sun: 24/7<br />
+                Technical support: 07:00 - 22:00
+              </p>
+            </div>
+            <span className="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full w-fit mt-6">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" /> Active Now
+            </span>
+          </div>
 
-              <div>
-                <label htmlFor="email" className="block text-sm font-semibold text-gray-700 mb-2">
-                  Email
-                </label>
-                <input
-                  type="email"
-                  id="email"
-                  required
-                  className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all bg-white"
-                  placeholder="your@email.com"
-                />
+          {/* Card 3: Support Contact */}
+          <div className="bg-gray-50 p-8 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between hover:shadow-md hover:border-emerald-200 transition-all duration-300">
+            <div>
+              <div className="w-12 h-12 bg-emerald-500/10 text-emerald-600 rounded-xl flex items-center justify-center mb-6">
+                <PhoneCall className="w-6 h-6" />
               </div>
-
-              <div>
-                <label htmlFor="message" className="block text-sm font-semibold text-gray-700 mb-2">
-                  Message
-                </label>
-                <textarea
-                  id="message"
-                  rows={4}
-                  required
-                  className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all bg-white"
-                  placeholder="How can we help you?"
-                ></textarea>
+              <h3 className="text-lg font-bold text-gray-900 mb-2">Support Channels</h3>
+              <div className="space-y-3 text-sm text-gray-600 font-light mb-6">
+                <a
+                  href="mailto:support@nexpark.vn"
+                  className="flex items-center gap-2.5 hover:text-emerald-600 transition-colors font-medium"
+                >
+                  <Mail className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <span>support@nexpark.vn</span>
+                </a>
+                <a
+                  href="tel:+84123456789"
+                  className="flex items-center gap-2.5 hover:text-emerald-600 transition-colors font-medium"
+                >
+                  <PhoneCall className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <span>Hotline: +84 123 456 789</span>
+                </a>
               </div>
-
-              <button 
-                type="submit" 
-                className="w-full py-4 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl font-bold shadow-lg shadow-emerald-500/10 hover:shadow-emerald-500/25 hover:scale-[1.01] transition-all cursor-pointer text-center"
+            </div>
+            <div className="flex gap-2">
+              <a
+                href="tel:+84123456789"
+                className="flex-1 py-2.5 px-3 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl text-xs font-bold text-center transition-all shadow-sm cursor-pointer"
               >
-                Send Message
-              </button>
-            </form>
+                Call Hotline
+              </a>
+              <a
+                href="mailto:support@nexpark.vn"
+                className="flex-1 py-2.5 px-3 border border-emerald-500/30 text-emerald-700 hover:bg-emerald-50 rounded-xl text-xs font-bold text-center transition-all cursor-pointer"
+              >
+                Send Email
+              </a>
+            </div>
           </div>
         </div>
       </div>
     </section>
   )
 }
+

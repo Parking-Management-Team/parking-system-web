@@ -63,7 +63,7 @@ const formatDateTime = (value?: string | null) => {
 };
 
 const formatCurrency = (amount?: number | null) =>
-  `${new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 0 }).format(amount ?? 0)} VNĐ`;
+  `${new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 0 }).format(amount ?? 0)} đ`;
 
 const getDurationLabel = (checkInTime?: string | null, checkOutTime?: string | null) => {
   if (!checkInTime) return '—';
@@ -110,9 +110,11 @@ const writeHistory = (items: CheckoutHistoryItem[]) => {
 export default function VehicleCheckout({
   compact = false,
   refreshTrigger,
+  onCheckoutSuccess,
 }: {
   compact?: boolean;
   refreshTrigger?: number;
+  onCheckoutSuccess?: () => void;
 } = {}) {
   const { showToast } = useAuth();
   const [sessions, setSessions] = useState<CheckoutSession[]>([]);
@@ -264,7 +266,7 @@ export default function VehicleCheckout({
     try {
       const result = await scanLicensePlate({ image: base64Img });
       setOcrText(result.licensePlate);
-      showToast(`Exit license plate recognized: ${result.licensePlate} (${Math.round(result.confidence * 100)})`, 'success');
+      showToast(`Exit license plate recognized: ${result.licensePlate}`, 'success');
       return result.licensePlate;
     } catch (err: any) {
       console.error('OCR error:', err);
@@ -302,50 +304,7 @@ export default function VehicleCheckout({
     }
   }, [captureFrame, performOCR, selectedSession, sessions, showToast]);
 
-  const handleMockScanCheckout = useCallback(() => {
-    let targetPlate = '51A-999.99';
-    if (selectedSession) {
-      targetPlate = selectedSession.licensePlate;
-    } else if (sessions.length > 0) {
-      const randomSession = sessions[Math.floor(Math.random() * sessions.length)];
-      targetPlate = randomSession.licensePlate;
-    }
 
-    const canvas = document.createElement('canvas');
-    canvas.width = 300;
-    canvas.height = 150;
-    const ctx = canvas.getContext('2d');
-    if (ctx) {
-      ctx.fillStyle = '#0f172a';
-      ctx.fillRect(0, 0, 300, 150);
-      ctx.fillStyle = '#ffffff';
-      ctx.font = '24px monospace';
-      ctx.textAlign = 'center';
-      ctx.fillText(targetPlate, 150, 60);
-      ctx.font = '12px sans-serif';
-      ctx.fillStyle = '#f43f5e';
-      ctx.fillText('MOCK SCAN OUT', 150, 100);
-      const dataUrl = canvas.toDataURL('image/jpeg');
-      setCapturedImage(dataUrl);
-    }
-    showToast(`Simulated exit plate scan: ${targetPlate}`, 'success');
-
-    if (!selectedSession) {
-      const queryKey = normalizeComparable(targetPlate);
-      const matched = sessions.find(
-        s => normalizeComparable(s.cardCode) === queryKey || normalizeComparable(s.licensePlate) === queryKey
-      );
-      if (matched) {
-        setSelectedSessionId(matched.id);
-        setSearchQuery(matched.cardCode || matched.licensePlate);
-        setCalculatedFee(null);
-        setLockedCheckoutTime(null);
-        setExitPlate(targetPlate);
-      }
-    } else {
-      setExitPlate(targetPlate);
-    }
-  }, [showToast, selectedSession, sessions]);
 
 
 
@@ -441,8 +400,9 @@ export default function VehicleCheckout({
   useEffect(() => {
     if (refreshTrigger !== undefined && refreshTrigger > 0) {
       void loadActiveSessions();
+      void loadCards();
     }
-  }, [refreshTrigger, loadActiveSessions]);
+  }, [refreshTrigger, loadActiveSessions, loadCards]);
 
   const selectSession = (session: CheckoutSession) => {
     setSelectedSessionId(session.id);
@@ -677,6 +637,7 @@ export default function VehicleCheckout({
 
       await loadActiveSessions();
       resetForNextVehicle();
+      onCheckoutSuccess?.();
       showToast('Check-out and payment completed successfully!', 'success');
     } catch (error) {
       showToast(

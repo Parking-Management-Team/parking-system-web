@@ -3,7 +3,7 @@
  *
  * Chứa các hằng số cấu hình cho:
  * - Tên app, URL API, URL app
- * - Cài đặt API (timeout, retry)
+ * - Cài đặt API (timeout)
  * - Quy tắc booking (giờ tối thiểu/tối đa, grace period)
  *
  * Lưu ý: Các giá trị có thể ghi đè bằng biến môi trường (.env)
@@ -21,7 +21,6 @@ export const APP_CONFIG = {
 
   // API settings
   requestTimeout: 45_000, // ms (45s cho Render cold start & gửi OTP email)
-  retryAttempts: 2,
 
   // Booking rules
   bookingMinHours: 1,

@@ -55,7 +55,7 @@ const formatDateTime = (value?: string | null) => {
 };
 
 const formatCurrency = (amount?: number | null) =>
-  `${new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 0 }).format(amount ?? 0)} VNĐ`;
+  `${new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 0 }).format(amount ?? 0)} đ`;
 
 const isConfirmedBookingForPlate = (
   booking: VehicleCheckinBooking,
@@ -73,9 +73,11 @@ const isConfirmedBookingForPlate = (
 
 export default function VehicleCheckin({
   compact = false,
+  refreshTrigger,
   onCheckinSuccess,
 }: {
   compact?: boolean;
+  refreshTrigger?: number;
   onCheckinSuccess?: () => void;
 } = {}) {
   const { showToast } = useAuth();
@@ -242,7 +244,7 @@ export default function VehicleCheckin({
     try {
       const result = await scanLicensePlate({ image: base64Img });
       setOcrText(result.licensePlate);
-      showToast(`License plate recognized: ${result.licensePlate} (Confidence: ${Math.round(result.confidence * 100)})`, 'success');
+      showToast(`License plate recognized: ${result.licensePlate}`, 'success');
       return result.licensePlate;
     } catch (err: any) {
       console.error('OCR error:', err);
@@ -270,38 +272,7 @@ export default function VehicleCheckin({
     }
   }, [captureFrame, performOCR, availableCards]);
 
-  const handleMockScanCheckin = useCallback(() => {
-    const mockPlates = ['51A-999.99', '29G1-888.88', '43B-777.77', '59S3-555.55'];
-    const randomPlate = mockPlates[Math.floor(Math.random() * mockPlates.length)];
-    setLicensePlate(randomPlate);
 
-    console.log('Check-in mock scan: availableCards =', availableCards);
-    if (availableCards.length > 0) {
-      const randomCard = availableCards[Math.floor(Math.random() * availableCards.length)];
-      setCardCode(randomCard.cardCode);
-    } else {
-      console.warn('Check-in mock scan: No available cards found!');
-    }
-
-    const canvas = document.createElement('canvas');
-    canvas.width = 300;
-    canvas.height = 150;
-    const ctx = canvas.getContext('2d');
-    if (ctx) {
-      ctx.fillStyle = '#020617';
-      ctx.fillRect(0, 0, 300, 150);
-      ctx.fillStyle = '#ffffff';
-      ctx.font = '24px monospace';
-      ctx.textAlign = 'center';
-      ctx.fillText(randomPlate, 150, 60);
-      ctx.font = '12px sans-serif';
-      ctx.fillStyle = '#10b981';
-      ctx.fillText('MOCK SCAN IN', 150, 100);
-      const dataUrl = canvas.toDataURL('image/jpeg');
-      setCapturedImage(dataUrl);
-    }
-    showToast(`Simulated entry plate scan: ${randomPlate}`, 'success');
-  }, [showToast, availableCards]);
 
   const formattedPlate = normalizeText(licensePlate);
   const normalizedCardCode = normalizeText(cardCode);
@@ -423,6 +394,12 @@ export default function VehicleCheckin({
       showToast(message, 'error');
     });
   }, [loadGateData, showToast]);
+
+  useEffect(() => {
+    if (refreshTrigger !== undefined && refreshTrigger > 0) {
+      void loadGateData();
+    }
+  }, [refreshTrigger, loadGateData]);
 
   const checkBlacklistBeforeSubmit = () => {
     const plateKey = normalizeComparable(formattedPlate);
@@ -763,7 +740,7 @@ export default function VehicleCheckin({
                     </div>
                   </div>
                 )}
-                {ocrText && <p className="text-[9px] text-emerald-400 font-bold mt-0.5">Confidence: {ocrText ? 'Passed' : ''}</p>}
+
               </div>
             </section>
           </div>

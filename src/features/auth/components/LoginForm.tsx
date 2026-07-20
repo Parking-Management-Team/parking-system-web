@@ -24,10 +24,8 @@ import * as React from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import { Eye, EyeOff, ArrowRight, Mail, Lock, X, ArrowLeft, ShieldCheck } from 'lucide-react';
+import { Eye, EyeOff, ArrowRight, Mail, Lock, X } from 'lucide-react';
 import { useAuth } from '@/features/auth';
-import { OtpInput } from './OtpInput';
-import { useOtpCooldown } from '@/hooks/useOtpCooldown';
 
 interface GoogleCredentialResponse {
   credential?: string;
@@ -63,16 +61,13 @@ export function LoginForm({ isModal = false, onSuccess, onClose, onSwitchMode }:
       router.push('/');
     }
   };
-  const { login, verifyLoginOtp, loginWithGoogle, showToast } = useAuth();
+  const { login, loginWithGoogle, showToast } = useAuth();
   const [identifier, setIdentifier] = React.useState('');
   const [password, setPassword] = React.useState('');
   const [showPassword, setShowPassword] = React.useState(false);
   const [errors, setErrors] = React.useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [googleLoading, setGoogleLoading] = React.useState(false);
-  const [showOtp, setShowOtp] = React.useState(false);
-  const [otpCode, setOtpCode] = React.useState('');
-  const { cooldown, startCooldown, isCooldownActive } = useOtpCooldown(identifier);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -91,83 +86,18 @@ export function LoginForm({ isModal = false, onSuccess, onClose, onSwitchMode }:
     setIsSubmitting(true);
 
     try {
-      const loggedInUser = await login(identifier, password);
-      if (isModal && onSuccess) {
-        onSuccess();
-      } else {
-        router.push('/dashboard');
-      }
-    } catch (err: any) {
-      if (err && err.code === 'REQUIRE_LOGIN_OTP_VERIFICATION') {
-        setShowOtp(true);
-        startCooldown();
-        showToast('Login verification required. OTP sent to your email.', 'info');
-      } else {
-        setErrors({ form: err.message || 'Invalid username or password' });
-      }
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const handleOtpVerify = React.useCallback(async (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
-    if (isSubmitting) return;
-
-    if (otpCode.length !== 6) {
-      setErrors({ otp: 'Please enter all 6 digits of the OTP' });
-      return;
-    }
-
-    setErrors({});
-    setIsSubmitting(true);
-
-    try {
-      const loggedInUser = await verifyLoginOtp(identifier, password, otpCode);
-      showToast('Login successful!', 'success');
-      
-      if (isModal && onSuccess) {
-        onSuccess();
-      } else {
-        router.push('/dashboard');
-      }
-    } catch (err: any) {
-      setErrors({ form: err.message || 'Invalid or expired OTP. Please try again.' });
-    } finally {
-      setIsSubmitting(false);
-    }
-  }, [isSubmitting, otpCode, identifier, password, verifyLoginOtp, showToast, isModal, onSuccess, router]);
-
-  const handleResendOtp = async () => {
-    if (isCooldownActive || isSubmitting) return;
-
-    setErrors({});
-    setIsSubmitting(true);
-
-    try {
       await login(identifier, password);
-    } catch (err: any) {
-      if (err.code === 'REQUIRE_LOGIN_OTP_VERIFICATION') {
-        showToast('A new OTP has been sent to your email.', 'success');
-        startCooldown();
-        setOtpCode('');
+      if (isModal && onSuccess) {
+        onSuccess();
       } else {
-        showToast(err.message || 'Failed to resend OTP.', 'error');
+        router.push('/dashboard');
       }
+    } catch (err: any) {
+      setErrors({ form: err.message || 'Invalid username or password' });
     } finally {
       setIsSubmitting(false);
     }
   };
-
-  // Trigger verification automatically when 6th digit is typed
-  React.useEffect(() => {
-    if (otpCode.length === 6 && showOtp) {
-      const timer = setTimeout(() => {
-        handleOtpVerify();
-      }, 300);
-      return () => clearTimeout(timer);
-    }
-  }, [otpCode, showOtp, handleOtpVerify]);
 
   // Callback xử lý kết quả trả về từ popup Google Đăng nhập thành công
   const handleGoogleCredentialResponse = React.useCallback(async (response: GoogleCredentialResponse) => {
@@ -289,262 +219,164 @@ export function LoginForm({ isModal = false, onSuccess, onClose, onSwitchMode }:
         </span>
       </div>
 
-      {showOtp ? (
-        <>
-          {/* Heading */}
-          <div className="mb-8">
+      {/* Heading */}
+      <div className="mb-8">
+        <h1 className="text-3xl font-extrabold text-[#0f172a] tracking-tight leading-tight mb-2 font-heading">
+          Welcome back
+        </h1>
+        <p className="text-sm text-[#64748b] font-normal font-sans">
+          Please enter your details to sign in to NexPark.
+        </p>
+      </div>
+
+      {/* Google Sign In Button Container */}
+      <div className="w-full flex justify-center min-h-[44px]">
+        {googleLoading ? (
+          <div className="w-full flex items-center justify-center gap-3 px-4 py-3 border border-[#e2e8f0] rounded-xl bg-[#f8fafc] text-[#64748b] font-medium text-sm">
+            <div className="w-5 h-5 border-2 border-[#cbd5e1] border-t-[#64748b] rounded-full animate-spin" />
+            <span>Connecting...</span>
+          </div>
+        ) : (
+          <div id="google-signin-btn" className="w-full flex justify-center" />
+        )}
+      </div>
+
+      {/* Divider */}
+      <div className="flex items-center my-6 gap-3">
+        <div className="flex-1 h-px bg-[#e2e8f0]" />
+        <span className="text-xs font-medium text-[#94a3b8] uppercase tracking-widest px-1"
+          style={{ fontFamily: "'Inter', sans-serif" }}>or</span>
+        <div className="flex-1 h-px bg-[#e2e8f0]" />
+      </div>
+
+      {/* Form */}
+      <form onSubmit={handleSubmit} className="flex flex-col gap-5" noValidate>
+        {errors.form && (
+          <div className="px-4 py-3 rounded-xl bg-red-50 border border-red-200 text-red-600 text-sm font-medium"
+            style={{ fontFamily: "'Inter', sans-serif" }}>
+            {errors.form}
+          </div>
+        )}
+
+        {/* Username / Email */}
+        <div className="flex flex-col gap-1.5">
+          <label htmlFor="login-identifier"
+            className="text-sm font-semibold text-[#0f172a]"
+            style={{ fontFamily: "'Inter', sans-serif" }}>
+            Username or Email
+          </label>
+          <div className="relative">
+            <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#94a3b8]" />
+            <input
+              id="login-identifier"
+              type="text"
+              autoComplete="username"
+              placeholder="jane@company.com"
+              value={identifier}
+              onChange={(e) => {
+                setIdentifier(e.target.value);
+                if (errors.identifier) setErrors(prev => { const n = { ...prev }; delete n.identifier; return n; });
+              }}
+              className={`w-full pl-10 pr-4 py-3 rounded-xl border text-sm text-[#0f172a] placeholder:text-[#94a3b8] bg-white transition-all duration-200 outline-none
+                focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500
+                ${errors.identifier ? 'border-red-400 bg-red-50/30' : 'border-[#e2e8f0] hover:border-[#cbd5e1]'}`}
+              style={{ fontFamily: "'Inter', sans-serif" }}
+            />
+          </div>
+          {errors.identifier && (
+            <p className="text-xs text-red-500 font-medium mt-0.5">{errors.identifier}</p>
+          )}
+        </div>
+
+        {/* Password */}
+        <div className="flex flex-col gap-1.5">
+          <div className="flex justify-between items-center">
+            <label htmlFor="login-password"
+              className="text-sm font-semibold text-[#0f172a]"
+              style={{ fontFamily: "'Inter', sans-serif" }}>
+              Password
+            </label>
+            <Link href="/forgot-password"
+              className="text-xs font-semibold text-emerald-600 hover:text-emerald-700 transition-colors"
+              style={{ fontFamily: "'Inter', sans-serif" }}>
+              Forgot Password?
+            </Link>
+          </div>
+          <div className="relative">
+            <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#94a3b8]" />
+            <input
+              id="login-password"
+              type={showPassword ? 'text' : 'password'}
+              autoComplete="current-password"
+              placeholder="••••••••"
+              value={password}
+              onChange={(e) => {
+                setPassword(e.target.value);
+                if (errors.password) setErrors(prev => { const n = { ...prev }; delete n.password; return n; });
+              }}
+              className={`w-full pl-10 pr-12 py-3 rounded-xl border text-sm text-[#0f172a] placeholder:text-[#94a3b8] bg-white transition-all duration-200 outline-none
+                focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500
+                ${errors.password ? 'border-red-400 bg-red-50/30' : 'border-[#e2e8f0] hover:border-[#cbd5e1]'}`}
+              style={{ fontFamily: "'Inter', sans-serif" }}
+            />
             <button
               type="button"
-              onClick={() => {
-                setShowOtp(false);
-                setOtpCode('');
-                setErrors({});
-              }}
-              className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-slate-800 transition-colors bg-transparent border-none p-0 cursor-pointer mb-4"
+              tabIndex={-1}
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[#94a3b8] hover:text-[#64748b] transition-colors"
             >
-              <ArrowLeft className="w-4 h-4" />
-              <span>Back to Login</span>
+              {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
             </button>
-            <h1 className="text-3xl font-extrabold text-[#0f172a] tracking-tight leading-tight mb-2 font-heading">
-              Verify Login
-            </h1>
-            <p className="text-sm text-[#64748b] font-normal font-sans leading-relaxed">
-              We sent a 6-digit OTP code to <strong className="text-slate-800 font-semibold">{identifier}</strong>. Please enter it below.
-            </p>
           </div>
+          {errors.password && (
+            <p className="text-xs text-red-500 font-medium mt-0.5">{errors.password}</p>
+          )}
+        </div>
 
-          <form onSubmit={handleOtpVerify} className="flex flex-col gap-5" noValidate>
-            {errors.form && (
-              <div className="px-4 py-3 rounded-xl bg-red-50 border border-red-200 text-red-600 text-sm font-medium"
-                style={{ fontFamily: "'Inter', sans-serif" }}>
-                {errors.form}
-              </div>
-            )}
+        {/* Submit */}
+        <button
+          type="submit"
+          disabled={isSubmitting || googleLoading}
+          className="w-full mt-1 py-3.5 rounded-xl font-bold text-sm text-white
+            bg-gradient-to-r from-[#059669] to-[#10b981]
+            hover:from-[#047857] hover:to-[#059669]
+            shadow-lg shadow-emerald-600/25 hover:shadow-emerald-600/40
+            active:scale-[0.98] transition-all duration-200
+            flex items-center justify-center gap-2
+            disabled:opacity-60 disabled:cursor-not-allowed disabled:transform-none"
+          style={{ fontFamily: "'Inter', sans-serif" }}
+        >
+          {isSubmitting ? (
+            <div className="w-5 h-5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+          ) : (
+            <>
+              <span>Sign In</span>
+              <ArrowRight className="w-4 h-4" />
+            </>
+          )}
+        </button>
+      </form>
 
-            <div className="flex flex-col gap-2">
-              <label className="text-xs font-bold text-slate-700 uppercase tracking-wider">Verification Code</label>
-              <OtpInput
-                value={otpCode}
-                onChange={(val) => {
-                  setOtpCode(val);
-                  if (errors.otp) {
-                    setErrors(prev => {
-                      const next = { ...prev };
-                      delete next.otp;
-                      return next;
-                    });
-                  }
-                }}
-                disabled={isSubmitting}
-              />
-              {errors.otp && (
-                <span className="text-xs text-red-500 font-medium">{errors.otp}</span>
-              )}
-            </div>
-
-            {/* Cooldown Timer */}
-            <div className="text-center py-1">
-              {isCooldownActive ? (
-                <p className="text-xs text-slate-500 font-medium">
-                  Resend code in <span className="font-bold text-emerald-600">{cooldown}s</span>
-                </p>
-              ) : (
-                <button
-                  type="button"
-                  onClick={handleResendOtp}
-                  disabled={isSubmitting}
-                  className="text-xs font-bold text-emerald-600 hover:text-emerald-700 hover:underline transition-colors bg-transparent border-none cursor-pointer p-0 inline"
-                >
-                  Resend OTP Code
-                </button>
-              )}
-            </div>
-
+      {/* Switch to Register */}
+      <div className="mt-7 text-center">
+        <p className="text-sm text-[#64748b]" style={{ fontFamily: "'Inter', sans-serif" }}>
+          Don&apos;t have an account?{' '}
+          {isModal && onSwitchMode ? (
             <button
-              type="submit"
-              disabled={isSubmitting}
-              className="w-full mt-1 py-3.5 rounded-xl font-bold text-sm text-white
-                bg-gradient-to-r from-[#059669] to-[#10b981]
-                hover:from-[#047857] hover:to-[#059669]
-                shadow-lg shadow-emerald-600/25 hover:shadow-emerald-600/40
-                active:scale-[0.98] transition-all duration-200
-                flex items-center justify-center gap-2
-                disabled:opacity-60 disabled:cursor-not-allowed disabled:transform-none"
-              style={{ fontFamily: "'Inter', sans-serif" }}
+              type="button"
+              onClick={onSwitchMode}
+              className="text-emerald-600 font-bold hover:text-emerald-700 hover:underline transition-colors ml-1 bg-transparent border-none p-0 cursor-pointer text-sm"
             >
-              {isSubmitting ? (
-                <div className="w-5 h-5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-              ) : (
-                <>
-                  <span>Verify and Sign In</span>
-                  <ShieldCheck className="w-4 h-4" />
-                </>
-              )}
+              Register
             </button>
-          </form>
-        </>
-      ) : (
-        <>
-          {/* Heading */}
-          <div className="mb-8">
-            <h1 className="text-3xl font-extrabold text-[#0f172a] tracking-tight leading-tight mb-2 font-heading">
-              Welcome back
-            </h1>
-            <p className="text-sm text-[#64748b] font-normal font-sans">
-              Please enter your details to sign in to NexPark.
-            </p>
-          </div>
-
-          {/* Google Sign In Button Container */}
-          <div className="w-full flex justify-center min-h-[44px]">
-            {googleLoading ? (
-              <div className="w-full flex items-center justify-center gap-3 px-4 py-3 border border-[#e2e8f0] rounded-xl bg-[#f8fafc] text-[#64748b] font-medium text-sm">
-                <div className="w-5 h-5 border-2 border-[#cbd5e1] border-t-[#64748b] rounded-full animate-spin" />
-                <span>Connecting...</span>
-              </div>
-            ) : (
-              <div id="google-signin-btn" className="w-full flex justify-center" />
-            )}
-          </div>
-
-          {/* Divider */}
-          <div className="flex items-center my-6 gap-3">
-            <div className="flex-1 h-px bg-[#e2e8f0]" />
-            <span className="text-xs font-medium text-[#94a3b8] uppercase tracking-widest px-1"
-              style={{ fontFamily: "'Inter', sans-serif" }}>or</span>
-            <div className="flex-1 h-px bg-[#e2e8f0]" />
-          </div>
-
-          {/* Form */}
-          <form onSubmit={handleSubmit} className="flex flex-col gap-5" noValidate>
-            {errors.form && (
-              <div className="px-4 py-3 rounded-xl bg-red-50 border border-red-200 text-red-600 text-sm font-medium"
-                style={{ fontFamily: "'Inter', sans-serif" }}>
-                {errors.form}
-              </div>
-            )}
-
-            {/* Username / Email */}
-            <div className="flex flex-col gap-1.5">
-              <label htmlFor="login-identifier"
-                className="text-sm font-semibold text-[#0f172a]"
-                style={{ fontFamily: "'Inter', sans-serif" }}>
-                Username or Email
-              </label>
-              <div className="relative">
-                <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#94a3b8]" />
-                <input
-                  id="login-identifier"
-                  type="text"
-                  autoComplete="username"
-                  placeholder="jane@company.com"
-                  value={identifier}
-                  onChange={(e) => {
-                    setIdentifier(e.target.value);
-                    if (errors.identifier) setErrors(prev => { const n = { ...prev }; delete n.identifier; return n; });
-                  }}
-                  className={`w-full pl-10 pr-4 py-3 rounded-xl border text-sm text-[#0f172a] placeholder:text-[#94a3b8] bg-white transition-all duration-200 outline-none
-                    focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500
-                    ${errors.identifier ? 'border-red-400 bg-red-50/30' : 'border-[#e2e8f0] hover:border-[#cbd5e1]'}`}
-                  style={{ fontFamily: "'Inter', sans-serif" }}
-                />
-              </div>
-              {errors.identifier && (
-                <p className="text-xs text-red-500 font-medium mt-0.5">{errors.identifier}</p>
-              )}
-            </div>
-
-            {/* Password */}
-            <div className="flex flex-col gap-1.5">
-              <div className="flex justify-between items-center">
-                <label htmlFor="login-password"
-                  className="text-sm font-semibold text-[#0f172a]"
-                  style={{ fontFamily: "'Inter', sans-serif" }}>
-                  Password
-                </label>
-                <Link href="/forgot-password"
-                  className="text-xs font-semibold text-emerald-600 hover:text-emerald-700 transition-colors"
-                  style={{ fontFamily: "'Inter', sans-serif" }}>
-                  Forgot Password?
-                </Link>
-              </div>
-              <div className="relative">
-                <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#94a3b8]" />
-                <input
-                  id="login-password"
-                  type={showPassword ? 'text' : 'password'}
-                  autoComplete="current-password"
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={(e) => {
-                    setPassword(e.target.value);
-                    if (errors.password) setErrors(prev => { const n = { ...prev }; delete n.password; return n; });
-                  }}
-                  className={`w-full pl-10 pr-12 py-3 rounded-xl border text-sm text-[#0f172a] placeholder:text-[#94a3b8] bg-white transition-all duration-200 outline-none
-                    focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500
-                    ${errors.password ? 'border-red-400 bg-red-50/30' : 'border-[#e2e8f0] hover:border-[#cbd5e1]'}`}
-                  style={{ fontFamily: "'Inter', sans-serif" }}
-                />
-                <button
-                  type="button"
-                  tabIndex={-1}
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[#94a3b8] hover:text-[#64748b] transition-colors"
-                >
-                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                </button>
-              </div>
-              {errors.password && (
-                <p className="text-xs text-red-500 font-medium mt-0.5">{errors.password}</p>
-              )}
-            </div>
-
-            {/* Submit */}
-            <button
-              type="submit"
-              disabled={isSubmitting || googleLoading}
-              className="w-full mt-1 py-3.5 rounded-xl font-bold text-sm text-white
-                bg-gradient-to-r from-[#059669] to-[#10b981]
-                hover:from-[#047857] hover:to-[#059669]
-                shadow-lg shadow-emerald-600/25 hover:shadow-emerald-600/40
-                active:scale-[0.98] transition-all duration-200
-                flex items-center justify-center gap-2
-                disabled:opacity-60 disabled:cursor-not-allowed disabled:transform-none"
-              style={{ fontFamily: "'Inter', sans-serif" }}
-            >
-              {isSubmitting ? (
-                <div className="w-5 h-5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-              ) : (
-                <>
-                  <span>Sign In</span>
-                  <ArrowRight className="w-4 h-4" />
-                </>
-              )}
-            </button>
-          </form>
-
-          {/* Switch to Register */}
-          <div className="mt-7 text-center">
-            <p className="text-sm text-[#64748b]" style={{ fontFamily: "'Inter', sans-serif" }}>
-              Don&apos;t have an account?{' '}
-              {isModal && onSwitchMode ? (
-                <button
-                  type="button"
-                  onClick={onSwitchMode}
-                  className="text-emerald-600 font-bold hover:text-emerald-700 hover:underline transition-colors ml-1 bg-transparent border-none p-0 cursor-pointer text-sm"
-                >
-                  Register
-                </button>
-              ) : (
-                <Link href="/register"
-                  className="text-emerald-600 font-bold hover:text-emerald-700 hover:underline transition-colors ml-1">
-                  Register
-                </Link>
-              )}
-            </p>
-          </div>
-        </>
-      )}
+          ) : (
+            <Link href="/register"
+              className="text-emerald-600 font-bold hover:text-emerald-700 hover:underline transition-colors ml-1">
+              Register
+            </Link>
+          )}
+        </p>
+      </div>
     </div>
   );
 

@@ -65,7 +65,7 @@ export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) 
     return null;
   }
 
-  // Sai vai trò → Hiển thị trang báo lỗi 403 Access Denied sử dụng component ErrorView dùng chung
+  // Sai vai trò → Hiển thị trang báo lỗi 403 Access Denied (Phân quyền vai trò cứng ở FE)
   if (allowedRoles && user?.role && !allowedRoles.includes(user.role)) {
     return (
       <ErrorView

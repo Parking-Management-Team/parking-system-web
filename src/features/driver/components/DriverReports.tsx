@@ -97,9 +97,9 @@ export default function DriverReports() {
           
           return {
             id: inc.id.toString(),
-            category: inc.incidentName || 'Báo cáo sự cố',
+            category: inc.incidentName || 'Incident Report',
             description: inc.description || '',
-            submittedAt: `Gửi lúc: ${new Date(inc.createdAt).toLocaleString('vi-VN')}`,
+            submittedAt: `Submitted at: ${new Date(inc.createdAt).toLocaleString('en-US')}`,
             status: uiStatus,
             caseNumber: `INC-${inc.id}`
           };
@@ -108,7 +108,7 @@ export default function DriverReports() {
         setReports(mappedReports);
       }
     } catch (err) {
-      console.error('Lỗi khi tải dữ liệu sự cố:', err);
+      console.error('Error loading incident data:', err);
     } finally {
       setLoading(false);
     }
@@ -122,24 +122,24 @@ export default function DriverReports() {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       setEvidenceName(e.target.files[0].name);
-      showToast(`Đính kèm file thành công: ${e.target.files[0].name}`, 'success');
+      showToast(`File attached successfully: ${e.target.files[0].name}`, 'success');
     }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!description.trim()) {
-      showToast('Vui lòng nhập mô tả chi tiết sự cố.', 'error');
+      showToast('Please enter a detailed description of the incident.', 'error');
       return;
     }
 
     if (!selectedTypeId) {
-      showToast('Vui lòng chọn loại sự cố.', 'error');
+      showToast('Please select an incident category.', 'error');
       return;
     }
 
     if (!selectedSession) {
-      showToast('Vui lòng chọn phiên đỗ xe cần báo cáo sự cố.', 'error');
+      showToast('Please select the parking session to report.', 'error');
       return;
     }
 
@@ -153,17 +153,17 @@ export default function DriverReports() {
 
       const res = await api.post<any>('/Incident', payload);
       if (res.success) {
-        showToast('Báo cáo sự cố của bạn đã được gửi thành công!', 'success');
+        showToast('Your incident report has been submitted successfully!', 'success');
         setDescription('');
         setEvidenceName('');
         // Reload data from DB
         fetchReportData();
       } else {
-        showToast(res.message || 'Lỗi khi gửi báo cáo sự cố.', 'error');
+        showToast(res.message || 'Error submitting incident report.', 'error');
       }
     } catch (err) {
-      console.error('Lỗi API Incident:', err);
-      showToast('Gặp sự cố khi gửi dữ liệu lên máy chủ.', 'error');
+      console.error('Incident API error:', err);
+      showToast('Failed to send data to the server.', 'error');
     } finally {
       setIsSubmitting(false);
     }
@@ -199,11 +199,7 @@ export default function DriverReports() {
                 <div className="flex items-center gap-2">
                   <span className="text-xs text-slate-400 font-semibold">Active Session:</span>
                   {activeSessions.length === 0 ? (
-                    <span className="text-xs font-bold px-2 py-0.5 rounded-lg bg-red-50 text-red-600">Không tìm thấy</span>
-                  ) : activeSessions.length === 1 ? (
-                    <span className="text-xs font-bold px-2 py-0.5 rounded-lg bg-emerald-50 text-emerald-700">
-                      {activeSessions[0].licensePlateIn} ({activeSessions[0].slotCode || 'Đang đỗ'})
-                    </span>
+                    <span className="text-xs font-bold px-2 py-0.5 rounded-lg bg-red-50 text-red-600">Not Found</span>
                   ) : (
                     <select
                       value={selectedSession?.id ?? ''}
@@ -211,12 +207,12 @@ export default function DriverReports() {
                         const s = activeSessions.find(x => String(x.id) === e.target.value);
                         setSelectedSession(s ?? null);
                       }}
-                      className="text-xs font-bold px-2 py-1 rounded-lg border border-emerald-300 bg-emerald-50 text-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
+                      className="text-xs font-bold px-2.5 py-1.5 rounded-xl border border-emerald-300 bg-emerald-50 text-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 cursor-pointer font-sans"
                     >
-                      <option value="">-- Chọn phương tiện --</option>
+                      <option value="">-- Select Session --</option>
                       {activeSessions.map(s => (
                         <option key={s.id} value={s.id}>
-                          {s.licensePlateIn} ({s.slotCode || 'Đang đỗ'})
+                          {s.licensePlateIn} ({s.slotCode || 'Parked'})
                         </option>
                       ))}
                     </select>
@@ -233,11 +229,9 @@ export default function DriverReports() {
                       onChange={(e) => setSelectedTypeId(Number(e.target.value))}
                       className="w-full px-4 py-2.5 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 text-xs font-bold rounded-xl bg-white text-slate-700"
                     >
-                      {incidentTypes
-                        .filter(t => ['LOST_CARD_1', 'WRONG_SLOT'].includes(t.incidentCode))
-                        .map((type) => (
-                          <option key={type.id} value={type.id}>{type.incidentName}</option>
-                        ))}
+                      {incidentTypes.map((type) => (
+                        <option key={type.id} value={type.id}>{type.incidentName}</option>
+                      ))}
                     </select>
                   </div>
                 </div>
@@ -248,7 +242,7 @@ export default function DriverReports() {
                     rows={4}
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
-                    placeholder="Cung cấp thông tin mô tả chi tiết sự cố tại đây..."
+                    placeholder="Provide details and description of the incident here..."
                     className="w-full px-4 py-2.5 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 text-xs font-medium rounded-xl resize-none"
                     required
                   ></textarea>
@@ -293,7 +287,7 @@ export default function DriverReports() {
               <div className="divide-y divide-slate-100">
                 {reports.length === 0 ? (
                   <div className="p-8 text-center text-slate-400 text-xs font-medium">
-                    Không có báo cáo sự cố nào từ phương tiện của bạn.
+                    No incident reports found for your vehicles.
                   </div>
                 ) : (
                   reports.map((report) => (
@@ -369,15 +363,15 @@ export default function DriverReports() {
               <div className="space-y-3">
                 <div className="flex gap-2 text-xs">
                   <span className="text-emerald-600 font-bold">1.</span>
-                  <p className="text-slate-500 font-medium leading-relaxed">Mất thẻ hoặc mất vé xe sẽ bị phạt phí 100.000đ theo biên bản.</p>
+                  <p className="text-slate-500 font-medium leading-relaxed">Lost parking card or ticket is subject to a penalty fee of 100,000 VND.</p>
                 </div>
                 <div className="flex gap-2 text-xs">
                   <span className="text-emerald-600 font-bold">2.</span>
-                  <p className="text-slate-500 font-medium leading-relaxed">Đỗ xe quá thời gian quy định sẽ chịu biểu phí phạt đỗ quá giờ.</p>
+                  <p className="text-slate-500 font-medium leading-relaxed">Overstaying past the registered time window is subject to overstay penalty rates.</p>
                 </div>
                 <div className="flex gap-2 text-xs">
                   <span className="text-emerald-600 font-bold">3.</span>
-                  <p className="text-slate-500 font-medium leading-relaxed">Thời gian phản hồi đối soát sự cố giao dịch ngân hàng là 24h làm việc.</p>
+                  <p className="text-slate-500 font-medium leading-relaxed">Response time for banking transaction verification queries is 24 business hours.</p>
                 </div>
               </div>
             </div>

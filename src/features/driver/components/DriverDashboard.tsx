@@ -8,6 +8,7 @@ import {
   History,
   CreditCard,
   Car,
+  Bike,
   MapPin,
   QrCode,
   FileText,
@@ -62,6 +63,7 @@ export default function DriverDashboard() {
   const router = useRouter();
 
   const [mapSlots, setMapSlots] = useState<SlotItem[]>([]);
+  const [buildingsList, setBuildingsList] = useState<BuildingItem[]>([]);
   const [building, setBuilding] = useState<BuildingItem | null>(null);
   const [floors, setFloors] = useState<FloorItem[]>([]);
   const [selectedFloorId, setSelectedFloorId] = useState<number | null>(null);
@@ -84,22 +86,34 @@ export default function DriverDashboard() {
     return 'available';
   };
 
-  // Load building and floors once on mount
+  // Load building list once on mount
   useEffect(() => {
     const initData = async () => {
+      try {
+        const buildRes = await api.get<any>('/Buildings');
+        if (buildRes.success && buildRes.data && buildRes.data.length > 0) {
+          setBuildingsList(buildRes.data);
+          setBuilding(buildRes.data[0]);
+        }
+      } catch (err) {
+        console.error('Error initializing buildings:', err);
+      }
+    };
+    initData();
+  }, []);
+
+  // Load floors whenever selected building changes
+  useEffect(() => {
+    if (!building?.id) {
+      setFloors([]);
+      setSelectedFloorId(null);
+      return;
+    }
+
+    const fetchFloors = async () => {
       setIsLoadingMap(true);
       try {
-        // 1. Fetch building
-        const buildRes = await api.get<any>('/Buildings');
-        if (!buildRes.success || !buildRes.data || buildRes.data.length === 0) {
-          setIsLoadingMap(false);
-          return;
-        }
-        const targetBuilding = buildRes.data[0];
-        setBuilding(targetBuilding);
-
-        // 2. Fetch floors of building
-        const floorRes = await api.get<any>(`/Floors/building/${targetBuilding.id}`);
+        const floorRes = await api.get<any>(`/Floors/building/${building.id}`);
         if (floorRes.success && floorRes.data && floorRes.data.length > 0) {
           const fetchedFloors = floorRes.data;
           
@@ -136,15 +150,18 @@ export default function DriverDashboard() {
             })
           );
           setFloors(floorsWithTypes);
+        } else {
+          setFloors([]);
+          setSelectedFloorId(null);
         }
       } catch (err) {
-        console.error('Error initializing building/floors:', err);
+        console.error('Error loading floors:', err);
       } finally {
         setIsLoadingMap(false);
       }
     };
-    initData();
-  }, []);
+    fetchFloors();
+  }, [building?.id]);
 
   // Filter visible floors based on selected vehicle type and active status
   const visibleFloors = floors.filter(floor =>
@@ -222,13 +239,16 @@ export default function DriverDashboard() {
       const vehRes = await api.get<any>(`/vehicles?accountId=${user.id}`);
       if (vehRes.success && vehRes.data && vehRes.data.length > 0) {
         const allVehicles: any[] = vehRes.data;
-        setActiveVehiclePlate(allVehicles[0].licensePlate);
 
         // Check localStorage for a default vehicle preference
         const storedDefaultId = localStorage.getItem(`default_vehicle_${user.id}`);
         const defaultVehicle = storedDefaultId
           ? allVehicles.find((v: any) => v.id === Number(storedDefaultId))
           : null;
+
+        // Use default vehicle's license plate if set, otherwise fall back to first vehicle
+        const targetPlate = defaultVehicle?.licensePlate ?? allVehicles[0].licensePlate;
+        setActiveVehiclePlate(targetPlate);
 
         // Use default vehicle's type if set, otherwise fall back to first vehicle's type
         const targetTypeId = defaultVehicle?.vehicleTypeId ?? allVehicles[0].vehicleTypeId;
@@ -280,6 +300,80 @@ export default function DriverDashboard() {
 
   const selectedFloor = floors.find(f => f.id === selectedFloorId);
   const selectedFloorName = selectedFloor ? selectedFloor.name : '';
+  const isInteractiveMap = building?.name === 'Building A' && selectedVehicleTypeId !== 1;
+  const hasMotorbikeZone = selectedFloor?.vehicleTypeIds?.includes(1);
+  const isLargeMap = mapSlots.length > 30;
+
+  const halfLength = Math.ceil(mapSlots.length / 2);
+  const topRowSlots = mapSlots.slice(0, halfLength);
+  const bottomRowSlots = mapSlots.slice(halfLength);
+
+  const renderMapSlot = (slot: SlotItem) => {
+    const statusKey = slot.isReserved ? 'reserved' : getSlotStatus(slot.status);
+    const isClickable = statusKey === 'available';
+
+    // Split the slot code into two parts: Zone and Slot Number
+    const parts = slot.code.split('-');
+    const zonePart = parts[0] || slot.code;
+    const numberPart = parts[1] || '';
+
+    const isLargeMap = mapSlots.length > 30;
+    const slotSizeClass = isLargeMap ? 'w-[36px] h-[88px] p-1 text-[9px]' : 'w-[56px] h-[112px] p-1.5';
+    const codeTextClass = isLargeMap ? 'text-[8px]' : 'text-[10px]';
+    const bottomTextClass = isLargeMap ? 'text-[6px]' : 'text-[8px]';
+    const carIconClass = isLargeMap ? 'w-4 h-4' : 'w-5 h-5';
+
+    let bgClass = '';
+    let borderClass = 'border-slate-300';
+    let textClass = '';
+    let iconContent = null;
+
+    if (statusKey === 'available') {
+      bgClass = 'bg-emerald-50 hover:bg-[#00a86b] hover:text-white transition-all cursor-pointer';
+      borderClass = 'border-emerald-500/40 border-dashed';
+      textClass = 'text-emerald-700';
+    } else if (statusKey === 'occupied') {
+      bgClass = 'bg-rose-50 border-rose-300 cursor-not-allowed';
+      borderClass = 'border-rose-300';
+      textClass = 'text-rose-700';
+    } else if (statusKey === 'reserved') {
+      bgClass = 'bg-amber-50 border-amber-300 cursor-not-allowed';
+      borderClass = 'border-amber-300';
+      textClass = 'text-amber-700';
+    } else {
+      bgClass = 'bg-slate-100 border-slate-300 cursor-not-allowed';
+      borderClass = 'border-slate-300';
+      textClass = 'text-slate-400';
+    }
+
+    return (
+      <div
+        key={slot.id}
+        onClick={() => isClickable && router.push(`/dashboard/driver/parking-utils?slot=${slot.code}&vehicleTypeId=${selectedVehicleTypeId}`)}
+        className={`border-2 border-t-0 flex flex-col justify-between text-center relative select-none rounded-none shrink-0 ${slotSizeClass} ${bgClass} ${borderClass} transition-all duration-200 group`}
+        title={`${slot.code} — ${statusKey}`}
+      >
+        {/* Top: Zone Code Prefix */}
+        <div className="text-[8px] opacity-65 font-bold uppercase tracking-wider select-none pt-1">
+          {zonePart}
+        </div>
+
+        {/* Middle: Prominent Slot Number in the center */}
+        <div className="flex-1 flex items-center justify-center">
+          {numberPart && (
+            <span className={isLargeMap ? 'text-lg font-black text-slate-800' : 'text-3xl font-black text-slate-900'}>
+              {numberPart}
+            </span>
+          )}
+        </div>
+
+        {/* Bottom: Action or status */}
+        <div className={`font-bold uppercase tracking-widest opacity-60 ${bottomTextClass} pb-1`}>
+          {statusKey === 'available' ? 'Book' : statusKey === 'occupied' ? 'Full' : statusKey === 'reserved' ? 'Hold' : 'Maint'}
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div className="p-8 max-w-[1400px] mx-auto space-y-6">
@@ -312,44 +406,8 @@ export default function DriverDashboard() {
       </section>
 
       {/* KPI SUMMARY */}
-      <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {/* KPI 1 */}
-        <div className="bg-white border border-[#e2e8f0] rounded-2xl p-6 flex flex-col justify-between h-32 shadow-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Total Sessions</span>
-            <div className="w-9 h-9 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center">
-              <History className="w-5 h-5" />
-            </div>
-          </div>
-          <div>
-            <h3 className="text-2xl font-black text-slate-800">
-              {totalSessions !== null ? totalSessions : '—'}
-            </h3>
-            <div className="flex items-center gap-1 text-[11px] text-slate-400 font-bold mt-1">
-              <span>All time parking sessions</span>
-            </div>
-          </div>
-        </div>
-
-        {/* KPI 2 — Slot Summary */}
-        <div className="bg-white border border-[#e2e8f0] rounded-2xl p-6 flex flex-col justify-between h-32 shadow-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Available Slots</span>
-            <div className="w-9 h-9 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center">
-              <MapPin className="w-5 h-5" />
-            </div>
-          </div>
-          <div>
-            <h3 className="text-2xl font-black text-slate-800">
-              {isLoadingMap ? '—' : `${slotSummary.available}/${slotSummary.total}`}
-            </h3>
-            <div className="flex items-center gap-1 text-[11px] text-emerald-600 font-bold mt-1">
-              <span>{building?.name || 'Loading...'}</span>
-            </div>
-          </div>
-        </div>
-
-        {/* KPI 3 */}
+      <section className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* KPI 1 — Parking Rate */}
         <div className="bg-white border border-[#e2e8f0] rounded-2xl p-6 flex flex-col justify-between h-32 shadow-sm">
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Parking Rate</span>
@@ -359,22 +417,26 @@ export default function DriverDashboard() {
           </div>
           <div className="space-y-1 mt-1">
             <div className="flex justify-between items-center text-xs">
-              <span className="font-semibold text-slate-600">Xe máy:</span>
-              <span className="font-bold text-slate-800">5.000 đ/h <span className="text-[10px] text-slate-400">(Cap 20k)</span></span>
+              <span className="font-semibold text-slate-600">Motorbike:</span>
+              <span className="font-bold text-slate-800">5.000 đ/h</span>
             </div>
             <div className="flex justify-between items-center text-xs border-t border-slate-100 pt-1">
-              <span className="font-semibold text-slate-600">Ô tô:</span>
-              <span className="font-bold text-slate-800">20.000 đ/h <span className="text-[10px] text-slate-400">(Cap 150k)</span></span>
+              <span className="font-semibold text-slate-600">Car:</span>
+              <span className="font-bold text-slate-800">20.000 đ/h</span>
             </div>
           </div>
         </div>
 
-        {/* KPI 4 */}
+        {/* KPI 2 — My Vehicle */}
         <div className="bg-white border border-[#e2e8f0] rounded-2xl p-6 flex flex-col justify-between h-32 shadow-sm">
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">My Vehicle</span>
             <div className="w-9 h-9 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center">
-              <Car className="w-5 h-5" />
+              {selectedVehicleTypeId === 1 ? (
+                <Bike className="w-5 h-5" />
+              ) : (
+                <Car className="w-5 h-5" />
+              )}
             </div>
           </div>
           <div>
@@ -391,7 +453,7 @@ export default function DriverDashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
 
         {/* LEFT COLUMN */}
-        <div className="lg:col-span-8 space-y-6">
+        <div className={`${isInteractiveMap ? 'lg:col-span-12' : 'lg:col-span-8'} space-y-6`}>
 
           {/* PARKING MAP OVERVIEW */}
           <section className="bg-white border border-[#e2e8f0] rounded-2xl p-6 shadow-sm">
@@ -422,26 +484,45 @@ export default function DriverDashboard() {
 
             {/* SELECTORS FOR FLOOR AND VEHICLE TYPE */}
             <div className="flex flex-wrap items-center justify-between gap-4 mb-6 pb-4 border-b border-slate-100">
-              {/* Floor Selector */}
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Floor:</span>
-                <div className="flex flex-wrap gap-1.5">
-                  {visibleFloors.map((fl) => (
-                    <button
-                      key={fl.id}
-                      onClick={() => setSelectedFloorId(fl.id)}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ${
-                        selectedFloorId === fl.id
-                          ? 'bg-[#00a86b] border-[#00a86b] text-white shadow-sm'
-                          : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
-                      }`}
-                    >
-                      {fl.name}
-                    </button>
-                  ))}
-                  {visibleFloors.length === 0 && (
-                    <span className="text-xs text-slate-400 italic">No floors available</span>
-                  )}
+              <div className="flex flex-wrap items-center gap-4">
+                {/* Building Selector */}
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Building:</span>
+                  <select
+                    value={building?.id ?? ''}
+                    onChange={(e) => {
+                      const b = buildingsList.find(x => x.id === Number(e.target.value));
+                      if (b) setBuilding(b);
+                    }}
+                    className="px-3 py-1.5 rounded-lg text-xs font-bold border border-slate-200 bg-white text-slate-600 focus:outline-none focus:ring-2 focus:ring-[#00a86b]/20 hover:border-slate-300 transition-all cursor-pointer font-sans"
+                  >
+                    {buildingsList.map(b => (
+                      <option key={b.id} value={b.id}>{b.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Floor Selector */}
+                <div className="flex items-center gap-2 border-l border-slate-100 pl-4">
+                  <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Floor:</span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {visibleFloors.map((fl) => (
+                      <button
+                        key={fl.id}
+                        onClick={() => setSelectedFloorId(fl.id)}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ${
+                          selectedFloorId === fl.id
+                            ? 'bg-[#00a86b] border-[#00a86b] text-white shadow-sm'
+                            : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
+                        }`}
+                      >
+                        {fl.name}
+                      </button>
+                    ))}
+                    {visibleFloors.length === 0 && (
+                      <span className="text-xs text-slate-400 italic">No floors available</span>
+                    )}
+                  </div>
                 </div>
               </div>
 
@@ -475,9 +556,9 @@ export default function DriverDashboard() {
                   <div className="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto">
                     <Clock className="w-6 h-6" />
                   </div>
-                  <p className="text-sm font-bold text-slate-700">Đăng ký đỗ xe máy theo khung giờ</p>
+                  <p className="text-sm font-bold text-slate-700">Hourly Motorbike Parking Registration</p>
                   <p className="text-xs text-slate-500 max-w-md mx-auto leading-relaxed">
-                    Xe máy được đỗ tại khu vực đỗ xe máy chung (Motorbike Zone) tại Tầng 1. Hệ thống không yêu cầu chọn vị trí ô đỗ cụ thể. Bạn chỉ cần chọn thời gian gửi dự kiến ở phần Tóm tắt đặt chỗ.
+                    Motorcycles are parked in the general Motorbike Zone on Floor 1. The system does not require selecting a specific parking slot. You only need to choose your planned parking duration in the Reservation Summary section.
                   </p>
                 </div>
               ) : isLoadingMap ? (
@@ -491,56 +572,237 @@ export default function DriverDashboard() {
                   <p className="text-xs text-slate-400">No slot data available. Please check back later.</p>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                   {mapSlots.map((slot) => {
-                    const statusKey = slot.isReserved ? 'reserved' : getSlotStatus(slot.status);
-                    const isClickable = statusKey === 'available';
-                    const statusLabel = statusKey === 'reserved' ? 'Reserved' : statusKey === 'occupied' ? 'Occupied' : statusKey === 'maintenance' ? 'Maintenance' : 'Available';
+                /* Interactive Floor Plan Map for all Buildings */
+                <div className="w-full py-8">
+                  <div className="w-full max-w-[1250px] mx-auto space-y-2">
+                    {/* Cams Top */}
+                    <div className="flex justify-around px-20">
+                      <div className="flex flex-col items-center text-slate-400 font-bold text-[9px]">
+                        <span>Cam1</span>
+                        <span className="h-2 w-0.5 bg-slate-300"></span>
+                      </div>
+                      <div className="flex flex-col items-center text-slate-400 font-bold text-[9px]">
+                        <span>Cam2</span>
+                        <span className="h-2 w-0.5 bg-slate-300"></span>
+                      </div>
+                      <div className="flex flex-col items-center text-slate-400 font-bold text-[9px]">
+                        <span>Cam3</span>
+                        <span className="h-2 w-0.5 bg-slate-300"></span>
+                      </div>
+                    </div>
 
-                    let statusClass = 'border-slate-200 bg-white hover:bg-emerald-50/10 hover:border-[#00a86b] hover:scale-[1.03] cursor-pointer text-emerald-700';
-                    let badgeClass = 'bg-[#00a86b] text-white';
-                    let textClass = 'text-slate-800';
-
-                    if (statusKey === 'reserved') {
-                      statusClass = 'border-amber-200 bg-amber-50/40 cursor-not-allowed text-amber-700';
-                      badgeClass = 'bg-amber-500 text-white';
-                      textClass = 'text-amber-800';
-                    } else if (statusKey === 'occupied') {
-                      statusClass = 'border-slate-200 bg-slate-50/30 cursor-not-allowed text-slate-400';
-                      badgeClass = 'bg-slate-300 text-slate-700';
-                      textClass = 'text-slate-500';
-                    } else if (statusKey === 'maintenance') {
-                      statusClass = 'border-rose-200 bg-rose-50/30 cursor-not-allowed text-rose-500';
-                      badgeClass = 'bg-rose-400 text-white';
-                      textClass = 'text-rose-700';
-                    }
-
-                    return (
-                      <div
-                        key={slot.id}
-                        className={`p-4 border rounded-xl transition-all flex flex-col justify-between h-32 ${statusClass}`}
-                        onClick={() => isClickable && router.push(`/dashboard/driver/parking-utils?slot=${slot.code}&vehicleTypeId=${selectedVehicleTypeId}`)}
-                        title={`${slot.code} — ${statusLabel}`}
-                      >
-                        <div className="flex items-center justify-between">
-                          <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md ${badgeClass}`}>
-                            {slot.code}
-                          </span>
-                          <span className="text-xs text-slate-400 font-bold">
-                            {selectedVehicleTypeId === 2 ? 'Car Slot' : 'Motorbike Slot'}
-                          </span>
+                    {/* Floor Plan Border */}
+                    <div className="border-4 border-slate-400 rounded-none bg-white flex p-4 shadow-sm min-h-[350px]">
+                      {/* Left Mechanical / Restroom Area */}
+                      <div className="w-36 flex flex-col justify-between text-slate-500 font-bold text-[10px] select-none py-2 gap-4">
+                        <div className="h-1/2 border-2 border-slate-300 bg-slate-50 rounded-none flex items-center justify-center p-2 text-center uppercase tracking-wide">
+                          Mechanical
                         </div>
-                        <div className="text-left">
-                          <h3 className={`text-sm font-bold mt-2 ${textClass}`}>
-                            {slot.name || `Slot ${slot.code}`}
-                          </h3>
-                          <p className="text-xs text-slate-400 mt-0.5 truncate">
-                            {isClickable ? 'Available · Click to book' : `Status: ${statusLabel}`}
-                          </p>
+                        <div className="h-1/2 border-2 border-slate-300 bg-slate-50 rounded-none flex items-center justify-center p-2 text-center uppercase tracking-wide">
+                          Restrooms
                         </div>
                       </div>
-                    );
-                  })}
+
+                      {/* Optional Motorbike Zone Area (if floor has it) */}
+                      {hasMotorbikeZone && (
+                        <div className="w-36 px-4 py-2 flex flex-col select-none text-slate-500 font-bold text-[10px] text-center">
+                          <div className="flex-1 border-2 border-indigo-400 bg-indigo-50/50 rounded-none flex flex-col items-center justify-center p-3 text-center uppercase tracking-wide text-indigo-800 gap-2">
+                            <span className="font-black text-xs">Motorbike Zone</span>
+                            <span className="text-[9px] bg-indigo-200 text-indigo-900 px-2 py-0.5 font-bold">ZM01</span>
+                            <div className="border-t border-indigo-200/60 pt-2 mt-1 w-full space-y-1 text-[8px] normal-case text-indigo-700 font-medium">
+                              <p>General Parking</p>
+                              <p>Capacity: 25 slots</p>
+                              <p className="text-emerald-700 font-bold">● Active Zone</p>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Vertical Driveway */}
+                      <div className="w-12 border-l-2 border-r-2 border-dashed border-slate-300 flex flex-col items-center justify-center bg-slate-100/30 select-none py-12 shrink-0 mx-2">
+                        <span className="transform -rotate-90 inline-block font-extrabold text-[10px] tracking-widest text-slate-500 whitespace-nowrap">
+                          ↑ DRIVEWAY ↓
+                        </span>
+                      </div>
+
+                      {/* Right Parking Slot Layout Area */}
+                      <div className="flex-1 flex flex-col justify-between pl-4">
+                        {!isLargeMap ? (
+                          /* CASE A: 2-Row Layout (Floor 1 & Floor 3) */
+                          <>
+                            {/* Row 1 Slots (Top Row) */}
+                            <div className="flex gap-2 items-start flex-wrap pb-2">
+                              {topRowSlots.map(slot => renderMapSlot(slot))}
+                              {/* Exit Gate 1 (Top-Right) */}
+                              <div className="flex flex-col items-center justify-end px-3 shrink-0 select-none pb-1 relative border-l-2 border-r-2 border-slate-200 border-dashed bg-slate-50/40 w-[56px] h-[112px]">
+                                <div className="bg-white border-2 border-slate-400 rounded-full flex flex-col items-center justify-around shadow-sm shrink-0 w-5 h-16 py-1.5">
+                                  <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></span>
+                                  <span className="w-1.5 h-1.5 bg-slate-400 rounded-full"></span>
+                                </div>
+                                <div className="text-[8px] font-black text-emerald-600 mt-1 flex flex-col items-center leading-none">
+                                  <span>← EXIT</span>
+                                  <span className="text-[6px] text-slate-400 mt-0.5">GATE 1</span>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* 2-Way Driveway */}
+                            <div className="h-14 border-t-2 border-b-2 border-dashed border-slate-300 flex items-center justify-center bg-slate-100/30 text-slate-500 font-black text-xs tracking-widest my-4 select-none rounded-none w-full">
+                              <span>← DRIVEWAY →</span>
+                            </div>
+
+                            {/* Row 2 Slots (Bottom Row) */}
+                            <div className="flex gap-2 items-end flex-wrap pt-2">
+                              {(() => {
+                                const mainSlots = bottomRowSlots.slice(0, -4);
+                                const wheelchairGroup1 = bottomRowSlots.slice(-4, -2);
+                                const wheelchairGroup2 = bottomRowSlots.slice(-2);
+
+                                return (
+                                  <>
+                                    {mainSlots.map(slot => renderMapSlot(slot))}
+                                    <div className="border border-slate-300 flex items-center justify-center opacity-60 select-none font-bold text-slate-400 rounded-none shrink-0 w-[56px] h-[112px] text-[8px]" style={{ backgroundImage: 'repeating-linear-gradient(45deg, #e2e8f0, #e2e8f0 4px, #f8fafc 4px, #f8fafc 8px)' }}>
+                                      COL
+                                    </div>
+                                    {wheelchairGroup1.map(slot => renderMapSlot(slot))}
+                                    
+                                    {/* Exit Gate 2 (Bottom-Right) */}
+                                    <div className="flex flex-col items-center justify-end px-3 shrink-0 select-none pb-1 relative border-l-2 border-r-2 border-slate-200 border-dashed bg-slate-50/40 w-[56px] h-[112px]">
+                                      <div className="bg-white border-2 border-slate-400 rounded-full flex flex-col items-center justify-around shadow-sm shrink-0 w-5 h-16 py-1.5">
+                                        <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></span>
+                                        <span className="w-1.5 h-1.5 bg-slate-400 rounded-full"></span>
+                                      </div>
+                                      <div className="text-[8px] font-black text-emerald-600 mt-1 flex flex-col items-center leading-none">
+                                        <span>← EXIT</span>
+                                        <span className="text-[6px] text-slate-400 mt-0.5">GATE 2</span>
+                                      </div>
+                                    </div>
+                                    
+                                    {wheelchairGroup2.map(slot => renderMapSlot(slot))}
+                                    <div className="border border-slate-300 flex items-center justify-center opacity-60 select-none font-bold text-slate-400 rounded-none shrink-0 w-[56px] h-[112px] text-[8px]" style={{ backgroundImage: 'repeating-linear-gradient(45deg, #e2e8f0, #e2e8f0 4px, #f8fafc 4px, #f8fafc 8px)' }}>
+                                      COL
+                                    </div>
+                                    <div className="border border-slate-300 bg-slate-50 flex items-center justify-center font-bold text-slate-500 uppercase tracking-wide shrink-0 w-[56px] h-[112px] text-[9px]">
+                                      Stairs
+                                    </div>
+                                  </>
+                                );
+                              })()}
+                            </div>
+                          </>
+                        ) : (
+                          /* CASE B: 4-Row Layout (Floor 2 / Many Slots) */
+                          <>
+                            {/* Row 1 Slots */}
+                            <div className="flex gap-2 items-start flex-wrap pb-2">
+                              {mapSlots.slice(0, Math.ceil(mapSlots.length / 4)).map(slot => renderMapSlot(slot))}
+                              {/* Exit Gate 1 (Top-Right) */}
+                              <div className="flex flex-col items-center justify-end px-3 shrink-0 select-none pb-1 relative border-l-2 border-r-2 border-slate-200 border-dashed bg-slate-50/40 w-[36px] h-[88px]">
+                                <div className="bg-white border-2 border-slate-400 rounded-full flex flex-col items-center justify-around shadow-sm shrink-0 w-4 h-12 py-1">
+                                  <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></span>
+                                  <span className="w-1.5 h-1.5 bg-slate-400 rounded-full"></span>
+                                </div>
+                                <div className="text-[8px] font-black text-emerald-600 mt-1 flex flex-col items-center leading-none">
+                                  <span>← EXIT</span>
+                                  <span className="text-[6px] text-slate-400 mt-0.5">GATE 1</span>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Driveway 1 */}
+                            <div className="h-12 border-t-2 border-b-2 border-dashed border-slate-300 flex items-center justify-center bg-slate-100/30 text-slate-500 font-extrabold text-[10px] tracking-widest my-2 select-none rounded-none w-full">
+                              <span>← DRIVEWAY →</span>
+                            </div>
+
+                            {/* Row 2 Slots */}
+                            <div className="flex gap-2 items-start flex-wrap pb-2">
+                              {mapSlots.slice(Math.ceil(mapSlots.length / 4), 2 * Math.ceil(mapSlots.length / 4)).map(slot => renderMapSlot(slot))}
+                              <div className="border border-slate-300 flex items-center justify-center opacity-60 select-none font-bold text-slate-400 rounded-none shrink-0 w-[36px] h-[88px] text-[7px]" style={{ backgroundImage: 'repeating-linear-gradient(45deg, #e2e8f0, #e2e8f0 4px, #f8fafc 4px, #f8fafc 8px)' }}>
+                                COL
+                              </div>
+                            </div>
+
+                            {/* Driveway 2 (Middle) */}
+                            <div className="h-12 border-t-2 border-b-2 border-dashed border-slate-300 flex items-center justify-center bg-slate-100/30 text-slate-500 font-extrabold text-[10px] tracking-widest my-2 select-none rounded-none w-full">
+                              <span>← DRIVEWAY →</span>
+                            </div>
+
+                            {/* Row 3 Slots */}
+                            <div className="flex gap-2 items-end flex-wrap pt-2">
+                              {mapSlots.slice(2 * Math.ceil(mapSlots.length / 4), 3 * Math.ceil(mapSlots.length / 4)).map(slot => renderMapSlot(slot))}
+                              <div className="border border-slate-300 flex items-center justify-center opacity-60 select-none font-bold text-slate-400 rounded-none shrink-0 w-[36px] h-[88px] text-[7px]" style={{ backgroundImage: 'repeating-linear-gradient(45deg, #e2e8f0, #e2e8f0 4px, #f8fafc 4px, #f8fafc 8px)' }}>
+                                COL
+                              </div>
+                            </div>
+
+                            {/* Driveway 3 */}
+                            <div className="h-12 border-t-2 border-b-2 border-dashed border-slate-300 flex items-center justify-center bg-slate-100/30 text-slate-500 font-extrabold text-[10px] tracking-widest my-2 select-none rounded-none w-full">
+                              <span>← DRIVEWAY →</span>
+                            </div>
+
+                            {/* Row 4 Slots */}
+                            <div className="flex gap-2 items-end flex-wrap pt-2">
+                              {(() => {
+                                const row4All = mapSlots.slice(3 * Math.ceil(mapSlots.length / 4));
+                                if (row4All.length < 4) {
+                                  return row4All.map(slot => renderMapSlot(slot));
+                                }
+                                const mainSlots = row4All.slice(0, -4);
+                                const wheelchairGroup1 = row4All.slice(-4, -2);
+                                const wheelchairGroup2 = row4All.slice(-2);
+
+                                return (
+                                  <>
+                                    {mainSlots.map(slot => renderMapSlot(slot))}
+                                    <div className="border border-slate-300 flex items-center justify-center opacity-60 select-none font-bold text-slate-400 rounded-none shrink-0 w-[36px] h-[88px] text-[7px]" style={{ backgroundImage: 'repeating-linear-gradient(45deg, #e2e8f0, #e2e8f0 4px, #f8fafc 4px, #f8fafc 8px)' }}>
+                                      COL
+                                    </div>
+                                    {wheelchairGroup1.map(slot => renderMapSlot(slot))}
+                                    
+                                    {/* Exit Gate 2 (Bottom-Right) */}
+                                    <div className="flex flex-col items-center justify-end px-3 shrink-0 select-none pb-1 relative border-l-2 border-r-2 border-slate-200 border-dashed bg-slate-50/40 w-[36px] h-[88px]">
+                                      <div className="bg-white border-2 border-slate-400 rounded-full flex flex-col items-center justify-around shadow-sm shrink-0 w-4 h-12 py-1">
+                                        <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></span>
+                                        <span className="w-1.5 h-1.5 bg-slate-400 rounded-full"></span>
+                                      </div>
+                                      <div className="text-[8px] font-black text-emerald-600 mt-1 flex flex-col items-center leading-none">
+                                        <span>← EXIT</span>
+                                        <span className="text-[6px] text-slate-400 mt-0.5">GATE 2</span>
+                                      </div>
+                                    </div>
+                                    
+                                    {wheelchairGroup2.map(slot => renderMapSlot(slot))}
+                                    <div className="border border-slate-300 flex items-center justify-center opacity-60 select-none font-bold text-slate-400 rounded-none shrink-0 w-[36px] h-[88px] text-[7px]" style={{ backgroundImage: 'repeating-linear-gradient(45deg, #e2e8f0, #e2e8f0 4px, #f8fafc 4px, #f8fafc 8px)' }}>
+                                      COL
+                                    </div>
+                                    <div className="border border-slate-300 bg-slate-50 flex items-center justify-center font-bold text-slate-500 uppercase tracking-wide shrink-0 w-[36px] h-[88px] text-[8px]">
+                                      Stairs
+                                    </div>
+                                  </>
+                                );
+                              })()}
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Cams Bottom */}
+                    <div className="flex justify-around px-20">
+                      <div className="flex flex-col items-center text-slate-400 font-bold text-[9px]">
+                        <span className="h-2 w-0.5 bg-slate-300"></span>
+                        <span>Cam4</span>
+                      </div>
+                      <div className="flex flex-col items-center text-slate-400 font-bold text-[9px]">
+                        <span className="h-2 w-0.5 bg-slate-300"></span>
+                        <span>Cam5</span>
+                      </div>
+                      <div className="flex flex-col items-center text-slate-400 font-bold text-[9px]">
+                        <span className="h-2 w-0.5 bg-slate-300"></span>
+                        <span>Cam6</span>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
@@ -556,7 +818,7 @@ export default function DriverDashboard() {
         </div>
 
         {/* RIGHT COLUMN */}
-        <div className="lg:col-span-4 space-y-6">
+        <div className={`${isInteractiveMap ? 'lg:col-span-12 md:max-w-xl md:mx-auto w-full' : 'lg:col-span-4'} space-y-6`}>
 
           {/* ACTIVE STATUS CARD */}
           <section className="bg-white border border-[#e2e8f0] rounded-2xl p-6 text-center flex flex-col items-center shadow-sm">
@@ -652,100 +914,7 @@ export default function DriverDashboard() {
             </button>
           </section>
 
-          {/* SLOT STATS */}
-          <section className="bg-white border border-[#e2e8f0] rounded-2xl p-6 shadow-sm">
-            <div className="flex items-center gap-2 mb-4">
-              <MapPin className="w-5 h-5 text-emerald-600" />
-              <h4 className="font-bold text-[#1B2A41]">Slot Status Summary</h4>
-            </div>
-            {isLoadingMap ? (
-              <div className="flex items-center justify-center py-4">
-                <Loader2 className="w-5 h-5 text-emerald-500 animate-spin" />
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {[
-                  { label: 'Available', count: slotSummary.available, color: 'bg-[#00a86b]' },
-                  { label: 'Unavailable', count: slotSummary.occupied + slotSummary.reserved + slotSummary.maintenance, color: 'bg-slate-300' },
-                ].map(({ label, count, color }) => (
-                  <div key={label} className="flex items-center justify-between text-sm">
-                    <div className="flex items-center gap-2">
-                      <span className={`w-2.5 h-2.5 rounded ${color}`}></span>
-                      <span className="text-slate-500 font-medium">{label}</span>
-                    </div>
-                    <span className="font-bold text-slate-700">{count} slots</span>
-                  </div>
-                ))}
-                <div className="border-t border-slate-100 pt-3 flex items-center justify-between text-sm">
-                  <span className="text-slate-500 font-medium">Total</span>
-                  <span className="font-black text-slate-800">{slotSummary.total} slots</span>
-                </div>
-              </div>
-            )}
-          </section>
 
-          {/* QUICK ACTIONS */}
-          <section className="bg-white border border-[#e2e8f0] rounded-2xl p-6 shadow-sm">
-            <h4 className="font-bold text-[#1B2A41] mb-4">Quick Actions</h4>
-            <div className="grid grid-cols-2 gap-4">
-              <button
-                onClick={() => router.push('/dashboard/driver/sessions')}
-                className="p-4 bg-slate-50 border border-[#e2e8f0] rounded-xl flex flex-col items-center gap-2 hover:border-[#00a86b]/40 hover:bg-emerald-50/10 transition-all group"
-              >
-                <QrCode className="w-5 h-5 text-emerald-600 group-hover:scale-110 transition-transform" />
-                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-tight">Scan QR</span>
-              </button>
-              <button
-                onClick={() => router.push('/dashboard/driver/payments')}
-                className="p-4 bg-slate-50 border border-[#e2e8f0] rounded-xl flex flex-col items-center gap-2 hover:border-[#00a86b]/40 hover:bg-emerald-50/10 transition-all group"
-              >
-                <FileText className="w-5 h-5 text-emerald-600 group-hover:scale-110 transition-transform" />
-                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-tight">Invoice</span>
-              </button>
-              <button
-                onClick={() => router.push('/dashboard/driver/booking')}
-                className="p-4 bg-slate-50 border border-[#e2e8f0] rounded-xl flex flex-col items-center gap-2 hover:border-[#00a86b]/40 hover:bg-emerald-50/10 transition-all group"
-              >
-                <Calendar className="w-5 h-5 text-emerald-600 group-hover:scale-110 transition-transform" />
-                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-tight">Book</span>
-              </button>
-              <button
-                onClick={() => router.push('/dashboard/driver/parking-history')}
-                className="p-4 bg-slate-50 border border-[#e2e8f0] rounded-xl flex flex-col items-center gap-2 hover:border-[#00a86b]/40 hover:bg-emerald-50/10 transition-all group"
-              >
-                <History className="w-5 h-5 text-emerald-600 group-hover:scale-110 transition-transform" />
-                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-tight">History</span>
-              </button>
-            </div>
-          </section>
-
-          {/* SUPPORT */}
-          <section className="bg-[#1B2A41] rounded-2xl p-6 text-white relative overflow-hidden shadow-md">
-            <div className="absolute inset-0 opacity-10" style={{
-              backgroundImage: 'radial-gradient(#00a86b 0.5px, transparent 0.5px)',
-              backgroundSize: '24px 24px'
-            }}></div>
-            <div className="relative z-10 space-y-4">
-              <h4 className="font-bold text-white text-lg">Need Help?</h4>
-              <div className="space-y-3.5">
-                <div className="flex items-center gap-3">
-                  <Phone className="w-4 h-4 text-emerald-400" />
-                  <span className="text-sm font-medium text-slate-200">+84 (028) 3838 3838</span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <Mail className="w-4 h-4 text-emerald-400" />
-                  <span className="text-sm font-medium text-slate-200">support@pbms.smartcity.vn</span>
-                </div>
-              </div>
-              <button
-                onClick={() => router.push('/dashboard/driver/help')}
-                className="w-full py-3 rounded-xl bg-white/10 border border-white/20 text-white font-bold text-sm hover:bg-white/20 transition-all flex items-center justify-center gap-2"
-              >
-                <HelpIcon className="w-4 h-4" />
-                <span>Access FAQ Portal</span>
-              </button>
-            </div>
-          </section>
 
         </div>
       </div>

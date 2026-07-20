@@ -1270,13 +1270,13 @@ export default function ParkingUtilsWorkspace() {
       {/* ─── HEADER ─── */}
       <section className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800">Parking Utilities</h1>
+          <h1 className="text-2xl font-bold text-slate-800">Parking & Booking</h1>
           <p className="text-sm text-slate-400 mt-1">Manage active sessions, pre-booked reservations, and complete histories.</p>
         </div>
         <div className="flex gap-2">
           <button
             onClick={() => setMainTab('sessions')}
-            className={`px-5 py-2.5 text-xs font-bold rounded-xl border transition-all ${mainTab === 'sessions'
+            className={`px-6 py-3 text-sm font-bold rounded-xl border transition-all ${mainTab === 'sessions'
               ? 'bg-slate-800 text-white border-slate-800 shadow-sm'
               : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'
               }`}
@@ -1285,7 +1285,7 @@ export default function ParkingUtilsWorkspace() {
           </button>
           <button
             onClick={() => setMainTab('history')}
-            className={`px-5 py-2.5 text-xs font-bold rounded-xl border transition-all ${mainTab === 'history'
+            className={`px-6 py-3 text-sm font-bold rounded-xl border transition-all ${mainTab === 'history'
               ? 'bg-slate-800 text-white border-slate-800 shadow-sm'
               : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'
               }`}
@@ -1576,7 +1576,7 @@ export default function ParkingUtilsWorkspace() {
                   className="px-3 py-2 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 text-xs font-bold rounded-xl bg-white text-slate-600 font-sans"
                 >
                   <option value="all">All Status</option>
-                  <option value="pending">Active (Đang đỗ)</option>
+                  <option value="pending">Active (Parked)</option>
                   <option value="completed">Completed</option>
                   <option value="cancelled">Cancelled</option>
                 </select>
@@ -1751,9 +1751,9 @@ export default function ParkingUtilsWorkspace() {
                       <div className="w-12 h-12 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center mx-auto">
                         <span className="material-symbols-outlined text-2xl">directions_car</span>
                       </div>
-                      <p className="text-sm font-bold text-slate-800">Không tìm thấy biển số xe</p>
+                      <p className="text-sm font-bold text-slate-800">No registered vehicle found</p>
                       <p className="text-xs text-slate-600 leading-relaxed max-w-sm mx-auto">
-                        Tài khoản của bạn chưa đăng ký phương tiện nào. Vui lòng thêm biển số xe trước khi thực hiện đặt chỗ gửi xe.
+                        Your account does not have any registered vehicles. Please add a vehicle plate before creating a parking reservation.
                       </p>
                       <button
                         type="button"
@@ -1764,7 +1764,7 @@ export default function ParkingUtilsWorkspace() {
                         className="inline-flex items-center gap-1.5 px-4 py-2 bg-slate-900 text-white font-bold text-xs rounded-xl hover:bg-slate-850 transition shadow-sm"
                       >
                         <span className="material-symbols-outlined text-sm">add</span>
-                        Đăng ký xe ngay
+                        Register vehicle now
                       </button>
                     </div>
                   ) : (
@@ -2339,7 +2339,7 @@ export default function ParkingUtilsWorkspace() {
             </div>
           </div>
         </div>
-        , document.body)} bord      {/* ─── 4. CANCEL BOOKING CONFIRM MODAL ─── */}
+        , document.body)}      {/* ─── 4. CANCEL BOOKING CONFIRM MODAL ─── */}
       {mounted && showCancelModal && createPortal(
         <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md" style={{ backdropFilter: 'blur(8px)' }}>
           <div className="w-full max-w-sm bg-white border border-slate-200 rounded-3xl shadow-2xl p-6 text-center animate-in fade-in zoom-in-95 duration-200">

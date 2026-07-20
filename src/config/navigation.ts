@@ -191,7 +191,7 @@ export const ROLE_NAVIGATION: Record<string, NavigationItem[]> = {
       icon: 'grid_view',
     },
     {
-      label: 'Parking Utils',
+      label: 'Parking & Booking',
       href: '/dashboard/driver/parking-utils',
       icon: 'construction',
     },

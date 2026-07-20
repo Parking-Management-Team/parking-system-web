@@ -120,8 +120,13 @@ export function SlotActionModal({
         if (currentStatus === 'BLOCKED') {
           res = await api.post<BaseResponse<any>>(`/ParkingSlots/${slotId}/unblock`, { reason: 'Unblocked by staff' });
         } else if (currentStatus === 'MAINTENANCE') {
-          // Need to unblock from maintenance - use dedicated endpoint or fallback
-          res = await api.post<BaseResponse<any>>(`/ParkingSlots/${slotId}/unblock`, { reason: 'Maintenance completed' });
+          // Use PUT endpoint to transition slot from MAINTENANCE to AVAILABLE since backend /unblock only works for BLOCKED
+          res = await api.put<BaseResponse<any>>(`/ParkingSlots/${slotId}`, {
+            code: activeSlot.slotCode,
+            name: activeSlot.slotName || activeSlot.slotCode,
+            vehicleTypeId: activeSlot.vehicleTypeId,
+            status: 0 // Available
+          });
         }
       }
 

@@ -95,21 +95,7 @@ export default function Pricing() {
               <div className="absolute left-2.5 top-1.5 w-3 h-3 border border-white/20 bg-[#050505] flex items-center justify-center group-hover:border-emerald-500 transition-colors">
                 <div className="w-1 h-1 bg-white/40 group-hover:bg-emerald-400 transition-colors" />
               </div>
-              <div className="font-mono text-xs text-white/30 uppercase tracking-widest mb-1">03 / Short Stay Exemption</div>
-              <h3 className="text-lg font-bold text-white mb-2 group-hover:text-emerald-400 transition-colors">
-                Grace Period Protection
-              </h3>
-              <p className="text-sm text-white/40 leading-relaxed max-w-xl">
-                Dropping off passengers or making a quick turnaround? Exit free of charge during the grace period window.
-              </p>
-            </motion.div>
-
-            {/* Step 4 */}
-            <motion.div {...fadeUp(0.4)} className="relative pl-12 group">
-              <div className="absolute left-2.5 top-1.5 w-3 h-3 border border-white/20 bg-[#050505] flex items-center justify-center group-hover:border-emerald-500 transition-colors">
-                <div className="w-1 h-1 bg-white/40 group-hover:bg-emerald-400 transition-colors" />
-              </div>
-              <div className="font-mono text-xs text-white/30 uppercase tracking-widest mb-1">04 / Cap Security</div>
+              <div className="font-mono text-xs text-white/30 uppercase tracking-widest mb-1">03 / Cap Security</div>
               <h3 className="text-lg font-bold text-white mb-2 group-hover:text-emerald-400 transition-colors">
                 Daily Capping Limits
               </h3>

@@ -11,7 +11,7 @@ const fade = (delay = 0) => ({
 
 const features = [
   { tag: 'Access',   title: 'Live slot tracking',         body: 'Zone + floor. Car or bike. Updated every second.' },
-  { tag: 'Booking',  title: 'Book up to 8h ahead',        body: '45-min grace. 1-block deposit. Auto-allocated.' },
+  { tag: 'Booking',  title: 'Book up to 8h ahead',        body: '1-block deposit. Auto-allocated.' },
   { tag: 'Sessions', title: 'RFID & QR entry',             body: 'Frictionless gate access — no ticket, no queue.' },
   { tag: 'Pricing',  title: 'Time-block billing',          body: 'Base rate + increments. Day & night windows. Hard cap.' },
   { tag: 'Payment',  title: 'Cash or bank transfer',       body: 'Auto-calculated on exit. Deposit auto-applied.' },

@@ -363,7 +363,7 @@ export default function DriverReports() {
               <div className="space-y-3">
                 <div className="flex gap-2 text-xs">
                   <span className="text-emerald-600 font-bold">1.</span>
-                  <p className="text-slate-500 font-medium leading-relaxed">Lost parking card or ticket is subject to a penalty fee of 100,000 VND.</p>
+                  <p className="text-slate-500 font-medium leading-relaxed">Lost parking card or ticket is subject to a penalty fee of 100,000 đ.</p>
                 </div>
                 <div className="flex gap-2 text-xs">
                   <span className="text-emerald-600 font-bold">2.</span>

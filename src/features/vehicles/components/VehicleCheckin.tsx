@@ -55,7 +55,7 @@ const formatDateTime = (value?: string | null) => {
 };
 
 const formatCurrency = (amount?: number | null) =>
-  `${new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 0 }).format(amount ?? 0)} VNĐ`;
+  `${new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 0 }).format(amount ?? 0)} đ`;
 
 const isConfirmedBookingForPlate = (
   booking: VehicleCheckinBooking,
@@ -73,9 +73,11 @@ const isConfirmedBookingForPlate = (
 
 export default function VehicleCheckin({
   compact = false,
+  refreshTrigger,
   onCheckinSuccess,
 }: {
   compact?: boolean;
+  refreshTrigger?: number;
   onCheckinSuccess?: () => void;
 } = {}) {
   const { showToast } = useAuth();
@@ -149,6 +151,8 @@ export default function VehicleCheckin({
   const [scanProgress, setScanProgress] = useState<string>('');
   const [ocrText, setOcrText] = useState<string>('');
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
+  const operationalRefreshRef = useRef<{ buildingId: number; promise: Promise<void> } | null>(null);
+  const operationalRefreshVersionRef = useRef(0);
 
   // Enumerate cameras
   const enumerateCameras = useCallback(async () => {
@@ -242,7 +246,7 @@ export default function VehicleCheckin({
     try {
       const result = await scanLicensePlate({ image: base64Img });
       setOcrText(result.licensePlate);
-      showToast(`License plate recognized: ${result.licensePlate} (Confidence: ${Math.round(result.confidence * 100)})`, 'success');
+      showToast(`License plate recognized: ${result.licensePlate}`, 'success');
       return result.licensePlate;
     } catch (err: any) {
       console.error('OCR error:', err);
@@ -270,38 +274,7 @@ export default function VehicleCheckin({
     }
   }, [captureFrame, performOCR, availableCards]);
 
-  const handleMockScanCheckin = useCallback(() => {
-    const mockPlates = ['51A-999.99', '29G1-888.88', '43B-777.77', '59S3-555.55'];
-    const randomPlate = mockPlates[Math.floor(Math.random() * mockPlates.length)];
-    setLicensePlate(randomPlate);
 
-    console.log('Check-in mock scan: availableCards =', availableCards);
-    if (availableCards.length > 0) {
-      const randomCard = availableCards[Math.floor(Math.random() * availableCards.length)];
-      setCardCode(randomCard.cardCode);
-    } else {
-      console.warn('Check-in mock scan: No available cards found!');
-    }
-
-    const canvas = document.createElement('canvas');
-    canvas.width = 300;
-    canvas.height = 150;
-    const ctx = canvas.getContext('2d');
-    if (ctx) {
-      ctx.fillStyle = '#020617';
-      ctx.fillRect(0, 0, 300, 150);
-      ctx.fillStyle = '#ffffff';
-      ctx.font = '24px monospace';
-      ctx.textAlign = 'center';
-      ctx.fillText(randomPlate, 150, 60);
-      ctx.font = '12px sans-serif';
-      ctx.fillStyle = '#10b981';
-      ctx.fillText('MOCK SCAN IN', 150, 100);
-      const dataUrl = canvas.toDataURL('image/jpeg');
-      setCapturedImage(dataUrl);
-    }
-    showToast(`Simulated entry plate scan: ${randomPlate}`, 'success');
-  }, [showToast, availableCards]);
 
   const formattedPlate = normalizeText(licensePlate);
   const normalizedCardCode = normalizeText(cardCode);
@@ -329,15 +302,53 @@ export default function VehicleCheckin({
     window.setTimeout(() => {
       setOverlay((current) => {
         if (current === nextOverlay) {
-          if (nextOverlay.type === 'success') {
-            window.location.reload();
-          }
           return null;
         }
         return current;
       });
     }, 3000);
   }, []);
+
+  const refreshOperationalData = useCallback(async (targetBuildingId = buildingId) => {
+    if (operationalRefreshRef.current?.buildingId === targetBuildingId) {
+      return operationalRefreshRef.current.promise;
+    }
+
+    const refreshVersion = ++operationalRefreshVersionRef.current;
+    const request = (async () => {
+      const [cardData, sessionData, bookingData] = await Promise.all([
+        fetchCards(),
+        fetchActiveParkingSessions(),
+        fetchCheckinBookingsByBuilding(targetBuildingId).catch(async (error) => {
+          console.warn(
+            'Booking by building API is not ready; falling back to all bookings.',
+            error
+          );
+          return fetchCheckinBookings().catch((fallbackError) => {
+            console.warn('Booking API is not ready; booking detection is disabled.', fallbackError);
+            return [];
+          });
+        }),
+      ]);
+
+      if (refreshVersion !== operationalRefreshVersionRef.current) {
+        return;
+      }
+
+      setCards(cardData);
+      setActiveSessions(sessionData);
+      setBookings(bookingData);
+    })();
+
+    operationalRefreshRef.current = { buildingId: targetBuildingId, promise: request };
+    try {
+      await request;
+    } finally {
+      if (operationalRefreshRef.current?.promise === request) {
+        operationalRefreshRef.current = null;
+      }
+    }
+  }, [buildingId]);
 
   const loadGateData = useCallback(async () => {
     let currentBuildingId = buildingId;
@@ -378,38 +389,22 @@ export default function VehicleCheckin({
       console.warn('Failed to fetch vehicle types:', err);
     }
 
-    // Staff check-in uses cards, active sessions, bookings, and blacklist data to operate the entry gate.
-    // Booking and blacklist data are supplementary; auxiliary endpoint failures must not break the primary check-in flow.
-    const [cardData, sessionData, bookingData, blacklistData] = await Promise.all([
-      fetchCards(),
-      fetchActiveParkingSessions(),
-      fetchCheckinBookingsByBuilding(currentBuildingId).catch(async (error) => {
-        console.warn(
-          'Booking by building API is not ready; falling back to all bookings.',
-          error
-        );
-        return fetchCheckinBookings().catch((fallbackError) => {
-          console.warn('Booking API is not ready; booking detection is disabled.', fallbackError);
-          return [];
-        });
-      }),
-      blacklistService.getAll(1, 1000).catch((error) => {
-        console.warn('Blacklist API is not ready; blacklist pre-check is disabled.', error);
-        return {
-          items: [],
-          totalCount: 0,
-          totalPages: 0,
-          pageIndex: 1,
-          pageSize: 1000,
-        };
-      }),
-    ]);
+    // Blacklist/reference data is loaded during bootstrap; successful gate operations
+    // only refresh the smaller operational data set.
+    const blacklistData = await blacklistService.getAll(1, 1000).catch((error) => {
+      console.warn('Blacklist API is not ready; blacklist pre-check is disabled.', error);
+      return {
+        items: [],
+        totalCount: 0,
+        totalPages: 0,
+        pageIndex: 1,
+        pageSize: 1000,
+      };
+    });
 
-    setCards(cardData);
-    setActiveSessions(sessionData);
-    setBookings(bookingData);
     setBlacklist(blacklistData.items ?? []);
-  }, [buildingId]);
+    await refreshOperationalData(currentBuildingId);
+  }, [buildingId, refreshOperationalData]);
 
   useEffect(() => {
     setIsMounted(true);
@@ -423,6 +418,12 @@ export default function VehicleCheckin({
       showToast(message, 'error');
     });
   }, [loadGateData, showToast]);
+
+  useEffect(() => {
+    if (refreshTrigger !== undefined && refreshTrigger > 0) {
+      void refreshOperationalData();
+    }
+  }, [refreshTrigger, refreshOperationalData]);
 
   const checkBlacklistBeforeSubmit = () => {
     const plateKey = normalizeComparable(formattedPlate);
@@ -522,8 +523,20 @@ export default function VehicleCheckin({
         ...(matchedBooking ? { bookingId: matchedBooking.id } : {}),
       });
 
-      await loadGateData();
+      setActiveSessions((current) => [
+        session,
+        ...current.filter((item) => item.id !== session.id),
+      ]);
+      setCards((current) => current.map((card) =>
+        card.id === selectedCard.id
+          ? { ...card, cardStatus: 'ACTIVE', currentSessionId: session.id }
+          : card
+      ));
+      if (matchedBooking) {
+        setBookings((current) => current.filter((booking) => booking.id !== matchedBooking.id));
+      }
       setCardCode('');
+      setLicensePlate('');
       setCapturedImage(null);
       onCheckinSuccess?.();
 
@@ -606,8 +619,18 @@ export default function VehicleCheckin({
         overrideSlotId: selectedSlotId,
       });
 
-      await loadGateData();
+      setActiveSessions((current) => [
+        session,
+        ...current.filter((item) => item.id !== session.id),
+      ]);
+      setCards((current) => current.map((card) =>
+        card.id === selectedCard?.id
+          ? { ...card, cardStatus: 'ACTIVE', currentSessionId: session.id }
+          : card
+      ));
+      setBookings((current) => current.filter((booking) => booking.id !== matchedBooking.id));
       setCardCode('');
+      setLicensePlate('');
       setShowReallocateBtn(false);
       setSelectedSlotId(null);
       onCheckinSuccess?.();
@@ -763,7 +786,7 @@ export default function VehicleCheckin({
                     </div>
                   </div>
                 )}
-                {ocrText && <p className="text-[9px] text-emerald-400 font-bold mt-0.5">Confidence: {ocrText ? 'Passed' : ''}</p>}
+
               </div>
             </section>
           </div>

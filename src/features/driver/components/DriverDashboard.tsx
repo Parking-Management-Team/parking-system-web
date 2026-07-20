@@ -325,25 +325,19 @@ export default function DriverDashboard() {
 
     let bgClass = '';
     let borderClass = 'border-slate-300';
-    let textClass = '';
-    let iconContent = null;
 
     if (statusKey === 'available') {
       bgClass = 'bg-emerald-50 hover:bg-[#00a86b] hover:text-white transition-all cursor-pointer';
       borderClass = 'border-emerald-500/40 border-dashed';
-      textClass = 'text-emerald-700';
     } else if (statusKey === 'occupied') {
       bgClass = 'bg-rose-50 border-rose-300 cursor-not-allowed';
       borderClass = 'border-rose-300';
-      textClass = 'text-rose-700';
     } else if (statusKey === 'reserved') {
       bgClass = 'bg-amber-50 border-amber-300 cursor-not-allowed';
       borderClass = 'border-amber-300';
-      textClass = 'text-amber-700';
     } else {
       bgClass = 'bg-slate-100 border-slate-300 cursor-not-allowed';
       borderClass = 'border-slate-300';
-      textClass = 'text-slate-400';
     }
 
     return (

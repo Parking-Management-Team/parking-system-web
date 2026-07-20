@@ -1,576 +1,55 @@
 'use client';
 
-import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import React from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/features/auth';
-import { api, apiClient } from '@/lib/api/client';
-import { Building, BaseResponse, PagedResult } from '@/lib/types/building.types';
-import { Floor, FloorResponse, Zone, ZoneResponse, Slot, ParkingSlotDto, ParkingSessionDto, FloorSlotSummary } from '../types';
+import { Slot } from '../types';
+import { useParkingMap } from '../hooks/useParkingMap';
 import { SlotActionModal } from './SlotActionModal';
-
-function mapFloorSlotSummary(data: any[]): FloorSlotSummary[] {
-  return data.map(item => ({
-    floorId: item.floorId,
-    floorNumber: item.floorNumber,
-    totalSlots: item.totalSlots,
-    vehicleTypeSummaries: (item.vehicleTypeSummaries || []).map((vt: any) => {
-      const statusCounts: any = {};
-      if (Array.isArray(vt.statusCounts)) {
-        vt.statusCounts.forEach((sc: any) => {
-          if (sc.status !== undefined && sc.status !== null) {
-            const statusStr = sc.status.toString();
-            const count = sc.count;
-            
-            // Map exact response key
-            statusCounts[statusStr] = count;
-            statusCounts[statusStr.toUpperCase()] = count;
-            statusCounts[statusStr.toLowerCase()] = count;
-
-            // Map standard keys case-insensitively and handle potential numeric enums
-            const normalizedStatus = statusStr.toUpperCase();
-            if (normalizedStatus === 'AVAILABLE' || normalizedStatus === '0') {
-              statusCounts['Available'] = count;
-              statusCounts['AVAILABLE'] = count;
-            } else if (normalizedStatus === 'OCCUPIED' || normalizedStatus === '1') {
-              statusCounts['Occupied'] = count;
-              statusCounts['OCCUPIED'] = count;
-            } else if (normalizedStatus === 'BLOCKED' || normalizedStatus === '2') {
-              statusCounts['Blocked'] = count;
-              statusCounts['BLOCKED'] = count;
-            } else if (normalizedStatus === 'MAINTENANCE' || normalizedStatus === '3') {
-              statusCounts['Maintenance'] = count;
-              statusCounts['MAINTENANCE'] = count;
-            } else if (normalizedStatus === 'RESERVED' || normalizedStatus === '4') {
-              statusCounts['Reserved'] = count;
-              statusCounts['RESERVED'] = count;
-            }
-          }
-        });
-      }
-      return {
-        vehicleTypeId: vt.vehicleTypeId,
-        vehicleTypeName: vt.vehicleTypeName,
-        totalSlots: vt.totalSlots,
-        statusCounts
-      };
-    })
-  }));
-}
 
 export function SlotManagementDashboard() {
   const { user } = useAuth();
   const userRole = user?.role?.toUpperCase();
   const backLink = userRole === 'STAFF' ? '/dashboard/staff' : '/dashboard/manager/facilities';
 
-  // ─── Core States ──────────────────────────────────────────────────
-  const [buildings, setBuildings] = useState<Building[]>([]);
-  const [floors, setFloors] = useState<Floor[]>([]);
-  const [zones, setZones] = useState<Zone[]>([]);
-  const [slots, setSlots] = useState<Slot[]>([]);
-  const [activeSessions, setActiveSessions] = useState<ParkingSessionDto[]>([]);
-  const [vehicleTypes, setVehicleTypes] = useState<any[]>([]);
-  
-  const [selectedBuildingId, setSelectedBuildingId] = useState<number | null>(null);
-  const [selectedFloorId, setSelectedFloorId] = useState<number | null>(null);
-  const [activeTab, setActiveTab] = useState<'map' | 'list'>('map');
-  
-  // UI States
-  const [loading, setLoading] = useState(false);
-  const [tableSearchQuery, setTableSearchQuery] = useState('');
-  const [tableTypeFilter, setTableTypeFilter] = useState('All');
-  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
-
-  // Modal Dialog States
-  const [selectedSlot, setSelectedSlot] = useState<Slot | null>(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-
-  // Session details modal states
-  const [selectedSessionDetails, setSelectedSessionDetails] = useState<ParkingSessionDto | null>(null);
-  const [completingSessionId, setCompletingSessionId] = useState<number | null>(null);
-
-  // Real-time polling
-  const POLL_INTERVAL_MS = 10_000;
-  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
-  const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
-  // Slot Summary Data from API
-  const [floorSlotSummary, setFloorSlotSummary] = useState<FloorSlotSummary | null>(null);
-
-  // Show Toast Helper
-  const showToastMessage = useCallback((message: string, type: 'success' | 'error' = 'success') => {
-    setToast({ message, type });
-    setTimeout(() => setToast(null), 3000);
-  }, []);
-
-  // ─── Fetch Data from API ──────────────────────────────────────────
-  
-  const fetchInitialData = useCallback(async () => {
-    setLoading(true);
-    try {
-      // 0. Fetch Vehicle Types
-      const resVt = await api.get<BaseResponse<any[]>>('/vehicle-types');
-      const loadedVehicleTypes = resVt.success && resVt.data ? resVt.data : [];
-      setVehicleTypes(loadedVehicleTypes);
-
-      // 1. Fetch Buildings
-      const resBld = await api.get<BaseResponse<PagedResult<Building>>>('/Buildings/paged?pageIndex=1&pageSize=100');
-      let loadedBuildings: Building[] = [];
-      if (resBld.success && resBld.data?.items) {
-        loadedBuildings = resBld.data.items;
-        setBuildings(loadedBuildings);
-      }
-
-      // 2. Fetch Floors
-      const resFloors = await api.get<BaseResponse<FloorResponse[]>>('/Floors');
-      let loadedFloors: Floor[] = [];
-      if (resFloors.success && resFloors.data) {
-        loadedFloors = resFloors.data.map(item => ({
-          id: item.id,
-          buildingId: item.buildingId,
-          floorNumber: item.floorNumber,
-          name: item.name || `Floor ${item.floorNumber}`,
-          status: item.status === 3 || item.status === 'OutOfService' || item.status === 'Inactive' ? 'Inactive' : 'Active'
-        }));
-        setFloors(loadedFloors);
-      }
-
-      // 3. Fetch Zones
-      const resZones = await api.get<BaseResponse<ZoneResponse[]>>('/Zones');
-      let loadedZones: Zone[] = [];
-      if (resZones.success && resZones.data) {
-        const mapVehicleTypeIdToType = (id: number): 'Standard' | 'EV Charging' | 'Motorbike' => {
-          const vt = loadedVehicleTypes.find(v => v.id === id);
-          if (vt) {
-            const name = (vt.name || vt.typeName || '').toUpperCase();
-            const code = (vt.vehicleTypeCode || vt.code || '').toUpperCase();
-            if (name.includes('MOTOR') || name.includes('BIKE') || code.includes('MOTOR') || code.includes('BIKE')) {
-              return 'Motorbike';
-            }
-          }
-          return 'Standard';
-        };
-        const mapAccessTypeToZone = (accessType?: number): 'GENERAL' | 'MONTHLY' => {
-          return 'GENERAL';
-        };
-        loadedZones = resZones.data.map(item => ({
-          id: item.id,
-          floorId: item.floorId,
-          name: item.name,
-          vehicleType: mapVehicleTypeIdToType(item.vehicleTypeId),
-          zoneAccessType: mapAccessTypeToZone(item.accessType),
-          slotCapacity: item.capacity || 0,
-          status: item.status === 3 || item.status === 'OutOfService' || item.status === 'Inactive' ? 'Inactive' : 'Active',
-          bookingLimitRate: item.bookingLimitRate ?? 80
-        }));
-        setZones(loadedZones);
-      }
-
-      // Set default selected building and floor
-      if (loadedBuildings.length > 0) {
-        const firstBld = loadedBuildings[0];
-        setSelectedBuildingId(firstBld.id);
-        
-        const bldFloors = loadedFloors.filter(f => f.buildingId === firstBld.id);
-        if (bldFloors.length > 0) {
-          setSelectedFloorId(bldFloors[0].id);
-        }
-      }
-
-    } catch (err) {
-      console.error('Failed to load parking infrastructure:', err);
-      showToastMessage('Could not load infrastructure from server.', 'error');
-      setBuildings([]);
-      setFloors([]);
-      setZones([]);
-      setSelectedBuildingId(null);
-      setSelectedFloorId(null);
-    } finally {
-      setLoading(false);
-    }
-  }, [showToastMessage]);
-
-  useEffect(() => {
-    fetchInitialData();
-  }, [fetchInitialData]);
-
-  // Fetch Slot Summary from API
-  const fetchSlotSummary = useCallback(async () => {
-    if (!selectedBuildingId || !selectedFloorId) return;
-    try {
-      const res = await api.get<BaseResponse<any[]>>(`/Floors/building/${selectedBuildingId}/slot-summary`);
-      if (res.success && res.data) {
-        const mappedData = mapFloorSlotSummary(res.data);
-        const summary = mappedData.find(s => s.floorId === selectedFloorId);
-        setFloorSlotSummary(summary || null);
-      }
-    } catch (err) {
-      console.error('Failed to load slot summary:', err);
-      setFloorSlotSummary(null);
-    }
-  }, [selectedBuildingId, selectedFloorId]);
-
-  useEffect(() => {
-    fetchSlotSummary();
-  }, [fetchSlotSummary]);
-
-  // Fetch Slots and active sessions when selectedFloorId changes
-  const fetchSlotsForFloor = useCallback(async () => {
-    if (!selectedFloorId) return;
-    setLoading(true);
-    try {
-      const floorZones = zones.filter(z => z.floorId === selectedFloorId);
-      
-      // Fetch active parking sessions to match license plates and details
-      const sessionRes = await api.get<BaseResponse<ParkingSessionDto[]>>('/parking-sessions/active').catch(() => null);
-      const activeSess = sessionRes?.success && sessionRes.data ? sessionRes.data : [];
-      setActiveSessions(activeSess);
-
-      // Fetch slots for each zone on the floor in parallel
-      const zoneSlotsPromises = floorZones.map(async (zone) => {
-        try {
-          const res = await api.get<BaseResponse<ParkingSlotDto[]>>(`/ParkingSlots/zone/${zone.id}`);
-          if (res.success && res.data) {
-            return res.data.map(item => {
-              // Find active session for this slot
-              const session = activeSess.find(s => s.slotId === item.id);
-              
-              let assignedVehicle = undefined;
-              if (session) {
-                assignedVehicle = {
-                  plate: session.licensePlateIn,
-                  startDate: session.checkInTime,
-                  endDate: session.checkOutTime || undefined
-                };
-              } else if (item.occupiedLicensePlate) {
-                assignedVehicle = {
-                  plate: item.occupiedLicensePlate
-                };
-              }
-
-              const mapStatus = (statusVal: number | string): Slot['status'] => {
-                if (typeof statusVal === 'string') {
-                  switch (statusVal.toLowerCase()) {
-                    case 'available': return 'AVAILABLE';
-                    case 'occupied': return 'OCCUPIED';
-                    case 'blocked': return 'BLOCKED';
-                    case 'maintenance': return 'MAINTENANCE';
-                    case 'reserved': return 'RESERVED';
-                    default: return 'AVAILABLE';
-                  }
-                }
-                switch (statusVal) {
-                  case 0: return 'AVAILABLE';
-                  case 1: return 'OCCUPIED';
-                  case 2: return 'BLOCKED';
-                  case 3: return 'MAINTENANCE';
-                  case 4: return 'RESERVED';
-                  default: return 'AVAILABLE';
-                }
-              };
-
-              return {
-                id: item.id,
-                slotCode: item.code,
-                slotName: item.name,
-                zoneId: item.zoneId,
-                zoneName: zone.name,
-                floorId: selectedFloorId,
-                buildingId: selectedBuildingId || 0,
-                slotType: zone.vehicleType === 'EV Charging' ? 'EV Charging' as const : (zone.vehicleType === 'Motorbike' ? 'Motorbike' as const : 'Standard' as const),
-                status: assignedVehicle ? 'OCCUPIED' : mapStatus(item.status),
-                vehicleTypeId: item.vehicleTypeId,
-                assignedVehicle
-              };
-            });
-          }
-        } catch (slotErr) {
-          console.error(`Error loading slots for zone ${zone.id}:`, slotErr);
-        }
-        return [];
-      });
-
-      const results = await Promise.all(zoneSlotsPromises);
-      const allSlots = results.flat();
-
-      setSlots(allSlots);
-    } catch (err) {
-      console.error('Failed to load slots:', err);
-      setSlots([]);
-    } finally {
-      setLoading(false);
-    }
-  }, [selectedFloorId, zones, selectedBuildingId]);
-
-  useEffect(() => {
-    fetchSlotsForFloor();
-  }, [fetchSlotsForFloor]);
-
-  // ─── Auto-polling: refresh slots + sessions every 10s ─────────────
-  const refreshSlotsAndSessions = useCallback(async () => {
-    if (!selectedFloorId) return;
-    try {
-      const floorZones = zones.filter(z => z.floorId === selectedFloorId);
-
-      const sessionRes = await api.get<BaseResponse<ParkingSessionDto[]>>('/parking-sessions/active').catch(() => null);
-      const activeSess = sessionRes?.success && sessionRes.data ? sessionRes.data : [];
-      setActiveSessions(activeSess);
-
-      const zoneSlotsPromises = floorZones.map(async (zone) => {
-        try {
-          const res = await api.get<BaseResponse<ParkingSlotDto[]>>(`/ParkingSlots/zone/${zone.id}`);
-          if (res.success && res.data) {
-            return res.data.map(item => {
-              const session = activeSess.find(s => s.slotId === item.id);
-              let assignedVehicle = undefined;
-              if (session) {
-                assignedVehicle = {
-                  plate: session.licensePlateIn,
-                  startDate: session.checkInTime,
-                  endDate: session.checkOutTime || undefined
-                };
-              } else if (item.occupiedLicensePlate) {
-                assignedVehicle = {
-                  plate: item.occupiedLicensePlate
-                };
-              }
-
-              const mapStatus = (statusVal: number | string): Slot['status'] => {
-                if (typeof statusVal === 'string') {
-                  switch (statusVal.toLowerCase()) {
-                    case 'available': return 'AVAILABLE';
-                    case 'occupied': return 'OCCUPIED';
-                    case 'blocked': return 'BLOCKED';
-                    case 'maintenance': return 'MAINTENANCE';
-                    case 'reserved': return 'RESERVED';
-                    default: return 'AVAILABLE';
-                  }
-                }
-                switch (statusVal) {
-                  case 0: return 'AVAILABLE';
-                  case 1: return 'OCCUPIED';
-                  case 2: return 'BLOCKED';
-                  case 3: return 'MAINTENANCE';
-                  case 4: return 'RESERVED';
-                  default: return 'AVAILABLE';
-                }
-              };
-
-              return {
-                id: item.id,
-                slotCode: item.code,
-                slotName: item.name,
-                zoneId: item.zoneId,
-                zoneName: zone.name,
-                floorId: selectedFloorId,
-                buildingId: selectedBuildingId || 0,
-                slotType: zone.vehicleType === 'EV Charging' ? 'EV Charging' as const : (zone.vehicleType === 'Motorbike' ? 'Motorbike' as const : 'Standard' as const),
-                status: assignedVehicle ? 'OCCUPIED' : mapStatus(item.status),
-                vehicleTypeId: item.vehicleTypeId,
-                assignedVehicle
-              };
-            });
-          }
-        } catch { return []; }
-        return [];
-      });
-
-      const results = await Promise.all(zoneSlotsPromises);
-      setSlots(results.flat());
-      setLastUpdated(new Date());
-
-      // Refresh slot summary
-      if (selectedBuildingId) {
-        const summaryRes = await api.get<BaseResponse<any[]>>(`/Floors/building/${selectedBuildingId}/slot-summary`).catch(() => null);
-        if (summaryRes?.success && summaryRes.data) {
-          const mappedData = mapFloorSlotSummary(summaryRes.data);
-          const summary = mappedData.find(s => s.floorId === selectedFloorId);
-          setFloorSlotSummary(summary || null);
-        }
-      }
-    } catch { /* silent polling failure */ }
-  }, [selectedFloorId, zones, selectedBuildingId]);
-
-  useEffect(() => {
-    if (pollingRef.current) clearInterval(pollingRef.current);
-    if (!selectedFloorId) return;
-    pollingRef.current = setInterval(refreshSlotsAndSessions, POLL_INTERVAL_MS);
-    return () => {
-      if (pollingRef.current) clearInterval(pollingRef.current);
-    };
-  }, [refreshSlotsAndSessions, selectedFloorId]);
-
-  // Derived filterings
-  const activeFloors = useMemo(() => {
-    if (!selectedBuildingId) return [];
-    return floors.filter(f => f.buildingId === selectedBuildingId);
-  }, [floors, selectedBuildingId]);
-
-  const activeCarZones = useMemo(() => {
-    if (!selectedFloorId) return [];
-    return zones.filter(z => z.floorId === selectedFloorId && z.vehicleType !== 'Motorbike');
-  }, [zones, selectedFloorId]);
-
-  const activeMotorbikeZones = useMemo(() => {
-    if (!selectedFloorId) return [];
-    return zones.filter(z => z.floorId === selectedFloorId && z.vehicleType === 'Motorbike');
-  }, [zones, selectedFloorId]);
-
-  // Find motorbike slot summary for the current floor
-  const motorSummary = useMemo(() => {
-    if (!floorSlotSummary) return null;
-    return floorSlotSummary.vehicleTypeSummaries.find(vt => {
-      const name = (vt.vehicleTypeName || '').toUpperCase();
-      return name.includes('MOTOR') || name.includes('BIKE');
-    }) || null;
-  }, [floorSlotSummary]);
-
-  // Calculate effective total motorbike capacity on the current floor
-  const effectiveMotorTotal = useMemo(() => {
-    // Filter slots on this floor belonging to motorbike zones
-    const floorMotorSlots = slots.filter(s => {
-      const zone = zones.find(z => z.id === s.zoneId);
-      return zone && zone.floorId === selectedFloorId && zone.vehicleType === 'Motorbike';
-    });
-
-    if (floorMotorSlots.length > 0) {
-      return floorMotorSlots.length;
-    }
-
-    if (motorSummary) {
-      return motorSummary.totalSlots ?? 0;
-    }
-
-    // Fallback: sum of slot capacities of motorbike zones on this floor
-    return activeMotorbikeZones.reduce((sum, z) => sum + (z.slotCapacity || 0), 0);
-  }, [slots, zones, selectedFloorId, motorSummary, activeMotorbikeZones]);
-
-  // Calculate effective occupied motorbike count on the current floor
-  const effectiveMotorOccupied = useMemo(() => {
-    // Filter slots on this floor belonging to motorbike zones
-    const floorMotorSlots = slots.filter(s => {
-      const zone = zones.find(z => z.id === s.zoneId);
-      return zone && zone.floorId === selectedFloorId && zone.vehicleType === 'Motorbike';
-    });
-
-    const occupiedSlotsCount = floorMotorSlots.filter(s => s.status === 'OCCUPIED').length;
-
-    // Count active sessions on this floor in motorbike zones
-    const activeSessionsCount = activeSessions.filter(session => {
-      const zone = zones.find(z => z.id === session.zoneId);
-      return zone && zone.floorId === selectedFloorId && zone.vehicleType === 'Motorbike';
-    }).length;
-
-    const count = Math.max(occupiedSlotsCount, activeSessionsCount);
-
-    if (count > 0) {
-      return count;
-    }
-
-    if (motorSummary) {
-      return motorSummary.statusCounts?.Occupied ?? 0;
-    }
-
-    return 0;
-  }, [slots, zones, selectedFloorId, motorSummary, activeSessions]);
-
-  // Calculate effective available motorbike count on the current floor
-  const effectiveMotorAvailable = useMemo(() => {
-    return Math.max(0, effectiveMotorTotal - effectiveMotorOccupied);
-  }, [effectiveMotorTotal, effectiveMotorOccupied]);
-
-  // Handlers
-  const handleBuildingChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const bldId = parseInt(e.target.value);
-    setSelectedBuildingId(bldId);
-    
-    const bldFloors = floors.filter(f => f.buildingId === bldId);
-    if (bldFloors.length > 0) {
-      setSelectedFloorId(bldFloors[0].id);
-    } else {
-      setSelectedFloorId(null);
-    }
-  };
-
-  const handleFloorChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setSelectedFloorId(parseInt(e.target.value));
-  };
-
-  // Open modal dialog on click
-  const handleSlotClick = (slot: Slot) => {
-    setSelectedSlot(slot);
-    setIsModalOpen(true);
-  };
-
-  const handleCloseModal = () => {
-    setIsModalOpen(false);
-    setSelectedSlot(null);
-  };
-
-  // Callback to handle updates inside modal
-  const handleSlotUpdated = useCallback(async (
-    slotId: number,
-    newStatus: Slot['status'],
-    assignedVehicle?: Slot['assignedVehicle']
-  ) => {
-    setSlots(prev => prev.map(s => {
-      if (s.id === slotId) {
-        return {
-          ...s,
-          status: newStatus,
-          assignedVehicle
-        };
-      }
-      return s;
-    }));
-    await refreshSlotsAndSessions();
-    setTimeout(() => {
-      refreshSlotsAndSessions();
-    }, 1000);
-  }, [refreshSlotsAndSessions]);
-
-  // Active Sessions list filtering for the current floor
-  const filteredSessions = useMemo(() => {
-    return activeSessions.filter(session => {
-      const zone = zones.find(z => z.id === session.zoneId);
-      if (!zone || zone.floorId !== selectedFloorId) return false;
-
-      const slot = slots.find(s => s.id === session.slotId);
-      const slotCode = slot ? slot.slotCode : '';
-      const plate = session.licensePlateIn || '';
-      const subText = session.bookingId ? `BOOKING-${session.bookingId}` : 'WALK-IN';
-      
-      const searchMatch = 
-        slotCode.toLowerCase().includes(tableSearchQuery.toLowerCase()) ||
-        plate.toLowerCase().includes(tableSearchQuery.toLowerCase()) ||
-        subText.toLowerCase().includes(tableSearchQuery.toLowerCase());
-
-      if (tableTypeFilter === 'All') return searchMatch;
-      if (tableTypeFilter === 'Motorbike') return searchMatch && zone.vehicleType === 'Motorbike';
-      return searchMatch && slot?.slotType === tableTypeFilter;
-    });
-  }, [activeSessions, zones, selectedFloorId, slots, tableSearchQuery, tableTypeFilter]);
-
-  // Action to complete a session (release spot)
-  const handleForceCompleteSession = async (sessionId: number) => {
-    const isConfirmed = window.confirm(
-      "WARNING: Are you sure you want to force release this parking session?\n\n" +
-      "This action will immediately terminate the parking session and release the parking slot in the system, bypassing the standard checkout payment process at the exit gate. Please ensure the vehicle has physically departed or payment has been settled directly."
-    );
-    if (!isConfirmed) return;
-
-    setCompletingSessionId(sessionId);
-    try {
-      await apiClient(`/parking-sessions/${sessionId}/complete`, { method: 'PATCH' });
-      showToastMessage('Parking session completed and slot/space released successfully.');
-      setSelectedSessionDetails(null);
-      await fetchSlotsForFloor();
-    } catch (err) {
-      console.error(err);
-      showToastMessage('Failed to complete parking session.', 'error');
-    } finally {
-      setCompletingSessionId(null);
-    }
-  };
+  const {
+    buildings,
+    zones,
+    slots,
+    activeSessions,
+    selectedBuildingId,
+    selectedFloorId,
+    activeTab,
+    setActiveTab,
+    loading,
+    lastUpdated,
+    toast,
+    showToastMessage,
+    tableSearchQuery,
+    setTableSearchQuery,
+    tableTypeFilter,
+    setTableTypeFilter,
+    selectedSlot,
+    isModalOpen,
+    handleSlotClick,
+    handleCloseModal,
+    handleSlotUpdated,
+    selectedSessionDetails,
+    setSelectedSessionDetails,
+    completingSessionId,
+    handleForceCompleteSession,
+    refreshSlotsAndSessions,
+    handleBuildingChange,
+    handleFloorChange,
+    floorSlotSummary,
+    activeFloors,
+    activeCarZones,
+    activeMotorbikeZones,
+    effectiveMotorTotal,
+    effectiveMotorOccupied,
+    effectiveMotorAvailable,
+    filteredSessions,
+  } = useParkingMap();
 
   // Color Coding maps
   const getSlotColorClass = (status: Slot['status']) => {
@@ -698,7 +177,7 @@ export function SlotManagementDashboard() {
             <button
               onClick={refreshSlotsAndSessions}
               title="Refresh now"
-              className="px-3 py-1.5 rounded-lg text-slate-500 hover:text-[#006d430] hover:bg-emerald-50 transition-colors text-xs font-bold"
+              className="px-3 py-1.5 rounded-lg text-slate-500 hover:text-[#006d43] hover:bg-emerald-50 transition-colors text-xs font-bold"
             >
               Refresh
             </button>
@@ -919,34 +398,34 @@ export function SlotManagementDashboard() {
                       </span>
                     </div>
 
-                        {zoneSlots.length === 0 ? (
-                          <p className="text-xs text-slate-400 font-semibold italic text-center py-6 col-span-full">No slots configured in this zone.</p>
-                        ) : (
-                          <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10 gap-3.5">
-                            {zoneSlots.map(slot => (
-                              <button
-                                key={slot.id}
-                                onClick={() => handleSlotClick(slot)}
-                                title={slot.status === 'RESERVED' ? 'Reserved for booking' : undefined}
-                                className={`h-24 border rounded-xl flex flex-col items-center justify-center py-3 px-3.5 shadow-sm transition-all hover:scale-[1.03] active:scale-95 group font-bold text-sm ${getSlotColorClass(
-                                  slot.status
-                                )}`}
-                              >
-                                <span className="truncate w-full text-center px-1">{slot.slotCode}</span>
-                                {slot.status === 'OCCUPIED' && slot.assignedVehicle && (
-                                  <span className="block text-[9px] font-extrabold mt-1 opacity-90 truncate leading-tight">
-                                    {slot.assignedVehicle.plate}
-                                  </span>
-                                )}
-                                {slot.status === 'RESERVED' && (
-                                  <span className="block text-[8px] font-extrabold mt-1 opacity-80 uppercase">
-                                    Booked
-                                  </span>
-                                )}
-                              </button>
-                            ))}
-                          </div>
-                        )}
+                    {zoneSlots.length === 0 ? (
+                      <p className="text-xs text-slate-400 font-semibold italic text-center py-6 col-span-full">No slots configured in this zone.</p>
+                    ) : (
+                      <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10 gap-3.5">
+                        {zoneSlots.map(slot => (
+                          <button
+                            key={slot.id}
+                            onClick={() => handleSlotClick(slot)}
+                            title={slot.status === 'RESERVED' ? 'Reserved for booking' : undefined}
+                            className={`h-24 border rounded-xl flex flex-col items-center justify-center py-3 px-3.5 shadow-sm transition-all hover:scale-[1.03] active:scale-95 group font-bold text-sm ${getSlotColorClass(
+                              slot.status
+                            )}`}
+                          >
+                            <span className="truncate w-full text-center px-1">{slot.slotCode}</span>
+                            {slot.status === 'OCCUPIED' && slot.assignedVehicle && (
+                              <span className="block text-[9px] font-extrabold mt-1 opacity-90 truncate leading-tight">
+                                {slot.assignedVehicle.plate}
+                              </span>
+                            )}
+                            {slot.status === 'RESERVED' && (
+                              <span className="block text-[8px] font-extrabold mt-1 opacity-80 uppercase">
+                                Booked
+                              </span>
+                            )}
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 );
               })
@@ -962,7 +441,7 @@ export function SlotManagementDashboard() {
               </div>
 
               {activeMotorbikeZones.length === 0 ? (
-                motorSummary ? (
+                floorSlotSummary ? (
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
                     <div className="md:col-span-1">
                       <h4 className="text-sm font-extrabold text-slate-700">General Motorbike Area</h4>
@@ -982,7 +461,7 @@ export function SlotManagementDashboard() {
 
                       <div className="bg-slate-50/50 border border-slate-150 rounded-xl p-4 text-center">
                         <span className="text-xs font-bold text-slate-500 block uppercase tracking-wider mb-1">Total Capacity</span>
-                        <span className="text-2xl font-black text-slate-600">{(motorSummary.totalSlots || 0)}</span>
+                        <span className="text-2xl font-black text-slate-600">{effectiveMotorTotal}</span>
                       </div>
                     </div>
                   </div>
@@ -1074,7 +553,6 @@ export function SlotManagementDashboard() {
                   <option value="Motorbike">Motorbike</option>
                 </select>
               </div>
-
             </div>
 
             {/* List Table */}

@@ -1,3 +1,23 @@
+/**
+ * ═══════════════════════════════════════════════════════════════════════════════
+ * 📌 FILE: UserManagement.tsx (MÀN HÌNH QUẢN LÝ TÀI KHOẢN NGUYÊN HỆ THỐNG - USER MANAGEMENT)
+ * ═══════════════════════════════════════════════════════════════════════════════
+ *
+ * 🎯 MỤC ĐÍCH FILE:
+ * Đây là giao diện Quản lý Tài khoản (Account Management) dành cho Admin/Manager.
+ * Cho phép xem danh sách, tạo mới tài khoản, chỉnh sửa quyền (Role), khoá/mở khoá (Block/Unblock)
+ * và phân quyền truy cập hệ thống bãi đỗ xe PBMS.
+ *
+ * 🛠️ CÁC CHỨC NĂNG CHÍNH ĐƯỢC ĐÓNG GÓI TRONG FILE NÀY:
+ * 1. 📊 Thẻ Thống kê (Stats Cards): Tổng số User, User đang Hoạt động (Active), Bị khoá (Blocked), Vô hiệu hoá (Inactive).
+ * 2. 🔍 Bộ lọc & Tìm kiếm (Filters & Search): Tìm kiếm nhanh theo Tên, Username, Email, SĐT và lọc theo Vai trò (Role) / Trạng thái (Status).
+ * 3. ➕ Tạo Tài khoản mới (Create Account Modal): Admin tạo tài khoản mới cho Staff hoặc Manager với thông tin Email, Password, SĐT.
+ * 4. ✏️ Chỉnh sửa Tài khoản (Edit Account Modal): Cập nhật Tên, SĐT, chuyển đổi Vai trò (Admin/Manager/Staff/Driver) & Trạng thái.
+ * 5. 🔒 Khoá / Mở khoá Tài khoản (Block / Unblock Modal): Khoá quyền truy cập của tài khoản ngay lập tức hoặc khôi phục quyền.
+ * 6. 🛡️ Chính sách Bảo vệ (Account Security Policy): Ngăn Admin tự khoá/vô hiệu hoá tài khoản chính mình (Self-protection).
+ * ═══════════════════════════════════════════════════════════════════════════════
+ */
+
 'use client';
 
 import React, { useState } from 'react';
@@ -6,9 +26,10 @@ import { useAccounts, AccountDto } from '../hooks/useAccounts';
 import { Badge, Input, Select } from '@/components/ui';
 
 export default function UserManagement() {
+  // ─── Lấy thông tin user hiện tại & hiển thị Toast thông báo ───────────────
   const { user: currentUser, showToast } = useAuth();
   
-  // Feature-based custom hook for data & mutations
+  // ─── Custom Hook xử lý gọi API & Quản lý State Tài khoản ──────────────────
   const {
     filteredAccounts,
     isLoading,
@@ -27,7 +48,7 @@ export default function UserManagement() {
     unblockAccount,
   } = useAccounts();
 
-  // Create User Modal state
+  // ─── State Hộp thoại Tạo User Mới (Create Account Modal) ────────────────
   const [isCreateModalOpen, setIsCreateModalOpen] = useState<boolean>(false);
   const [createFullName, setCreateFullName] = useState<string>('');
   const [createUsername, setCreateUsername] = useState<string>('');
@@ -35,10 +56,10 @@ export default function UserManagement() {
   const [createPhone, setCreatePhone] = useState<string>('');
   const [createPassword, setCreatePassword] = useState<string>('');
   const [showPassword, setShowPassword] = useState<boolean>(false);
-  const [createRoleId, setCreateRoleId] = useState<number>(3); // 3 = Staff, 2 = Manager
+  const [createRoleId, setCreateRoleId] = useState<number>(3); // 3 = Staff (Nhân viên), 2 = Manager (Quản lý)
   const [isCreating, setIsCreating] = useState<boolean>(false);
 
-  // Edit Modal state
+  // ─── State Hộp thoại Chỉnh sửa Tài khoản (Edit Account Modal) ───────────
   const [isEditModalOpen, setIsEditModalOpen] = useState<boolean>(false);
   const [editingAccount, setEditingAccount] = useState<AccountDto | null>(null);
   const [editFullName, setEditFullName] = useState<string>('');
@@ -47,12 +68,14 @@ export default function UserManagement() {
   const [editStatus, setEditStatus] = useState<string>('Active');
   const [isSaving, setIsSaving] = useState<boolean>(false);
 
-  // Block/Unblock Warning Modal state
+  // ─── State Hộp thoại Khoá/Mở khoá (Block/Unblock Modal) ─────────────────
   const [isBlockModalOpen, setIsBlockModalOpen] = useState<boolean>(false);
   const [targetAccount, setTargetAccount] = useState<AccountDto | null>(null);
   const [isBlocking, setIsBlocking] = useState<boolean>(false);
 
-  // Open Create User Modal
+  /**
+   * Mở Modal Tạo User Mới & Reset Form
+   */
   const handleCreateClick = () => {
     setCreateFullName('');
     setCreateUsername('');
@@ -60,11 +83,13 @@ export default function UserManagement() {
     setCreatePhone('');
     setCreatePassword('');
     setShowPassword(false);
-    setCreateRoleId(3); // Default Staff
+    setCreateRoleId(3); // Mặc định chọn vai trò Staff
     setIsCreateModalOpen(true);
   };
 
-  // Submit Create User Form
+  /**
+   * Gửi thông tin tạo tài khoản mới lên máy chủ
+   */
   const handleCreateSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!createFullName.trim() || !createUsername.trim() || !createEmail.trim() || !createPassword.trim()) {
@@ -72,7 +97,7 @@ export default function UserManagement() {
       return;
     }
 
-    // Restriction: Admin can only create Staff (3) or Manager (2)
+    // Ràng buộc bảo mật: Admin chỉ được tạo tài khoản Staff (3) hoặc Manager (2)
     if (createRoleId !== 2 && createRoleId !== 3) {
       showToast('Admins can only create Staff or Manager accounts.', 'error');
       return;
@@ -94,7 +119,9 @@ export default function UserManagement() {
     setIsCreating(false);
   };
 
-  // Open Edit Modal
+  /**
+   * Mở Modal Chỉnh sửa thông tin tài khoản được chọn
+   */
   const handleEditClick = (acc: AccountDto) => {
     setEditingAccount(acc);
     setEditFullName(acc.fullName || '');
@@ -104,7 +131,9 @@ export default function UserManagement() {
     setIsEditModalOpen(true);
   };
 
-  // Save changes
+  /**
+   * Lưu thông tin tài khoản sau khi chỉnh sửa
+   */
   const handleEditSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingAccount) return;
@@ -114,7 +143,7 @@ export default function UserManagement() {
       return;
     }
 
-    // Protection: Prevent Admin from deactivating their own account
+    // Ràng buộc bảo mật: Ngăn Admin tự đổi trạng thái tài khoản mình sang Blocked/Inactive
     const isSelf = currentUser && (
       editingAccount.id === currentUser.id || 
       (currentUser.email && editingAccount.email?.toLowerCase() === currentUser.email.toLowerCase())
@@ -138,9 +167,11 @@ export default function UserManagement() {
     setIsSaving(false);
   };
 
-  // Open Block / Unblock Modal
+  /**
+   * Mở Modal xác nhận Khoá/Mở khoá tài khoản
+   */
   const handleBlockClick = (acc: AccountDto) => {
-    // Protection: Prevent Admin from blocking their own account
+    // Ràng buộc bảo mật: Ngăn Admin tự khoá tài khoản chính mình
     const isSelf = currentUser && (
       acc.id === currentUser.id || 
       (currentUser.email && acc.email?.toLowerCase() === currentUser.email.toLowerCase())
@@ -153,7 +184,9 @@ export default function UserManagement() {
     setIsBlockModalOpen(true);
   };
 
-  // Confirm Block / Unblock
+  /**
+   * Xác nhận thao tác Khoá / Mở khoá tài khoản
+   */
   const handleBlockConfirm = async () => {
     if (!targetAccount) return;
 
@@ -175,6 +208,7 @@ export default function UserManagement() {
     setIsBlocking(false);
   };
 
+  // Định dạng hiển thị ngày đăng ký tài khoản
   const formatDate = (dateString: string) => {
     try {
       const date = new Date(dateString);
@@ -190,7 +224,9 @@ export default function UserManagement() {
 
   return (
     <div className="p-8 space-y-8">
-      {/* Title & Quick Actions */}
+      {/* ─────────────────────────────────────────────────────────────────── */}
+      {/* LAYOUT PHẦN 1: TIÊU ĐỀ MÀN HÌNH & NÚT THÊM NGUYÊN TẮC (ADD USER)   */}
+      {/* ─────────────────────────────────────────────────────────────────── */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-800">User Account Management</h1>
@@ -207,7 +243,9 @@ export default function UserManagement() {
         </button>
       </div>
 
-      {/* Stats Cards */}
+      {/* ─────────────────────────────────────────────────────────────────── */}
+      {/* LAYOUT PHẦN 2: THẺ THỐNG KÊ TỔNG QUAN TÀI KHOẢN (STATS CARDS)      */}
+      {/* ─────────────────────────────────────────────────────────────────── */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
         <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-4">
           <div className="w-12 h-12 rounded-xl bg-slate-50 flex items-center justify-center text-slate-500">
@@ -229,7 +267,7 @@ export default function UserManagement() {
           </div>
         </div>
 
-        <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-4">
+        <div className="bg-white p-[#05] p-5 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-4">
           <div className="w-12 h-12 rounded-xl bg-rose-50 flex items-center justify-center text-rose-500">
             <span className="material-symbols-outlined text-2xl">block</span>
           </div>
@@ -250,9 +288,11 @@ export default function UserManagement() {
         </div>
       </div>
 
-      {/* Main Table Card */}
+      {/* ─────────────────────────────────────────────────────────────────── */}
+      {/* LAYOUT PHẦN 3: BẢNG DANH SÁCH & BỘ LỌC TÀI KHOẢN (SEARCH & TABLE)   */}
+      {/* ─────────────────────────────────────────────────────────────────── */}
       <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col">
-        {/* Search & Filters */}
+        {/* Bộ lọc & Tìm kiếm */}
         <div className="p-5 border-b border-slate-100 flex flex-col md:flex-row gap-4 items-stretch md:items-center justify-between">
           <div className="relative flex-1">
             <span className="material-symbols-outlined text-slate-400 absolute left-4 top-1/2 -translate-y-1/2 text-lg">
@@ -307,7 +347,7 @@ export default function UserManagement() {
           </div>
         </div>
 
-        {/* Loading / Error States */}
+        {/* Trạng thái Đang tải / Lỗi / Không tìm thấy */}
         {isLoading ? (
           <div className="p-20 flex flex-col items-center justify-center space-y-4">
             <div className="w-10 h-10 border-4 border-[#006d43] border-t-transparent rounded-full animate-spin"></div>
@@ -336,7 +376,7 @@ export default function UserManagement() {
             </div>
           </div>
         ) : (
-          /* Accounts Table */
+          /* Bảng hiển thị danh sách tài khoản hệ thống */
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
@@ -358,7 +398,7 @@ export default function UserManagement() {
 
                   return (
                     <tr key={acc.id} className="hover:bg-slate-50/20 transition-colors">
-                      {/* User profile */}
+                      {/* Avatar và tên user */}
                       <td className="py-4 px-6">
                         <div className="flex items-center gap-3">
                           <div className="w-9 h-9 rounded-full bg-slate-100 flex items-center justify-center font-bold text-slate-600 text-sm">
@@ -378,7 +418,7 @@ export default function UserManagement() {
                         </div>
                       </td>
 
-                      {/* Email and Phone */}
+                      {/* Email & Số điện thoại */}
                       <td className="py-4 px-6">
                         <div className="space-y-0.5">
                           <p className="text-slate-600 font-medium font-mono">{acc.email || 'N/A'}</p>
@@ -386,7 +426,7 @@ export default function UserManagement() {
                         </div>
                       </td>
 
-                      {/* System Role */}
+                      {/* Vai trò hệ thống (Role) */}
                       <td className="py-4 px-6">
                         {acc.roleName === 'Admin' && <span className="text-rose-600 font-bold text-xs">Admin</span>}
                         {acc.roleName === 'Manager' && <span className="text-amber-600 font-bold text-xs">Manager</span>}
@@ -394,17 +434,17 @@ export default function UserManagement() {
                         {acc.roleName === 'Driver' && <span className="text-slate-500 font-semibold text-xs">Driver</span>}
                       </td>
 
-                      {/* Account Status */}
+                      {/* Trạng thái hoạt động (Status) */}
                       <td className="py-4 px-6">
                         {acc.accountStatus === 'Active' && <Badge variant="available" dot>Active</Badge>}
                         {acc.accountStatus === 'Blocked' && <Badge variant="occupied" dot>Blocked</Badge>}
                         {acc.accountStatus === 'Inactive' && <Badge variant="inactive" dot>Inactive</Badge>}
                       </td>
 
-                      {/* Registered date */}
+                      {/* Ngày đăng ký */}
                       <td className="py-4 px-6 text-slate-500 font-mono">{formatDate(acc.createdAt)}</td>
 
-                      {/* Actions */}
+                      {/* Thao tác (Edit / Block) */}
                       <td className="py-4 px-6 text-right space-x-1.5">
                         <button
                           onClick={() => handleEditClick(acc)}
@@ -436,18 +476,17 @@ export default function UserManagement() {
         )}
       </div>
 
-      {/* Create Account Modal */}
+      {/* ─────────────────────────────────────────────────────────────────── */}
+      {/* LAYOUT PHẦN 4: HỘP THOẠI TẠO TÀI KHOẢN MỚI (CREATE ACCOUNT MODAL)   */}
+      {/* ─────────────────────────────────────────────────────────────────── */}
       {isCreateModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          {/* Backdrop */}
           <div
             className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity"
             onClick={() => setIsCreateModalOpen(false)}
           />
 
-          {/* Dialog Body */}
           <div className="relative bg-white rounded-2xl w-full max-w-md shadow-2xl border border-slate-100 overflow-hidden transform scale-100 transition-all flex flex-col">
-            {/* Header */}
             <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
               <div>
                 <h3 className="text-base font-bold text-slate-800">Create New Account</h3>
@@ -461,7 +500,6 @@ export default function UserManagement() {
               </button>
             </div>
 
-            {/* Form */}
             <form onSubmit={handleCreateSave} className="p-6 space-y-4">
               <Input
                 label="Full Name *"
@@ -526,7 +564,6 @@ export default function UserManagement() {
                 ]}
               />
 
-              {/* Action Buttons */}
               <div className="pt-4 border-t border-slate-100 flex gap-3 justify-end">
                 <button
                   type="button"
@@ -555,18 +592,17 @@ export default function UserManagement() {
         </div>
       )}
 
-      {/* Edit Account Modal */}
+      {/* ─────────────────────────────────────────────────────────────────── */}
+      {/* LAYOUT PHẦN 5: HỘP THOẠI CHỈNH SỬA TÀI KHOẢN (EDIT ACCOUNT MODAL)   */}
+      {/* ─────────────────────────────────────────────────────────────────── */}
       {isEditModalOpen && editingAccount && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          {/* Backdrop */}
           <div
             className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity"
             onClick={() => setIsEditModalOpen(false)}
           />
 
-          {/* Dialog Body */}
           <div className="relative bg-white rounded-2xl w-full max-w-md shadow-2xl border border-slate-100 overflow-hidden transform scale-100 transition-all flex flex-col">
-            {/* Header */}
             <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
               <div>
                 <h3 className="text-base font-bold text-slate-800">Edit System Account</h3>
@@ -580,7 +616,6 @@ export default function UserManagement() {
               </button>
             </div>
 
-            {/* Form */}
             <form onSubmit={handleEditSave} className="p-6 space-y-4">
               {currentUser && (
                 editingAccount.id === currentUser.id || 
@@ -638,7 +673,6 @@ export default function UserManagement() {
                 />
               </div>
 
-              {/* Action Buttons */}
               <div className="pt-4 border-t border-slate-100 flex gap-3 justify-end">
                 <button
                   type="button"
@@ -667,16 +701,16 @@ export default function UserManagement() {
         </div>
       )}
 
-      {/* Block/Unblock Warning Modal */}
+      {/* ─────────────────────────────────────────────────────────────────── */}
+      {/* LAYOUT PHẦN 6: HỘP THOẠI CẢNH BÁO KHOÁ TÀI KHOẢN (BLOCK MODAL)       */}
+      {/* ─────────────────────────────────────────────────────────────────── */}
       {isBlockModalOpen && targetAccount && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          {/* Backdrop */}
           <div
             className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity"
             onClick={() => setIsBlockModalOpen(false)}
           />
 
-          {/* Warning Card */}
           <div className="relative bg-white rounded-2xl w-full max-w-sm shadow-2xl border border-slate-100 overflow-hidden transform scale-100 transition-all p-6 flex flex-col space-y-4">
             <div className="flex items-center gap-3.5">
               <div
@@ -712,7 +746,6 @@ export default function UserManagement() {
               )}
             </div>
 
-            {/* Buttons */}
             <div className="pt-2 flex gap-3 justify-end">
               <button
                 type="button"

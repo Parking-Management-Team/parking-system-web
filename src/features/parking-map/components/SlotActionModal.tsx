@@ -1,9 +1,8 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { api } from '@/lib/api/client';
-import { BaseResponse } from '@/lib/types/building.types';
 import { Slot } from '../types';
+import { parkingMapService } from '../services/parkingMapService';
 
 interface SlotActionModalProps {
   isOpen: boolean;
@@ -25,7 +24,7 @@ export function SlotActionModal({
   slot,
   userRole,
   onSlotUpdated,
-  showToastMessage
+  showToastMessage,
 }: SlotActionModalProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -51,10 +50,11 @@ export function SlotActionModal({
     if (isOpen && activeSlot && activeSlot.status === 'AVAILABLE') {
       setLoadingFutureBookings(true);
       setFutureBookingsData(null);
-      api.get<BaseResponse<any>>(`/ParkingSlots/${activeSlot.id}/future-bookings`)
-        .then((res) => {
-          if (res.success && res.data) {
-            setFutureBookingsData(res.data);
+      parkingMapService
+        .getFutureBookings(activeSlot.id)
+        .then((data) => {
+          if (data) {
+            setFutureBookingsData(data);
           }
         })
         .catch((err) => console.error('Error fetching future bookings', err))
@@ -67,27 +67,17 @@ export function SlotActionModal({
   const handleSwitchSlot = async (newSlotId: number) => {
     try {
       setLoadingFutureBookings(true);
-      const res = await api.get<BaseResponse<any>>(`/ParkingSlots/${newSlotId}`);
-      if (res.success && res.data) {
-        const s = res.data;
-        const newSlot: Slot = {
-          id: s.id,
-          slotCode: s.code || `SLOT-${s.id}`,
-          slotName: s.name,
-          status: s.status === 0 || s.status === 'Available' ? 'AVAILABLE' :
-                  s.status === 1 || s.status === 'Occupied' ? 'OCCUPIED' :
-                  s.status === 2 || s.status === 'Blocked' ? 'BLOCKED' :
-                  s.status === 3 || s.status === 'Maintenance' ? 'MAINTENANCE' :
-                  'AVAILABLE',
-          zoneId: s.zoneId,
-          vehicleTypeId: s.vehicleTypeId,
+      const newSlot = await parkingMapService.getSlotById(newSlotId);
+      if (newSlot) {
+        const fullSlot: Slot = {
+          ...newSlot,
           zoneName: activeSlot?.zoneName || '',
           slotType: activeSlot?.slotType || 'Standard',
           floorId: activeSlot?.floorId || 0,
-          buildingId: activeSlot?.buildingId || 0
+          buildingId: activeSlot?.buildingId || 0,
         };
-        setActiveSlot(newSlot);
-        showToastMessage(`Switched to parking slot ${newSlot.slotCode}`);
+        setActiveSlot(fullSlot);
+        showToastMessage(`Switched to parking slot ${fullSlot.slotCode}`);
       }
     } catch {
       showToastMessage('Failed to switch to new slot.', 'error');
@@ -98,37 +88,18 @@ export function SlotActionModal({
 
   if (!isOpen || !slot || !activeSlot) return null;
 
-
-
-
-
   // Toggle maintenance or block status
   const handleSetStatus = async (newStatus: 'AVAILABLE' | 'BLOCKED' | 'MAINTENANCE') => {
     setIsSubmitting(true);
     try {
       const slotId = activeSlot.id;
       const currentStatus = activeSlot.status;
-      let res: any = null;
 
-      // Use dedicated endpoints for status changes
-      if (newStatus === 'BLOCKED') {
-        res = await api.post<BaseResponse<any>>(`/ParkingSlots/${slotId}/block`, { reason: 'Blocked by staff' });
-      } else if (newStatus === 'MAINTENANCE') {
-        res = await api.post<BaseResponse<any>>(`/ParkingSlots/${slotId}/maintenance`, { reason: 'Maintenance by staff' });
-      } else if (newStatus === 'AVAILABLE') {
-        // Available from BLOCKED or MAINTENANCE
-        if (currentStatus === 'BLOCKED') {
-          res = await api.post<BaseResponse<any>>(`/ParkingSlots/${slotId}/unblock`, { reason: 'Unblocked by staff' });
-        } else if (currentStatus === 'MAINTENANCE') {
-          // Use PUT endpoint to transition slot from MAINTENANCE to AVAILABLE since backend /unblock only works for BLOCKED
-          res = await api.put<BaseResponse<any>>(`/ParkingSlots/${slotId}`, {
-            code: activeSlot.slotCode,
-            name: activeSlot.slotName || activeSlot.slotCode,
-            vehicleTypeId: activeSlot.vehicleTypeId,
-            status: 0 // Available
-          });
-        }
-      }
+      const res = await parkingMapService.updateSlotStatus(slotId, newStatus, currentStatus, {
+        code: activeSlot.slotCode,
+        name: activeSlot.slotName,
+        vehicleTypeId: activeSlot.vehicleTypeId,
+      });
 
       // Check if response indicates success
       if (res && res.success === false) {
@@ -137,14 +108,14 @@ export function SlotActionModal({
 
       // Trigger Parent callback
       onSlotUpdated(activeSlot.id, newStatus, newStatus === 'AVAILABLE' ? undefined : activeSlot.assignedVehicle);
-      
+
       // Get the message from backend or use a dynamic fallback
       const successMessage = res?.message || `Slot ${activeSlot.slotCode} status updated to ${newStatus}.`;
       showToastMessage(successMessage);
       onClose();
     } catch (err: any) {
       console.error(err);
-      
+
       // Extract detailed error message from backend response
       let errorMsg = 'Could not update status on backend.';
       if (err && err.data) {
@@ -165,7 +136,7 @@ export function SlotActionModal({
       } else if (err.message) {
         errorMsg = err.message;
       }
-      
+
       showToastMessage(errorMsg, 'error');
     } finally {
       setIsSubmitting(false);
@@ -210,7 +181,6 @@ export function SlotActionModal({
 
         {/* Body */}
         <div className="p-6 flex-grow overflow-y-auto space-y-6">
-          
           {/* Drawer Mode: AVAILABLE -> New Allocation Form */}
           {activeSlot.status === 'AVAILABLE' && (
             <div className="space-y-6 animate-in fade-in duration-150">
@@ -345,7 +315,7 @@ export function SlotActionModal({
                   </p>
                 </div>
               </div>
-              
+
               {/* Administrative Actions */}
               {userRole === 'MANAGER' && (
                 <div className="pt-4 border-t border-slate-100 space-y-2">
@@ -390,7 +360,6 @@ export function SlotActionModal({
               </div>
             </div>
           )}
-
         </div>
 
         {/* Footer Actions */}

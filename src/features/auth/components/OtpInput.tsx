@@ -1,3 +1,19 @@
+/**
+ * ═══════════════════════════════════════════════════════════════════════════════
+ * 📌 FILE: OtpInput.tsx (COMPONENT NHẬP MÃ XÁC THỰC OTP 6 CHỮ SỐ)
+ * ═══════════════════════════════════════════════════════════════════════════════
+ *
+ * 🎯 MỤC ĐÍCH FILE:
+ * Cung cấp giao diện 6 ô nhập mã OTP tách biệt cho tính năng Khôi phục mật khẩu / Xác thực Email.
+ *
+ * 🛠️ CÁC TÍNH NĂNG TƯƠNG TÁC THÔNG MINH:
+ * 1. 🔀 Auto Focus Next Box: Nhập xong 1 chữ số tự động chuyển con trỏ sang ô tiếp theo.
+ * 2. ⌫ Backspace Handling: Xoá chữ số hiện tại hoặc tự lùi về ô trước đó để xoá tiếp.
+ * 3. 📋 Fast Paste: Dán trực tiếp chuỗi 6 chữ số từ Clipboard (Ví dụ: Copy từ Email "123456" rồi Paste).
+ * 4. ⌨️ Keyboard Navigation: Hỗ trợ phím mũi tên Trái / Phải để di chuyển con trỏ qua lại giữa các ô.
+ * ═══════════════════════════════════════════════════════════════════════════════
+ */
+
 'use client';
 
 import * as React from 'react';
@@ -9,11 +25,15 @@ interface OtpInputProps {
 }
 
 export function OtpInput({ value, onChange, disabled = false }: OtpInputProps) {
+  // Mảng tham chiếu Ref lưu các ô Input HTML
   const inputsRef = React.useRef<Array<HTMLInputElement | null>>([]);
 
+  /**
+   * Xử lý thay đổi giá trị nhập vào từng ô
+   */
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>, index: number) => {
     const val = e.target.value;
-    // Allow only single digits
+    // Ràng buộc chỉ nhận chữ số (0-9)
     if (!/^[0-9]?$/.test(val)) return;
 
     const valueArray = value.split('');
@@ -21,22 +41,25 @@ export function OtpInput({ value, onChange, disabled = false }: OtpInputProps) {
     const newValue = valueArray.join('');
     onChange(newValue);
 
-    // Auto-focus next input if a value was entered
+    // Tự động focus sang ô kế tiếp nếu đã điền chữ số
     if (val && index < 5) {
       inputsRef.current[index + 1]?.focus();
     }
   };
 
+  /**
+   * Xử lý di chuyển phím điều hướng & phím xoá Backspace
+   */
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, index: number) => {
     if (e.key === 'Backspace') {
       const valueArray = value.split('');
       if (!valueArray[index] && index > 0) {
-        // If current box is empty, delete previous and focus it
+        // Nếu ô hiện tại trống, xoá ô trước đó và focus lùi về
         valueArray[index - 1] = '';
         onChange(valueArray.join(''));
         inputsRef.current[index - 1]?.focus();
       } else {
-        // Delete current value
+        // Xoá ký tự ô hiện tại
         valueArray[index] = '';
         onChange(valueArray.join(''));
       }
@@ -47,17 +70,20 @@ export function OtpInput({ value, onChange, disabled = false }: OtpInputProps) {
     }
   };
 
+  /**
+   * Xử lý dán chuỗi OTP (Paste from clipboard)
+   */
   const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
     e.preventDefault();
     const pastedData = e.clipboardData.getData('text').trim();
-    if (!/^\d{6}$/.test(pastedData)) return; // Ensure it is exactly 6 digits
+    if (!/^\d{6}$/.test(pastedData)) return; // Đảm bảo đúng 6 chữ số
 
     onChange(pastedData);
-    // Focus the last input box
+    // Tự động focus ô cuối cùng
     inputsRef.current[5]?.focus();
   };
 
-  // Sync inputs array length
+  // Đồng bộ độ dài mảng Ref
   React.useEffect(() => {
     inputsRef.current = inputsRef.current.slice(0, 6);
   }, []);

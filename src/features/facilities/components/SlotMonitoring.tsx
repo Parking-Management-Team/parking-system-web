@@ -1,3 +1,30 @@
+/**
+ * ═══════════════════════════════════════════════════════════════════════════════
+ * 📌 FILE: SlotMonitoring.tsx (GIÁM SÁT TRẠNG THÁI Ô ĐỖ THEO THỜI GIAN THỰC - REALTIME SLOT MONITORING)
+ * ═══════════════════════════════════════════════════════════════════════════════
+ *
+ * 🎯 MỤC ĐÍCH FILE:
+ * Cung cấp màn hình Giám sát Trạng thái Vị trí đỗ xe (Slot Monitoring) theo thời gian thực (Real-time Live View)
+ * dành cho Admin và Manager để theo dõi mật độ đỗ xe, biển số xe đang gửi và giờ check-in thực tế.
+ *
+ * 🛠️ CHỨC NĂNG DÀNH CHO ADMIN & MANAGER:
+ * 1. 🔄 Tự động đồng bộ Real-time (Auto Polling 10s):
+ *    - Tự động gọi API lấy danh sách slots và active parking sessions mỗi 10 giây.
+ *    - Hiển thị badge "LIVE · [Giờ đồng bộ]" và nút Refresh cập nhật tức thì.
+ * 2. 🏢 Bộ lọc Tòa nhà & Tầng (Building & Floor Selectors):
+ *    - Chọn nhanh Tòa nhà và Tầng đỗ xe để hiển thị bản đồ mật độ ô đỗ.
+ * 3. 📊 Thẻ Thống kê Tải lượng (Capacity Summary Dashboard):
+ *    - Total Slots (Tổng số slot), Available (Cần trống), Reserved (Đã đặt trước),
+ *    - Occupied (Đang có xe gửi), Blocked (Tạm khoá), Maintenance (Đang bảo trì),
+ *    - Utilization Rate (% Tỉ lệ lấp đầy bãi xe).
+ * 4. 🚗 Hiển thị Chi tiết Ô đỗ xe (Slot Cards):
+ *    - Trạng thái trống (AVAILABLE - Màu xanh nõn chuối NexPark `#006d43`).
+ *    - Trạng thái có xe (OCCUPIED - Hiện biển số xe `licensePlate` & giờ vào `checkInTime`).
+ *    - Trạng thái đặt trước (RESERVED - Màu vàng cam).
+ *    - Trạng thái tạm khoá / Bảo trì (BLOCKED / MAINTENANCE).
+ * ═══════════════════════════════════════════════════════════════════════════════
+ */
+
 'use client';
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
@@ -33,7 +60,7 @@ interface SlotDto {
   zoneId: number;
   code: string;
   name?: string;
-  status: number | string; // 0=AVAILABLE, 1=MAINTENANCE, 2=OCCUPIED, 3=BLOCKED or "Available", "Occupied", "Blocked", "Maintenance"
+  status: number | string; // 0=AVAILABLE, 1=MAINTENANCE, 2=OCCUPIED, 3=BLOCKED
   occupiedLicensePlate?: string | null;
   subscription?: {
     subscriptionId: number;
@@ -92,10 +119,6 @@ function mapStatus(statusVal: number | string): SlotView['status'] {
 
 const POLL_MS = 10_000;
 
-/**
- * SlotMonitoring – Giám sát real-time trạng thái ô đỗ theo Floor → Zone
- * Hiển thị biển số xe (LicensePlateIn) và giờ check-in cho slot đang có xe.
- */
 export default function SlotMonitoring() {
   // ─── Infrastructure State ─────────────────────────────────────────
   const [buildings, setBuildings] = useState<BuildingItem[]>([]);
@@ -110,7 +133,7 @@ export default function SlotMonitoring() {
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // ─── Fetch buildings + floors + zones once ────────────────────────
+  // ─── Tải danh sách Tòa nhà, Tầng và Zone ban đầu ───────────────────
   useEffect(() => {
     const init = async () => {
       try {
@@ -141,7 +164,7 @@ export default function SlotMonitoring() {
     init();
   }, []);
 
-  // ─── Fetch slots + sessions for selected floor ────────────────────
+  // ─── Tải trạng thái Slots và Active Sessions theo Tầng ──────────────
   const refreshSlots = useCallback(async () => {
     if (!selectedFloorId) return;
     setLoading(true);
@@ -171,7 +194,7 @@ export default function SlotMonitoring() {
                 });
               });
             }
-          } catch { /* skip failed zone */ }
+          } catch { /* Bỏ qua zone bị lỗi */ }
         })
       );
 
@@ -186,7 +209,7 @@ export default function SlotMonitoring() {
     refreshSlots();
   }, [refreshSlots]);
 
-  // ─── Polling ──────────────────────────────────────────────────────
+  // ─── Polling định kỳ mỗi 10 giây ───────────────────────────────────
   useEffect(() => {
     if (pollingRef.current) clearInterval(pollingRef.current);
     if (!selectedFloorId) return;
@@ -194,7 +217,7 @@ export default function SlotMonitoring() {
     return () => { if (pollingRef.current) clearInterval(pollingRef.current); };
   }, [refreshSlots, selectedFloorId]);
 
-  // ─── Derived ──────────────────────────────────────────────────────
+  // ─── Tính toán các chỉ số thống kê sức chứa ─────────────────────────
   const activeFloors = floors.filter(f => f.buildingId === selectedBuildingId);
   const activeZones  = zones.filter(z => z.floorId === selectedFloorId);
 
@@ -206,7 +229,7 @@ export default function SlotMonitoring() {
   const maintenanceSlots = slots.filter(s => s.status === 'MAINTENANCE').length;
   const pct = totalSlots > 0 ? Math.round((occupiedSlots / totalSlots) * 100) : 0;
 
-  // ─── Slot card colors ────────────────────────────────────────────
+  // ─── Style giao diện tương ứng trạng thái slot ───────────────────────
   const getSlotStyle = (status: SlotView['status']) => {
     switch (status) {
       case 'AVAILABLE':   return 'bg-[#006d43] border-[#006d43] text-white';
@@ -225,7 +248,9 @@ export default function SlotMonitoring() {
   return (
     <div className="p-6 space-y-6">
 
-      {/* ── Header ───────────────────────────────────────────── */}
+      {/* ─────────────────────────────────────────────────────────────────── */}
+      {/* 👑 HEADER TRANG & BADGE ĐỒNG BỘ REAL-TIME (LIVE MONITORING)          */}
+      {/* ─────────────────────────────────────────────────────────────────── */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-slate-800">Real-time Slot Monitoring</h1>
@@ -234,7 +259,7 @@ export default function SlotMonitoring() {
           </p>
         </div>
 
-        {/* Live indicator */}
+        {/* Trạng thái Live & Nút Refresh tức thời */}
         <div className="flex items-center gap-3">
           {loading && (
             <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-500">
@@ -253,7 +278,7 @@ export default function SlotMonitoring() {
           )}
           <button
             onClick={refreshSlots}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-[#006d43] hover:bg-emerald-50 transition-colors"
+            className="p-1.5 rounded-lg text-slate-400 hover:text-[#006d43] hover:bg-emerald-50 transition-colors cursor-pointer"
             title="Refresh now"
           >
             <span className="material-symbols-outlined text-[18px] align-middle">refresh</span>
@@ -261,7 +286,9 @@ export default function SlotMonitoring() {
         </div>
       </div>
 
-      {/* ── Infrastructure Selectors ──────────────────────────── */}
+      {/* ─────────────────────────────────────────────────────────────────── */}
+      {/* 🏢 BỘ LỌC TÒA NHÀ & TẦNG (BUILDING & FLOOR SELECTORS)               */}
+      {/* ─────────────────────────────────────────────────────────────────── */}
       <div className="flex flex-wrap gap-3 bg-white p-3 rounded-xl border border-slate-100 shadow-sm">
         <div className="flex flex-col min-w-[150px]">
           <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Building</span>
@@ -273,7 +300,7 @@ export default function SlotMonitoring() {
               const bldFloors = floors.filter(f => f.buildingId === bldId);
               setSelectedFloorId(bldFloors.length > 0 ? bldFloors[0].id : null);
             }}
-            className="bg-transparent border-0 font-semibold text-sm text-slate-700 focus:ring-0 focus:outline-none"
+            className="bg-transparent border-0 font-semibold text-sm text-slate-700 focus:ring-0 focus:outline-none cursor-pointer"
           >
             {buildings.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
           </select>
@@ -285,7 +312,7 @@ export default function SlotMonitoring() {
             value={selectedFloorId || ''}
             onChange={e => setSelectedFloorId(parseInt(e.target.value))}
             disabled={activeFloors.length === 0}
-            className="bg-transparent border-0 font-semibold text-sm text-slate-700 focus:ring-0 focus:outline-none disabled:opacity-50"
+            className="bg-transparent border-0 font-semibold text-sm text-slate-700 focus:ring-0 focus:outline-none disabled:opacity-50 cursor-pointer"
           >
             {activeFloors.map(f => (
               <option key={f.id} value={f.id}>{f.name || `Floor ${f.floorNumber}`}</option>
@@ -294,7 +321,9 @@ export default function SlotMonitoring() {
         </div>
       </div>
 
-      {/* ── Capacity Summary ──────────────────────────────────── */}
+      {/* ─────────────────────────────────────────────────────────────────── */}
+      {/* 📊 DASHBOARD THỐNG KÊ MẬT ĐỘ TẢI LƯỢNG SLOT (CAPACITY SUMMARY)      */}
+      {/* ─────────────────────────────────────────────────────────────────── */}
       {selectedFloorId && (
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-4">
           {[
@@ -314,7 +343,9 @@ export default function SlotMonitoring() {
         </div>
       )}
 
-      {/* ── Legend ────────────────────────────────────────────── */}
+      {/* ─────────────────────────────────────────────────────────────────── */}
+      {/* 🎨 BẢNG CHÚ THÍCH MÀU SẮC TRẠNG THÁI (STATUS LEGEND)               */}
+      {/* ─────────────────────────────────────────────────────────────────── */}
       <div className="flex flex-wrap items-center gap-4 text-[11px] font-bold text-slate-500">
         <span className="text-[10px] text-slate-400 uppercase tracking-wider">Legend:</span>
         {[
@@ -331,7 +362,9 @@ export default function SlotMonitoring() {
         ))}
       </div>
 
-      {/* ── Slot Grid by Zone ─────────────────────────────────── */}
+      {/* ─────────────────────────────────────────────────────────────────── */}
+      {/* 🚗 BẢN ĐỒ LƯỚI VỊ TRÍ ĐỖ XE THEO ZONE (SLOT GRID BY ZONE)           */}
+      {/* ─────────────────────────────────────────────────────────────────── */}
       {activeZones.length === 0 && selectedFloorId ? (
         <div className="bg-white border border-dashed border-slate-200 rounded-2xl p-12 text-center">
           <span className="material-symbols-outlined text-slate-300 text-5xl mb-3">grid_view</span>
@@ -343,7 +376,7 @@ export default function SlotMonitoring() {
           const zoneAvail = zoneSlots.filter(s => s.status === 'AVAILABLE').length;
           return (
             <div key={zone.id} className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 space-y-4">
-              {/* Zone Header */}
+              {/* Header Zone */}
               <div className="flex items-center justify-between">
                 <div>
                   <h3 className="text-sm font-extrabold text-slate-800">{zone.name}</h3>
@@ -356,7 +389,7 @@ export default function SlotMonitoring() {
                 </span>
               </div>
 
-              {/* Slot Cards */}
+              {/* Ô hiển thị từng Slot */}
               {zoneSlots.length === 0 ? (
                 <p className="text-xs text-slate-400 italic text-center py-4">No slots in this zone.</p>
               ) : (
@@ -366,10 +399,10 @@ export default function SlotMonitoring() {
                       key={slot.id}
                       className={`rounded-xl border p-2.5 flex flex-col gap-1 text-center transition-all ${getSlotStyle(slot.status)}`}
                     >
-                      {/* Slot Code */}
+                      {/* Mã Slot (Mã vị trí) */}
                       <span className="text-xs font-extrabold truncate">{slot.code}</span>
 
-                      {/* Status Icon */}
+                      {/* Icon Trạng thái */}
                       <span className="material-symbols-outlined text-[16px] mx-auto opacity-80">
                         {slot.status === 'AVAILABLE'   ? 'check_circle' :
                          slot.status === 'RESERVED'    ? 'book' :
@@ -378,7 +411,7 @@ export default function SlotMonitoring() {
                                                          'block'}
                       </span>
 
-                      {/* Occupied: show plate + check-in */}
+                      {/* Khi slot OCCUPIED: Hiển thị Biển số xe & Giờ Check-in */}
                       {slot.status === 'OCCUPIED' && slot.licensePlate ? (
                         <>
                           <span className="text-[9px] font-black tracking-widest leading-tight truncate opacity-90 flex items-center justify-center gap-0.5">
@@ -404,7 +437,7 @@ export default function SlotMonitoring() {
         })
       )}
 
-      {/* ── No Floor Selected Placeholder ─────────────────────── */}
+      {/* Khi chưa chọn Tầng */}
       {!selectedFloorId && (
         <div className="bg-white border border-dashed border-slate-200 rounded-2xl p-16 text-center">
           <span className="material-symbols-outlined text-slate-300 text-5xl mb-3">layers</span>

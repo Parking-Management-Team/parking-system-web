@@ -1,3 +1,28 @@
+/**
+ * ═══════════════════════════════════════════════════════════════════════════════
+ * 📌 FILE: FacilitiesModals.tsx (TỔNG HỢP CỬA SỔ POP-UP THAO TÁC - FACILITIES MODALS HUB)
+ * ═══════════════════════════════════════════════════════════════════════════════
+ *
+ * 🎯 MỤC ĐÍCH FILE:
+ * Chứa toàn bộ 10 Popup Modal thực hiện các thao tác Tạo mới, Chỉnh sửa, và Xoá (CRUD) dành cho:
+ * 1. Tòa nhà (Buildings): Add, Edit, Floor Reduction Warning, Cascade Delete.
+ * 2. Tầng đỗ xe (Floors): Add, Edit, Delete.
+ * 3. Phân khu đỗ xe (Zones): Add, Edit, Delete.
+ *
+ * 🛠️ CHỨC NĂNG DÀNH CHO ADMIN & MANAGER:
+ * - Modal 1 (Add Building): Nhập Code, Name, Address, Total Floors.
+ * - Modal 2 (Edit Building): Cập nhật Code, Name, Address, Total Floors, Status (Available/Occupied/Reserved/OutOfService).
+ * - Modal 3 (Warning Reduction): Cảnh báo đỏ nguy hiểm khi giảm số tầng làm mất các Tầng/Zone vượt ngưỡng.
+ * - Modal 4 (Delete Building): Xác nhận xoá cascade-delete tòa nhà.
+ * - Modal 5 (Add Floor): Thêm tầng với Floor Number, Name, Type (Standard, Ground, Basement, EV Dedicated), Status.
+ * - Modal 6 (Edit Floor): Sửa tên, chỉ số tầng, loại tầng.
+ * - Modal 7 (Delete Floor): Xác nhận xoá tầng.
+ * - Modal 8 (Add Zone): Cấu hình mã Zone, tên, loại xe cho phép (Vehicle Type), sức chứa slots, tỉ lệ booking limit (%).
+ * - Modal 9 (Edit Zone): Chỉnh sửa thông số Zone.
+ * - Modal 10 (Delete Zone): Giải phóng sức chứa slots của Zone trên tầng.
+ * ═══════════════════════════════════════════════════════════════════════════════
+ */
+
 import React from 'react';
 import { Building, BuildingStatus } from '@/lib/types/building.types';
 import { Floor, Zone, VehicleType } from '../types';
@@ -95,9 +120,6 @@ interface FacilitiesModalsProps {
   executeDeleteZone: () => void;
 }
 
-/**
- * Hợp phần chứa toàn bộ các cửa sổ pop-up (Modal) phục vụ cho CRUD Tòa nhà, Tầng, Phân khu
- */
 export default function FacilitiesModals({
   isSaving,
   isAddBldOpen,
@@ -185,7 +207,9 @@ export default function FacilitiesModals({
 }: FacilitiesModalsProps) {
   return (
     <>
-      {/* 1. MODAL THÊM TÒA NHÀ MỚI */}
+      {/* ─────────────────────────────────────────────────────────────────── */}
+      {/* 1. MODAL THÊM TÒA NHÀ MỚI (ADD BUILDING MODAL)                      */}
+      {/* ─────────────────────────────────────────────────────────────────── */}
       {isAddBldOpen && (
         <div className="fixed inset-0 bg-[#111c2d]/40 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-xl border border-[#006d43]/10 p-6 max-w-md w-full animate-in fade-in zoom-in-95 duration-150">
@@ -241,14 +265,14 @@ export default function FacilitiesModals({
                 <button 
                   type="button"
                   onClick={() => setIsAddBldOpen(false)}
-                  className="px-4 py-2 text-xs font-bold text-slate-500 hover:bg-slate-50 rounded-lg"
+                  className="px-4 py-2 text-xs font-bold text-slate-500 hover:bg-slate-50 rounded-lg cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button 
                   type="submit"
                   disabled={isSaving}
-                  className="px-4 py-2 bg-[#006d43] hover:bg-[#006d43]/90 text-white text-xs font-bold rounded-lg disabled:opacity-55"
+                  className="px-4 py-2 bg-[#006d43] hover:bg-[#006d43]/90 text-white text-xs font-bold rounded-lg disabled:opacity-55 cursor-pointer"
                 >
                   {isSaving ? 'Saving...' : 'Add Building'}
                 </button>
@@ -258,7 +282,9 @@ export default function FacilitiesModals({
         </div>
       )}
 
-      {/* 2. MODAL CHỈNH SỬA TÒA NHÀ */}
+      {/* ─────────────────────────────────────────────────────────────────── */}
+      {/* 2. MODAL CHỈNH SỬA TÒA NHÀ (EDIT BUILDING MODAL)                    */}
+      {/* ─────────────────────────────────────────────────────────────────── */}
       {isEditBldOpen && (
         <div className="fixed inset-0 bg-[#111c2d]/40 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-xl border border-[#006d43]/10 p-6 max-w-md w-full animate-in fade-in zoom-in-95 duration-150">
@@ -310,7 +336,7 @@ export default function FacilitiesModals({
                 <select
                   value={formBldStatus}
                   onChange={(e) => setFormBldStatus(parseInt(e.target.value, 10))}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm text-[#111c2d] focus:outline-none focus:border-[#006d43]"
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm text-[#111c2d] focus:outline-none focus:border-[#006d43] cursor-pointer"
                 >
                   <option value={BuildingStatus.Available}>Available</option>
                   <option value={BuildingStatus.Occupied}>Occupied</option>
@@ -326,14 +352,14 @@ export default function FacilitiesModals({
                     setIsEditBldOpen(false);
                     setEditingBld(null);
                   }}
-                  className="px-4 py-2 text-xs font-bold text-slate-500 hover:bg-slate-50 rounded-lg"
+                  className="px-4 py-2 text-xs font-bold text-slate-500 hover:bg-slate-50 rounded-lg cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button 
                   type="submit"
                   disabled={isSaving}
-                  className="px-4 py-2 bg-[#006d43] hover:bg-[#006d43]/90 text-white text-xs font-bold rounded-lg disabled:opacity-55"
+                  className="px-4 py-2 bg-[#006d43] hover:bg-[#006d43]/90 text-white text-xs font-bold rounded-lg disabled:opacity-55 cursor-pointer"
                 >
                   Save Changes
                 </button>
@@ -343,7 +369,9 @@ export default function FacilitiesModals({
         </div>
       )}
 
-      {/* 3. CẢNH BÁO GIẢM TẦNG TÒA NHÀ (WARNING MODAL) */}
+      {/* ─────────────────────────────────────────────────────────────────── */}
+      {/* 3. MODAL CẢNH BÁO GIẢM TẦNG TÒA NHÀ (FLOOR REDUCTION WARNING MODAL) */}
+      {/* ─────────────────────────────────────────────────────────────────── */}
       {isWarningBldOpen && (
         <div className="fixed inset-0 bg-[#111c2d]/40 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-xl border border-red-100 p-6 max-w-md w-full animate-in fade-in zoom-in-95 duration-150">
@@ -360,7 +388,7 @@ export default function FacilitiesModals({
               <button 
                 type="button"
                 onClick={() => setIsWarningBldOpen(false)}
-                className="px-4 py-2 text-xs font-bold text-slate-500 hover:bg-slate-50 rounded-lg"
+                className="px-4 py-2 text-xs font-bold text-slate-500 hover:bg-slate-50 rounded-lg cursor-pointer"
               >
                 No, Abort
               </button>
@@ -368,7 +396,7 @@ export default function FacilitiesModals({
                 type="button"
                 onClick={executeEditBldSave}
                 disabled={isSaving}
-                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-lg"
+                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-lg cursor-pointer"
               >
                 Yes, Delete and Save
               </button>
@@ -377,7 +405,9 @@ export default function FacilitiesModals({
         </div>
       )}
 
-      {/* 4. MODAL XÁC NHẬN XÓA TÒA NHÀ */}
+      {/* ─────────────────────────────────────────────────────────────────── */}
+      {/* 4. MODAL XÁC NHẬN XÓA TÒA NHÀ (DELETE BUILDING MODAL)               */}
+      {/* ─────────────────────────────────────────────────────────────────── */}
       {isDelBldOpen && (
         <div className="fixed inset-0 bg-[#111c2d]/40 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-xl border border-red-100 p-6 max-w-md w-full animate-in fade-in zoom-in-95 duration-150">
@@ -397,7 +427,7 @@ export default function FacilitiesModals({
                   setIsDelBldOpen(false);
                   setDeletingBld(null);
                 }}
-                className="px-4 py-2 text-xs font-bold text-slate-500 hover:bg-slate-50 rounded-lg"
+                className="px-4 py-2 text-xs font-bold text-slate-500 hover:bg-slate-50 rounded-lg cursor-pointer"
               >
                 Cancel
               </button>
@@ -405,7 +435,7 @@ export default function FacilitiesModals({
                 type="button"
                 onClick={executeDeleteBld}
                 disabled={isSaving}
-                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-lg"
+                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-lg cursor-pointer"
               >
                 {isSaving ? 'Deleting...' : 'Confirm Delete'}
               </button>
@@ -414,7 +444,9 @@ export default function FacilitiesModals({
         </div>
       )}
 
-      {/* 5. MODAL THÊM TẦNG MỚI */}
+      {/* ─────────────────────────────────────────────────────────────────── */}
+      {/* 5. MODAL THÊM TẦNG MỚI (ADD FLOOR MODAL)                            */}
+      {/* ─────────────────────────────────────────────────────────────────── */}
       {isAddFloorOpen && (
         <div className="fixed inset-0 bg-[#111c2d]/40 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-xl border border-[#006d43]/10 p-6 max-w-md w-full animate-in fade-in zoom-in-95 duration-150">
@@ -445,7 +477,7 @@ export default function FacilitiesModals({
                 <select
                   value={formFloorType}
                   onChange={(e) => setFormFloorType(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm text-[#111c2d] focus:outline-none focus:border-[#006d43]"
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm text-[#111c2d] focus:outline-none focus:border-[#006d43] cursor-pointer"
                 >
                   <option value="Standard">Standard Floor</option>
                   <option value="Ground">Ground Floor</option>
@@ -460,7 +492,7 @@ export default function FacilitiesModals({
                 <select
                   value={formFloorStatus}
                   onChange={(e) => setFormFloorStatus(e.target.value as 'Active' | 'Inactive')}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm text-[#111c2d] focus:outline-none focus:border-[#006d43]"
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm text-[#111c2d] focus:outline-none focus:border-[#006d43] cursor-pointer"
                 >
                   <option value="Active">Active</option>
                   <option value="Inactive">Inactive (Under Maintenance)</option>
@@ -471,13 +503,13 @@ export default function FacilitiesModals({
                 <button 
                   type="button"
                   onClick={() => setIsAddFloorOpen(false)}
-                  className="px-4 py-2 text-xs font-bold text-slate-500 hover:bg-slate-50 rounded-lg"
+                  className="px-4 py-2 text-xs font-bold text-slate-500 hover:bg-slate-50 rounded-lg cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button 
                   type="submit"
-                  className="px-4 py-2 bg-[#006d43] hover:bg-[#006d43]/90 text-white text-xs font-bold rounded-lg"
+                  className="px-4 py-2 bg-[#006d43] hover:bg-[#006d43]/90 text-white text-xs font-bold rounded-lg cursor-pointer"
                 >
                   Add Floor
                 </button>
@@ -487,7 +519,9 @@ export default function FacilitiesModals({
         </div>
       )}
 
-      {/* 6. MODAL CHỈNH SỬA TẦNG */}
+      {/* ─────────────────────────────────────────────────────────────────── */}
+      {/* 6. MODAL CHỈNH SỬA TẦNG (EDIT FLOOR MODAL)                          */}
+      {/* ─────────────────────────────────────────────────────────────────── */}
       {isEditFloorOpen && (
         <div className="fixed inset-0 bg-[#111c2d]/40 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-xl border border-[#006d43]/10 p-6 max-w-md w-full animate-in fade-in zoom-in-95 duration-150">
@@ -518,7 +552,7 @@ export default function FacilitiesModals({
                 <select
                   value={formFloorType}
                   onChange={(e) => setFormFloorType(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm text-[#111c2d] focus:outline-none focus:border-[#006d43]"
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm text-[#111c2d] focus:outline-none focus:border-[#006d43] cursor-pointer"
                 >
                   <option value="Standard">Standard Floor</option>
                   <option value="Ground">Ground Floor</option>
@@ -533,7 +567,7 @@ export default function FacilitiesModals({
                 <select
                   value={formFloorStatus}
                   onChange={(e) => setFormFloorStatus(e.target.value as 'Active' | 'Inactive')}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm text-[#111c2d] focus:outline-none focus:border-[#006d43]"
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm text-[#111c2d] focus:outline-none focus:border-[#006d43] cursor-pointer"
                 >
                   <option value="Active">Active</option>
                   <option value="Inactive">Inactive</option>
@@ -547,13 +581,13 @@ export default function FacilitiesModals({
                     setIsEditFloorOpen(false);
                     setEditingFloor(null);
                   }}
-                  className="px-4 py-2 text-xs font-bold text-slate-500 hover:bg-slate-50 rounded-lg"
+                  className="px-4 py-2 text-xs font-bold text-slate-500 hover:bg-slate-50 rounded-lg cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button 
                   type="submit"
-                  className="px-4 py-2 bg-[#006d43] hover:bg-[#006d43]/90 text-white text-xs font-bold rounded-lg"
+                  className="px-4 py-2 bg-[#006d43] hover:bg-[#006d43]/90 text-white text-xs font-bold rounded-lg cursor-pointer"
                 >
                   Save Floor
                 </button>
@@ -563,7 +597,9 @@ export default function FacilitiesModals({
         </div>
       )}
 
-      {/* 7. MODAL XÁC NHẬN XÓA TẦNG */}
+      {/* ─────────────────────────────────────────────────────────────────── */}
+      {/* 7. MODAL XÁC NHẬN XÓA TẦNG (DELETE FLOOR MODAL)                     */}
+      {/* ─────────────────────────────────────────────────────────────────── */}
       {isDelFloorOpen && (
         <div className="fixed inset-0 bg-[#111c2d]/40 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-xl border border-red-100 p-6 max-w-md w-full animate-in fade-in zoom-in-95 duration-150">
@@ -583,14 +619,14 @@ export default function FacilitiesModals({
                   setIsDelFloorOpen(false);
                   setDeletingFloor(null);
                 }}
-                className="px-4 py-2 text-xs font-bold text-slate-500 hover:bg-slate-50 rounded-lg"
+                className="px-4 py-2 text-xs font-bold text-slate-500 hover:bg-slate-50 rounded-lg cursor-pointer"
               >
                 Cancel
               </button>
               <button 
                 type="button"
                 onClick={executeDeleteFloor}
-                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-lg"
+                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-lg cursor-pointer"
               >
                 Confirm Delete
               </button>
@@ -599,7 +635,9 @@ export default function FacilitiesModals({
         </div>
       )}
 
-      {/* 8. MODAL THÊM PHÂN KHU (ZONE) */}
+      {/* ─────────────────────────────────────────────────────────────────── */}
+      {/* 8. MODAL THÊM PHÂN KHU (ADD ZONE MODAL)                              */}
+      {/* ─────────────────────────────────────────────────────────────────── */}
       {isAddZoneOpen && (
         <div className="fixed inset-0 bg-[#111c2d]/40 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-xl border border-[#006d43]/10 p-6 max-w-md w-full animate-in fade-in zoom-in-95 duration-150">
@@ -636,7 +674,7 @@ export default function FacilitiesModals({
                   required
                   value={formZoneVehicleTypeId}
                   onChange={(e) => setFormZoneVehicleTypeId(e.target.value === '' ? '' : Number(e.target.value))}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm text-[#111c2d] focus:outline-none focus:border-[#006d43]"
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm text-[#111c2d] focus:outline-none focus:border-[#006d43] cursor-pointer"
                 >
                   <option value="">Select Allowed Vehicle Type...</option>
                   {vehicleTypes.map((vt) => (
@@ -679,13 +717,13 @@ export default function FacilitiesModals({
                 <button 
                   type="button"
                   onClick={() => setIsAddZoneOpen(false)}
-                  className="px-4 py-2 text-xs font-bold text-slate-500 hover:bg-slate-50 rounded-lg"
+                  className="px-4 py-2 text-xs font-bold text-slate-500 hover:bg-slate-50 rounded-lg cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button 
                   type="submit"
-                  className="px-4 py-2 bg-[#006d43] hover:bg-[#006d43]/90 text-white text-xs font-bold rounded-lg"
+                  className="px-4 py-2 bg-[#006d43] hover:bg-[#006d43]/90 text-white text-xs font-bold rounded-lg cursor-pointer"
                 >
                   Add Zone
                 </button>
@@ -695,7 +733,9 @@ export default function FacilitiesModals({
         </div>
       )}
 
-      {/* 9. MODAL CHỈNH SỬA PHÂN KHU (ZONE) */}
+      {/* ─────────────────────────────────────────────────────────────────── */}
+      {/* 9. MODAL CHỈNH SỬA PHÂN KHU (EDIT ZONE MODAL)                        */}
+      {/* ─────────────────────────────────────────────────────────────────── */}
       {isEditZoneOpen && (
         <div className="fixed inset-0 bg-[#111c2d]/40 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-xl border border-[#006d43]/10 p-6 max-w-md w-full animate-in fade-in zoom-in-95 duration-150">
@@ -727,7 +767,7 @@ export default function FacilitiesModals({
                   required
                   value={formZoneVehicleTypeId}
                   onChange={(e) => setFormZoneVehicleTypeId(e.target.value === '' ? '' : Number(e.target.value))}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm text-[#111c2d] focus:outline-none focus:border-[#006d43]"
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm text-[#111c2d] focus:outline-none focus:border-[#006d43] cursor-pointer"
                 >
                   <option value="">Select Allowed Vehicle Type...</option>
                   {vehicleTypes.map((vt) => (
@@ -773,13 +813,13 @@ export default function FacilitiesModals({
                     setIsEditZoneOpen(false);
                     setEditingZone(null);
                   }}
-                  className="px-4 py-2 text-xs font-bold text-slate-500 hover:bg-slate-50 rounded-lg"
+                  className="px-4 py-2 text-xs font-bold text-slate-500 hover:bg-slate-50 rounded-lg cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button 
                   type="submit"
-                  className="px-4 py-2 bg-[#006d43] hover:bg-[#006d43]/90 text-white text-xs font-bold rounded-lg"
+                  className="px-4 py-2 bg-[#006d43] hover:bg-[#006d43]/90 text-white text-xs font-bold rounded-lg cursor-pointer"
                 >
                   Save Zone
                 </button>
@@ -789,7 +829,9 @@ export default function FacilitiesModals({
         </div>
       )}
 
-      {/* 10. MODAL XÁC NHẬN XÓA PHÂN KHU (ZONE) */}
+      {/* ─────────────────────────────────────────────────────────────────── */}
+      {/* 10. MODAL XÁC NHẬN XÓA PHÂN KHU (DELETE ZONE MODAL)                  */}
+      {/* ─────────────────────────────────────────────────────────────────── */}
       {isDelZoneOpen && (
         <div className="fixed inset-0 bg-[#111c2d]/40 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-xl border border-red-100 p-6 max-w-md w-full animate-in fade-in zoom-in-95 duration-150">
@@ -809,14 +851,14 @@ export default function FacilitiesModals({
                   setIsDelZoneOpen(false);
                   setDeletingZone(null);
                 }}
-                className="px-4 py-2 text-xs font-bold text-slate-500 hover:bg-slate-50 rounded-lg"
+                className="px-4 py-2 text-xs font-bold text-slate-500 hover:bg-slate-50 rounded-lg cursor-pointer"
               >
                 Cancel
               </button>
               <button 
                 type="button"
                 onClick={executeDeleteZone}
-                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-lg"
+                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-lg cursor-pointer"
               >
                 Confirm Delete
               </button>

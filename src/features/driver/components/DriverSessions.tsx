@@ -466,7 +466,7 @@ export default function DriverSessions() {
                         <div className="flex items-start gap-3">
                           <CreditCard className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
                           <div>
-                            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wide">Tổng thanh toán</h3>
+                            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wide">Total Payment</h3>
                             <p className="text-sm font-bold text-slate-700 mt-0.5">{(booking.totalAmount ?? booking.depositAmount ?? 0).toLocaleString('vi-VN')} đ</p>
                             <p className="text-xs text-slate-400">
                               {(() => {
@@ -476,7 +476,7 @@ export default function DriverSessions() {
                                 if (hrs <= 0) return '';
                                 const h = Math.floor(hrs);
                                 const m = Math.round((hrs - h) * 60);
-                                return m > 0 ? `${h} giờ ${m} phút` : `${h} giờ`;
+                                return m > 0 ? `${h}h ${m}m` : `${h}h`;
                               })()}
                             </p>
                           </div>

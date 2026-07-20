@@ -1,6 +1,29 @@
+/**
+ * ═══════════════════════════════════════════════════════════════════════════════
+ * 📌 FILE: ZoneColumn.tsx (CỘT 3: QUẢN LÝ PHÂN KHU ĐỖ XE - ZONES & VEHICLE SPECS COLUMN)
+ * ═══════════════════════════════════════════════════════════════════════════════
+ *
+ * 🎯 MỤC ĐÍCH FILE:
+ * Hiển thị danh sách các Phân khu đỗ xe (Zones) thuộc Tầng đỗ xe đã chọn ở Cột 2.
+ * Cho phép Admin và Manager cấu hình thông số kỹ thuật của từng Zone (loại xe, sức chứa, tỉ lệ nhận đặt).
+ *
+ * 🛠️ CHỨC NĂNG DÀNH CHO ADMIN & MANAGER:
+ * 1. 📊 Tiến độ Phân bổ Sức chứa (Capacity Allocation Progress): Hiển thị thanh phần trăm tổng số Slots đã được phân bổ cho các Zones so với tổng sức chứa của Tầng.
+ * 2. 🚗 Cấu hình Loại xe (Vehicle Type Icon & Badge): Phân loại từng phân khu hỗ trợ Ô tô (Car), Xe máy (Motorcycle), Xe điện (EV Charger).
+ * 3. 🎫 Loại hình Truy cập (Access Type): Thiết lập phân khu đỗ xe Thường (GENERAL) hoặc Vé tháng (MONTHLY).
+ * 4. 📈 Tỉ lệ Giới hạn Đặt trước (Booking Limit Rate): Thiết lập tỉ lệ % nhận đặt trước online (ví dụ: 80% sức chứa zone dành cho booking trước).
+ * 5. ➕ Thêm Phân khu Mới (Add Zone): Tạo mới Zone trên tầng đỗ xe được chọn.
+ * 6. ✏️ Chỉnh sửa Phân khu (Edit Zone): Thay đổi tên, mã, loại xe, sức chứa slot và tỉ lệ nhận đặt trước.
+ * 7. 🗑️ Xoá Phân khu (Delete Zone): Xoá phân khu đỗ xe khỏi tầng.
+ * ═══════════════════════════════════════════════════════════════════════════════
+ */
+
 import React from 'react';
 import { Floor, Zone } from '../types';
 
+/**
+ * Hàm hỗ trợ lấy biểu tượng icon phương tiện theo loại xe
+ */
 const getVehicleIcon = (type?: string) => {
   const t = (type || '').toLowerCase();
   if (t.includes('car') || t.includes('xe hơi') || t.includes('xe o to') || t.includes('ô tô')) {
@@ -23,9 +46,6 @@ interface ZoneColumnProps {
   handleOpenDelZone: (zone: Zone, e: React.MouseEvent) => void;
 }
 
-/**
- * Hợp phần hiển thị Cột Danh sách Phân khu (Column 3)
- */
 export default function ZoneColumn({
   selectedFloor,
   activeZones,
@@ -41,16 +61,21 @@ export default function ZoneColumn({
 
   return (
     <section className="lg:col-span-4 bg-white border border-[#006d43]/10 rounded-2xl shadow-sm flex flex-col overflow-hidden min-h-[400px]">
-      {/* Header Cột */}
+      
+      {/* ─────────────────────────────────────────────────────────────────── */}
+      {/* 👑 HEADER CỘT 3: TIÊU ĐỀ & NÚT THÊM PHÂN KHU MỚI (ADD ZONE)          */}
+      {/* ─────────────────────────────────────────────────────────────────── */}
       <div className="p-4 border-b border-slate-100 bg-[#F4FBF3]/35 flex justify-between items-center">
         <div className="flex items-center gap-2 text-[#111c2d]">
           <span className="material-symbols-outlined text-[20px] text-[#006d43]">grid_view</span>
           <h2 className="font-bold text-sm">3. Zones & Vehicle Specs</h2>
         </div>
+        
+        {/* Nút thêm Phân khu (chỉ hiển thị khi đã chọn 1 Tầng) */}
         {selectedFloor && (
           <button 
             onClick={handleOpenAddZone}
-            className="bg-[#006d43] hover:bg-[#006d43]/90 text-white text-xs font-semibold py-1.5 px-3 rounded-lg flex items-center gap-1 shadow-sm transition-colors"
+            className="bg-[#006d43] hover:bg-[#006d43]/90 text-white text-xs font-semibold py-1.5 px-3 rounded-lg flex items-center gap-1 shadow-sm transition-colors cursor-pointer"
           >
             <span className="material-symbols-outlined text-[14px]">add</span>
             Add Zone
@@ -58,15 +83,18 @@ export default function ZoneColumn({
         )}
       </div>
 
-      {/* Danh sách Phân khu thuộc Tầng đã chọn */}
+      {/* ─────────────────────────────────────────────────────────────────── */}
+      {/* 🚗 DANH SÁCH PHÂN KHU ĐỖ XE THUỘC TẦNG ĐÃ CHỌN                       */}
+      {/* ─────────────────────────────────────────────────────────────────── */}
       {selectedFloor ? (
         <div className="flex flex-col flex-grow overflow-hidden">
+          {/* Thông tin Tầng được chọn & Sức chứa phân bổ */}
           <div className="p-3 bg-slate-50 text-[11px] text-[#3d4a41] font-semibold flex justify-between">
             <span>Floor Selected: <span className="text-[#006d43]">{selectedFloor.name}</span></span>
             <span>Allocated: {allocatedSlots}/{totalSlots} slots</span>
           </div>
 
-          {/* Thanh hiển thị tiến độ phân bổ */}
+          {/* 📊 Thanh tiến độ phân bổ sức chứa của các Zone */}
           <div className="px-4 py-2 border-b border-slate-100 bg-white">
             <div className="flex justify-between items-center mb-1 text-[9px] font-bold text-slate-500 uppercase tracking-wide">
               <span>Capacity Allocation Progress</span>
@@ -84,6 +112,7 @@ export default function ZoneColumn({
             </div>
           </div>
 
+          {/* Danh sách các Zone */}
           <div className="divide-y divide-slate-100 overflow-y-auto max-h-[490px] flex-grow">
             {allocatedZones.length > 0 ? (
               allocatedZones.map(zone => (
@@ -103,17 +132,18 @@ export default function ZoneColumn({
                     <p className="text-[11px] text-slate-400 mt-1">Capacity allocation: {zone.slotCapacity} slots | Booking limit: {zone.bookingLimitRate ?? 80}%</p>
                   </div>
 
+                  {/* ⚙️ CÁC TÁC VỤ EDIT / DELETE PHÂN KHU */}
                   <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                     <button 
                       onClick={(e) => handleOpenEditZone(zone, e)}
-                      className="p-1 text-slate-400 hover:text-[#006d43] hover:bg-white border border-transparent hover:border-slate-200 rounded transition-all"
+                      className="p-1 text-slate-400 hover:text-[#006d43] hover:bg-white border border-transparent hover:border-slate-200 rounded transition-all cursor-pointer"
                       title="Edit zone"
                     >
                       <span className="material-symbols-outlined text-[16px]">edit</span>
                     </button>
                     <button 
                       onClick={(e) => handleOpenDelZone(zone, e)}
-                      className="p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 border border-transparent hover:border-red-100 rounded transition-all"
+                      className="p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 border border-transparent hover:border-red-100 rounded transition-all cursor-pointer"
                       title="Delete zone"
                     >
                       <span className="material-symbols-outlined text-[16px]">delete</span>

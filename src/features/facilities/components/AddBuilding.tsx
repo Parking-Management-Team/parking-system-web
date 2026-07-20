@@ -1,3 +1,28 @@
+/**
+ * ═══════════════════════════════════════════════════════════════════════════════
+ * 📌 FILE: AddBuilding.tsx (THÊM TÒA NHÀ MỚI - ADD BUILDING PAGE)
+ * ═══════════════════════════════════════════════════════════════════════════════
+ *
+ * 🎯 MỤC ĐÍCH FILE:
+ * Trang tạo mới Tòa nhà trong phân hệ Facilities Management dành cho Admin và Manager.
+ * Tự động tạo mã Building Code thông minh và hỗ trợ chế độ Offline Fallback nếu mất kết nối mạng.
+ *
+ * 🛠️ CHỨC NĂNG DÀNH CHO ADMIN & MANAGER:
+ * 1. 🏢 Nhập Tên Tòa nhà (Building Name):
+ *    - Tự động sinh mã Code theo format `BLD-TÊN-TÒA-NHÀ` khi nhập tên.
+ * 2. 🔢 Thiết lập Tổng số Tầng (Total Floors):
+ *    - Nhập số lượng tầng của tòa nhà (từ 1 đến 100).
+ * 3. 🏷️ Cấu hình Mã Code Tòa nhà (Building Code):
+ *    - Tự động kiểm tra trùng lặp mã code (`isCodeDuplicate`).
+ *    - Giới hạn độ dài mã code tối đa 20 ký tự.
+ * 4. 📍 Nhập Địa chỉ Vật lý (Physical Address).
+ * 5. ⚡ Công tắc Trạng thái Hoạt động (Operational Status Toggle):
+ *    - Thiết lập tòa nhà có sẵn sàng đón khách ngay khi khởi tạo hay không.
+ * 6. 🌐 Chế độ Fallback Ngoại tuyến (Offline Fallback Storage):
+ *    - Nếu gọi API thất bại (hoặc không có Internet), tự động lưu tòa nhà và khởi tạo danh sách tầng ảo vào `localStorage` (`offline_buildings` & `offline_floors`).
+ * ═══════════════════════════════════════════════════════════════════════════════
+ */
+
 'use client';
 
 import React, { useState } from 'react';
@@ -8,10 +33,6 @@ import { Building, BuildingStatus, BaseResponse } from '@/lib/types/building.typ
 import { Floor } from '../types';
 import { api } from '@/lib/api/client';
 
-/**
- * AddBuilding Component
- * Giao diện thêm tòa nhà mới (Step 2) chuẩn NexPark Stitch Theme
- */
 export default function AddBuilding() {
   const router = useRouter();
   const {
@@ -25,7 +46,7 @@ export default function AddBuilding() {
 
   const basePath = user?.role === 'ADMIN' ? '/dashboard/admin/facilities' : '/dashboard/manager/facilities';
 
-  // Form states locally so we have full control over validation and submission
+  // State quản lý form cục bộ
   const [name, setName] = useState('');
   const [code, setCode] = useState('');
   const [totalFloors, setTotalFloors] = useState<number>(3);
@@ -33,7 +54,7 @@ export default function AddBuilding() {
   const [isActive, setIsActive] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Xử lý tạo Code tự động dựa trên tên
+  // Xử lý tạo Code tự động dựa trên tên tòa nhà
   const handleNameChange = (val: string) => {
     setName(val);
     // Tự sinh code ngắn gọn từ tên, VD: "Tower Alpha" -> "BLD-TOWER-ALPHA"
@@ -49,6 +70,7 @@ export default function AddBuilding() {
     }
   };
 
+  // Submit tạo mới Tòa nhà
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) {
@@ -138,7 +160,9 @@ export default function AddBuilding() {
 
   return (
     <div className="flex-grow flex flex-col min-h-screen bg-[#f9f9ff]">
-      {/* ===== TOAST THÔNG BÁO CHUNG ===== */}
+      {/* ─────────────────────────────────────────────────────────────────── */}
+      {/* 🔔 TOAST THÔNG BÁO HỆ THỐNG                                           */}
+      {/* ─────────────────────────────────────────────────────────────────── */}
       {showToast && (
         <div 
           className={`fixed top-6 right-6 z-50 flex items-center gap-3 px-5 py-3 rounded-xl shadow-lg transition-all duration-300 transform scale-100 animate-in fade-in slide-in-from-top-4 ${
@@ -152,14 +176,16 @@ export default function AddBuilding() {
         </div>
       )}
 
-      {/* ===== MAIN CONTENT CANVAS ===== */}
+      {/* ─────────────────────────────────────────────────────────────────── */}
+      {/* 👑 MAIN CONTENT CANVAS & FORM HEADER                                */}
+      {/* ─────────────────────────────────────────────────────────────────── */}
       <main className="flex-1 p-6 md:p-8">
         <div className="max-w-[800px] mx-auto flex flex-col gap-6">
-          {/* Back Button & Header */}
+          {/* Nút quay lại & Tiêu đề */}
           <div className="flex flex-col gap-3">
             <button 
               onClick={() => router.push(basePath)}
-              className="flex items-center gap-1.5 text-slate-500 hover:text-slate-800 font-semibold text-xs w-fit transition-colors group"
+              className="flex items-center gap-1.5 text-slate-500 hover:text-slate-800 font-semibold text-xs w-fit transition-colors group cursor-pointer"
             >
               <span className="material-symbols-outlined text-[16px] group-hover:-translate-x-0.5 transition-transform">arrow_back</span>
               Back to Directory
@@ -170,16 +196,16 @@ export default function AddBuilding() {
             </div>
           </div>
 
-          {/* Form Card */}
+          {/* Form Thêm Tòa nhà Mới */}
           <form onSubmit={handleSubmit} className="bg-[#fcfdfd] border border-[#d8e3fb] rounded-xl p-6 md:p-8 flex flex-col gap-6 shadow-sm">
             
-            {/* Grid 2 Columns: Name & Code / Floors */}
+            {/* Grid 2 cột: Tên & Tầng / Mã Code */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pb-6 border-b border-[#d8e3fb]/60">
               
-              {/* Building Name */}
+              {/* Tên Tòa nhà */}
               <div className="flex flex-col gap-2">
                 <label htmlFor="buildingName" className="text-xs font-semibold text-slate-700">
-                  Building Name
+                  Building Name *
                 </label>
                 <input 
                   type="text" 
@@ -192,10 +218,10 @@ export default function AddBuilding() {
                 />
               </div>
 
-              {/* Total Floors */}
+              {/* Tổng số tầng */}
               <div className="flex flex-col gap-2">
                 <label htmlFor="totalFloors" className="text-xs font-semibold text-slate-700">
-                  Total Floors
+                  Total Floors *
                 </label>
                 <input 
                   type="number" 
@@ -210,10 +236,10 @@ export default function AddBuilding() {
                 />
               </div>
 
-              {/* Building Code (Auto generated, but editable) */}
+              {/* Mã Code Tòa nhà */}
               <div className="flex flex-col gap-2 md:col-span-2">
                 <label htmlFor="buildingCode" className="text-xs font-semibold text-slate-700">
-                  Building Code
+                  Building Code *
                 </label>
                 <input 
                   type="text" 
@@ -232,7 +258,7 @@ export default function AddBuilding() {
 
             </div>
 
-            {/* Physical Address */}
+            {/* Địa chỉ vật lý */}
             <div className="flex flex-col gap-2 pb-6 border-b border-[#d8e3fb]/60">
               <label htmlFor="physicalAddress" className="text-xs font-semibold text-slate-700">
                 Physical Address
@@ -250,7 +276,7 @@ export default function AddBuilding() {
               </p>
             </div>
 
-            {/* Operational Status Switch */}
+            {/* Công tắc Trạng thái Hoạt động */}
             <div className="flex items-center justify-between py-2">
               <div className="flex flex-col gap-1">
                 <span className="text-sm font-semibold text-slate-800">Operational Status</span>
@@ -272,19 +298,19 @@ export default function AddBuilding() {
               </button>
             </div>
 
-            {/* Action Buttons */}
+            {/* Nút hành động */}
             <div className="flex justify-end gap-3 pt-4">
               <button 
                 type="button"
                 onClick={() => router.push(basePath)}
-                className="px-5 py-2 rounded-lg border border-slate-300 hover:bg-slate-50 text-slate-700 text-sm font-semibold transition-colors"
+                className="px-5 py-2 rounded-lg border border-slate-300 hover:bg-slate-50 text-slate-700 text-sm font-semibold transition-colors cursor-pointer"
               >
                 Cancel
               </button>
               <button 
                 type="submit"
                 disabled={isSubmitting}
-                className="px-5 py-2 rounded-lg bg-[#006d43] hover:bg-[#006d43]/95 text-white text-sm font-semibold transition-colors flex items-center gap-2 shadow-sm disabled:opacity-50"
+                className="px-5 py-2 rounded-lg bg-[#006d43] hover:bg-[#006d43]/95 text-white text-sm font-semibold transition-colors flex items-center gap-2 shadow-sm disabled:opacity-50 cursor-pointer"
               >
                 {isSubmitting ? 'Creating...' : 'Create Building'}
               </button>

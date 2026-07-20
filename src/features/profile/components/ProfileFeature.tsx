@@ -1,3 +1,23 @@
+/**
+ * ═══════════════════════════════════════════════════════════════════════════════
+ * 📌 FILE: ProfileFeature.tsx (MÀN HÌNH THÔNG TIN CÁ NHÂN & QUẢN LÝ TÀI KHOẢN - MY PROFILE)
+ * ═══════════════════════════════════════════════════════════════════════════════
+ *
+ * 🎯 MỤC ĐÍCH FILE:
+ * Quản lý thông tin hồ sơ cá nhân của người dùng hiện tại (My Profile), bao gồm Admin, Manager, Staff và Driver.
+ *
+ * 🛠️ CÁC PHẦN CHÍNH TRONG GIAO DIỆN (LAYOUT & SECTIONS):
+ * 1. 👤 Header Hồ sơ (Profile Banner): Hiển thị Avatar viết tắt (Initials), Họ tên & Vai trò hệ thống (Role).
+ * 2. 📝 Thông tin cá nhân (Personal Information Form): Cho phép chỉnh sửa Họ tên (fullName), Số điện thoại (phone), 
+ *    đồng thời hiển thị dạng chỉ đọc các thông tin Username, Email và Ngày tham gia (Join Date).
+ * 3. 🔑 Đổi Mật khẩu (Change Password Form): Cho phép đổi mật khẩu bằng cách xác nhận Mật khẩu hiện tại & Mật khẩu mới.
+ *    (Cung cấp đường dẫn sang /forgot-password nếu tài khoản đăng nhập bằng Google OAuth chưa có mật khẩu).
+ * 4. 🛡️ Vùng an toàn / Tự vô hiệu hoá (Danger Zone / Account Deactivation):
+ *    - Với Driver/Staff: Cho phép yêu cầu tạm vô hiệu hoá tài khoản (Deactivate) với Modal xác nhận cảnh báo.
+ *    - Với Admin: Áp dụng cơ chế bảo vệ tài khoản (Protected Action) - Ngăn không cho Admin tự vô hiệu hoá chính mình.
+ * ═══════════════════════════════════════════════════════════════════════════════
+ */
+
 'use client';
 import * as React from 'react';
 import { useAuth } from '@/features/auth';
@@ -49,7 +69,7 @@ export default function ProfileFeature() {
     confirmPassword?: string;
   }>({});
 
-  // State cho Deactivate Account
+  // State cho Deactivate Account Modal
   const [showDeactivateModal, setShowDeactivateModal] = React.useState<boolean>(false);
   const [deactivating, setDeactivating] = React.useState<boolean>(false);
 
@@ -202,7 +222,6 @@ export default function ProfileFeature() {
 
       if (res.success) {
         showToast(res.message || 'Password changed successfully.', 'success');
-        // Xóa trắng các ô nhập mật khẩu khi thành công
         setOldPassword('');
         setNewPassword('');
         setConfirmPassword('');
@@ -242,7 +261,6 @@ export default function ProfileFeature() {
         const errorData = err.data as BaseResponse<unknown>;
         showToast(errorData.message || 'Error deactivating account.', 'error');
       } else {
-        // Fallback cho frontend trước
         showToast('Account deactivated successfully. Logging out...', 'success');
         setTimeout(() => {
           logout();
@@ -304,9 +322,10 @@ export default function ProfileFeature() {
       {/* Container chứa toàn bộ trang Profile */}
       <div className="bg-white rounded-lg border border-slate-100 shadow-sm overflow-hidden">
         
-        {/* Phần Header hiển thị tên và avatar */}
+        {/* ─────────────────────────────────────────────────────────────────── */}
+        {/* LAYOUT PHẦN 1: HEADER BANNER THÔNG TIN NGƯỜI DÙNG & VAI TRÒ         */}
+        {/* ─────────────────────────────────────────────────────────────────── */}
         <section className="bg-[#00a86b] p-8 border-b border-white/10 flex items-center gap-6 relative overflow-hidden">
-          {/* Các phần tử hình tròn trang trí background */}
           <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -mr-32 -mt-32 blur-3xl"></div>
           <div className="absolute bottom-0 left-0 w-48 h-48 bg-[#0b132b]/20 rounded-full -ml-24 -mb-24 blur-2xl"></div>
           
@@ -323,7 +342,9 @@ export default function ProfileFeature() {
           </div>
         </section>
 
-        {/* Phần thông tin cá nhân */}
+        {/* ─────────────────────────────────────────────────────────────────── */}
+        {/* LAYOUT PHẦN 2: CHỈNH SỬA THÔNG TIN CÁ NHÂN (HỌ TÊN, SĐT, EMAIL)     */}
+        {/* ─────────────────────────────────────────────────────────────────── */}
         <section className="p-8 border-b border-slate-100">
           <div className="flex items-center gap-3 mb-6">
             <div className="w-10 h-10 rounded-lg bg-[#F4FBF3] flex items-center justify-center text-[#00a86b]">
@@ -407,7 +428,9 @@ export default function ProfileFeature() {
           </form>
         </section>
 
-        {/* Phần thay đổi mật khẩu */}
+        {/* ─────────────────────────────────────────────────────────────────── */}
+        {/* LAYOUT PHẦN 3: ĐỔI MẬT KHẨU TÀI KHOẢN (CHANGE PASSWORD)             */}
+        {/* ─────────────────────────────────────────────────────────────────── */}
         <section className="p-8">
           <div className="flex items-center gap-3 mb-6">
             <div className="w-10 h-10 rounded-lg bg-[#F4FBF3] flex items-center justify-center text-[#00a86b]">
@@ -484,7 +507,7 @@ export default function ProfileFeature() {
             </div>
           </form>
 
-          {/* Google OAuth Password Guidance Banner */}
+          {/* Khung hướng dẫn cài đặt mật khẩu cho tài khoản Google OAuth */}
           <div className="mt-8 p-4 bg-slate-50 border border-slate-200/80 rounded-xl flex items-start gap-3.5 text-xs text-slate-700">
             <div className="w-8 h-8 rounded-lg bg-emerald-100/70 text-[#00a86b] flex items-center justify-center shrink-0 mt-0.5">
               <span className="material-symbols-outlined text-base">info</span>
@@ -505,7 +528,9 @@ export default function ProfileFeature() {
           </div>
         </section>
 
-        {/* Phần Danger Zone / Account Protection - Deactivate Account */}
+        {/* ─────────────────────────────────────────────────────────────────── */}
+        {/* LAYOUT PHẦN 4: VÙNG NGUY HẠNH / BẢO VỆ TÀI KHOẢN (DEACTIVATE MODAL) */}
+        {/* ─────────────────────────────────────────────────────────────────── */}
         <section className={`p-8 border-t border-slate-100 ${isAdmin ? 'bg-slate-50/40' : 'bg-rose-50/10'}`}>
           <div className="flex items-center gap-3 mb-6">
             <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${isAdmin ? 'bg-emerald-50 text-[#006d43]' : 'bg-rose-50 text-rose-600'}`}>
@@ -558,7 +583,7 @@ export default function ProfileFeature() {
         </section>
       </div>
 
-      {/* Deactivate Confirmation Modal */}
+      {/* Hộp thoại Modal Xác nhận Vô hiệu hoá Tài khoản */}
       {showDeactivateModal && (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
           <div 

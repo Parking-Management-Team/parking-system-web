@@ -1,10 +1,21 @@
 /**
- * ForgotPasswordForm Component - Form khôi phục mật khẩu qua OTP
+ * ═══════════════════════════════════════════════════════════════════════════════
+ * 📌 FILE: ForgotPasswordForm.tsx (MÀN HÌNH QUÊN MẬT KHẨU & XÁC THỰC OTP KHI ĐĂNG NHẬP)
+ * ═══════════════════════════════════════════════════════════════════════════════
  *
- * Quy trình khôi phục:
- * 1. Nhập địa chỉ Email -> Gửi OTP về hộp thư
- * 2. Nhập mã OTP 6 chữ số để xác thực email
- * 3. Nhập mật khẩu mới & xác nhận -> Hoàn tất đổi mật khẩu và chuyển về trang Đăng nhập
+ * 🎯 MỤC ĐÍCH FILE:
+ * Quản lý toàn bộ quy trình 3 bước (Wizard Flow) khôi phục mật khẩu tài khoản khi bị quên
+ * hoặc khi đăng nhập bằng Google / OAuth chưa có mật khẩu khởi tạo:
+ *
+ * 🛠️ QUY TRÌNH 3 BƯỚC (WIZARD FLOW):
+ * 1. 📧 Bước 1 (Step 1): Nhập địa chỉ Email đăng ký -> Hệ thống gửi mã xác thực OTP 6 chữ số qua SMTP Email.
+ * 2. 🔐 Bước 2 (Step 2): Nhập mã OTP 6 chữ số -> Hệ thống xác minh tính hợp lệ (có đếm ngược 60s cooldown resend).
+ * 3. 🔑 Bước 3 (Step 3): Nhập mật khẩu mới & xác nhận -> Đổi mật khẩu thành công và điều hướng về trang Đăng nhập.
+ *
+ * 💡 TÍNH NĂNG ĐẮC TRƯNG:
+ * - Tự động kích hoạt kiểm tra OTP ngay khi gõ đủ 6 chữ số.
+ * - Hỗ trợ dùng độc lập (Trang /forgot-password) hoặc lồng trong Hộp thoại Modal khi Đăng nhập.
+ * ═══════════════════════════════════════════════════════════════════════════════
  */
 
 'use client';
@@ -42,30 +53,32 @@ export function ForgotPasswordForm({ isModal = false, onSuccess, onClose }: Forg
   const searchParams = useSearchParams();
   const { sendPasswordResetOtp, verifyPasswordResetOtp, resetPassword, showToast } = useAuth();
 
-  // Wizard state: 1 (Email) -> 2 (OTP) -> 3 (New Password)
+  // ─── State Wizard: 1 (Nhập Email) -> 2 (Nhập OTP) -> 3 (Đặt Mật khẩu mới) ───
   const [step, setStep] = React.useState<1 | 2 | 3>(1);
   const [email, setEmail] = React.useState('');
 
+  // Tự động điền Email nếu có tham số trên URL (?email=...)
   React.useEffect(() => {
     const emailParam = searchParams?.get('email');
     if (emailParam) {
       setEmail(emailParam);
     }
   }, [searchParams]);
+
   const [otpCode, setOtpCode] = React.useState('');
   const [verificationToken, setVerificationToken] = React.useState('');
   const [newPassword, setNewPassword] = React.useState('');
   const [confirmPassword, setConfirmPassword] = React.useState('');
 
-  // Password visibility
+  // Trạng thái ẩn/hiện mật khẩu
   const [showPassword, setShowPassword] = React.useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = React.useState(false);
 
-  // Status states
+  // Trạng thái lỗi và đang xử lý
   const [errors, setErrors] = React.useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = React.useState(false);
 
-  // OTP Cooldown hook
+  // Hook đếm ngược thời gian đếm ngược gửi lại OTP (Cooldown 60s)
   const { cooldown, startCooldown, isCooldownActive } = useOtpCooldown(email);
 
   const handleClose = () => {
@@ -76,7 +89,7 @@ export function ForgotPasswordForm({ isModal = false, onSuccess, onClose }: Forg
     }
   };
 
-  // STEP 1: Submit Email to receive OTP
+  // ─── BƯỚC 1: Gửi Email để nhận mã OTP xác thực ───────────────────────────
   const handleEmailSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (isSubmitting) return;
@@ -104,7 +117,7 @@ export function ForgotPasswordForm({ isModal = false, onSuccess, onClose }: Forg
     }
   };
 
-  // STEP 2: Verify 6-digit OTP
+  // ─── BƯỚC 2: Xác nhận mã OTP 6 chữ số ────────────────────────────────────
   const handleOtpVerify = React.useCallback(async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (isSubmitting) return;
@@ -129,6 +142,7 @@ export function ForgotPasswordForm({ isModal = false, onSuccess, onClose }: Forg
     }
   }, [isSubmitting, otpCode, verifyPasswordResetOtp, email, showToast]);
 
+  // Gửi lại mã OTP khi hết đếm ngược
   const handleResendOtp = async () => {
     if (isCooldownActive || isSubmitting) return;
 
@@ -147,7 +161,7 @@ export function ForgotPasswordForm({ isModal = false, onSuccess, onClose }: Forg
     }
   };
 
-  // STEP 3: Reset password
+  // ─── BƯỚC 3: Đặt mật khẩu mới ─────────────────────────────────────────────
   const handlePasswordSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (isSubmitting) return;
@@ -187,7 +201,7 @@ export function ForgotPasswordForm({ isModal = false, onSuccess, onClose }: Forg
     }
   };
 
-  // Automatically trigger verification when 6th digit of OTP is entered
+  // Tự động kiểm tra OTP khi người dùng nhập đủ 6 chữ số
   React.useEffect(() => {
     if (otpCode.length === 6 && step === 2) {
       const timer = setTimeout(() => {
@@ -206,6 +220,7 @@ export function ForgotPasswordForm({ isModal = false, onSuccess, onClose }: Forg
   const formBody = (
     <div className="w-full flex flex-col justify-center py-2" style={{ fontFamily: "'Inter', sans-serif" }}>
       <AnimatePresence mode="wait">
+        {/* LAYOUT STEP 1: NHẬP EMAIL */}
         {step === 1 && (
           <motion.div
             key="step1"
@@ -215,7 +230,6 @@ export function ForgotPasswordForm({ isModal = false, onSuccess, onClose }: Forg
             exit="exit"
             className="space-y-6"
           >
-            {/* Back link */}
             <div>
               <Link
                 href="/login"
@@ -226,7 +240,6 @@ export function ForgotPasswordForm({ isModal = false, onSuccess, onClose }: Forg
               </Link>
             </div>
 
-            {/* Header */}
             <div className="space-y-2">
               <div className="w-12 h-12 rounded-2xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-[#006d43] mb-3">
                 <KeyRound className="w-6 h-6" />
@@ -239,7 +252,6 @@ export function ForgotPasswordForm({ isModal = false, onSuccess, onClose }: Forg
               </p>
             </div>
 
-            {/* Form Step 1 */}
             <form className="flex flex-col gap-4" onSubmit={handleEmailSubmit} noValidate>
               {errors.form && (
                 <div className="p-3 bg-red-50 border border-red-200 text-red-600 rounded-xl text-xs font-medium animate-fade-in">
@@ -287,6 +299,7 @@ export function ForgotPasswordForm({ isModal = false, onSuccess, onClose }: Forg
           </motion.div>
         )}
 
+        {/* LAYOUT STEP 2: NHẬP MÃ OTP 6 CHỮ SỐ */}
         {step === 2 && (
           <motion.div
             key="step2"
@@ -296,7 +309,6 @@ export function ForgotPasswordForm({ isModal = false, onSuccess, onClose }: Forg
             exit="exit"
             className="space-y-6"
           >
-            {/* Back link */}
             <div>
               <button
                 type="button"
@@ -308,7 +320,6 @@ export function ForgotPasswordForm({ isModal = false, onSuccess, onClose }: Forg
               </button>
             </div>
 
-            {/* Header */}
             <div className="space-y-2">
               <div className="w-12 h-12 rounded-2xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-[#006d43] mb-3">
                 <ShieldCheck className="w-6 h-6" />
@@ -321,7 +332,6 @@ export function ForgotPasswordForm({ isModal = false, onSuccess, onClose }: Forg
               </p>
             </div>
 
-            {/* Form Step 2 */}
             <form className="flex flex-col gap-4" onSubmit={handleOtpVerify} noValidate>
               {errors.form && (
                 <div className="p-3 bg-red-50 border border-red-200 text-red-600 rounded-xl text-xs font-medium">
@@ -350,7 +360,6 @@ export function ForgotPasswordForm({ isModal = false, onSuccess, onClose }: Forg
                 )}
               </div>
 
-              {/* Cooldown Timer */}
               <div className="text-center py-1">
                 {isCooldownActive ? (
                   <p className="text-xs text-slate-500 font-medium">
@@ -386,6 +395,7 @@ export function ForgotPasswordForm({ isModal = false, onSuccess, onClose }: Forg
           </motion.div>
         )}
 
+        {/* LAYOUT STEP 3: ĐẶT MẬT KHẨU MỚI */}
         {step === 3 && (
           <motion.div
             key="step3"
@@ -395,7 +405,6 @@ export function ForgotPasswordForm({ isModal = false, onSuccess, onClose }: Forg
             exit="exit"
             className="space-y-6"
           >
-            {/* Header */}
             <div className="space-y-2">
               <h2 className="text-3xl font-extrabold tracking-tight text-slate-900 font-heading" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
                 Reset Password
@@ -405,7 +414,6 @@ export function ForgotPasswordForm({ isModal = false, onSuccess, onClose }: Forg
               </p>
             </div>
 
-            {/* Email Verified Badge */}
             <div className="flex items-center gap-2.5 px-3.5 py-2.5 bg-emerald-50 border border-emerald-100 rounded-xl">
               <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
               <div className="flex-grow min-w-0">
@@ -414,7 +422,6 @@ export function ForgotPasswordForm({ isModal = false, onSuccess, onClose }: Forg
               </div>
             </div>
 
-            {/* Form Step 3 */}
             <form className="flex flex-col gap-4" onSubmit={handlePasswordSubmit} noValidate>
               {errors.form && (
                 <div className="p-3 bg-red-50 border border-red-200 text-red-600 rounded-xl text-xs font-medium">
@@ -422,7 +429,6 @@ export function ForgotPasswordForm({ isModal = false, onSuccess, onClose }: Forg
                 </div>
               )}
 
-              {/* New Password */}
               <Input
                 label="New Password"
                 id="newPassword"
@@ -454,7 +460,6 @@ export function ForgotPasswordForm({ isModal = false, onSuccess, onClose }: Forg
                 className="rounded-xl py-3 text-sm pr-12"
               />
 
-              {/* Confirm Password */}
               <Input
                 label="Confirm New Password"
                 id="confirmPassword"
@@ -507,10 +512,9 @@ export function ForgotPasswordForm({ isModal = false, onSuccess, onClose }: Forg
     </div>
   );
 
-  /* ── STANDALONE PAGE MODE ── */
   return (
     <div className="w-full min-h-screen flex bg-white overflow-hidden">
-      {/* Left – Brand Panel */}
+      {/* Banner bên trái NexPark Hero */}
       <div className="hidden lg:flex w-[45%] flex-shrink-0 relative bg-[#0f172a] h-screen overflow-hidden">
         <Image
           src="/assets/placeholders/nexpark_hero_parking_1780061652243.png"
@@ -553,7 +557,7 @@ export function ForgotPasswordForm({ isModal = false, onSuccess, onClose }: Forg
         </div>
       </div>
 
-      {/* Right – Form Panel */}
+      {/* Frame Form làm việc phía bên phải */}
       <div className="flex-1 flex items-center justify-center p-6 sm:p-16 overflow-y-auto bg-[#f9f9ff] h-screen relative">
         <button
           type="button"
@@ -565,7 +569,6 @@ export function ForgotPasswordForm({ isModal = false, onSuccess, onClose }: Forg
         </button>
 
         <div className="w-full max-w-md flex flex-col">
-          {/* Brand header */}
           <div className="flex items-center gap-2.5 mb-10">
             <span className="text-xl font-extrabold tracking-tight text-[#0f172a] font-heading">
               NexPark

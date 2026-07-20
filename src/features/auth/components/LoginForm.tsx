@@ -1,21 +1,18 @@
 /**
- * LoginForm Component - Form đăng nhập
+ * ═══════════════════════════════════════════════════════════════════════════════
+ * 📌 FILE: LoginForm.tsx (MÀN HÌNH ĐĂNG NHẬP NGUYÊN HỆ THỐNG - LOGIN FORM)
+ * ═══════════════════════════════════════════════════════════════════════════════
  *
- * Component form đăng nhập với 2 chế độ hiển thị:
- * 1. Modal mode (isModal=true): Hiển thị trong AuthDrawer (split layout)
- * 2. Standalone mode (isModal=false): Hiển thị trên trang /login riêng
+ * 🎯 MỤC ĐÍCH FILE:
+ * Cung cấp giao diện Đăng nhập hệ thống cho người dùng (Driver, Staff, Manager, Admin)
+ * hỗ trợ 2 phương thức chính:
+ * 1. Đăng nhập qua Username / Email & Mật khẩu chuẩn backend NexPark.
+ * 2. Đăng nhập nhanh qua Google OAuth (Tự động liên kết hoặc chuyển qua tạo tài khoản mới nếu chưa có).
  *
- * Tính năng:
- * - Đăng nhập bằng username hoặc email
- * - Đăng nhập bằng Google (mock)
- * - Show/hide password
- * - Validation (kiểm tra dữ liệu trước khi submit)
- * - Responsive: ẩn brand panel trên mobile
- *
- * @param isModal - Có phải đang hiển thị trong drawer/modal không
- * @param onSuccess - Callback khi đăng nhập thành công (modal mode)
- * @param onClose - Callback đóng form
- * @param onSwitchMode - Callback chuyển sang register
+ * 🛠️ CHẾ ĐỘ HIỂN THỊ:
+ * - Standalone Page Mode (isModal=false): Hiển thị đầy đủ giao diện trên trang /login riêng biệt.
+ * - Modal / Drawer Mode (isModal=true): Hiển thị gọn gàng trong Drawer hoặc Popup Modal.
+ * ═══════════════════════════════════════════════════════════════════════════════
  */
 
 'use client';
@@ -61,6 +58,7 @@ export function LoginForm({ isModal = false, onSuccess, onClose, onSwitchMode }:
       router.push('/');
     }
   };
+
   const { login, loginWithGoogle, showToast } = useAuth();
   const [identifier, setIdentifier] = React.useState('');
   const [password, setPassword] = React.useState('');
@@ -69,6 +67,9 @@ export function LoginForm({ isModal = false, onSuccess, onClose, onSwitchMode }:
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [googleLoading, setGoogleLoading] = React.useState(false);
 
+  /**
+   * Xử lý Đăng nhập bằng Email/Username & Mật khẩu
+   */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const newErrors: Record<string, string> = {};
@@ -99,13 +100,14 @@ export function LoginForm({ isModal = false, onSuccess, onClose, onSwitchMode }:
     }
   };
 
-  // Callback xử lý kết quả trả về từ popup Google Đăng nhập thành công
+  /**
+   * Xử lý kết quả trả về từ Google OAuth Sign-in Popup
+   */
   const handleGoogleCredentialResponse = React.useCallback(async (response: GoogleCredentialResponse) => {
     setGoogleLoading(true);
     setErrors({});
     try {
-      // Gửi token nhận được từ Google lên Context để login qua Backend
-      const loggedInUser = await loginWithGoogle(response.credential);
+      await loginWithGoogle(response.credential);
       if (isModal && onSuccess) {
         onSuccess();
       } else {
@@ -113,17 +115,15 @@ export function LoginForm({ isModal = false, onSuccess, onClose, onSwitchMode }:
       }
     } catch (err: any) {
       if (err && (err.code === 'REQUIRE_OTP_VERIFICATION' || String(err.message).includes('REQUIRE_OTP_VERIFICATION'))) {
-        // Save to sessionStorage to restore in RegisterForm
+        // Lưu token tạm vào sessionStorage để đăng ký tiếp ở RegisterForm
         sessionStorage.setItem('nexpark_google_signup', JSON.stringify({
           idToken: response.credential,
           email: err.email,
           fullName: err.fullName
         }));
         
-        // Show transitioning toast
         showToast('Google account not registered yet. Transitioning to verification...', 'info');
         
-        // Switch to Register Mode
         if (isModal && onSwitchMode) {
           onSwitchMode();
         } else {
@@ -138,7 +138,9 @@ export function LoginForm({ isModal = false, onSuccess, onClose, onSwitchMode }:
     }
   }, [loginWithGoogle, isModal, onSuccess, onSwitchMode, router, showToast]);
 
-  // Khởi tạo Google Sign In Button
+  /**
+   * Tự động khởi tạo nút đăng nhập Google Sign In khi trang load xong
+   */
   React.useEffect(() => {
     let intervalId: NodeJS.Timeout;
 
@@ -156,7 +158,7 @@ export function LoginForm({ isModal = false, onSuccess, onClose, onSwitchMode }:
           google.accounts.id.renderButton(btnElement, {
             theme: 'outline',
             size: 'large',
-            width: 384, // Phù hợp với kích thước của Form Panel
+            width: 384,
             text: 'signin_with',
             shape: 'rectangular',
             logo_alignment: 'left',
@@ -166,7 +168,6 @@ export function LoginForm({ isModal = false, onSuccess, onClose, onSwitchMode }:
       }
     };
 
-    // Kiểm tra định kỳ xem SDK Google đã load xong chưa
     const customWindow = window as unknown as CustomWindow;
     if (customWindow.google) {
       initGoogleBtn();
@@ -191,14 +192,6 @@ export function LoginForm({ isModal = false, onSuccess, onClose, onSwitchMode }:
         <div className="relative w-16 h-16 mb-4">
           <div className="absolute inset-0 rounded-full border-4 border-emerald-100" />
           <div className="absolute inset-0 rounded-full border-4 border-emerald-600 border-t-transparent animate-spin" />
-          <div className="absolute inset-0 flex items-center justify-center">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-              <path d="M22.56 12.25C22.56 11.47 22.49 10.72 22.36 10H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
-              <path d="M12 23c2.97 0 5.46-1 7.28-2.69l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
-              <path d="M5.84 14.07c-.22-.66-.35-1.36-.35-2.07s.13-1.41.35-2.07V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.86z" fill="#FBBC05" />
-              <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.46 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.86C6.71 7.31 9.14 5.38 12 5.38z" fill="#EA4335" />
-            </svg>
-          </div>
         </div>
         <h3 className="text-lg font-bold text-slate-800 mb-1" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
           Google Authentication
@@ -212,14 +205,12 @@ export function LoginForm({ isModal = false, onSuccess, onClose, onSwitchMode }:
 
   const formPanel = (
     <div className="w-full max-w-md flex flex-col">
-      {/* NexPark Brand Title (Text only, no logo) */}
       <div className="flex items-center gap-2.5 mb-10">
         <span className="text-xl font-extrabold tracking-tight text-[#0f172a] font-heading">
           NexPark
         </span>
       </div>
 
-      {/* Heading */}
       <div className="mb-8">
         <h1 className="text-3xl font-extrabold text-[#0f172a] tracking-tight leading-tight mb-2 font-heading">
           Welcome back
@@ -229,7 +220,7 @@ export function LoginForm({ isModal = false, onSuccess, onClose, onSwitchMode }:
         </p>
       </div>
 
-      {/* Google Sign In Button Container */}
+      {/* Nút Đăng nhập bằng Google */}
       <div className="w-full flex justify-center min-h-[44px]">
         {googleLoading ? (
           <div className="w-full flex items-center justify-center gap-3 px-4 py-3 border border-[#e2e8f0] rounded-xl bg-[#f8fafc] text-[#64748b] font-medium text-sm">
@@ -241,7 +232,7 @@ export function LoginForm({ isModal = false, onSuccess, onClose, onSwitchMode }:
         )}
       </div>
 
-      {/* Divider */}
+      {/* Đường phân cách */}
       <div className="flex items-center my-6 gap-3">
         <div className="flex-1 h-px bg-[#e2e8f0]" />
         <span className="text-xs font-medium text-[#94a3b8] uppercase tracking-widest px-1"
@@ -249,7 +240,7 @@ export function LoginForm({ isModal = false, onSuccess, onClose, onSwitchMode }:
         <div className="flex-1 h-px bg-[#e2e8f0]" />
       </div>
 
-      {/* Form */}
+      {/* Form nhập tài khoản mật khẩu */}
       <form onSubmit={handleSubmit} className="flex flex-col gap-5" noValidate>
         {errors.form && (
           <div className="px-4 py-3 rounded-xl bg-red-50 border border-red-200 text-red-600 text-sm font-medium"
@@ -258,7 +249,6 @@ export function LoginForm({ isModal = false, onSuccess, onClose, onSwitchMode }:
           </div>
         )}
 
-        {/* Username / Email */}
         <div className="flex flex-col gap-1.5">
           <label htmlFor="login-identifier"
             className="text-sm font-semibold text-[#0f172a]"
@@ -288,7 +278,6 @@ export function LoginForm({ isModal = false, onSuccess, onClose, onSwitchMode }:
           )}
         </div>
 
-        {/* Password */}
         <div className="flex flex-col gap-1.5">
           <div className="flex justify-between items-center">
             <label htmlFor="login-password"
@@ -333,7 +322,6 @@ export function LoginForm({ isModal = false, onSuccess, onClose, onSwitchMode }:
           )}
         </div>
 
-        {/* Submit */}
         <button
           type="submit"
           disabled={isSubmitting || googleLoading}
@@ -357,7 +345,6 @@ export function LoginForm({ isModal = false, onSuccess, onClose, onSwitchMode }:
         </button>
       </form>
 
-      {/* Switch to Register */}
       <div className="mt-7 text-center">
         <p className="text-sm text-[#64748b]" style={{ fontFamily: "'Inter', sans-serif" }}>
           Don&apos;t have an account?{' '}
@@ -380,16 +367,13 @@ export function LoginForm({ isModal = false, onSuccess, onClose, onSwitchMode }:
     </div>
   );
 
-  /* ── MODAL MODE ── */
+  /* ── THỜI ĐIỂM HIỂN THỊ TRONG MODAL / DRAWER ── */
   if (isModal) {
     return (
       <div className="w-full h-full flex flex-col bg-[#f9f9ff] overflow-y-auto">
         {googleLoadingOverlay}
-        {/* Split layout inside drawer */}
         <div className="flex flex-1 min-h-full">
-          {/* Left panel – brand */}
           <div className="hidden lg:flex w-[45%] flex-shrink-0 relative bg-[#0f172a] overflow-hidden">
-            {/* Background city image */}
             <Image
               src="/assets/placeholders/nexpark_hero_parking_1780061652243.png"
               alt="NexPark Smart City"
@@ -398,11 +382,9 @@ export function LoginForm({ isModal = false, onSuccess, onClose, onSwitchMode }:
               priority
               className="object-cover brightness-[0.4] scale-105"
             />
-            {/* Emerald ambient */}
             <div className="absolute top-1/3 right-0 w-72 h-72 bg-emerald-500/15 rounded-full blur-[100px] pointer-events-none" />
             <div className="absolute bottom-1/4 left-0 w-72 h-72 bg-emerald-700/10 rounded-full blur-[100px] pointer-events-none" />
 
-            {/* Brand content */}
             <div className="relative z-10 flex flex-col justify-between p-12 text-white w-full">
               <div className="flex items-center gap-3">
                 <span className="text-lg font-extrabold tracking-tight font-heading">
@@ -433,7 +415,6 @@ export function LoginForm({ isModal = false, onSuccess, onClose, onSwitchMode }:
             </div>
           </div>
 
-          {/* Right panel – form */}
           <div className="flex-1 flex items-center justify-center p-8 sm:p-12 bg-white relative">
             <button
               type="button"
@@ -450,11 +431,10 @@ export function LoginForm({ isModal = false, onSuccess, onClose, onSwitchMode }:
     );
   }
 
-  /* ── STANDALONE PAGE MODE ── */
+  /* ── CHẾ ĐỘ HIỂN THỊ TRANG ĐỘC LẬP (/login) ── */
   return (
     <div className="w-full min-h-screen flex bg-white overflow-hidden">
       {googleLoadingOverlay}
-      {/* Left – Brand Panel */}
       <div className="hidden lg:flex w-[45%] flex-shrink-0 relative bg-[#0f172a] h-screen overflow-hidden">
         <Image
           src="/assets/placeholders/nexpark_hero_parking_1780061652243.png"
@@ -497,7 +477,6 @@ export function LoginForm({ isModal = false, onSuccess, onClose, onSwitchMode }:
         </div>
       </div>
 
-      {/* Right – Form Panel */}
       <div className="flex-1 flex items-center justify-center p-6 sm:p-16 overflow-y-auto bg-[#f9f9ff] h-screen relative">
         <button
           type="button"

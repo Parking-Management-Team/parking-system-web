@@ -1,3 +1,30 @@
+/**
+ * ═══════════════════════════════════════════════════════════════════════════════
+ * 📌 FILE: FloorManagement.tsx (MÀN HÌNH CHUYÊN SÂU QUẢN LÝ TẦNG & PHÂN KHU - FLOOR MANAGEMENT)
+ * ═══════════════════════════════════════════════════════════════════════════════
+ *
+ * 🎯 MỤC ĐÍCH FILE:
+ * Cung cấp giao diện bảng quản lý chuyên sâu từng Tầng đỗ xe (Floors Configuration) của Tòa nhà,
+ * tích hợp Popup Modal Quản lý Phân khu (Manage Zones Popup) với bảng chỉ số phân bổ slots đỗ xe chi tiết.
+ *
+ * 🛠️ CHỨC NĂNG DÀNH CHO ADMIN & MANAGER:
+ * 1. 📑 Bảng danh sách Tầng đỗ xe (Floors Table):
+ *    - Chỉ số Tầng (Floor Level: F1, F2 hoặc B1, B2 đối với tầng hầm).
+ *    - Tên tầng (Floor Name), Phân loại tầng (Floor Type: Standard, VIP, EV).
+ *    - Trạng thái phân bổ Phân khu (Active Zones count & Capacity Bar).
+ *    - Tổng sức chứa Slot (Total Slots Capacity).
+ *    - Trạng thái hoạt động (Active/Inactive status).
+ * 2. ➕ Thêm Tầng Mới (Add New Floor):
+ *    - Tự động kiểm tra giới hạn tầng khả dụng của Tòa nhà (`activeFloors.length < totalFloor`).
+ *    - Vô hiệu hoá nút thêm khi đã đạt giới hạn tối đa tầng của Tòa nhà.
+ * 3. 🔀 Quản lý Phân khu từng Tầng (Manage Zones Modal):
+ *    - Mở Popup Modal tổng hợp danh sách các Zone của Tầng được chọn.
+ *    - Hiển thị Thẻ Thống kê Tổng Slots (Total Floor Slots) và Số lượng Zone hoạt động (Active Zones).
+ *    - Thêm/Sửa/Xoá Zone trực tiếp bên trong Modal Quản lý Phân khu.
+ * 4. ✏️ Sửa / 🗑️ Xoá Tầng đỗ xe.
+ * ═══════════════════════════════════════════════════════════════════════════════
+ */
+
 'use client';
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
@@ -5,10 +32,6 @@ import { useFacilitiesContext } from '../context/FacilitiesContext';
 import { Floor } from '../types';
 import FacilitiesModals from './FacilitiesModals';
 
-/**
- * Component quản lý Tầng (Floor Management) của Tòa nhà
- * Thiết kế giao diện cao cấp, trực quan tích hợp danh sách tầng và modal quản lý phân khu (Zones)
- */
 export default function FloorManagement() {
   const facilities = useFacilitiesContext();
   const {
@@ -101,7 +124,9 @@ export default function FloorManagement() {
 
   return (
     <div className="space-y-6">
-      {/* Thẻ Header */}
+      {/* ─────────────────────────────────────────────────────────────────── */}
+      {/* 👑 HEADER TRANG & NÚT THÊM TẦNG MỚI (ADD NEW FLOOR)                  */}
+      {/* ─────────────────────────────────────────────────────────────────── */}
       <div className="flex justify-between items-center bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
         <div>
           <div className="flex items-center gap-2.5">
@@ -120,13 +145,15 @@ export default function FloorManagement() {
             Manage physical levels, structural slot capacities, and parking zones layout.
           </p>
         </div>
+
+        {/* Nút thêm tầng đỗ xe cho Admin & Manager */}
         <button
           onClick={handleOpenAddFloor}
           disabled={isLimitReached}
           className={`flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-bold transition-all shadow-sm ${
             isLimitReached 
               ? 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed opacity-70' 
-              : 'bg-[#006d43] hover:bg-[#006d43]/90 text-white shadow-[#006d43]/10'
+              : 'bg-[#006d43] hover:bg-[#006d43]/90 text-white shadow-[#006d43]/10 cursor-pointer'
           }`}
           title={isLimitReached ? `Building floor limit of ${selectedBuilding?.totalFloor} reached` : 'Add new floor level'}
         >
@@ -135,7 +162,9 @@ export default function FloorManagement() {
         </button>
       </div>
 
-      {/* Danh sách các tầng dạng Bảng cao cấp */}
+      {/* ─────────────────────────────────────────────────────────────────── */}
+      {/* 📑 BẢNG HIỂN THỊ DANH SÁCH TẦNG ĐỖ XE (FLOORS TABLE & ACTIONS)       */}
+      {/* ─────────────────────────────────────────────────────────────────── */}
       <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
         {activeFloors.length === 0 ? (
           <div className="p-12 text-center">
@@ -205,23 +234,28 @@ export default function FloorManagement() {
                       </td>
                       <td className="py-4 px-6 text-right">
                         <div className="flex items-center justify-end gap-2">
+                          {/* Nút Quản lý Phân khu (Manage Zones) */}
                           <button
                             onClick={() => handleOpenManageZones(floor)}
-                            className="flex items-center gap-1 px-3 py-1.5 bg-slate-50 hover:bg-slate-100 text-[#006d43] border border-slate-200 hover:border-slate-300 rounded-lg text-xs font-bold transition-all"
+                            className="flex items-center gap-1 px-3 py-1.5 bg-slate-50 hover:bg-slate-100 text-[#006d43] border border-slate-200 hover:border-slate-300 rounded-lg text-xs font-bold transition-all cursor-pointer"
                           >
                             <span className="material-symbols-outlined text-[16px]">grid_view</span>
                             Manage Zones
                           </button>
+                          
+                          {/* Nút Sửa Tầng */}
                           <button
                             onClick={(e) => handleOpenEditFloor(floor, e)}
-                            className="p-1.5 text-slate-500 hover:text-[#006d43] hover:bg-slate-100 rounded-lg transition-all"
+                            className="p-1.5 text-slate-500 hover:text-[#006d43] hover:bg-slate-100 rounded-lg transition-all cursor-pointer"
                             title="Edit Floor"
                           >
                             <span className="material-symbols-outlined text-[18px]">edit</span>
                           </button>
+                          
+                          {/* Nút Xoá Tầng */}
                           <button
                             onClick={(e) => handleOpenDelFloor(floor, e)}
-                            className="p-1.5 text-slate-500 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all"
+                            className="p-1.5 text-slate-500 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all cursor-pointer"
                             title="Delete Floor"
                           >
                             <span className="material-symbols-outlined text-[18px]">delete</span>
@@ -237,9 +271,9 @@ export default function FloorManagement() {
         )}
       </div>
 
-      {/* ========================================================================= */}
-      {/* MODAL 1: QUẢN LÝ PHÂN KHU TỔNG THỂ (MANAGE ZONES) - THEO THIẾT KẾ SCREEN 3 */}
-      {/* ========================================================================= */}
+      {/* ─────────────────────────────────────────────────────────────────── */}
+      {/* 🔀 POPUP MODAL: QUẢN LÝ PHÂN KHU TỔNG THỂ (MANAGE ZONES POPUP)      */}
+      {/* ─────────────────────────────────────────────────────────────────── */}
       {isManageZonesOpen && selectedFloor && (
         <div className="fixed inset-0 bg-[#111c2d]/40 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-xl border border-[#006d43]/10 max-w-2xl w-full max-h-[85vh] flex flex-col animate-in fade-in zoom-in-95 duration-150">
@@ -256,13 +290,13 @@ export default function FloorManagement() {
               </div>
               <button
                 onClick={() => setIsManageZonesOpen(false)}
-                className="p-1 hover:bg-slate-100 text-slate-400 hover:text-slate-600 rounded-lg transition-all"
+                className="p-1 hover:bg-slate-100 text-slate-400 hover:text-slate-600 rounded-lg transition-all cursor-pointer"
               >
                 <span className="material-symbols-outlined">close</span>
               </button>
             </div>
 
-            {/* Thống kê Phân bổ Tải lượng (Capacity Metrics Grid) */}
+            {/* Thống kê Phân bổ Tải lượng Slots của các Zone trong Tầng */}
             <div className="px-6 py-4 bg-slate-50 border-b border-slate-100">
               <div className="grid grid-cols-2 gap-4 mb-4">
                 <div className="bg-white p-3.5 rounded-xl border border-slate-200 shadow-sm flex items-center gap-3">
@@ -298,13 +332,13 @@ export default function FloorManagement() {
               </div>
             </div>
 
-            {/* List of Zones inside Modal */}
+            {/* Danh sách các Zone bên trong Modal */}
             <div className="flex-1 overflow-y-auto p-6 space-y-4">
               <div className="flex justify-between items-center">
                 <h4 className="text-xs font-bold text-[#3d4a41] uppercase tracking-wider">Zones List</h4>
                 <button
                   onClick={handleOpenAddZone}
-                  className="flex items-center gap-1 px-3 py-1.5 bg-[#006d43] hover:bg-[#006d43]/90 text-white rounded-lg text-xs font-bold transition-all shadow-sm"
+                  className="flex items-center gap-1 px-3 py-1.5 bg-[#006d43] hover:bg-[#006d43]/90 text-white rounded-lg text-xs font-bold transition-all shadow-sm cursor-pointer"
                 >
                   <span className="material-symbols-outlined text-[16px]">add</span>
                   Add Zone
@@ -345,14 +379,14 @@ export default function FloorManagement() {
                         <div className="flex items-center gap-1">
                           <button
                             onClick={(e) => handleOpenEditZone(zone, e)}
-                            className="p-1 text-slate-400 hover:text-[#006d43] hover:bg-slate-100 rounded-lg transition-all"
+                            className="p-1 text-slate-400 hover:text-[#006d43] hover:bg-slate-100 rounded-lg transition-all cursor-pointer"
                             title="Edit Zone"
                           >
                             <span className="material-symbols-outlined text-[16px]">edit</span>
                           </button>
                           <button
                             onClick={(e) => handleOpenDelZone(zone, e)}
-                            className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all"
+                            className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all cursor-pointer"
                             title="Delete Zone"
                           >
                             <span className="material-symbols-outlined text-[16px]">delete</span>
@@ -369,7 +403,7 @@ export default function FloorManagement() {
             <div className="p-6 border-t border-slate-100 flex justify-end">
               <button
                 onClick={() => setIsManageZonesOpen(false)}
-                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition-all"
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition-all cursor-pointer"
               >
                 Close Configuration
               </button>
@@ -378,7 +412,7 @@ export default function FloorManagement() {
         </div>
       )}
 
-      {/* RENDER CÁC MODALS TRUYỀN HỐNG (Add/Edit/Delete cho cả Floor và Zone) */}
+      {/* RENDER TẤT CẢ CÁC MODAL THỰC HIỆN TÁC VỤ CRUD */}
       <FacilitiesModals {...facilities} />
     </div>
   );

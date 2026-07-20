@@ -1,3 +1,29 @@
+/**
+ * ═══════════════════════════════════════════════════════════════════════════════
+ * 📌 FILE: BuildingDirectory.tsx (DANH MỤC CƠ SỞ TÒA NHÀ - BUILDING DIRECTORY)
+ * ═══════════════════════════════════════════════════════════════════════════════
+ *
+ * 🎯 MỤC ĐÍCH FILE:
+ * Trang quản lý danh mục toàn bộ Tòa nhà (Building List & Directory Page) cho phân hệ Facilities Management.
+ * Cung cấp cái nhìn tổng quan toàn bãi đỗ xe theo tòa nhà, thống kê tổng sức chứa và phân trang tìm kiếm.
+ *
+ * 🛠️ CHỨC NĂNG DÀNH CHO ADMIN & MANAGER:
+ * 1. 📊 Thẻ Thống kê Tổng quan (Summary Cards):
+ *    - Total Buildings: Tổng số tòa nhà đang hoạt động.
+ *    - Total Capacity: Tổng số ô đỗ (Slots) tính trên toàn hệ thống.
+ *    - Active Maintenance: Số tòa nhà đang tạm ngưng phục vụ / bảo trì (Out of Service).
+ * 2. 🔍 Bộ lọc & Tìm kiếm Tòa nhà (Search & Filter):
+ *    - Tìm kiếm tức thời theo Tên Tòa nhà hoặc Mã Code.
+ *    - Lọc theo Trạng thái: All, Available (Khả dụng), Occupied (Đầy), Reserved (Đặt trước), Out of Service (Bảo trì).
+ * 3. ➕ Thêm Tòa nhà Mới (Add New Building):
+ *    - Điều hướng sang route tạo mới tòa nhà (`/facilities/new`).
+ *    - Chỉ hiển thị và cho phép thao tác nếu người dùng có quyền Admin hoặc Manager (`canEdit`).
+ * 4. 📑 Bảng danh sách Tòa nhà & Phân trang (Paged Table & Actions):
+ *    - Hiển thị Mã code, Tên, Địa chỉ, Số lượng tầng (`totalFloor`), Trạng thái (`BuildingStatus`).
+ *    - Các tác vụ chỉnh sửa (Edit link) và xoá tòa nhà (Delete button với Modal xác nhận cascade-delete).
+ * ═══════════════════════════════════════════════════════════════════════════════
+ */
+
 'use client';
 
 import React from 'react';
@@ -6,10 +32,6 @@ import Link from 'next/link';
 import { useFacilities } from '../hooks/useFacilities';
 import { BuildingStatus } from '@/lib/types/building.types';
 
-/**
- * BuildingDirectory Component
- * Xây dựng giao diện Danh sách Tòa nhà (Step 1) chuẩn NexPark Stitch Theme
- */
 export default function BuildingDirectory() {
   const {
     user,
@@ -44,7 +66,7 @@ export default function BuildingDirectory() {
   // Quyền chỉnh sửa: Chỉ Manager hoặc Admin mới được phép thao tác thay đổi dữ liệu cơ sở vật chất
   const canEdit = user?.role === 'MANAGER' || user?.role === 'ADMIN';
 
-  // Base path based on role
+  // Base path dựa trên Role người dùng
   const basePath = user?.role === 'ADMIN' ? '/dashboard/admin/facilities' : '/dashboard/manager/facilities';
 
   const [statusFilter, setStatusFilter] = React.useState<string>('ALL');
@@ -56,16 +78,17 @@ export default function BuildingDirectory() {
     });
   }, [filteredBuildings, statusFilter]);
 
-  // Tính toán số liệu thống kê (Summary stats)
+  // Tính toán số liệu thống kê tổng thể
   const totalCapacity = floors.reduce((acc, f) => acc + f.totalSlots, 0);
   const activeMaintenanceCount = buildings.filter(
     b => b.status === BuildingStatus.OutOfService
   ).length;
 
-
   return (
     <div className="flex-grow flex flex-col min-h-screen bg-[#f9f9ff]">
-      {/* ===== TOAST THÔNG BÁO CHUNG ===== */}
+      {/* ─────────────────────────────────────────────────────────────────── */}
+      {/* 🔔 TOAST THÔNG BÁO HỆ THỐNG                                           */}
+      {/* ─────────────────────────────────────────────────────────────────── */}
       {showToast && (
         <div 
           className={`fixed top-6 right-6 z-50 flex items-center gap-3 px-5 py-3 rounded-xl shadow-lg transition-all duration-300 transform scale-100 animate-in fade-in slide-in-from-top-4 ${
@@ -79,11 +102,13 @@ export default function BuildingDirectory() {
         </div>
       )}
 
-      {/* ===== MAIN CONTENT CANVAS ===== */}
+      {/* ─────────────────────────────────────────────────────────────────── */}
+      {/* 👑 MAIN CONTENT CANVAS & HEADER                                      */}
+      {/* ─────────────────────────────────────────────────────────────────── */}
       <main className="flex-1 p-6 md:p-8">
         <div className="max-w-[1440px] mx-auto flex flex-col gap-6">
           
-          {/* Page Title & CTA */}
+          {/* Page Title & Nút Thêm Tòa nhà */}
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div>
               <h2 className="text-xl font-bold text-[#111c2d]">Managed Buildings</h2>
@@ -100,7 +125,7 @@ export default function BuildingDirectory() {
             )}
           </div>
 
-          {/* Summary Cards Row */}
+          {/* 📊 ROW 3 THẺ THỐNG KÊ TỔNG QUAN (SUMMARY CARDS) */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {/* Card 1: Total Buildings */}
             <div className="bg-white border border-[#d8e3fb] p-6 rounded-xl flex flex-col gap-2 shadow-[0_1px_2px_0_rgba(0,0,0,0.05)]">
@@ -132,9 +157,9 @@ export default function BuildingDirectory() {
             </div>
           </div>
 
-          {/* Data Table Card */}
+          {/* 📑 BẢNG CƠ SỞ DỮ LIỆU TÒA NHÀ & BỘ LỌC */}
           <div className="bg-white border border-[#d8e3fb] rounded-xl overflow-hidden flex flex-col shadow-[0_1px_2px_0_rgba(0,0,0,0.05)]">
-            {/* Table Utilities Bar */}
+            {/* Thanh tìm kiếm & lọc trạng thái */}
             <div className="px-6 py-4 border-b border-[#d8e3fb] flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-slate-50/50">
               <div className="relative w-full sm:w-72">
                 <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[18px]">search</span>
@@ -166,7 +191,7 @@ export default function BuildingDirectory() {
               </div>
             </div>
 
-            {/* Actual Table */}
+            {/* Bảng danh sách Tòa nhà */}
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse min-w-[800px]">
                 <thead>
@@ -228,7 +253,7 @@ export default function BuildingDirectory() {
                                     setDeletingBld(bld);
                                     setIsDelBldOpen(true);
                                   }}
-                                  className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition-all"
+                                  className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition-all cursor-pointer"
                                   title="Delete"
                                 >
                                   <span className="material-symbols-outlined text-[18px]">delete</span>
@@ -250,7 +275,7 @@ export default function BuildingDirectory() {
               </table>
             </div>
 
-            {/* Pagination Utilities */}
+            {/* Phân trang (Pagination) */}
             <div className="px-6 py-4 border-t border-[#d8e3fb] flex justify-between items-center text-slate-500 bg-slate-50/50">
               <span className="text-xs">
                 Showing {displayedBuildings.length > 0 ? (pageIndex - 1) * 10 + 1 : 0} to{' '}
@@ -260,7 +285,7 @@ export default function BuildingDirectory() {
                 <button 
                   disabled={pageIndex === 1}
                   onClick={() => setPageIndex(p => Math.max(p - 1, 1))}
-                  className="px-3 py-1 border border-[#bccabe] rounded-md bg-white text-slate-600 hover:bg-slate-50 transition-colors disabled:opacity-40 disabled:pointer-events-none text-xs font-semibold"
+                  className="px-3 py-1 border border-[#bccabe] rounded-md bg-white text-slate-600 hover:bg-slate-50 transition-colors disabled:opacity-40 disabled:pointer-events-none text-xs font-semibold cursor-pointer"
                 >
                   Previous
                 </button>
@@ -268,7 +293,7 @@ export default function BuildingDirectory() {
                   <button
                     key={idx}
                     onClick={() => setPageIndex(idx + 1)}
-                    className={`px-3 py-1 border rounded-md text-xs font-semibold transition-colors ${
+                    className={`px-3 py-1 border rounded-md text-xs font-semibold transition-colors cursor-pointer ${
                       pageIndex === idx + 1
                         ? 'border-[#006d43] bg-[#006d43] text-white'
                         : 'border-[#bccabe] bg-white text-slate-600 hover:bg-slate-50'
@@ -280,7 +305,7 @@ export default function BuildingDirectory() {
                 <button 
                   disabled={pageIndex === totalPages}
                   onClick={() => setPageIndex(p => Math.min(p + 1, totalPages))}
-                  className="px-3 py-1 border border-[#bccabe] rounded-md bg-white text-slate-600 hover:bg-slate-50 transition-colors disabled:opacity-40 disabled:pointer-events-none text-xs font-semibold"
+                  className="px-3 py-1 border border-[#bccabe] rounded-md bg-white text-slate-600 hover:bg-slate-50 transition-colors disabled:opacity-40 disabled:pointer-events-none text-xs font-semibold cursor-pointer"
                 >
                   Next
                 </button>
@@ -290,7 +315,9 @@ export default function BuildingDirectory() {
         </div>
       </main>
 
-      {/* ===== DELETE BUILDING CONFIRMATION MODAL ===== */}
+      {/* ─────────────────────────────────────────────────────────────────── */}
+      {/* 🗑️ MODAL XÁC NHẬN XOÁ TÒA NHÀ (DELETE BUILDING MODAL)                */}
+      {/* ─────────────────────────────────────────────────────────────────── */}
       {isDelBldOpen && (
         <div className="fixed inset-0 bg-[#111c2d]/40 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-xl border border-red-100 p-6 max-w-md w-full animate-in fade-in zoom-in-95 duration-150">
@@ -310,7 +337,7 @@ export default function BuildingDirectory() {
                   setIsDelBldOpen(false);
                   setDeletingBld(null);
                 }}
-                className="px-4 py-2 text-xs font-bold text-slate-500 hover:bg-slate-50 rounded-lg"
+                className="px-4 py-2 text-xs font-bold text-slate-500 hover:bg-slate-50 rounded-lg cursor-pointer"
               >
                 Cancel
               </button>
@@ -318,7 +345,7 @@ export default function BuildingDirectory() {
                 type="button"
                 onClick={executeDeleteBld}
                 disabled={isSaving}
-                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-lg"
+                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-lg cursor-pointer"
               >
                 {isSaving ? 'Deleting...' : 'Confirm Delete'}
               </button>

@@ -1,3 +1,28 @@
+/**
+ * ═══════════════════════════════════════════════════════════════════════════════
+ * 📌 FILE: BuildingDetails.tsx (CHỈNH SỬA & CHI TIẾT THÔNG TIN TÒA NHÀ - BUILDING DETAILS)
+ * ═══════════════════════════════════════════════════════════════════════════════
+ *
+ * 🎯 MỤC ĐÍCH FILE:
+ * Cung cấp form xem và chỉnh sửa thông tin chi tiết của Tòa nhà (Building Core Details) dành cho Admin và Manager.
+ * Tích hợp tính năng Cảnh báo Nguy hiểm khi Giảm tổng số tầng (Floor Count Reduction Warning Modal).
+ *
+ * 🛠️ CHỨC NĂNG DÀNH CHO ADMIN & MANAGER:
+ * 1. 📝 Form Cập nhật Thông tin Tòa nhà (Core Information Form):
+ *    - Mã Tòa nhà (Building Code): Tự động viết hoa, kiểm tra định dạng.
+ *    - Tên Tòa nhà (Building Name): Tên gọi đại diện.
+ *    - Tổng số tầng (Total Floors): Số lượng tầng giới hạn cho tòa nhà.
+ *    - Địa chỉ vật lý (Physical Address).
+ * 2. ⚡ Chuyển đổi Trạng thái Hoạt động (Building Status Toggle):
+ *    - Active / Inactive Operation (chuyển giữa Available 0 và OutOfService 3).
+ * 3. ⚠️ Cảnh báo Xoá Tầng tự động (Floor Count Reduction Warning):
+ *    - Khi giảm số lượng tầng từ N xuống M (M < N), hệ thống sẽ hiển thị cảnh báo đỏ nguy hiểm.
+ *    - Cảnh báo rõ ràng các tầng vượt quá M cùng toàn bộ Zones và Slots sẽ bị XOÁ VĨNH VIỄN (Cascade Delete).
+ * 4. 👁️ Chế độ Xem (View Mode):
+ *    - Hỗ trợ query parameter `?mode=view` để xem thông tin dạng Read-only.
+ * ═══════════════════════════════════════════════════════════════════════════════
+ */
+
 'use client';
 
 import React, { useEffect, useState } from 'react';
@@ -5,10 +30,6 @@ import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useFacilitiesContext } from '../context/FacilitiesContext';
 import { Building, BuildingStatus } from '@/lib/types/building.types';
 
-/**
- * Component chi tiết thông tin và cấu hình Tòa nhà (Building General Info)
- * Theo thiết kế screen_detail.html
- */
 export default function BuildingDetails() {
   const params = useParams();
   const router = useRouter();
@@ -86,7 +107,7 @@ export default function BuildingDetails() {
     router.push(basePath);
   };
 
-  // Ánh xạ toggle (Active / Inactive)
+  // Ánh xạ trạng thái hoạt động toggle (Active / Inactive)
   // Active -> BuildingStatus.Available (0)
   // Inactive -> BuildingStatus.OutOfService (3)
   const isActive = formBldStatus === BuildingStatus.Available;
@@ -96,7 +117,9 @@ export default function BuildingDetails() {
 
   return (
     <div className="w-full animate-in fade-in duration-300">
-      {/* Toast Notification */}
+      {/* ─────────────────────────────────────────────────────────────────── */}
+      {/* 🔔 TOAST THÔNG BÁO TÁC VỤ HỆ THỐNG                                    */}
+      {/* ─────────────────────────────────────────────────────────────────── */}
       {showToast && (
         <div className={`fixed top-6 right-6 z-50 flex items-center gap-3 px-5 py-3 rounded-xl shadow-lg transition-all duration-300 transform scale-100 ${
           toastType === 'success' 
@@ -110,11 +133,12 @@ export default function BuildingDetails() {
         </div>
       )}
 
-      {/* Form Submission Wrapper */}
+      {/* ─────────────────────────────────────────────────────────────────── */}
+      {/* 📝 FORM CẬP NHẬT THÔNG TIN TÒA NHÀ                                    */}
+      {/* ─────────────────────────────────────────────────────────────────── */}
       <form onSubmit={handleEditBldPreSubmit} className="flex flex-col gap-6">
-        {/* Main Bento Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Left Column: Core Details */}
+          {/* Cột trái: Thông tin cốt lõi (Core Information) */}
           <div className="lg:col-span-2 flex flex-col gap-6">
             <div className="bg-[#F4FBF3] border border-[#006d43]/10 rounded-2xl p-6 hover:shadow-[0_4px_12px_rgba(12,28,50,0.04)] transition-all">
               <h2 className="text-base font-bold text-[#111c2d] mb-6 flex items-center gap-2">
@@ -122,7 +146,7 @@ export default function BuildingDetails() {
                 Core Information
               </h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Code (Read-only or editable with warning) */}
+                {/* Mã Tòa nhà (Building Code) */}
                 <div className="flex flex-col gap-1.5">
                   <label className="text-xs font-semibold text-[#3d4a41]">Building Code *</label>
                   <input 
@@ -136,7 +160,7 @@ export default function BuildingDetails() {
                   />
                 </div>
 
-                {/* Name */}
+                {/* Tên Tòa nhà (Building Name) */}
                 <div className="flex flex-col gap-1.5">
                   <label className="text-xs font-semibold text-[#3d4a41]">Building Name *</label>
                   <input 
@@ -149,7 +173,7 @@ export default function BuildingDetails() {
                   />
                 </div>
 
-                {/* Floors */}
+                {/* Tổng số tầng (Total Floors) */}
                 <div className="flex flex-col gap-1.5">
                   <label className="text-xs font-semibold text-[#3d4a41]">Total Floors *</label>
                   <input 
@@ -163,7 +187,7 @@ export default function BuildingDetails() {
                   />
                 </div>
 
-                {/* Address */}
+                {/* Địa chỉ (Physical Address) */}
                 <div className="flex flex-col gap-1.5 md:col-span-2">
                   <label className="text-xs font-semibold text-[#3d4a41]">Physical Address</label>
                   <input 
@@ -179,7 +203,7 @@ export default function BuildingDetails() {
             </div>
           </div>
 
-          {/* Right Column: Status Toggle */}
+          {/* Cột phải: Công tắc Trạng thái Hoạt động (Building Status Toggle) */}
           <div className="flex flex-col gap-6">
             <div className="bg-[#F4FBF3] border border-[#006d43]/10 rounded-2xl p-6 hover:shadow-[0_4px_12px_rgba(12,28,50,0.04)] transition-all">
               <h2 className="text-base font-bold text-[#111c2d] mb-4 flex items-center gap-2">
@@ -206,12 +230,12 @@ export default function BuildingDetails() {
           </div>
         </div>
 
-        {/* Action Buttons */}
+        {/* Nút hành động Lưu / Hủy */}
         <div className="flex justify-end gap-3 pt-6 border-t border-slate-200">
           <button 
             type="button"
             onClick={handleDiscard}
-            className="px-6 py-2.5 rounded-xl border border-[#006d43] text-[#006d43] hover:bg-[#006d43]/5 transition-colors font-bold text-xs"
+            className="px-6 py-2.5 rounded-xl border border-[#006d43] text-[#006d43] hover:bg-[#006d43]/5 transition-colors font-bold text-xs cursor-pointer"
           >
             {isViewMode ? 'Back to List' : 'Discard Changes'}
           </button>
@@ -219,7 +243,7 @@ export default function BuildingDetails() {
             <button 
               type="submit"
               disabled={isSaving}
-              className="px-6 py-2.5 rounded-xl bg-[#006d43] text-white hover:bg-[#006d43]/90 transition-all font-bold text-xs shadow-sm disabled:opacity-55"
+              className="px-6 py-2.5 rounded-xl bg-[#006d43] text-white hover:bg-[#006d43]/90 transition-all font-bold text-xs shadow-sm disabled:opacity-55 cursor-pointer"
             >
               {isSaving ? 'Saving...' : 'Save Changes'}
             </button>
@@ -227,7 +251,9 @@ export default function BuildingDetails() {
         </div>
       </form>
 
-      {/* Warning Reduction Modal */}
+      {/* ─────────────────────────────────────────────────────────────────── */}
+      {/* ⚠️ MODAL CẢNH BÁO NGUY HIỂM KHI GIẢM SỐ LƯỢNG TẦNG (FLOOR REDUCTION) */}
+      {/* ─────────────────────────────────────────────────────────────────── */}
       {isWarningBldOpen && (
         <div className="fixed inset-0 bg-[#111c2d]/40 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-xl border border-red-100 p-6 max-w-md w-full animate-in fade-in zoom-in-95 duration-150">
@@ -244,7 +270,7 @@ export default function BuildingDetails() {
               <button 
                 type="button"
                 onClick={() => setIsWarningBldOpen(false)}
-                className="px-4 py-2 text-xs font-bold text-slate-500 hover:bg-slate-50 rounded-lg"
+                className="px-4 py-2 text-xs font-bold text-slate-500 hover:bg-slate-50 rounded-lg cursor-pointer"
               >
                 No, Abort
               </button>
@@ -255,7 +281,7 @@ export default function BuildingDetails() {
                   router.push(basePath);
                 }}
                 disabled={isSaving}
-                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-lg disabled:opacity-55"
+                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-lg disabled:opacity-55 cursor-pointer"
               >
                 {isSaving ? 'Saving...' : 'Yes, Delete and Save'}
               </button>

@@ -24,6 +24,7 @@ import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { Menu, X, LogIn, LogOut } from 'lucide-react'
 import WavyNavLink from '@/components/ui/WavyNavLink'
+import LogoutConfirmModal from '@/components/auth/LogoutConfirmModal'
 
 interface NavbarProps {
   isLoggedIn: boolean;
@@ -38,6 +39,7 @@ export default function Navbar({
 }: NavbarProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [isScrolled, setIsScrolled] = useState(false)
+  const [showLogoutModal, setShowLogoutModal] = useState(false)
 
   useEffect(() => {
     const handleScroll = () => {
@@ -84,7 +86,13 @@ export default function Navbar({
           </button>
           
           <button
-            onClick={onLoginToggle}
+            onClick={() => {
+              if (isLoggedIn) {
+                setShowLogoutModal(true);
+              } else {
+                onLoginToggle();
+              }
+            }}
             className={`flex items-center space-x-2 px-5 py-2.5 rounded-lg font-medium transition-all border cursor-pointer ${
               isLoggedIn 
                 ? 'border-red-500/30 text-red-400 bg-red-500/10 hover:bg-red-500/20' 
@@ -124,7 +132,14 @@ export default function Navbar({
             </button>
             
             <button
-              onClick={() => { onLoginToggle(); setIsMenuOpen(false); }}
+              onClick={() => { 
+                setIsMenuOpen(false);
+                if (isLoggedIn) {
+                  setShowLogoutModal(true);
+                } else {
+                  onLoginToggle();
+                }
+              }}
               className={`flex items-center justify-center space-x-2 py-2.5 border rounded-lg font-medium transition-all cursor-pointer ${
                 isLoggedIn 
                   ? 'border-red-500/30 text-red-400 bg-red-500/10' 
@@ -137,6 +152,12 @@ export default function Navbar({
           </div>
         </div>
       )}
+
+      <LogoutConfirmModal
+        isOpen={showLogoutModal}
+        onClose={() => setShowLogoutModal(false)}
+        onConfirm={onLoginToggle}
+      />
     </motion.nav>
   )
 }

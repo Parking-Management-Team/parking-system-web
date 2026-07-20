@@ -4,6 +4,7 @@ import React from 'react';
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '@/features/auth';
+import LogoutConfirmModal from '@/components/auth/LogoutConfirmModal';
 
 /**
  * Component Header Dashboard  - Thanh điều hướng trên cùng cho các trang đã đăng nhập.
@@ -17,8 +18,9 @@ export default function Header() {
   const router = useRouter();
   const pathname = usePathname();
 
-  // Các state để điều khiển việc đóng/mở dropdown và hiển thị đồng hồ thời gian thực
+  // Các state để điều khiển việc đóng/mở dropdown, modal xác nhận logout và hiển thị đồng hồ thời gian thực
   const [dropdownOpen, setDropdownOpen] = React.useState(false);
+  const [showLogoutModal, setShowLogoutModal] = React.useState(false);
   const [currentTime, setCurrentTime] = React.useState('00:00:00');
   const [currentDate, setCurrentDate] = React.useState('Loading date...');
 
@@ -295,8 +297,11 @@ export default function Header() {
 
               {/* Nút đăng xuất khỏi hệ thống */}
               <button
-                onClick={handleLogout}
-                className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-rose-600 hover:bg-rose-50/60 transition-colors font-medium text-left"
+                onClick={() => {
+                  setDropdownOpen(false);
+                  setShowLogoutModal(true);
+                }}
+                className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-rose-600 hover:bg-rose-50/60 transition-colors font-medium text-left cursor-pointer"
               >
                 <span className="material-symbols-outlined text-[18px]">logout</span>
                 <span>Logout</span>
@@ -305,6 +310,13 @@ export default function Header() {
           )}
         </div>
       </div>
+
+      {/* Confirmation Modal Logout */}
+      <LogoutConfirmModal
+        isOpen={showLogoutModal}
+        onClose={() => setShowLogoutModal(false)}
+        onConfirm={handleLogout}
+      />
     </header>
   );
 }

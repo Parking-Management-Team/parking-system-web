@@ -393,7 +393,6 @@ export default function DriverDashboard() {
     const zonePart = parts[0] || slot.code;
     const numberPart = parts[1] || '';
 
-    const isLargeMap = mapSlots.length > 30;
     const slotSizeClass = isLargeMap ? 'w-[36px] h-[88px] p-1 text-[9px]' : 'w-[56px] h-[112px] p-1.5';
     const codeTextClass = isLargeMap ? 'text-[8px]' : 'text-[10px]';
     const bottomTextClass = isLargeMap ? 'text-[6px]' : 'text-[8px]';

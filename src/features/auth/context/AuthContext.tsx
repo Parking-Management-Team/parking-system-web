@@ -80,6 +80,8 @@ interface AuthContextType {
   loginWithGoogle: (idToken?: string) => Promise<User>; // Hàm đăng nhập Google
   verifyGoogleOtp: (idToken: string, otp: string) => Promise<User>; // Hàm xác thực mã OTP đăng ký Google
   verifyLoginOtp: (email: string, password: string, otp: string) => Promise<User>; // Hàm xác thực mã OTP đăng nhập thường
+  sendPasswordResetOtp: (email: string) => Promise<void>; // Hàm gửi OTP khôi phục mật khẩu
+  verifyPasswordResetOtp: (email: string, otp: string) => Promise<string>; // Hàm xác thực OTP khôi phục mật khẩu
   resetPassword: (email: string, newPassword: string, verificationToken: string) => Promise<void>; // Hàm đặt lại mật khẩu bằng OTP
   logout: () => void;                         // Hàm đăng xuất
   showToast: (message: string, type?: 'success' | 'error' | 'info') => void; // Hàm hiển thị thông báo nhanh
@@ -143,12 +145,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       // 2. Kiểm tra xem Backend trả về thành công không
       if (!isSuccess || !res.data) {
-        if (errorCode === 'REQUIRE_LOGIN_OTP_VERIFICATION') {
-          const err = new Error(res.message || 'Login requires email verification.') as any;
-          err.code = 'REQUIRE_LOGIN_OTP_VERIFICATION';
-          err.email = res.data?.email;
-          throw err;
-        }
         throw new Error(res.message || 'Login failed');
       }
 
@@ -170,16 +166,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       return systemUser;
     } catch (error: any) {
-      const body = error?.data || {};
-      const errorCode = body.errorCode ?? body.code ?? error?.code;
-
-      if (errorCode === 'REQUIRE_LOGIN_OTP_VERIFICATION') {
-        const err = new Error(body.message || 'Login requires email verification.') as any;
-        err.code = 'REQUIRE_LOGIN_OTP_VERIFICATION';
-        err.email = body.data?.email;
-        throw err;
-      }
-
       const errorMsg = extractErrorMessage(error, 'Login failed');
       throw new Error(errorMsg);
     } finally {
@@ -420,6 +406,47 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   /**
+   * HÀM GỬI MÃ OTP KHÔI PHỤC MẬT KHẨU
+   * Gọi POST request đến API `/auth/password-recovery/request`.
+   */
+  const sendPasswordResetOtp = React.useCallback(async (email: string): Promise<void> => {
+    setIsLoading(true);
+    try {
+      const res = await api.post<OtpResponse>('/auth/password-recovery/request', { email });
+      const isSuccess = res.success ?? res.isSuccess ?? true;
+      if (!isSuccess) {
+        throw new Error(res.message || 'Failed to send password recovery OTP.');
+      }
+    } catch (error) {
+      const errorMsg = extractErrorMessage(error, 'Failed to send password recovery OTP.');
+      throw new Error(errorMsg);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  /**
+   * HÀM XÁC THỰC MÃ OTP KHÔI PHỤC MẬT KHẨU
+   * Gọi POST request đến API `/auth/password-recovery/verify`.
+   */
+  const verifyPasswordResetOtp = React.useCallback(async (email: string, otp: string): Promise<string> => {
+    setIsLoading(true);
+    try {
+      const res = await api.post<OtpResponse<string>>('/auth/password-recovery/verify', { email, otp });
+      const isSuccess = res.success ?? res.isSuccess ?? true;
+      if (!isSuccess || !res.data) {
+        throw new Error(res.message || 'OTP verification failed.');
+      }
+      return res.data;
+    } catch (error) {
+      const errorMsg = extractErrorMessage(error, 'OTP verification failed.');
+      throw new Error(errorMsg);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  /**
    * HÀM ĐẶT LẠI MẬT KHẨU BẰNG OTP
    * Gửi Email, Mật khẩu mới, và verificationToken nhận được sau khi verify OTP thành công.
    */
@@ -430,12 +457,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   ): Promise<void> => {
     setIsLoading(true);
     try {
-      const res = await api.post<OtpResponse>('/auth/reset-password', {
+      const res = await api.post<OtpResponse>('/auth/password-recovery/reset', {
         email,
         newPassword,
         verificationToken
       });
-      if (!res.isSuccess && !(res as any).success) {
+      const isSuccess = res.success ?? res.isSuccess ?? true;
+      if (!isSuccess) {
         throw new Error(res.message || 'Password reset failed.');
       }
     } catch (error) {
@@ -482,10 +510,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     loginWithGoogle,
     verifyGoogleOtp,
     verifyLoginOtp,
+    sendPasswordResetOtp,
+    verifyPasswordResetOtp,
     resetPassword,
     logout,
     showToast,
-  }), [user, token, isLoading, login, sendOtp, verifyOtp, register, loginWithGoogle, verifyGoogleOtp, verifyLoginOtp, resetPassword, logout, showToast]);
+  }), [user, token, isLoading, login, sendOtp, verifyOtp, register, loginWithGoogle, verifyGoogleOtp, verifyLoginOtp, sendPasswordResetOtp, verifyPasswordResetOtp, resetPassword, logout, showToast]);
 
   return (
     <AuthContext.Provider value={value}>

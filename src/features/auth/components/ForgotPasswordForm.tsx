@@ -40,7 +40,7 @@ export interface ForgotPasswordFormProps {
 export function ForgotPasswordForm({ isModal = false, onSuccess, onClose }: ForgotPasswordFormProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { sendOtp, verifyOtp, resetPassword, showToast } = useAuth();
+  const { sendPasswordResetOtp, verifyPasswordResetOtp, resetPassword, showToast } = useAuth();
 
   // Wizard state: 1 (Email) -> 2 (OTP) -> 3 (New Password)
   const [step, setStep] = React.useState<1 | 2 | 3>(1);
@@ -93,7 +93,7 @@ export function ForgotPasswordForm({ isModal = false, onSuccess, onClose }: Forg
     setIsSubmitting(true);
 
     try {
-      await sendOtp(email.trim());
+      await sendPasswordResetOtp(email.trim());
       showToast('Verification OTP has been sent to your email.', 'success');
       startCooldown();
       setStep(2);
@@ -118,7 +118,7 @@ export function ForgotPasswordForm({ isModal = false, onSuccess, onClose }: Forg
     setIsSubmitting(true);
 
     try {
-      const token = await verifyOtp(email, otpCode);
+      const token = await verifyPasswordResetOtp(email, otpCode);
       setVerificationToken(token);
       showToast('Email verified successfully! Set your new password.', 'success');
       setStep(3);
@@ -127,7 +127,7 @@ export function ForgotPasswordForm({ isModal = false, onSuccess, onClose }: Forg
     } finally {
       setIsSubmitting(false);
     }
-  }, [isSubmitting, otpCode, verifyOtp, email, showToast]);
+  }, [isSubmitting, otpCode, verifyPasswordResetOtp, email, showToast]);
 
   const handleResendOtp = async () => {
     if (isCooldownActive || isSubmitting) return;
@@ -136,7 +136,7 @@ export function ForgotPasswordForm({ isModal = false, onSuccess, onClose }: Forg
     setIsSubmitting(true);
 
     try {
-      await sendOtp(email);
+      await sendPasswordResetOtp(email);
       showToast('A new OTP code has been sent to your email.', 'success');
       startCooldown();
       setOtpCode('');

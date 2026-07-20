@@ -288,6 +288,7 @@ export function RegisterForm({ isModal = false, onSuccess, onClose, onSwitchMode
             text: 'signup_with',
             shape: 'rectangular',
             logo_alignment: 'left',
+            locale: 'en',
           });
         }
       }

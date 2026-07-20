@@ -32,10 +32,11 @@ interface BaseResponse<T> {
 }
 
 interface OtpResponse<T = null> {
-  isSuccess: boolean;
-  code: string;
-  message: string;
-  data: T;
+  success?: boolean;
+  isSuccess?: boolean;
+  code?: string;
+  message?: string;
+  data?: T;
 }
 
 const extractErrorMessage = (error: unknown, defaultMessage: string): string => {
@@ -194,7 +195,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setIsLoading(true);
     try {
       const res = await api.post<OtpResponse>('/auth/send-otp', { email });
-      if (!res.isSuccess) {
+      const isSuccess = res.success ?? res.isSuccess ?? true;
+      if (!isSuccess) {
         throw new Error(res.message || 'Failed to send OTP code.');
       }
     } catch (error) {
@@ -213,7 +215,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setIsLoading(true);
     try {
       const res = await api.post<OtpResponse<string>>('/auth/verify-otp', { email, otp });
-      if (!res.isSuccess || !res.data) {
+      const isSuccess = res.success ?? res.isSuccess ?? true;
+      if (!isSuccess || !res.data) {
         throw new Error(res.message || 'OTP verification failed.');
       }
       return res.data;
@@ -245,7 +248,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         password,
         verificationToken
       });
-      if (!res.isSuccess) {
+      const isSuccess = res.success ?? res.isSuccess ?? true;
+      if (!isSuccess) {
         throw new Error(res.message || 'Registration failed.');
       }
     } catch (error) {
@@ -337,7 +341,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         otp
       });
 
-      const isSuccess = res.success ?? res.isSuccess;
+      const isSuccess = res.success ?? res.isSuccess ?? true;
 
       if (!isSuccess || !res.data) {
         throw new Error(res.message || 'Google OTP verification failed');

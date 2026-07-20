@@ -483,6 +483,26 @@ export default function ProfileFeature() {
               </button>
             </div>
           </form>
+
+          {/* Hướng dẫn đặt lại mật khẩu cho tài khoản đăng nhập bằng Google */}
+          <div className="mt-8 p-4 bg-slate-50 border border-slate-200/80 rounded-xl flex items-start gap-3.5 text-xs text-slate-700">
+            <div className="w-8 h-8 rounded-lg bg-emerald-100/70 text-[#00a86b] flex items-center justify-center shrink-0 mt-0.5">
+              <span className="material-symbols-outlined text-base">info</span>
+            </div>
+            <div className="flex-1">
+              <h4 className="font-bold text-slate-800 text-sm">Đăng nhập bằng Google hoặc chưa có Mật khẩu?</h4>
+              <p className="mt-1 leading-relaxed text-slate-600">
+                Tài khoản đăng ký qua Google mặc định không có mật khẩu riêng. Nếu bạn muốn tự đặt mật khẩu để có thể đăng nhập bằng cả Email + Mật khẩu, bấm nút bên dưới để nhận mã OTP và tạo mật khẩu:
+              </p>
+              <a
+                href={`/forgot-password${profile?.email ? `?email=${encodeURIComponent(profile.email)}` : ''}`}
+                className="inline-flex items-center gap-1.5 mt-3 px-4 py-2 bg-[#00a86b] hover:bg-[#00965e] text-white rounded-lg font-bold text-xs transition-colors shadow-xs"
+              >
+                <span className="material-symbols-outlined text-sm">key_visual</span>
+                Tạo / Đặt lại mật khẩu qua Email OTP
+              </a>
+            </div>
+          </div>
         </section>
 
         {/* Phần Danger Zone / Account Protection - Deactivate Account */}

@@ -1,3 +1,4 @@
+import { Suspense } from 'react';
 import { ForgotPasswordForm } from '@/features/auth';
 import type { Metadata } from 'next';
 
@@ -7,5 +8,9 @@ export const metadata: Metadata = {
 };
 
 export default function ForgotPasswordPage() {
-  return <ForgotPasswordForm />;
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-[#0f172a] flex items-center justify-center text-white">Loading...</div>}>
+      <ForgotPasswordForm />
+    </Suspense>
+  );
 }

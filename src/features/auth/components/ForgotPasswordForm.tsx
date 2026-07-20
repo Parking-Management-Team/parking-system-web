@@ -12,7 +12,7 @@
 import * as React from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { 
   Mail, 
   Lock, 
@@ -39,11 +39,19 @@ export interface ForgotPasswordFormProps {
 
 export function ForgotPasswordForm({ isModal = false, onSuccess, onClose }: ForgotPasswordFormProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { sendOtp, verifyOtp, resetPassword, showToast } = useAuth();
 
   // Wizard state: 1 (Email) -> 2 (OTP) -> 3 (New Password)
   const [step, setStep] = React.useState<1 | 2 | 3>(1);
   const [email, setEmail] = React.useState('');
+
+  React.useEffect(() => {
+    const emailParam = searchParams?.get('email');
+    if (emailParam) {
+      setEmail(emailParam);
+    }
+  }, [searchParams]);
   const [otpCode, setOtpCode] = React.useState('');
   const [verificationToken, setVerificationToken] = React.useState('');
   const [newPassword, setNewPassword] = React.useState('');

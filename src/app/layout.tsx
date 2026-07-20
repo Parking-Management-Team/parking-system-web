@@ -17,6 +17,7 @@ import { Inter, Plus_Jakarta_Sans } from 'next/font/google'
 import { AuthProvider } from '@/features/auth'
 import { SidebarProvider } from '@/components/layout/SidebarContext'
 import Script from 'next/script'
+import { SpeedInsights } from '@vercel/speed-insights/next'
 
 // Font chính cho body text (nội dung thường)
 const inter = Inter({
@@ -66,6 +67,7 @@ export default function RootLayout({
         </AuthProvider>
         {/* Load Google Identity Services SDK */}
         <Script src="https://accounts.google.com/gsi/client" strategy="afterInteractive" />
+        <SpeedInsights />
       </body>
     </html>
   )

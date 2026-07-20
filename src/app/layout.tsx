@@ -65,8 +65,8 @@ export default function RootLayout({
             {children}
           </SidebarProvider>
         </AuthProvider>
-        {/* Load Google Identity Services SDK */}
-        <Script src="https://accounts.google.com/gsi/client" strategy="afterInteractive" />
+        {/* Load Google Identity Services SDK with English locale */}
+        <Script src="https://accounts.google.com/gsi/client?hl=en" strategy="afterInteractive" />
         <SpeedInsights />
       </body>
     </html>

@@ -278,18 +278,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         idToken: tokenToSend
       });
 
-      const isSuccess = res.success ?? res.isSuccess;
-      const errorCode = res.errorCode ?? res.code;
+      // 2. Kiểm tra xem Backend đăng nhập Google thành công hay trả về yêu cầu OTP
+      const resCode = res?.errorCode ?? res?.code ?? (res?.data as any)?.code ?? (res?.data as any)?.errorCode;
+      if (resCode === 'REQUIRE_OTP_VERIFICATION') {
+        const email = (res?.data as any)?.email ?? (res as any)?.email;
+        const fullName = (res?.data as any)?.fullName ?? (res as any)?.fullName;
+        const err = new Error(res.message || 'Google signup requires email verification.') as any;
+        err.code = 'REQUIRE_OTP_VERIFICATION';
+        err.email = email;
+        err.fullName = fullName;
+        throw err;
+      }
 
-      // 2. Kiểm tra xem Backend đăng nhập Google thành công không
+      const isSuccess = res.success ?? res.isSuccess ?? true;
       if (!isSuccess || !res.data) {
-        if (errorCode === 'REQUIRE_OTP_VERIFICATION') {
-          const err = new Error(res.message || 'Google signup requires email verification.') as any;
-          err.code = 'REQUIRE_OTP_VERIFICATION';
-          err.email = res.data?.email;
-          err.fullName = res.data?.fullName;
-          throw err;
-        }
         throw new Error(res.message || 'Google login failed');
       }
 
@@ -311,14 +313,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       return systemUser;
     } catch (error: any) {
-      const body = error?.data || {};
-      const errorCode = body.errorCode ?? body.code ?? error?.code;
+      if (error?.code === 'REQUIRE_OTP_VERIFICATION') {
+        throw error;
+      }
 
-      if (errorCode === 'REQUIRE_OTP_VERIFICATION') {
-        const err = new Error(body.message || 'Google signup requires email verification.') as any;
+      const body = error?.data || error?.response?.data || {};
+      const errorCode = body?.errorCode ?? body?.code ?? body?.ErrorCode ?? body?.Code ?? error?.code;
+      const errorMsgText = String(body?.message || error?.message || '');
+
+      if (errorCode === 'REQUIRE_OTP_VERIFICATION' || errorMsgText.includes('REQUIRE_OTP_VERIFICATION')) {
+        const email = body?.data?.email ?? body?.data?.Email ?? body?.email ?? body?.Email;
+        const fullName = body?.data?.fullName ?? body?.data?.FullName ?? body?.fullName ?? body?.FullName;
+        const err = new Error(body?.message || 'Google signup requires email verification.') as any;
         err.code = 'REQUIRE_OTP_VERIFICATION';
-        err.email = body.data?.email;
-        err.fullName = body.data?.fullName;
+        err.email = email;
+        err.fullName = fullName;
         throw err;
       }
 

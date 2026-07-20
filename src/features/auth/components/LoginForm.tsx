@@ -230,6 +230,7 @@ export function LoginForm({ isModal = false, onSuccess, onClose, onSwitchMode }:
             text: 'signin_with',
             shape: 'rectangular',
             logo_alignment: 'left',
+            locale: 'en',
           });
         }
       }

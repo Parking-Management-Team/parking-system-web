@@ -498,7 +498,7 @@ export default function ProfileFeature() {
                 href={`/forgot-password${profile?.email ? `?email=${encodeURIComponent(profile.email)}` : ''}`}
                 className="inline-flex items-center gap-1.5 mt-3 px-4 py-2 bg-[#00a86b] hover:bg-[#00965e] text-white rounded-lg font-bold text-xs transition-colors shadow-xs"
               >
-                <span className="material-symbols-outlined text-sm">key_visual</span>
+                <span className="material-symbols-outlined text-sm">key</span>
                 Set / Reset Password via Email OTP
               </a>
             </div>

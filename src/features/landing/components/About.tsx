@@ -67,7 +67,7 @@ export default function About() {
         >
           {[
             { val: '500+', label: 'Parking slots' },
-            { val: '45m',  label: 'Booking grace' },
+            { val: '24/7', label: 'Automated Access' },
             { val: '8h',   label: 'Max advance booking' },
           ].map((s, i) => (
             <div key={i} className="text-center border-t-2 border-[#e8e8e8] pt-6 hover:border-emerald-500 transition-colors duration-300">

@@ -43,14 +43,25 @@ const extractErrorMessage = (error: unknown, defaultMessage: string): string => 
     if ('name' in error && (error as any).name === 'ApiError' && 'data' in error) {
       const body = (error as any).data;
       if (body && typeof body === 'object') {
-        return body.message || body.Message || defaultMessage;
+        if (typeof body.message === 'string' && body.message.trim()) return body.message;
+        if (typeof body.Message === 'string' && body.Message.trim()) return body.Message;
+        if (typeof body.title === 'string' && body.title.trim()) return body.title;
+        if (body.errors && typeof body.errors === 'object') {
+          const firstErrKey = Object.keys(body.errors)[0];
+          if (firstErrKey && Array.isArray(body.errors[firstErrKey]) && body.errors[firstErrKey][0]) {
+            return body.errors[firstErrKey][0];
+          }
+        }
       }
     }
     if ('message' in error && typeof (error as any).message === 'string') {
-      return (error as any).message;
+      const msg = (error as any).message;
+      if (msg && !msg.startsWith('API error')) {
+        return msg;
+      }
     }
   }
-  if (error instanceof Error) {
+  if (error instanceof Error && !error.message.startsWith('API error')) {
     return error.message;
   }
   return defaultMessage;
@@ -157,6 +168,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(systemUser);
 
       return systemUser;
+    } catch (error: any) {
+      const body = error?.data || {};
+      const errorCode = body.errorCode ?? body.code ?? error?.code;
+
+      if (errorCode === 'REQUIRE_LOGIN_OTP_VERIFICATION') {
+        const err = new Error(body.message || 'Login requires email verification.') as any;
+        err.code = 'REQUIRE_LOGIN_OTP_VERIFICATION';
+        err.email = body.data?.email;
+        throw err;
+      }
+
+      const errorMsg = extractErrorMessage(error, 'Login failed');
+      throw new Error(errorMsg);
     } finally {
       setIsLoading(false);
     }
@@ -282,6 +306,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(systemUser);
 
       return systemUser;
+    } catch (error: any) {
+      const body = error?.data || {};
+      const errorCode = body.errorCode ?? body.code ?? error?.code;
+
+      if (errorCode === 'REQUIRE_OTP_VERIFICATION') {
+        const err = new Error(body.message || 'Google signup requires email verification.') as any;
+        err.code = 'REQUIRE_OTP_VERIFICATION';
+        err.email = body.data?.email;
+        err.fullName = body.data?.fullName;
+        throw err;
+      }
+
+      const errorMsg = extractErrorMessage(error, 'Google login failed');
+      throw new Error(errorMsg);
     } finally {
       setIsLoading(false);
     }

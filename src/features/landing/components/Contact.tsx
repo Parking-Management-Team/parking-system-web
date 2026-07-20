@@ -15,10 +15,10 @@ export default function Contact() {
             05 / Location & Contact
           </p>
           <h2 className="text-4xl md:text-5xl font-black text-gray-900 leading-tight tracking-tight mb-4">
-            NexPark • <span className="text-emerald-500">Tòa nhà FPT</span>
+            NexPark • <span className="text-emerald-500">FPT Building</span>
           </h2>
           <p className="text-lg text-gray-600 font-light leading-relaxed">
-            Hệ thống bãi xe thông minh NexPark phục vụ tại Tòa nhà FPT. Liên hệ quản lý hoặc hỗ trợ kỹ thuật bên dưới.
+            NexPark smart parking system serving FPT Building. Contact management or technical support below.
           </p>
         </div>
 
@@ -30,10 +30,10 @@ export default function Contact() {
               <div className="w-12 h-12 bg-emerald-500/10 text-emerald-600 rounded-xl flex items-center justify-center mb-6">
                 <MapPin className="w-6 h-6" />
               </div>
-              <h3 className="text-lg font-bold text-gray-900 mb-2">Vị Trí Bãi Xe</h3>
+              <h3 className="text-lg font-bold text-gray-900 mb-2">Parking Location</h3>
               <p className="text-sm text-gray-600 leading-relaxed font-light mb-6">
-                Bãi xe NexPark - Tòa nhà FPT<br />
-                Khu Công Nghệ Cao, Hà Nội, Việt Nam
+                NexPark Parking - FPT Building<br />
+                High-Tech Park, Hanoi, Vietnam
               </p>
             </div>
             <a
@@ -42,7 +42,7 @@ export default function Contact() {
               rel="noopener noreferrer"
               className="inline-flex items-center gap-2 text-xs font-bold text-emerald-600 hover:text-emerald-700 hover:underline"
             >
-              Xem chỉ đường <MapPin className="w-3.5 h-3.5" />
+              Get directions <MapPin className="w-3.5 h-3.5" />
             </a>
           </div>
 
@@ -52,14 +52,14 @@ export default function Contact() {
               <div className="w-12 h-12 bg-emerald-500/10 text-emerald-600 rounded-xl flex items-center justify-center mb-6">
                 <Clock className="w-6 h-6" />
               </div>
-              <h3 className="text-lg font-bold text-gray-900 mb-2">Giờ Hoạt Động</h3>
+              <h3 className="text-lg font-bold text-gray-900 mb-2">Operating Hours</h3>
               <p className="text-sm text-gray-600 leading-relaxed font-light">
-                Thứ 2 - Chủ Nhật: 24/7<br />
-                Hỗ trợ kỹ thuật: 07:00 - 22:00
+                Mon - Sun: 24/7<br />
+                Technical support: 07:00 - 22:00
               </p>
             </div>
             <span className="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full w-fit mt-6">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" /> Đang hoạt động
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" /> Active Now
             </span>
           </div>
 
@@ -69,7 +69,7 @@ export default function Contact() {
               <div className="w-12 h-12 bg-emerald-500/10 text-emerald-600 rounded-xl flex items-center justify-center mb-6">
                 <PhoneCall className="w-6 h-6" />
               </div>
-              <h3 className="text-lg font-bold text-gray-900 mb-2">Kênh Hỗ Trợ</h3>
+              <h3 className="text-lg font-bold text-gray-900 mb-2">Support Channels</h3>
               <div className="space-y-3 text-sm text-gray-600 font-light mb-6">
                 <a
                   href="mailto:support@nexpark.vn"
@@ -92,13 +92,13 @@ export default function Contact() {
                 href="tel:+84123456789"
                 className="flex-1 py-2.5 px-3 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl text-xs font-bold text-center transition-all shadow-sm cursor-pointer"
               >
-                Gọi Hotline
+                Call Hotline
               </a>
               <a
                 href="mailto:support@nexpark.vn"
                 className="flex-1 py-2.5 px-3 border border-emerald-500/30 text-emerald-700 hover:bg-emerald-50 rounded-xl text-xs font-bold text-center transition-all cursor-pointer"
               >
-                Gửi Email
+                Send Email
               </a>
             </div>
           </div>

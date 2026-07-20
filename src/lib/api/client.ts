@@ -85,6 +85,11 @@ export async function apiClient<T>(
 
     const text = await res.text();
     return text ? (JSON.parse(text) as T) : ({} as T);
+  } catch (err: any) {
+    if (err?.name === 'AbortError' || err?.message?.includes('aborted')) {
+      throw new ApiError(408, null, 'Hệ thống gửi OTP đang xử lý chậm (Timeout). Vui lòng thử lại.');
+    }
+    throw err;
   } finally {
     clearTimeout(timeout);
   }

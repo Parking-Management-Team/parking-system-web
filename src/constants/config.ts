@@ -20,7 +20,7 @@ export const APP_CONFIG = {
   googleClientId: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ?? '768808098768-vop4tnm5u22h8stb6464bqtogse2rqvm.apps.googleusercontent.com',
 
   // API settings
-  requestTimeout: 10_000, // ms
+  requestTimeout: 45_000, // ms (45s cho Render cold start & gửi OTP email)
   retryAttempts: 2,
 
   // Booking rules

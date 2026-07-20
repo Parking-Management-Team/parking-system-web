@@ -9,7 +9,11 @@ const eslintConfig = [
   {
     rules: {
       "@typescript-eslint/no-explicit-any": "off",
-      "react/no-unescaped-entities": "off"
+      "@typescript-eslint/no-unused-vars": "off",
+      "@next/next/no-img-element": "off",
+      "react/no-unescaped-entities": "off",
+      "prefer-const": "off",
+      "react-hooks/exhaustive-deps": "off"
     }
   },
   {

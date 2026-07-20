@@ -403,7 +403,7 @@ export default function DriverDashboard() {
     // ── Colour palette identical to manager/admin SlotManagementDashboard ──
     let bgClass = '';
     let borderClass = '';
-    let textClass = 'text-white';
+    const textClass = 'text-white';
 
     if (isSelected) {
       bgClass = 'bg-[#00a86b] cursor-pointer shadow-md shadow-emerald-500/20';

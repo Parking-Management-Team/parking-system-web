@@ -1,13 +1,23 @@
 /**
- * Home Page (Trang chủ) - Landing Page NexPark
+ * ═══════════════════════════════════════════════════════════════════════════════
+ * 📌 FILE: page.tsx (TRANG CHỦ - LANDING PAGE NEXPARK)
+ * ═══════════════════════════════════════════════════════════════════════════════
  *
- * Đây là trang chính của website. Sau khi refactor, file này chỉ chứa:
- * - Navbar (có state scrolled + menu mobile)
- * - Ghép các section từ features/landing/components/
- * - AuthDrawer (popup đăng nhập/đăng ký)
+ * 🎯 MỤC ĐÍCH FILE:
+ * Trang chính (Landing Page) giới thiệu Hệ thống Bãi đỗ xe thông minh NexPark tại Tòa nhà FPT.
  *
- * Mọi nội dung section đều nằm trong features/landing/components/.
- * URL: /
+ * 🛠️ CẤU TRÚC THÀNH PHẦN (PAGE COMPOSITION):
+ * 1. 🧭 Thanh điều hướng Top Navbar: Động theo thao tác cuộn chuột (Scrolled Glassmorphism) & Menu Mobile.
+ * 2. 🎬 Hero Section (`<Hero />`): Video nền giới thiệu sinh động, hiệu ứng chữ đánh máy & Thống kê nổi bật.
+ * 3. ℹ️ About Section (`<About />`): Giới thiệu tầm nhìn & Công nghệ đỗ xe thông minh.
+ * 4. ⚡ Features Section (`<Features />`): Tính năng cốt lõi (Nhận diện biển số ALPR, Thanh toán VNPay, Đặt chỗ trước).
+ * 5. 🛠️ How It Works (`<HowItWorks />`): Quy trình 3 bước gửi xe đơn giản.
+ * 6. 💰 Pricing Section (`<Pricing />`): Bảng giá niêm yết theo giờ / lượt cho Ô tô và Xe máy.
+ * 7. 📞 Contact Section (`<Contact />`): Biểu mẫu gửi phản hồi & thông tin liên hệ FPT Building.
+ * 8. 🎯 Call To Action (CTA): Khối kêu gọi người dùng Đăng ký & Đặt chỗ ngay.
+ * 9. 👣 Footer: Chân trang chứa liên kết nhanh & Bản quyền thương hiệu NexPark.
+ * 10. 🔐 Auth Drawer (`<AuthDrawer />`): Hộp thoại Modal đăng nhập/đăng ký tích hợp sẵn.
+ * ═══════════════════════════════════════════════════════════════════════════════
  */
 
 'use client'
@@ -21,34 +31,39 @@ import { useAuth, AuthDrawer } from '@/features/auth'
 import { Hero, About, Features, HowItWorks, Pricing, Contact } from '@/features/landing'
 
 export default function Home() {
+  // Trạng thái menu mobile đóng/mở
   const [isMenuOpen, setIsMenuOpen] = useState(false)
+  // Trạng thái cuộn trang để đổi kiểu dáng thanh Navbar (Glassmorphism Effect)
   const [isScrolled, setIsScrolled] = useState(false)
+  // Trạng thái đóng/mở Auth Drawer (Modal Đăng nhập / Đăng ký)
   const [isAuthDrawerOpen, setIsAuthDrawerOpen] = useState(false)
   const [authDrawerMode, setAuthDrawerMode] = useState<'login' | 'register'>('login')
 
+  // Truy cập trạng thái xác thực từ AuthContext
   const { user, logout } = useAuth()
   const isLoggedIn = !!user
 
-  // Lắng nghe sự kiện cuộn để đổi style Navbar
+  // Lắng nghe sự kiện cuộn chuột để cập nhật trạng thái background cho Navbar
   useEffect(() => {
     const handleScroll = () => setIsScrolled(window.scrollY > 20)
     window.addEventListener('scroll', handleScroll)
     return () => window.removeEventListener('scroll', handleScroll)
   }, [])
 
-  // Cuộn mượt đến section theo id
+  // Hàm cuộn mượt (Smooth Scroll) tới section theo ID
   const scrollToSection = (id: string) => {
     document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' })
     setIsMenuOpen(false)
   }
 
+  // Mở hộp thoại Đăng nhập / Đăng ký
   const openLogin = () => { setAuthDrawerMode('login'); setIsAuthDrawerOpen(true) }
   const openRegister = () => { setAuthDrawerMode('register'); setIsAuthDrawerOpen(true) }
 
   return (
     <div className="min-h-screen bg-gray-50">
 
-      {/* ===== NAVBAR ===== */}
+      {/* ===== 1. THANH ĐIỀU HƯỚNG TOP NAVBAR ===== */}
       <motion.nav
         initial={{ y: -100, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
@@ -63,7 +78,7 @@ export default function Home() {
             <span className="text-2xl font-bold text-white">NexPark</span>
           </Link>
 
-          {/* Desktop Navigation */}
+          {/* Menu điều hướng dành cho màn hình Máy tính (Desktop) */}
           <div className="hidden md:flex items-center space-x-8">
             <WavyNavLink onClick={() => scrollToSection('home')} className="text-white/80 hover:text-white font-medium transition-colors">Home</WavyNavLink>
             <WavyNavLink onClick={() => scrollToSection('about')} className="text-white/80 hover:text-white font-medium transition-colors">About</WavyNavLink>
@@ -71,9 +86,10 @@ export default function Home() {
             <WavyNavLink onClick={() => scrollToSection('pricing')} className="text-white/80 hover:text-white font-medium transition-colors">Pricing</WavyNavLink>
             <WavyNavLink onClick={() => scrollToSection('contact')} className="text-white/80 hover:text-white font-medium transition-colors">Contact</WavyNavLink>
 
+            {/* Điều hướng theo trạng thái Đăng nhập */}
             {isLoggedIn ? (
               <Link
-                href={user?.role === 'MANAGER' ? '/dashboard/manager/facilities' : '/dashboard'}
+                href={user?.role === 'MANAGER' ? '/dashboard/manager/facilities' : user?.role === 'ADMIN' ? '/dashboard/admin' : '/dashboard'}
                 className="px-6 py-2.5 bg-emerald-500 text-white rounded-lg font-semibold hover:bg-emerald-600 hover:shadow-lg transition-all"
               >
                 Dashboard
@@ -99,13 +115,13 @@ export default function Home() {
             </button>
           </div>
 
-          {/* Mobile Hamburger */}
+          {/* Nút Hamburger Menu trên Điện thoại (Mobile) */}
           <button className="md:hidden text-white cursor-pointer" onClick={() => setIsMenuOpen(!isMenuOpen)}>
             {isMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
           </button>
         </div>
 
-        {/* Mobile Navigation Dropdown */}
+        {/* Menu thả xuống dành cho Điện thoại (Mobile Navigation Dropdown) */}
         {isMenuOpen && (
           <div className="md:hidden absolute top-full left-4 right-4 bg-black/90 backdrop-blur-md shadow-2xl border border-white/10 rounded-2xl p-4 mt-2">
             <div className="flex flex-col space-y-4">
@@ -117,7 +133,7 @@ export default function Home() {
 
               {isLoggedIn ? (
                 <Link
-                  href={user?.role === 'MANAGER' ? '/dashboard/manager/facilities' : '/dashboard'}
+                  href={user?.role === 'MANAGER' ? '/dashboard/manager/facilities' : user?.role === 'ADMIN' ? '/dashboard/admin' : '/dashboard'}
                   onClick={() => setIsMenuOpen(false)}
                   className="text-center py-3 w-full bg-emerald-500 text-white rounded-lg font-semibold"
                 >
@@ -149,7 +165,7 @@ export default function Home() {
         )}
       </motion.nav>
 
-      {/* ===== LANDING PAGE SECTIONS ===== */}
+      {/* ===== 2. CÁC PHẦN NỘI DUNG CHÍNH (LANDING PAGE SECTIONS) ===== */}
       <Hero scrollToSection={scrollToSection} />
       <About />
       <Features />
@@ -157,7 +173,7 @@ export default function Home() {
       <Pricing />
       <Contact />
 
-      {/* ===== CTA SECTION ===== */}
+      {/* ===== 3. KHỐI KÊU GỌI HÀNH ĐỘNG (CTA SECTION) ===== */}
       <section id="booking" className="bg-[#0a0a0a] text-white relative overflow-hidden">
         <div className="h-px bg-gradient-to-r from-transparent via-emerald-500/30 to-transparent" />
         <div className="max-w-5xl mx-auto px-6 lg:px-12 py-28 flex flex-col md:flex-row md:items-end md:justify-between gap-10">
@@ -190,7 +206,7 @@ export default function Home() {
         <div className="h-px bg-gradient-to-r from-transparent via-white/8 to-transparent" />
       </section>
 
-      {/* ===== FOOTER ===== */}
+      {/* ===== 4. CHÂN TRANG (FOOTER) ===== */}
       <footer className="bg-[#060606] text-white">
         <div className="max-w-5xl mx-auto px-6 lg:px-12 py-16 flex flex-col md:flex-row md:items-end md:justify-between gap-10">
           <div>
@@ -219,7 +235,7 @@ export default function Home() {
         </div>
       </footer>
 
-      {/* ===== AUTH DRAWER ===== */}
+      {/* ===== 5. HỘP THOẠI ĐĂNG NHẬP / ĐĂNG KÝ (AUTH DRAWER) ===== */}
       <AuthDrawer
         isOpen={isAuthDrawerOpen}
         onClose={() => setIsAuthDrawerOpen(false)}

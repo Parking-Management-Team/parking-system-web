@@ -1,3 +1,17 @@
+/**
+ * ═══════════════════════════════════════════════════════════════════════════════
+ * 📌 FILE: Hero.tsx (KHỐI HERO BANNER CHÍNH CỦA LANDING PAGE)
+ * ═══════════════════════════════════════════════════════════════════════════════
+ *
+ * 🎯 MỤC ĐÍCH FILE:
+ * Banner ấn tượng đầu tiên của website NexPark tại Tòa nhà FPT:
+ * 1. 🎬 Video nền tự động phát (`parking-landingpage.mp4`) với các lớp phủ mờ tối ưu hiển thị chữ.
+ * 2. ✍️ Chữ chạy đa dạng (Typewriter Text) thay đổi từ khóa "with NexPark.", "at FPT Building.", "with AI.".
+ * 3. 📊 Thống kê ấn tượng dạng số nhảy tăng dần (`CountUp` Component): 500+ vị trí đỗ, 10K+ tài xế tin dùng, 99.8% khớp thời gian thực.
+ * 4. 🔗 Điều hướng cuộn mượt đến các section tiếp theo.
+ * ═══════════════════════════════════════════════════════════════════════════════
+ */
+
 'use client'
 
 import { motion } from 'framer-motion'
@@ -15,22 +29,16 @@ const fadeUp = (delay = 0) => ({
   transition: { duration: 0.9, delay, ease: [0.16, 1, 0.3, 1] as [number, number, number, number] },
 })
 
-const fadeIn = (delay = 0) => ({
-  initial: { opacity: 0 },
-  animate: { opacity: 1 },
-  transition: { duration: 1.2, delay },
-})
-
 export default function Hero({ scrollToSection }: HeroProps) {
   return (
     <section
       id="home"
       className="relative min-h-screen flex flex-col overflow-hidden bg-black"
     >
-      {/* Cinematic Grid Overlay */}
+      {/* Lớp phủ lưới thiết kế điện ảnh (Cinematic Grid Overlay) */}
       <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff03_1px,transparent_1px),linear-gradient(to_bottom,#ffffff03_1px,transparent_1px)] bg-[size:4rem_4rem] pointer-events-none z-10" />
 
-      {/* Background Video */}
+      {/* Video nền chạy tự động lặp lại */}
       <video
         autoPlay
         loop
@@ -41,28 +49,26 @@ export default function Hero({ scrollToSection }: HeroProps) {
         <source src="/assets/videos/parking-landingpage.mp4" type="video/mp4" />
       </video>
 
-      {/* Depth gradient - subtle veil so text remains readable */}
+      {/* Lớp phủ dải màu chuyển mờ để chữ nổi bật chuẩn tương phản */}
       <div className="absolute inset-0 bg-gradient-to-r from-black/85 via-black/50 to-black/20 z-10" />
       <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent z-10" />
 
-      {/* Top accent bar */}
+      {/* Đường viền phát sáng ở trên cùng */}
       <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-emerald-500/30 to-transparent z-20" />
 
-
-
-      {/* MAIN CONTENT */}
+      {/* ===== NỘI DUNG CHÍNH HERO ===== */}
       <div className="relative z-20 flex-1 flex flex-col justify-center px-6 lg:px-16 pt-40 pb-12 max-w-[1400px] mx-auto w-full">
 
-        {/* ── HERO HEADLINE ── */}
+        {/* ── Nhan đề Tiêu đề lớn ── */}
         <div className="mb-10">
-          {/* Small eyebrow label */}
+          {/* Nhãn nhỏ mô tả dự án */}
           <motion.div {...fadeUp(0.15)} className="mb-6">
             <span className="font-mono text-xs text-white/60 uppercase tracking-[0.3em] border-l-2 border-emerald-500 pl-3">
               NexPark • Smart Parking Infrastructure • FPT Building
             </span>
           </motion.div>
 
-          {/* Giant headline */}
+          {/* Tiêu đề khổng lồ kết hợp chữ đánh máy */}
           <motion.h1
             {...fadeUp(0.2)}
             className="font-black text-white leading-[0.88] tracking-tighter uppercase select-none"
@@ -81,20 +87,20 @@ export default function Hero({ scrollToSection }: HeroProps) {
           </motion.h1>
         </div>
 
-        {/* ── SUB COLUMNS: Description + Actions ── */}
+        {/* ── CỘT PHỤ: Đoạn mô tả ngắn & Các thẻ tính năng nổi bật ── */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-16 border-t border-white/5 pt-10">
 
-          {/* Description text */}
+          {/* Mô tả giải pháp đỗ xe NexPark */}
           <motion.div {...fadeUp(0.3)} className="lg:col-span-5">
             <p className="text-base lg:text-lg text-white/50 font-light leading-relaxed max-w-md">
-              NexPark intelligent parking management system for FPT Building. 
-              Advance booking, automated license plate recognition, and contactless payment.
+              Hệ thống quản lý bãi đỗ xe thông minh NexPark dành riêng cho Tòa nhà FPT.
+              Hỗ trợ đặt trước vị trí đỗ, nhận diện biển số tự động ALPR và thanh toán không tiếp xúc.
             </p>
           </motion.div>
 
-          {/* Feature Pills + CTAs */}
+          {/* Các nút bấm & Nhãn micro-tags */}
           <motion.div {...fadeUp(0.4)} className="lg:col-span-7 flex flex-col gap-6">
-            {/* Feature micro-tags */}
+            {/* Các thẻ tiêu biểu */}
             <div className="flex flex-wrap gap-3">
               {[
                 { icon: MapPin, label: 'Real-time Tracking' },
@@ -112,7 +118,7 @@ export default function Hero({ scrollToSection }: HeroProps) {
               ))}
             </div>
 
-            {/* Single CTA — refined text-link style */}
+            {/* Nút bấm chuyển hướng xuống các tính năng */}
             <motion.button
               whileHover={{ x: 4 }}
               whileTap={{ scale: 0.97 }}
@@ -120,7 +126,7 @@ export default function Hero({ scrollToSection }: HeroProps) {
               className="group inline-flex items-center gap-3 cursor-pointer"
             >
               <span className="font-mono text-xs uppercase tracking-[0.2em] text-emerald-400 group-hover:text-emerald-300 transition-colors relative">
-                Explore NexPark
+                Khám phá NexPark
                 <span className="absolute -bottom-0.5 left-0 w-0 h-px bg-emerald-400 group-hover:w-full transition-all duration-300" />
               </span>
               <span className="w-7 h-7 rounded-full border border-emerald-500/40 flex items-center justify-center group-hover:border-emerald-400 group-hover:bg-emerald-500/10 transition-all duration-300">
@@ -131,7 +137,7 @@ export default function Hero({ scrollToSection }: HeroProps) {
         </div>
       </div>
 
-      {/* ── SCHEMATIC STATS BAR ── */}
+      {/* ── BẢNG THỐNG KÊ ẤN TƯỢNG (SCHEMATIC STATS BAR) ── */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -139,7 +145,7 @@ export default function Hero({ scrollToSection }: HeroProps) {
         className="relative z-20 w-full border-t border-white/5 bg-black/60"
       >
         <div className="max-w-[1400px] mx-auto px-6 lg:px-16 grid grid-cols-3 divide-x divide-white/5">
-          {/* Stat 1 */}
+          {/* Chỉ số 1: Số vị trí đỗ */}
           <div className="flex flex-col items-center justify-center py-7 gap-1 text-center">
             <p className="font-mono text-[9px] uppercase tracking-[0.25em] text-emerald-400/70">
               Active spots
@@ -155,7 +161,7 @@ export default function Hero({ scrollToSection }: HeroProps) {
             </p>
           </div>
 
-          {/* Stat 2 */}
+          {/* Chỉ số 2: Số người dùng */}
           <div className="flex flex-col items-center justify-center py-7 gap-1 text-center">
             <p className="font-mono text-[9px] uppercase tracking-[0.25em] text-emerald-400/70">
               Global drivers
@@ -171,7 +177,7 @@ export default function Hero({ scrollToSection }: HeroProps) {
             </p>
           </div>
 
-          {/* Stat 3 */}
+          {/* Chỉ số 3: Tỷ lệ chính xác */}
           <div className="flex flex-col items-center justify-center py-7 gap-1 text-center">
             <p className="font-mono text-[9px] uppercase tracking-[0.25em] text-emerald-400/70">
               Optimal rate

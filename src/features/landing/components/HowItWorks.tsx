@@ -1,3 +1,17 @@
+/**
+ * ═══════════════════════════════════════════════════════════════════════════════
+ * 📌 FILE: HowItWorks.tsx (SECTION QUY TRÌNH HƯỚNG DẪN 4 BƯỚC GỬI XE)
+ * ═══════════════════════════════════════════════════════════════════════════════
+ *
+ * 🎯 MỤC ĐÍCH FILE:
+ * Hướng dẫn trực quan quy trình 4 bước gửi xe đơn giản dành cho tài xế:
+ * 1. 🔍 01. Tìm kiếm (Find): Tra cứu ô đỗ khả dụng theo tầng và khu vực.
+ * 2. 📅 02. Đặt trước (Book): Đặt giữ vị trí trước tối đa 8 tiếng hoặc gửi vãng lai.
+ * 3. 🚗 03. Vào bãi (Enter): Quẹt thẻ RFID / Quét mã QR, barie tự động mở.
+ * 4. 💳 04. Thanh toán (Pay): Tự động tính tiền khi ra khỏi bãi qua tiền mặt / chuyển khoản.
+ * ═══════════════════════════════════════════════════════════════════════════════
+ */
+
 'use client'
 
 import { motion } from 'framer-motion'
@@ -10,10 +24,10 @@ const fade = (delay = 0) => ({
 })
 
 const steps = [
-  { n: '01', title: 'Find',  body: 'Browse real-time slot availability by zone and vehicle type.' },
-  { n: '02', title: 'Book',  body: 'Walk in or pre-book up to 8 hours ahead with a deposit.' },
-  { n: '03', title: 'Enter', body: 'Tap RFID or scan QR. Barrier lifts. Drive in.' },
-  { n: '04', title: 'Pay',   body: 'Auto-calculated fee on exit. Cash or transfer.' },
+  { n: '01', title: 'Tìm kiếm', body: 'Tra cứu sơ đồ bãi đỗ xe trực tuyến theo thời gian thực.' },
+  { n: '02', title: 'Đặt trước', body: 'Gửi xe vãng lai hoặc giữ trước vị trí mong muốn tối đa 8h.' },
+  { n: '03', title: 'Vào bãi',   body: 'Quẹt thẻ RFID hoặc quét mã QR, cổng kiểm soát tự mở.' },
+  { n: '04', title: 'Thanh toán', body: 'Tự động tính phí chính xác khi Check-out qua cổng.' },
 ]
 
 export default function HowItWorks() {
@@ -23,18 +37,18 @@ export default function HowItWorks() {
 
       <div className="max-w-5xl mx-auto px-6 lg:px-12 py-28">
 
-        {/* Headline */}
+        {/* Tiêu đề phần Quy trình gửi xe */}
         <motion.div {...fade()} className="mb-20">
           <p className="font-mono text-[11px] uppercase tracking-[0.25em] text-emerald-500 mb-4">
             04 / How It Works
           </p>
           <h2 className="text-5xl md:text-7xl font-black leading-none tracking-tight">
-            Four steps.<br />
-            <span className="text-emerald-400">That's it.</span>
+            Chỉ 4 bước đơn giản.<br />
+            <span className="text-emerald-400">Nhanh chóng & An toàn.</span>
           </h2>
         </motion.div>
 
-        {/* Steps — cinematic horizontal */}
+        {/* 4 Bước dạng ngang 4 cột */}
         <div className="grid md:grid-cols-4 gap-0 border border-white/8 rounded-2xl overflow-hidden">
           {steps.map((s, i) => (
             <motion.div
@@ -51,12 +65,12 @@ export default function HowItWorks() {
           ))}
         </div>
 
-        {/* Bottom footnote */}
+        {/* Chú thích cam kết */}
         <motion.p
           {...fade(0.4)}
           className="mt-8 text-center text-sm text-white/25 font-mono"
         >
-          No subscription. No commitment. Pay per visit.
+          Không yêu cầu duy trì tài khoản trả trước. Thanh toán chính xác theo từng lượt sử dụng.
         </motion.p>
       </div>
 

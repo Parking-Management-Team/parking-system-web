@@ -31,8 +31,8 @@ export default function DriverHelp() {
       category: "access"
     },
     { 
-      question: "Can I cancel a booking and get a full refund?", 
-      answer: "Cancellations made 2 hours prior to the booking start time are eligible for a 100% refund. Cancellations within the 2-hour window may incur a 15% administrative fee.",
+      question: "How do I cancel my booking?", 
+      answer: "You can cancel your booking anytime from your Booking Details before check-in. Note that PBMS does not issue cash or online refunds for cancelled bookings in this release.",
       category: "booking"
     },
     { 

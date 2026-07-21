@@ -1,14 +1,15 @@
 /**
- * Manager Feature - Public API (Cổng xuất công khai)
+ * Manager Feature - Cổng Xuất Công Khai (Public Barrel Export API)
  *
- * Mọi file bên ngoài features/manager chỉ được import từ file này.
- * KHÔNG import trực tiếp từ bên trong thư mục con để giữ tính đóng gói.
+ * Mọi file bên ngoài thuộc ứng dụng (ví dụ: src/app/dashboard/manager) 
+ * CHỈ ĐƯỢC IMPORT dữ liệu/component/hook từ file index.ts này.
+ * Tuân thủ nguyên lý đóng gói (Encapsulation) của Feature-Driven Architecture.
  *
  * @example
- * import { StatCards, RecentActivity } from '@/features/manager'
+ * import { StatCards, useManagerDashboard } from '@/features/manager';
  */
 
-// Components phục vụ trang Dashboard của Manager
+// ── 1. UI Components cho Dashboard Quản lý ──
 export { StatCards }           from './components/StatCards';
 export { HourlyTrafficChart }  from './components/HourlyTrafficChart';
 export { OccupancyPieChart }   from './components/OccupancyPieChart';
@@ -16,11 +17,11 @@ export { QuickLinks }          from './components/QuickLinks';
 export { RecentActivity }      from './components/RecentActivity';
 export { default as ManagerWorkspace } from './components/ManagerWorkspace';
 
-// Types xuất ra ngoài để các trang sử dụng cấu trúc dữ liệu
+// ── 2. Data Types xuất ra cho các tầng sử dụng ──
 export type { DashboardStats } from './components/StatCards';
 export type { ActivityLog }    from './components/RecentActivity';
 
-// Hooks
+// ── 3. Custom Hooks quản lý Nghiệp vụ & API ──
 export { useAccounts } from './hooks/useAccounts';
 export { useSystemConfig } from './hooks/useSystemConfig';
 export { usePricingEngine } from './hooks/usePricingEngine';

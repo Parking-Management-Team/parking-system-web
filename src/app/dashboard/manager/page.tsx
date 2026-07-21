@@ -10,7 +10,18 @@ import {
   useManagerDashboard,
 } from '@/features/manager';
 
+/**
+ * Trang Dashboard dành cho Quản lý (Manager Dashboard Page)
+ *
+ * Đường dẫn: /dashboard/manager
+ * Vai trò:
+ * - Đóng vai trò là Presentational Page Container.
+ * - Sử dụng Custom Hook `useManagerDashboard` để lấy toàn bộ dữ liệu & trạng thái thời gian thực.
+ * - Lắp ráp các UI Components: Thẻ thống kê (StatCards), Biểu đồ lưu lượng/doanh thu (HourlyTrafficChart),
+ *   Biểu đồ tròn ô đỗ (OccupancyPieChart), Phím tắt quản lý (QuickLinks), và Lịch sử ra vào (RecentActivity).
+ */
 export default function ManagerDashboard() {
+  // Lấy dữ liệu và hàm thao tác từ Custom Hook useManagerDashboard
   const {
     buildings,
     selectedBuildingId,
@@ -24,19 +35,19 @@ export default function ManagerDashboard() {
   return (
     <div className="p-6 md:p-8 space-y-8 bg-[#f8f9ff] min-h-screen">
       
-      {/* ── Header with Building Selector ── */}
+      {/* ── Tiêu đề trang & Bộ chọn tòa nhà (Building Selector) ── */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h2 className="text-2xl md:text-3xl font-black text-slate-800 tracking-tight">
             Dashboard Overview
           </h2>
           <p className="text-slate-500 mt-1 text-sm md:text-base font-medium">
-            Monitor real-time parking spaces, capacity metrics, and operations.
+            Theo dõi thời gian thực số lượng ô đỗ, chỉ số công suất và hoạt động bãi xe.
           </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-3 shrink-0 self-start md:self-auto">
-          {/* Building Selector */}
+          {/* Dropdown chọn Tòa nhà đỗ xe */}
           <div className="relative">
             <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[18px]">
               domain
@@ -58,15 +69,17 @@ export default function ManagerDashboard() {
         </div>
       </div>
 
+      {/* Hiển thị xoay loading khi đang lấy dữ liệu hạ tầng ban đầu */}
       {loading ? (
         <div className="flex items-center justify-center h-64">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600" />
         </div>
       ) : (
         <>
-          {/* ── 4 Stat Cards ── */}
+          {/* ── 1. Thẻ thống kê tổng quan (4 Stat Cards) ── */}
           <StatCards stats={stats} />
 
+          {/* ── 2. Khu vực biểu đồ (Biểu đồ doanh thu 7 ngày + Biểu đồ tròn ô đỗ) ── */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <div className="lg:col-span-2">
               <HourlyTrafficChart chartData={chartData} />
@@ -76,7 +89,7 @@ export default function ManagerDashboard() {
             </div>
           </div>
 
-          {/* ── Actions & Activities Grid ── */}
+          {/* ── 3. Phím tắt nhanh & Lịch sử hoạt động xe vào ra ── */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <div className="lg:col-span-2">
               <QuickLinks />

@@ -5,6 +5,9 @@ import { api } from '@/lib/api/client';
 import { ApiResponse } from '@/lib/types/api.types';
 import { useAuth } from '@/features/auth';
 
+/**
+ * Interface cấu trúc dữ liệu Tài khoản người dùng (Account DTO)
+ */
 export interface AccountDto {
   id: number;
   username: string;
@@ -17,6 +20,9 @@ export interface AccountDto {
   createdAt: string;
 }
 
+/**
+ * Interface dữ liệu đầu vào khi Admin khởi tạo tài khoản mới
+ */
 export interface CreateAccountPayload {
   username: string;
   email: string;
@@ -26,18 +32,31 @@ export interface CreateAccountPayload {
   roleId: number;
 }
 
+/**
+ * Custom Hook: useAccounts
+ *
+ * Chức năng:
+ * - Quản lý toàn bộ danh sách tài khoản người dùng cho Quản trị viên (Admin).
+ * - Cung cấp các tính năng: Lấy danh sách, Lọc theo từ khóa/vai trò/trạng thái, 
+ *   Tạo tài khoản mới, Cập nhật thông tin, Vô hiệu hóa (Block) và Kích hoạt lại (Unblock).
+ */
 export function useAccounts() {
   const { showToast } = useAuth();
+  // Trạng thái lưu danh sách tất cả tài khoản
   const [accounts, setAccounts] = useState<AccountDto[]>([]);
+  // Trạng thái đang tải dữ liệu
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  // Trạng thái lưu thông báo lỗi
   const [error, setError] = useState<string | null>(null);
 
-  // Search & Filters state
+  // Bộ lọc & Từ khóa tìm kiếm
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [roleFilter, setRoleFilter] = useState<string>('ALL');
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
 
-  // Load accounts from API
+  /**
+   * Gọi API lấy danh sách tài khoản người dùng từ máy chủ
+   */
   const fetchAccounts = useCallback(async () => {
     setIsLoading(true);
     setError(null);
@@ -46,22 +65,25 @@ export function useAccounts() {
       if (response.success && response.data) {
         setAccounts(response.data);
       } else {
-        setError(response.message || 'Failed to fetch accounts.');
+        setError(response.message || 'Không thể tải danh sách tài khoản.');
       }
     } catch (err: unknown) {
-      console.error('Error fetching accounts:', err);
-      const errorMsg = err instanceof Error ? err.message : 'An error occurred while connecting to the server.';
+      console.error('Lỗi khi tải danh sách tài khoản:', err);
+      const errorMsg = err instanceof Error ? err.message : 'Đã xảy ra lỗi khi kết nối tới máy chủ.';
       setError(errorMsg);
     } finally {
       setIsLoading(false);
     }
   }, []);
 
+  // Tự động lấy danh sách tài khoản khi hook được khởi tạo
   useEffect(() => {
     fetchAccounts();
   }, [fetchAccounts]);
 
-  // Filter accounts
+  /**
+   * Tính toán lọc danh sách tài khoản dựa trên từ khóa tìm kiếm, vai trò và trạng thái
+   */
   const filteredAccounts = useMemo(() => {
     return accounts.filter((acc) => {
       const matchesSearch =
@@ -78,7 +100,9 @@ export function useAccounts() {
     });
   }, [accounts, searchQuery, roleFilter, statusFilter]);
 
-  // Calculate statistics
+  /**
+   * Tính toán các chỉ số thống kê tài khoản (Tổng số, Đang hoạt động, Ngưng hoạt động, Bị khóa)
+   */
   const stats = useMemo(() => {
     return {
       total: accounts.length,
@@ -88,27 +112,31 @@ export function useAccounts() {
     };
   }, [accounts]);
 
-  // Create account mutation
+  /**
+   * Thao tác tạo tài khoản mới (POST /accounts)
+   */
   const createAccount = useCallback(async (payload: CreateAccountPayload): Promise<boolean> => {
     try {
       const response = await api.post<ApiResponse<AccountDto>>('/accounts', payload);
       if (response.success || response.data) {
-        showToast('Account created successfully!', 'success');
+        showToast('Tạo tài khoản thành công!', 'success');
         fetchAccounts();
         return true;
       } else {
-        showToast(response.message || 'Failed to create account.', 'error');
+        showToast(response.message || 'Tạo tài khoản thất bại.', 'error');
         return false;
       }
     } catch (err: unknown) {
-      console.error('Error creating account:', err);
-      const errorMsg = err instanceof Error ? err.message : 'An error occurred during account creation.';
+      console.error('Lỗi khi tạo tài khoản:', err);
+      const errorMsg = err instanceof Error ? err.message : 'Đã xảy ra lỗi trong quá trình tạo tài khoản.';
       showToast(errorMsg, 'error');
       return false;
     }
   }, [fetchAccounts, showToast]);
 
-  // Edit mutation
+  /**
+   * Thao tác cập nhật thông tin tài khoản (PUT /accounts/{id})
+   */
   const updateAccount = useCallback(async (
     id: number,
     payload: { fullName: string; phone: string | null; roleId: number; accountStatus: string }
@@ -116,42 +144,46 @@ export function useAccounts() {
     try {
       const response = await api.put<ApiResponse<string>>(`/accounts/${id}`, payload);
       if (response.success) {
-        showToast('Account updated successfully!', 'success');
+        showToast('Cập nhật tài khoản thành công!', 'success');
         fetchAccounts();
         return true;
       } else {
-        showToast(response.message || 'Failed to update account.', 'error');
+        showToast(response.message || 'Cập nhật tài khoản thất bại.', 'error');
         return false;
       }
     } catch (err: unknown) {
-      console.error('Error updating account:', err);
-      const errorMsg = err instanceof Error ? err.message : 'An error occurred during update.';
+      console.error('Lỗi khi cập nhật tài khoản:', err);
+      const errorMsg = err instanceof Error ? err.message : 'Đã xảy ra lỗi trong quá trình cập nhật.';
       showToast(errorMsg, 'error');
       return false;
     }
   }, [fetchAccounts, showToast]);
 
-  // Block account mutation
+  /**
+   * Thao tác khóa/vô hiệu hóa tài khoản (DELETE /accounts/{id})
+   */
   const blockAccount = useCallback(async (id: number): Promise<boolean> => {
     try {
       const response = await api.delete<ApiResponse<string>>(`/accounts/${id}`);
       if (response.success) {
-        showToast('Account blocked successfully!', 'success');
+        showToast('Đã khóa tài khoản thành công!', 'success');
         fetchAccounts();
         return true;
       } else {
-        showToast(response.message || 'Failed to block account.', 'error');
+        showToast(response.message || 'Khóa tài khoản thất bại.', 'error');
         return false;
       }
     } catch (err: unknown) {
-      console.error('Error blocking account:', err);
-      const errorMsg = err instanceof Error ? err.message : 'An error occurred.';
+      console.error('Lỗi khi khóa tài khoản:', err);
+      const errorMsg = err instanceof Error ? err.message : 'Đã xảy ra lỗi trong quá trình khóa tài khoản.';
       showToast(errorMsg, 'error');
       return false;
     }
   }, [fetchAccounts, showToast]);
 
-  // Unblock account mutation (via PUT to set status back to Active)
+  /**
+   * Thao tác mở khóa tài khoản và đặt trạng thái về Active (PUT /accounts/{id})
+   */
   const unblockAccount = useCallback(async (
     id: number,
     currentData: { fullName: string | null; phone: string | null; roleId: number }
@@ -165,16 +197,16 @@ export function useAccounts() {
       };
       const response = await api.put<ApiResponse<string>>(`/accounts/${id}`, payload);
       if (response.success) {
-        showToast('Account unblocked and set to Active successfully!', 'success');
+        showToast('Mở khóa tài khoản thành công!', 'success');
         fetchAccounts();
         return true;
       } else {
-        showToast(response.message || 'Failed to unblock account.', 'error');
+        showToast(response.message || 'Mở khóa tài khoản thất bại.', 'error');
         return false;
       }
     } catch (err: unknown) {
-      console.error('Error unblocking account:', err);
-      const errorMsg = err instanceof Error ? err.message : 'An error occurred.';
+      console.error('Lỗi khi mở khóa tài khoản:', err);
+      const errorMsg = err instanceof Error ? err.message : 'Đã xảy ra lỗi trong quá trình mở khóa.';
       showToast(errorMsg, 'error');
       return false;
     }

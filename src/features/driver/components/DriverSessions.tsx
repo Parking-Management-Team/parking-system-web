@@ -1,3 +1,30 @@
+/**
+ * ===================================================================================
+ * 🅿️ FE COMPONENT: DriverSessions.tsx (Phiên Gửi Xe / Active & Historical Parking Sessions)
+ * ===================================================================================
+ * 
+ * 📌 VAI TRÒ & CHỨC NĂNG CHÍNH TRÊN UI:
+ * - Quản lý và theo dõi danh sách các lượt đỗ xe của tài xế (Lượt đang đỗ active & các lượt đã checkout).
+ * - Render chi tiết từng lượt đỗ: Biển số xe, tên bãi đỗ, vị trí ô đỗ (Slot Code), thời điểm Check-in / Check-out.
+ * - Mã QR Check-in / Check-out cho từng phiên đỗ để đưa cho Nhân viên (Staff) quét bằng thiết bị cầm tay.
+ * - Giải phóng chỗ đỗ (Release Slot) dành cho các trường hợp đặc biệt.
+ * 
+ * ⚙️ KẾT NỐI API BACKEND (ASP.NET Core Controllers):
+ * - GET   /parking-sessions?accountId={accountId}  --> Lấy toàn bộ lịch sử các lượt gửi xe của tài xế (ParkingSessionsController.cs)
+ * - GET   /parking-sessions/active                 --> Lấy phiên gửi xe đang trong bãi đỗ (ParkingSessionsController.cs)
+ * - PATCH /parking-sessions/{id}/complete          --> Hoàn tất lượt gửi xe / giải phóng ô đỗ (ParkingSessionsController.cs)
+ * 
+ * 🗄️ BẢNG DATABASE LIÊN QUAN (PostgreSQL):
+ * - ParkingSessions (Id, LicensePlateIn, CheckInTime, CheckOutTime, SessionStatus, SlotId, CardId)
+ * - ParkingSlots    (Id, SlotCode, BuildingId)
+ * 
+ * 🔄 LUỒNG CẬP NHẬT DỮ LIỆU & RENDER UI:
+ * 1. Mounting: Custom hook `useParkingSessions()` gọi API lấy danh sách lượt đỗ xe.
+ * 2. Render UI: Lượt đỗ `ACTIVE` hiển thị thẻ nổi bật có Badge màu xanh nhấp nháy, hiển thị đồng hồ đếm thời lượng đỗ.
+ * 3. Render Mã QR: Mã QR được tạo động chứa thông tin `SessionId` và `LicensePlate` phục vụ nhân viên quét tại cổng.
+ * ===================================================================================
+ */
+
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';

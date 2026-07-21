@@ -1,18 +1,32 @@
 /**
- * ═══════════════════════════════════════════════════════════════════════════════
- * 📌 FILE: LoginForm.tsx (MÀN HÌNH ĐĂNG NHẬP NGUYÊN HỆ THỐNG - LOGIN FORM)
- * ═══════════════════════════════════════════════════════════════════════════════
+ * ===================================================================================
+ * 🔑 FE COMPONENT: LoginForm.tsx (Form Đăng Nhập / Driver & User Authentication)
+ * ===================================================================================
+ * 
+ * 📌 VAI TRÒ & CHỨC NĂNG CHÍNH TRÊN UI:
+ * - Đăng nhập tài khoản bằng tên đăng nhập (Username) hoặc Email kèm Mật khẩu.
+ * - Hỗ trợ 2 chế độ hiển thị: Modal Mode (trong AuthDrawer) & Standalone Page (/login).
+ * - Validation phía máy khách (Client-side validation): Kiểm tra khoảng trắng, ô trống, định dạng.
+ * - Lưu phiên làm việc JWT Token vào `localStorage` và tự động chuyển hướng theo vai trò (Driver -> `/dashboard/driver`).
+ * 
+ * ⚙️ KẾT NỐI API BACKEND (ASP.NET Core Controllers):
+ * - POST /Auth/login        --> Xác thực thông tin tài khoản và trả về JWT Bearer Token (AuthController.cs)
+ * - GET  /Accounts/profile  --> Lấy thông tin chi tiết tài khoản sau khi đăng nhập thành công (AccountsController.cs)
+ * 
+ * 🗄️ BẢNG DATABASE LIÊN QUAN (PostgreSQL):
+ * - Accounts (Id, Username, Email, PasswordHash, RoleId, IsActive)
+ * - Roles    (Id, Name) --> 'DRIVER', 'STAFF', 'MANAGER', 'ADMIN'
+ * 
+ * 🔄 LUỒNG CẬP NHẬT DỮ LIỆU & RENDER UI:
+ * 1. Submit Form: Gọi `POST /Auth/login` -> Nhận `{ token, user }`.
+ * 2. Lưu trữ Session: Lưu `nexpark_token` vào `localStorage`, cập nhật state `AuthContext`.
+ * 3. Chuyển hướng: Chuyển thẳng về Dashboard phù hợp với quyền sử dụng (`/dashboard/driver`).
+ * ===================================================================================
  *
- * 🎯 MỤC ĐÍCH FILE:
- * Cung cấp giao diện Đăng nhập hệ thống cho người dùng (Driver, Staff, Manager, Admin)
- * hỗ trợ 2 phương thức chính:
- * 1. Đăng nhập qua Username / Email & Mật khẩu chuẩn backend NexPark.
- * 2. Đăng nhập nhanh qua Google OAuth (Tự động liên kết hoặc chuyển qua tạo tài khoản mới nếu chưa có).
- *
- * 🛠️ CHẾ ĐỘ HIỂN THỊ:
- * - Standalone Page Mode (isModal=false): Hiển thị đầy đủ giao diện trên trang /login riêng biệt.
- * - Modal / Drawer Mode (isModal=true): Hiển thị gọn gàng trong Drawer hoặc Popup Modal.
- * ═══════════════════════════════════════════════════════════════════════════════
+ * @param isModal - Có phải đang hiển thị trong drawer/modal không
+ * @param onSuccess - Callback khi đăng nhập thành công (modal mode)
+ * @param onClose - Callback đóng form
+ * @param onSwitchMode - Callback chuyển sang register
  */
 
 'use client';

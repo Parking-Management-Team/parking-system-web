@@ -1,3 +1,22 @@
+/**
+ * ===================================================================================
+ * 🎣 FE CUSTOM HOOK: usePayments.ts (Logic Quản Lý Thanh Toán & Doanh Thu / Payment Logic)
+ * ===================================================================================
+ * 
+ * 📌 VAI TRÒ & NHIỆM VỤ:
+ * - Quản lý state danh sách doanh thu, lịch sử giao dịch và chi tiết từng hóa đơn thanh toán.
+ * - Hỗ trợ lọc giao dịch theo bãi đỗ (BuildingId), khoảng thời gian (StartDate, EndDate) và phân trang.
+ * 
+ * ⚙️ KẾT NỐI API BACKEND (ASP.NET Core Controllers):
+ * - GET /Revenue          --> Lấy thống kê danh sách doanh thu & thanh toán (RevenueController.cs)
+ * - GET /Revenue/{id}     --> Lấy chi tiết lịch sử thanh toán cụ thể (RevenueController.cs)
+ * 
+ * 🗄️ BẢNG DATABASE LIÊN QUAN (PostgreSQL):
+ * - Payments              (Id, Amount, PaymentMethod, PaymentTime, SourceType, LicensePlate)
+ * - RevenueStatistics     (Id, BuildingId, TotalRevenue, TotalBookings, TotalSessions)
+ * ===================================================================================
+ */
+
 'use client';
 
 import { useState, useCallback } from 'react';

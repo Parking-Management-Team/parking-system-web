@@ -1,3 +1,24 @@
+/**
+ * ===================================================================================
+ * 🎣 FE CUSTOM HOOK: useParkingSessions.ts (Logic Phiên Gửi Xe / Parking Session Logic)
+ * ===================================================================================
+ * 
+ * 📌 VAI TRÒ & NHIỆM VỤ:
+ * - Quản lý state danh sách các lượt đỗ xe (Active & History) của hệ thống.
+ * - Gọi các API Check-in / Check-out cho cổng bảo vệ và tài xế.
+ * - Quản lý lọc danh sách phiên đỗ theo biển số xe, bãi đỗ, trạng thái (ACTIVE / COMPLETED).
+ * 
+ * ⚙️ KẾT NỐI API BACKEND (ASP.NET Core Controllers):
+ * - GET   /parking-sessions                   --> Lấy tất cả lượt gửi xe (ParkingSessionsController.cs)
+ * - GET   /parking-sessions/active            --> Lấy danh sách các lượt đỗ đang trong bãi (ParkingSessionsController.cs)
+ * - POST  /parking-sessions/check-in          --> Thực hiện Check-in cho xe vào bãi (ParkingSessionsController.cs)
+ * - PATCH /parking-sessions/{id}/complete     --> Thực hiện Check-out hoàn tất lượt gửi (ParkingSessionsController.cs)
+ * 
+ * 🗄️ BẢNG DATABASE LIÊN QUAN (PostgreSQL):
+ * - ParkingSessions (Id, LicensePlateIn, CheckInTime, CheckOutTime, SessionStatus, SlotId, CardId)
+ * ===================================================================================
+ */
+
 'use client';
 
 import { useState, useCallback } from 'react';

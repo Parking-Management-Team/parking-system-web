@@ -1,3 +1,16 @@
+/**
+ * ═══════════════════════════════════════════════════════════════════════════════
+ * 📌 FILE: Contact.tsx (SECTION THÔNG TIN LIÊN HỆ & ĐỊA ĐIỂM FPT BUILDING)
+ * ═══════════════════════════════════════════════════════════════════════════════
+ *
+ * 🎯 MỤC ĐÍCH FILE:
+ * Cung cấp thông tin vị trí địa lý, thời gian vận hành và kênh hỗ trợ kỹ thuật:
+ * 1. 📍 Địa điểm: Tòa nhà FPT, Khu Công nghệ Cao, Hà Nội (kèm đường dẫn Google Maps).
+ * 2. ⏰ Giờ hoạt động: Mở cửa 24/7, kỹ thuật viên trực từ 07:00 - 22:00.
+ * 3. 📞 Kênh hỗ trợ: Hotline trực tiếp & Email phản hồi sự cố nhanh `support@nexpark.vn`.
+ * ═══════════════════════════════════════════════════════════════════════════════
+ */
+
 'use client'
 
 import { MapPin, Clock, PhoneCall, Mail } from 'lucide-react'
@@ -5,11 +18,11 @@ import { MapPin, Clock, PhoneCall, Mail } from 'lucide-react'
 export default function Contact() {
   return (
     <section id="contact" className="py-24 bg-white overflow-hidden">
-      {/* Top subtle border */}
+      {/* Đường phân cách nhạt phía trên */}
       <div className="h-px bg-gradient-to-r from-transparent via-gray-200 to-transparent mb-16" />
 
       <div className="max-w-5xl mx-auto px-6 lg:px-12">
-        {/* Header */}
+        {/* Tiêu đề section Liên hệ */}
         <div className="text-center max-w-2xl mx-auto mb-16">
           <p className="font-mono text-[11px] uppercase tracking-[0.25em] text-emerald-600 mb-4">
             05 / Location & Contact
@@ -18,22 +31,22 @@ export default function Contact() {
             NexPark • <span className="text-emerald-500">FPT Building</span>
           </h2>
           <p className="text-lg text-gray-600 font-light leading-relaxed">
-            NexPark smart parking system serving FPT Building. Contact management or technical support below.
+            Hệ thống bãi đỗ xe thông minh NexPark phục vụ Tòa nhà FPT. Liên hệ bộ phận quản lý hoặc hỗ trợ kỹ thuật bên dưới.
           </p>
         </div>
 
-        {/* Contact info grid - 3 cards */}
+        {/* Lưới 3 thẻ thông tin liên hệ */}
         <div className="grid md:grid-cols-3 gap-8">
-          {/* Card 1: Location */}
+          {/* Thẻ 1: Vị trí địa lý bãi đỗ xe */}
           <div className="bg-gray-50 p-8 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between hover:shadow-md hover:border-emerald-200 transition-all duration-300">
             <div>
               <div className="w-12 h-12 bg-emerald-500/10 text-emerald-600 rounded-xl flex items-center justify-center mb-6">
                 <MapPin className="w-6 h-6" />
               </div>
-              <h3 className="text-lg font-bold text-gray-900 mb-2">Parking Location</h3>
+              <h3 className="text-lg font-bold text-gray-900 mb-2">Vị trí Bãi đỗ xe</h3>
               <p className="text-sm text-gray-600 leading-relaxed font-light mb-6">
-                NexPark Parking - FPT Building<br />
-                High-Tech Park, Hanoi, Vietnam
+                Bãi đỗ xe NexPark - Tòa nhà FPT<br />
+                Khu Công nghệ Cao, Hà Nội, Việt Nam
               </p>
             </div>
             <a
@@ -42,34 +55,34 @@ export default function Contact() {
               rel="noopener noreferrer"
               className="inline-flex items-center gap-2 text-xs font-bold text-emerald-600 hover:text-emerald-700 hover:underline"
             >
-              Get directions <MapPin className="w-3.5 h-3.5" />
+              Xem chỉ đường <MapPin className="w-3.5 h-3.5" />
             </a>
           </div>
 
-          {/* Card 2: Operating Hours */}
+          {/* Thẻ 2: Thời gian vận hành bãi đỗ */}
           <div className="bg-gray-50 p-8 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between hover:shadow-md hover:border-emerald-200 transition-all duration-300">
             <div>
               <div className="w-12 h-12 bg-emerald-500/10 text-emerald-600 rounded-xl flex items-center justify-center mb-6">
                 <Clock className="w-6 h-6" />
               </div>
-              <h3 className="text-lg font-bold text-gray-900 mb-2">Operating Hours</h3>
+              <h3 className="text-lg font-bold text-gray-900 mb-2">Thời gian Vận hành</h3>
               <p className="text-sm text-gray-600 leading-relaxed font-light">
-                Mon - Sun: 24/7<br />
-                Technical support: 07:00 - 22:00
+                Thứ 2 - Chủ nhật: Phục vụ 24/7<br />
+                Hỗ trợ kỹ thuật: 07:00 - 22:00
               </p>
             </div>
             <span className="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full w-fit mt-6">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" /> Active Now
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" /> Đang hoạt động
             </span>
           </div>
 
-          {/* Card 3: Support Contact */}
+          {/* Thẻ 3: Kênh hỗ trợ trực tuyến */}
           <div className="bg-gray-50 p-8 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between hover:shadow-md hover:border-emerald-200 transition-all duration-300">
             <div>
               <div className="w-12 h-12 bg-emerald-500/10 text-emerald-600 rounded-xl flex items-center justify-center mb-6">
                 <PhoneCall className="w-6 h-6" />
               </div>
-              <h3 className="text-lg font-bold text-gray-900 mb-2">Support Channels</h3>
+              <h3 className="text-lg font-bold text-gray-900 mb-2">Kênh Hỗ trợ Khách hàng</h3>
               <div className="space-y-3 text-sm text-gray-600 font-light mb-6">
                 <a
                   href="mailto:support@nexpark.vn"
@@ -92,13 +105,13 @@ export default function Contact() {
                 href="tel:+84123456789"
                 className="flex-1 py-2.5 px-3 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl text-xs font-bold text-center transition-all shadow-sm cursor-pointer"
               >
-                Call Hotline
+                Gọi Hotline
               </a>
               <a
                 href="mailto:support@nexpark.vn"
                 className="flex-1 py-2.5 px-3 border border-emerald-500/30 text-emerald-700 hover:bg-emerald-50 rounded-xl text-xs font-bold text-center transition-all cursor-pointer"
               >
-                Send Email
+                Gửi Email
               </a>
             </div>
           </div>
@@ -107,4 +120,3 @@ export default function Contact() {
     </section>
   )
 }
-

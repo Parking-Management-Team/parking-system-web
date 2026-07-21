@@ -1,3 +1,16 @@
+/**
+ * ═══════════════════════════════════════════════════════════════════════════════
+ * 📌 FILE: About.tsx (SECTION GIỚI THIỆU TẦM NHÌN NEXPARK)
+ * ═══════════════════════════════════════════════════════════════════════════════
+ *
+ * 🎯 MỤC ĐÍCH FILE:
+ * Giới thiệu tổng quan về hệ thống đỗ xe thông minh NexPark tại Tòa nhà FPT:
+ * 1. 🚗 Drivers (Ô tô): Đặt chỗ trước hoặc gửi vãng lai qua thẻ RFID / Mã QR.
+ * 2. 🏍️ Bikes (Xe máy): Phân khu riêng biệt với mức phí tối ưu.
+ * 3. ⚙️ Ops (Vận hành): Dashboard quản lý trực tuyến theo thời gian thực.
+ * ═══════════════════════════════════════════════════════════════════════════════
+ */
+
 'use client'
 
 import { motion } from 'framer-motion'
@@ -10,29 +23,29 @@ const fade = (delay = 0) => ({
 })
 
 const pillars = [
-  { num: '01', label: 'Drivers', headline: 'Park. Pay. Go.', sub: 'Walk-in or pre-book. Entry via QR or RFID. Zero paperwork.' },
-  { num: '02', label: 'Bikes',   headline: 'Zone-based, fair.', sub: 'Dedicated motorcycle zones with time-based flat pricing.' },
-  { num: '03', label: 'Ops',     headline: 'Full visibility.', sub: 'Real-time dashboards, automated billing, incident management.' },
+  { num: '01', label: 'Drivers', headline: 'Park. Pay. Go.', sub: 'Gửi vãng lai hoặc đặt trước vị trí đỗ. Vào bãi qua QR/RFID tiện lợi.' },
+  { num: '02', label: 'Bikes',   headline: 'Khu vực xe máy riêng.', sub: 'Phân vùng xe máy chuyên biệt với chính sách giá theo block tối ưu.' },
+  { num: '03', label: 'Ops',     headline: 'Vận hành toàn diện.', sub: 'Dashboard trực quan thời gian thực, tự động tính phí và quản lý sự cố.' },
 ]
 
 export default function About() {
   return (
     <section id="about" className="bg-white overflow-hidden">
-      {/* Top separator */}
+      {/* Đường phân cách trên */}
       <div className="h-px bg-gradient-to-r from-transparent via-black/10 to-transparent" />
 
       <div className="max-w-5xl mx-auto px-6 lg:px-12 py-28">
 
-        {/* Section label + headline */}
+        {/* Tiêu đề phần About */}
         <motion.div {...fade()} className="mb-20 max-w-2xl">
           <p className="font-mono text-[11px] uppercase tracking-[0.25em] text-emerald-600 mb-4">01 / About NexPark</p>
           <h2 className="text-5xl md:text-6xl font-black text-[#0a0a0a] leading-none tracking-tight">
-            Smart operations<br />
-            <span className="text-emerald-500">at FPT Building.</span>
+            Vận hành thông minh<br />
+            <span className="text-emerald-500">tại Tòa nhà FPT.</span>
           </h2>
         </motion.div>
 
-        {/* 3 pillars — horizontal editorial layout */}
+        {/* 3 Trụ cột giải pháp - Thiết kế thẻ thông tin phong cách tạp chí */}
         <div className="grid md:grid-cols-3 gap-0 border border-[#e8e8e8] rounded-2xl overflow-hidden">
           {pillars.map((p, i) => (
             <motion.div
@@ -54,21 +67,21 @@ export default function About() {
                 {p.sub}
               </p>
 
-              {/* Bottom accent line */}
+              {/* Đường phát sáng màu xanh lá khi Hover */}
               <div className="absolute bottom-0 left-8 right-8 h-px bg-emerald-500 scale-x-0 group-hover:scale-x-100 transition-transform duration-500 origin-left" />
             </motion.div>
           ))}
         </div>
 
-        {/* Key stat strip */}
+        {/* Dải thông số cam kết cốt lõi */}
         <motion.div
           {...fade(0.35)}
           className="mt-10 grid grid-cols-3 gap-6"
         >
           {[
-            { val: '500+', label: 'Parking slots' },
-            { val: '24/7', label: 'Automated Access' },
-            { val: '8h',   label: 'Max advance booking' },
+            { val: '500+', label: 'Vị trí đỗ xe' },
+            { val: '24/7', label: 'Tự động kiểm soát' },
+            { val: '8 giờ', label: 'Thời hạn giữ chỗ trước' },
           ].map((s, i) => (
             <div key={i} className="text-center border-t-2 border-[#e8e8e8] pt-6 hover:border-emerald-500 transition-colors duration-300">
               <div className="text-4xl font-black text-[#0a0a0a]">{s.val}</div>

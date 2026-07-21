@@ -1,6 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { api, ApiError } from '@/lib/api/client';
 
+/**
+ * Type đại diện cho Tài khoản người dùng trong Manager Feature
+ */
 type Account = {
   id: number;
   email: string;
@@ -11,27 +14,41 @@ type Account = {
   createdAt?: string;
 };
 
+/**
+ * Type bộ lọc tài khoản
+ */
 type AccountFilter = {
   search?: string;
   role?: string;
   isActive?: boolean;
 };
 
+/**
+ * Hàm hỗ trợ trích xuất thông báo lỗi từ ApiError
+ */
 const getApiErrorMessage = (error: unknown): string => {
   if (error instanceof ApiError && error.data && typeof error.data === 'object') {
     const body = error.data as { message?: unknown; title?: unknown };
     if (typeof body.message === 'string' && body.message.trim()) return body.message;
     if (typeof body.title === 'string' && body.title.trim()) return body.title;
   }
-  return error instanceof Error ? error.message : 'Request failed.';
+  return error instanceof Error ? error.message : 'Yêu cầu thất bại.';
 };
 
+/**
+ * Custom Hook: useAccounts (Dành cho Quản lý)
+ *
+ * Chức năng: Lấy danh sách tài khoản, tìm kiếm/lọc, vô hiệu hóa (deactivate) và xóa tài khoản.
+ */
 export function useAccounts() {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<AccountFilter>({});
 
+  /**
+   * Gọi API lấy danh sách tài khoản và áp dụng bộ lọc client-side
+   */
   const fetchAccounts = useCallback(async () => {
     setIsLoading(true);
     setError(null);
@@ -44,7 +61,7 @@ export function useAccounts() {
         data = res.data;
       }
 
-      // Apply filters
+      // Áp dụng các điều kiện lọc
       let filtered = data;
       if (filter.search) {
         const searchLower = filter.search.toLowerCase();
@@ -73,6 +90,9 @@ export function useAccounts() {
     fetchAccounts();
   }, [fetchAccounts]);
 
+  /**
+   * Thao tác ngưng hoạt động tài khoản (POST /accounts/{id}/deactivate)
+   */
   const deactivateAccount = useCallback(async (id: number) => {
     try {
       await api.post(`/accounts/${id}/deactivate`, {});
@@ -83,6 +103,9 @@ export function useAccounts() {
     }
   }, [fetchAccounts]);
 
+  /**
+   * Thao tác xóa tài khoản (DELETE /accounts/{id})
+   */
   const deleteAccount = useCallback(async (id: number) => {
     try {
       await api.delete(`/accounts/${id}`);

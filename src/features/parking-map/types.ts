@@ -1,4 +1,15 @@
+/**
+ * ═══════════════════════════════════════════════════════════════════════════════
+ * 📌 FILE: types.ts (ĐỊNH NGHĨA KIỂU DỮ LIỆU SƠ ĐỒ BÃI ĐỖ XE - PARKING MAP TYPES)
+ * ═══════════════════════════════════════════════════════════════════════════════
+ *
+ * 🎯 MỤC ĐÍCH FILE:
+ * Chứa toàn bộ các Interface và DTO đại diện cho dữ liệu Hạ tầng, Ô đỗ xe, Khu vực,
+ * Phiên gửi xe và Báo cáo tóm tắt công suất bãi đỗ xe dùng trên toàn bộ module `parking-map`.
+ * ═══════════════════════════════════════════════════════════════════════════════
+ */
 
+/** DTO Ô đỗ xe trả về từ API Backend `/ParkingSlots` */
 export interface ParkingSlotDto {
   id: number;
   zoneId: number;
@@ -20,6 +31,7 @@ export interface ParkingSlotDto {
   } | null;
 }
 
+/** DTO Phiên gửi xe đang hoạt động (Active Session) */
 export interface ParkingSessionDto {
   id: number;
   vehicleId: number;
@@ -39,6 +51,7 @@ export interface ParkingSessionDto {
   cardCode?: string;
 }
 
+/** DTO Thông tin Thẻ từ đỗ xe (RFID Card) */
 export interface CardDto {
   id: number;
   cardCode: string;
@@ -48,6 +61,7 @@ export interface CardDto {
   createdAt: string;
 }
 
+/** DTO Thông tin Phương tiện */
 export interface VehicleDto {
   id: number;
   accountId?: number;
@@ -58,6 +72,7 @@ export interface VehicleDto {
   vehicleStatus: string;
 }
 
+/** DTO Phản hồi Tầng từ Backend */
 export interface FloorResponse {
   id: number;
   buildingId: number;
@@ -66,6 +81,7 @@ export interface FloorResponse {
   status: number | string;
 }
 
+/** DTO Phản hồi Khu vực (Zone) từ Backend */
 export interface ZoneResponse {
   id: number;
   floorId: number;
@@ -78,6 +94,7 @@ export interface ZoneResponse {
   bookingLimitRate?: number; // Tỷ lệ phần trăm slots cho phép đặt trước (1-100)
 }
 
+/** Mô hình Tầng chuẩn hóa dùng trên Frontend */
 export interface Floor {
   id: number;
   buildingId: number;
@@ -86,6 +103,7 @@ export interface Floor {
   status: 'Active' | 'Inactive';
 }
 
+/** Mô hình Khu vực (Zone) chuẩn hóa dùng trên Frontend */
 export interface Zone {
   id: number;
   floorId: number;
@@ -97,6 +115,7 @@ export interface Zone {
   bookingLimitRate?: number; // Tỷ lệ phần trăm slots cho phép đặt trước (1-100)
 }
 
+/** Mô hình Ô đỗ xe (Slot) hiển thị trên Sơ đồ trực quan */
 export interface Slot {
   id: number;
   slotCode: string;
@@ -119,6 +138,7 @@ export interface Slot {
   };
 }
 
+/** Thống kê số lượng ô đỗ theo từng trạng thái */
 export interface StatusCounts {
   Available: number;
   Occupied: number;
@@ -127,6 +147,7 @@ export interface StatusCounts {
   Reserved?: number;
 }
 
+/** Thống kê số lượng ô đỗ phân loại theo Loại phương tiện */
 export interface VehicleTypeSlotSummary {
   vehicleTypeId: number;
   vehicleTypeName: string;
@@ -134,6 +155,7 @@ export interface VehicleTypeSlotSummary {
   statusCounts: StatusCounts;
 }
 
+/** Tóm tắt tổng quan công suất ô đỗ của một Tầng */
 export interface FloorSlotSummary {
   floorId: number;
   floorNumber: number;

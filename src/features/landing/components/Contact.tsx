@@ -31,7 +31,7 @@ export default function Contact() {
             NexPark • <span className="text-emerald-500">FPT Building</span>
           </h2>
           <p className="text-lg text-gray-600 font-light leading-relaxed">
-            Hệ thống bãi đỗ xe thông minh NexPark phục vụ Tòa nhà FPT. Liên hệ bộ phận quản lý hoặc hỗ trợ kỹ thuật bên dưới.
+            Smart parking management system serving FPT Building. Contact building management or technical support team below.
           </p>
         </div>
 
@@ -43,10 +43,10 @@ export default function Contact() {
               <div className="w-12 h-12 bg-emerald-500/10 text-emerald-600 rounded-xl flex items-center justify-center mb-6">
                 <MapPin className="w-6 h-6" />
               </div>
-              <h3 className="text-lg font-bold text-gray-900 mb-2">Vị trí Bãi đỗ xe</h3>
+              <h3 className="text-lg font-bold text-gray-900 mb-2">Parking Location</h3>
               <p className="text-sm text-gray-600 leading-relaxed font-light mb-6">
-                Bãi đỗ xe NexPark - Tòa nhà FPT<br />
-                Khu Công nghệ Cao, Hà Nội, Việt Nam
+                NexPark Parking Facility - FPT Building<br />
+                High-Tech Park, Hanoi, Vietnam
               </p>
             </div>
             <a
@@ -55,7 +55,7 @@ export default function Contact() {
               rel="noopener noreferrer"
               className="inline-flex items-center gap-2 text-xs font-bold text-emerald-600 hover:text-emerald-700 hover:underline"
             >
-              Xem chỉ đường <MapPin className="w-3.5 h-3.5" />
+              Get Directions <MapPin className="w-3.5 h-3.5" />
             </a>
           </div>
 
@@ -65,14 +65,14 @@ export default function Contact() {
               <div className="w-12 h-12 bg-emerald-500/10 text-emerald-600 rounded-xl flex items-center justify-center mb-6">
                 <Clock className="w-6 h-6" />
               </div>
-              <h3 className="text-lg font-bold text-gray-900 mb-2">Thời gian Vận hành</h3>
+              <h3 className="text-lg font-bold text-gray-900 mb-2">Operating Hours</h3>
               <p className="text-sm text-gray-600 leading-relaxed font-light">
-                Thứ 2 - Chủ nhật: Phục vụ 24/7<br />
-                Hỗ trợ kỹ thuật: 07:00 - 22:00
+                Monday - Sunday: 24/7 Access<br />
+                Technical Support: 07:00 - 22:00
               </p>
             </div>
             <span className="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full w-fit mt-6">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" /> Đang hoạt động
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" /> Active Now
             </span>
           </div>
 
@@ -82,7 +82,7 @@ export default function Contact() {
               <div className="w-12 h-12 bg-emerald-500/10 text-emerald-600 rounded-xl flex items-center justify-center mb-6">
                 <PhoneCall className="w-6 h-6" />
               </div>
-              <h3 className="text-lg font-bold text-gray-900 mb-2">Kênh Hỗ trợ Khách hàng</h3>
+              <h3 className="text-lg font-bold text-gray-900 mb-2">Customer Support</h3>
               <div className="space-y-3 text-sm text-gray-600 font-light mb-6">
                 <a
                   href="mailto:support@nexpark.vn"
@@ -105,13 +105,13 @@ export default function Contact() {
                 href="tel:+84123456789"
                 className="flex-1 py-2.5 px-3 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl text-xs font-bold text-center transition-all shadow-sm cursor-pointer"
               >
-                Gọi Hotline
+                Call Hotline
               </a>
               <a
                 href="mailto:support@nexpark.vn"
                 className="flex-1 py-2.5 px-3 border border-emerald-500/30 text-emerald-700 hover:bg-emerald-50 rounded-xl text-xs font-bold text-center transition-all cursor-pointer"
               >
-                Gửi Email
+                Send Email
               </a>
             </div>
           </div>

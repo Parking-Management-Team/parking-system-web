@@ -24,10 +24,10 @@ const fade = (delay = 0) => ({
 })
 
 const steps = [
-  { n: '01', title: 'Tìm kiếm', body: 'Tra cứu sơ đồ bãi đỗ xe trực tuyến theo thời gian thực.' },
-  { n: '02', title: 'Đặt trước', body: 'Gửi xe vãng lai hoặc giữ trước vị trí mong muốn tối đa 8h.' },
-  { n: '03', title: 'Vào bãi',   body: 'Quẹt thẻ RFID hoặc quét mã QR, cổng kiểm soát tự mở.' },
-  { n: '04', title: 'Thanh toán', body: 'Tự động tính phí chính xác khi Check-out qua cổng.' },
+  { n: '01', title: 'Find', body: 'View online parking availability in real-time.' },
+  { n: '02', title: 'Book', body: 'Park walk-in or reserve your preferred spot up to 8 hours ahead.' },
+  { n: '03', title: 'Enter',   body: 'Tap your RFID card or scan QR code, entry barrier opens automatically.' },
+  { n: '04', title: 'Pay', body: 'Automatic precise fee calculation upon check-out at the gate.' },
 ]
 
 export default function HowItWorks() {
@@ -43,8 +43,8 @@ export default function HowItWorks() {
             04 / How It Works
           </p>
           <h2 className="text-5xl md:text-7xl font-black leading-none tracking-tight">
-            Chỉ 4 bước đơn giản.<br />
-            <span className="text-emerald-400">Nhanh chóng & An toàn.</span>
+            Just 4 simple steps.<br />
+            <span className="text-emerald-400">Fast & Secure.</span>
           </h2>
         </motion.div>
 
@@ -70,7 +70,7 @@ export default function HowItWorks() {
           {...fade(0.4)}
           className="mt-8 text-center text-sm text-white/25 font-mono"
         >
-          Không yêu cầu duy trì tài khoản trả trước. Thanh toán chính xác theo từng lượt sử dụng.
+          No pre-paid account required. Pay per use with exact calculation.
         </motion.p>
       </div>
 

@@ -93,8 +93,8 @@ export default function Hero({ scrollToSection }: HeroProps) {
           {/* Mô tả giải pháp đỗ xe NexPark */}
           <motion.div {...fadeUp(0.3)} className="lg:col-span-5">
             <p className="text-base lg:text-lg text-white/50 font-light leading-relaxed max-w-md">
-              Hệ thống quản lý bãi đỗ xe thông minh NexPark dành riêng cho Tòa nhà FPT.
-              Hỗ trợ đặt trước vị trí đỗ, nhận diện biển số tự động ALPR và thanh toán không tiếp xúc.
+              Smart parking management system designed for FPT Building.
+              Support spot reservation, automatic ALPR license plate recognition, and contactless payments.
             </p>
           </motion.div>
 
@@ -126,7 +126,7 @@ export default function Hero({ scrollToSection }: HeroProps) {
               className="group inline-flex items-center gap-3 cursor-pointer"
             >
               <span className="font-mono text-xs uppercase tracking-[0.2em] text-emerald-400 group-hover:text-emerald-300 transition-colors relative">
-                Khám phá NexPark
+                Explore NexPark
                 <span className="absolute -bottom-0.5 left-0 w-0 h-px bg-emerald-400 group-hover:w-full transition-all duration-300" />
               </span>
               <span className="w-7 h-7 rounded-full border border-emerald-500/40 flex items-center justify-center group-hover:border-emerald-400 group-hover:bg-emerald-500/10 transition-all duration-300">

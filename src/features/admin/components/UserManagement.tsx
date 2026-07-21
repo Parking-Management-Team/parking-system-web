@@ -559,8 +559,8 @@ export default function UserManagement() {
                 value={createRoleId.toString()}
                 onChange={(e) => setCreateRoleId(Number(e.target.value))}
                 options={[
-                  { value: '3', label: 'Staff (Nhân viên)' },
-                  { value: '2', label: 'Manager (Quản lý)' },
+                  { value: '3', label: 'Staff' },
+                  { value: '2', label: 'Manager' },
                 ]}
               />
 

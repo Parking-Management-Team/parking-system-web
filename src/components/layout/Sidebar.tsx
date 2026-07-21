@@ -38,7 +38,7 @@ export default function Sidebar() {
   };
 
   return (
-    <nav className={`fixed left-0 top-0 h-full z-50 bg-[#1B2A41] border-r border-white/5 flex flex-col py-6 transition-all duration-200 ease-in-out ${
+    <nav className={`fixed left-0 top-0 h-full z-30 bg-[#1B2A41] border-r border-white/5 flex flex-col py-6 transition-all duration-200 ease-in-out ${
       isCollapsed ? 'w-[80px]' : 'w-[260px]'
     }`}>
       {/* Brand Logo & Header */}

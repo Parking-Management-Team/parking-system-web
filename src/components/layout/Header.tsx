@@ -199,7 +199,7 @@ export default function Header() {
   }, [user]);
 
   return (
-    <header className="flex justify-between items-center h-16 px-8 bg-white sticky top-0 z-40 border-b border-[#d8e3fb] backdrop-blur-md bg-white/90 shadow-sm">
+    <header className="flex justify-between items-center h-16 px-8 bg-white sticky top-0 z-20 border-b border-[#d8e3fb] backdrop-blur-md bg-white/90 shadow-sm">
       {/* Vùng bên trái: Hệ thống đường dẫn Breadcrumbs động */}
       <div className="flex items-center gap-3">
         <div className="flex items-center gap-2 text-slate-500 font-medium text-sm">

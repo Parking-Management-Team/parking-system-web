@@ -42,7 +42,7 @@ export default function ManagerDashboard() {
             Dashboard Overview
           </h2>
           <p className="text-slate-500 mt-1 text-sm md:text-base font-medium">
-            Theo dõi thời gian thực số lượng ô đỗ, chỉ số công suất và hoạt động bãi xe.
+            Real-time tracking of parking slots, occupancy rates, and facility activity.
           </p>
         </div>
 

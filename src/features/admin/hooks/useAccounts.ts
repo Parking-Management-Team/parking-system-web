@@ -65,11 +65,11 @@ export function useAccounts() {
       if (response.success && response.data) {
         setAccounts(response.data);
       } else {
-        setError(response.message || 'Không thể tải danh sách tài khoản.');
+        setError(response.message || 'Failed to load account list.');
       }
     } catch (err: unknown) {
-      console.error('Lỗi khi tải danh sách tài khoản:', err);
-      const errorMsg = err instanceof Error ? err.message : 'Đã xảy ra lỗi khi kết nối tới máy chủ.';
+      console.error('Error loading account list:', err);
+      const errorMsg = err instanceof Error ? err.message : 'An error occurred while connecting to the server.';
       setError(errorMsg);
     } finally {
       setIsLoading(false);
@@ -119,16 +119,16 @@ export function useAccounts() {
     try {
       const response = await api.post<ApiResponse<AccountDto>>('/accounts', payload);
       if (response.success || response.data) {
-        showToast('Tạo tài khoản thành công!', 'success');
+        showToast('Account created successfully!', 'success');
         fetchAccounts();
         return true;
       } else {
-        showToast(response.message || 'Tạo tài khoản thất bại.', 'error');
+        showToast(response.message || 'Failed to create account.', 'error');
         return false;
       }
     } catch (err: unknown) {
-      console.error('Lỗi khi tạo tài khoản:', err);
-      const errorMsg = err instanceof Error ? err.message : 'Đã xảy ra lỗi trong quá trình tạo tài khoản.';
+      console.error('Error creating account:', err);
+      const errorMsg = err instanceof Error ? err.message : 'An error occurred while creating the account.';
       showToast(errorMsg, 'error');
       return false;
     }
@@ -144,16 +144,16 @@ export function useAccounts() {
     try {
       const response = await api.put<ApiResponse<string>>(`/accounts/${id}`, payload);
       if (response.success) {
-        showToast('Cập nhật tài khoản thành công!', 'success');
+        showToast('Account updated successfully!', 'success');
         fetchAccounts();
         return true;
       } else {
-        showToast(response.message || 'Cập nhật tài khoản thất bại.', 'error');
+        showToast(response.message || 'Failed to update account.', 'error');
         return false;
       }
     } catch (err: unknown) {
-      console.error('Lỗi khi cập nhật tài khoản:', err);
-      const errorMsg = err instanceof Error ? err.message : 'Đã xảy ra lỗi trong quá trình cập nhật.';
+      console.error('Error updating account:', err);
+      const errorMsg = err instanceof Error ? err.message : 'An error occurred while updating the account.';
       showToast(errorMsg, 'error');
       return false;
     }
@@ -166,16 +166,16 @@ export function useAccounts() {
     try {
       const response = await api.delete<ApiResponse<string>>(`/accounts/${id}`);
       if (response.success) {
-        showToast('Đã khóa tài khoản thành công!', 'success');
+        showToast('Account locked successfully!', 'success');
         fetchAccounts();
         return true;
       } else {
-        showToast(response.message || 'Khóa tài khoản thất bại.', 'error');
+        showToast(response.message || 'Failed to lock account.', 'error');
         return false;
       }
     } catch (err: unknown) {
-      console.error('Lỗi khi khóa tài khoản:', err);
-      const errorMsg = err instanceof Error ? err.message : 'Đã xảy ra lỗi trong quá trình khóa tài khoản.';
+      console.error('Error locking account:', err);
+      const errorMsg = err instanceof Error ? err.message : 'An error occurred while locking the account.';
       showToast(errorMsg, 'error');
       return false;
     }
@@ -197,16 +197,16 @@ export function useAccounts() {
       };
       const response = await api.put<ApiResponse<string>>(`/accounts/${id}`, payload);
       if (response.success) {
-        showToast('Mở khóa tài khoản thành công!', 'success');
+        showToast('Account unlocked successfully!', 'success');
         fetchAccounts();
         return true;
       } else {
-        showToast(response.message || 'Mở khóa tài khoản thất bại.', 'error');
+        showToast(response.message || 'Failed to unlock account.', 'error');
         return false;
       }
     } catch (err: unknown) {
-      console.error('Lỗi khi mở khóa tài khoản:', err);
-      const errorMsg = err instanceof Error ? err.message : 'Đã xảy ra lỗi trong quá trình mở khóa.';
+      console.error('Error unlocking account:', err);
+      const errorMsg = err instanceof Error ? err.message : 'An error occurred while unlocking the account.';
       showToast(errorMsg, 'error');
       return false;
     }

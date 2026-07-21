@@ -400,8 +400,12 @@ export default function CardManager() {
       {isMounted &&
         modalMode &&
         createPortal(
-          <div className="fixed inset-0 z-[100000] bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4">
-            <div className="bg-white w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-2xl shadow-2xl border border-slate-100 p-6">
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 overflow-y-auto">
+            <div
+              className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity"
+              onClick={closeModal}
+            />
+            <div className="relative bg-white w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-2xl shadow-2xl border border-slate-100 p-6 my-auto">
               <div className="flex items-start justify-between gap-4 mb-6">
                 <div>
                   <h2 className="text-xl font-bold text-slate-800">
@@ -447,7 +451,7 @@ export default function CardManager() {
                   </div>
                   <button
                     type="submit"
-                    className="w-full py-3 bg-emerald-500 text-white rounded-xl font-bold hover:bg-emerald-600"
+                    className="w-full py-3 bg-[#006d43] text-white rounded-xl font-bold hover:bg-[#005c38] transition-all shadow-md"
                   >
                     Create Available Card
                   </button>

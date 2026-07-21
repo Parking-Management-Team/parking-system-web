@@ -480,13 +480,13 @@ export default function UserManagement() {
       {/* LAYOUT PHẦN 4: HỘP THOẠI TẠO TÀI KHOẢN MỚI (CREATE ACCOUNT MODAL)   */}
       {/* ─────────────────────────────────────────────────────────────────── */}
       {isCreateModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 overflow-y-auto">
           <div
-            className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity"
+            className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity"
             onClick={() => setIsCreateModalOpen(false)}
           />
 
-          <div className="relative bg-white rounded-2xl w-full max-w-md shadow-2xl border border-slate-100 overflow-hidden transform scale-100 transition-all flex flex-col">
+          <div className="relative bg-white rounded-2xl w-full max-w-md shadow-2xl border border-slate-100 overflow-hidden transform scale-100 transition-all flex flex-col max-h-[90vh] my-auto">
             <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
               <div>
                 <h3 className="text-base font-bold text-slate-800">Create New Account</h3>
@@ -502,7 +502,7 @@ export default function UserManagement() {
 
             <form onSubmit={handleCreateSave} className="p-6 space-y-4">
               <Input
-                label="Full Name *"
+                label="Full Name"
                 value={createFullName}
                 onChange={(e) => setCreateFullName(e.target.value)}
                 placeholder="e.g. Nguyen Van A"
@@ -511,14 +511,14 @@ export default function UserManagement() {
 
               <div className="grid grid-cols-2 gap-4">
                 <Input
-                  label="Username *"
+                  label="Username"
                   value={createUsername}
                   onChange={(e) => setCreateUsername(e.target.value)}
                   placeholder="e.g. staff_nguyena"
                   required
                 />
                 <Input
-                  label="Email *"
+                  label="Email"
                   type="email"
                   value={createEmail}
                   onChange={(e) => setCreateEmail(e.target.value)}
@@ -536,7 +536,7 @@ export default function UserManagement() {
 
               <div className="relative">
                 <Input
-                  label="Password *"
+                  label="Password"
                   type={showPassword ? 'text' : 'password'}
                   value={createPassword}
                   onChange={(e) => setCreatePassword(e.target.value)}
@@ -555,7 +555,8 @@ export default function UserManagement() {
               </div>
 
               <Select
-                label="Assign System Role *"
+                label="Assign System Role"
+                required
                 value={createRoleId.toString()}
                 onChange={(e) => setCreateRoleId(Number(e.target.value))}
                 options={[
@@ -596,13 +597,13 @@ export default function UserManagement() {
       {/* LAYOUT PHẦN 5: HỘP THOẠI CHỈNH SỬA TÀI KHOẢN (EDIT ACCOUNT MODAL)   */}
       {/* ─────────────────────────────────────────────────────────────────── */}
       {isEditModalOpen && editingAccount && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 overflow-y-auto">
           <div
-            className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity"
+            className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity"
             onClick={() => setIsEditModalOpen(false)}
           />
 
-          <div className="relative bg-white rounded-2xl w-full max-w-md shadow-2xl border border-slate-100 overflow-hidden transform scale-100 transition-all flex flex-col">
+          <div className="relative bg-white rounded-2xl w-full max-w-md shadow-2xl border border-slate-100 overflow-hidden transform scale-100 transition-all flex flex-col max-h-[90vh] my-auto">
             <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
               <div>
                 <h3 className="text-base font-bold text-slate-800">Edit System Account</h3>
@@ -705,13 +706,13 @@ export default function UserManagement() {
       {/* LAYOUT PHẦN 6: HỘP THOẠI CẢNH BÁO KHOÁ TÀI KHOẢN (BLOCK MODAL)       */}
       {/* ─────────────────────────────────────────────────────────────────── */}
       {isBlockModalOpen && targetAccount && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 overflow-y-auto">
           <div
-            className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity"
+            className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity"
             onClick={() => setIsBlockModalOpen(false)}
           />
 
-          <div className="relative bg-white rounded-2xl w-full max-w-sm shadow-2xl border border-slate-100 overflow-hidden transform scale-100 transition-all p-6 flex flex-col space-y-4">
+          <div className="relative bg-white rounded-2xl w-full max-w-sm shadow-2xl border border-slate-100 overflow-hidden transform scale-100 transition-all p-6 flex flex-col space-y-4 max-h-[90vh] my-auto">
             <div className="flex items-center gap-3.5">
               <div
                 className={`w-12 h-12 rounded-full flex items-center justify-center ${

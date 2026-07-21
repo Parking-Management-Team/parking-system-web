@@ -24,6 +24,6 @@ export type { ActivityLog }    from './components/RecentActivity';
 export { useAccounts } from './hooks/useAccounts';
 export { useSystemConfig } from './hooks/useSystemConfig';
 export { usePricingEngine } from './hooks/usePricingEngine';
-export { useDashboardSummary } from './hooks/useDashboardSummary';
+export { useManagerDashboard } from './hooks/useManagerDashboard';
 export { usePayments } from './hooks/usePayments';
 export { useVehicleTypes } from './hooks/useVehicleTypes';

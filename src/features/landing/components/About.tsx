@@ -23,9 +23,9 @@ const fade = (delay = 0) => ({
 })
 
 const pillars = [
-  { num: '01', label: 'Drivers', headline: 'Park. Pay. Go.', sub: 'Gửi vãng lai hoặc đặt trước vị trí đỗ. Vào bãi qua QR/RFID tiện lợi.' },
-  { num: '02', label: 'Bikes',   headline: 'Khu vực xe máy riêng.', sub: 'Phân vùng xe máy chuyên biệt với chính sách giá theo block tối ưu.' },
-  { num: '03', label: 'Ops',     headline: 'Vận hành toàn diện.', sub: 'Dashboard trực quan thời gian thực, tự động tính phí và quản lý sự cố.' },
+  { num: '01', label: 'Drivers', headline: 'Park. Pay. Go.', sub: 'Park walk-in or reserve a spot. Easy check-in via QR/RFID access.' },
+  { num: '02', label: 'Bikes',   headline: 'Dedicated Motorbike Zones.', sub: 'Specialized motorbike zones with optimized time-block pricing.' },
+  { num: '03', label: 'Ops',     headline: 'Comprehensive Operations.', sub: 'Real-time interactive dashboard, automated fee calculation, and incident handling.' },
 ]
 
 export default function About() {
@@ -40,8 +40,8 @@ export default function About() {
         <motion.div {...fade()} className="mb-20 max-w-2xl">
           <p className="font-mono text-[11px] uppercase tracking-[0.25em] text-emerald-600 mb-4">01 / About NexPark</p>
           <h2 className="text-5xl md:text-6xl font-black text-[#0a0a0a] leading-none tracking-tight">
-            Vận hành thông minh<br />
-            <span className="text-emerald-500">tại Tòa nhà FPT.</span>
+            Smart Operations<br />
+            <span className="text-emerald-500">at FPT Building.</span>
           </h2>
         </motion.div>
 
@@ -79,9 +79,9 @@ export default function About() {
           className="mt-10 grid grid-cols-3 gap-6"
         >
           {[
-            { val: '500+', label: 'Vị trí đỗ xe' },
-            { val: '24/7', label: 'Tự động kiểm soát' },
-            { val: '8 giờ', label: 'Thời hạn giữ chỗ trước' },
+            { val: '500+', label: 'Parking Spots' },
+            { val: '24/7', label: 'Automated Access' },
+            { val: '8 Hours', label: 'Max Reservation Window' },
           ].map((s, i) => (
             <div key={i} className="text-center border-t-2 border-[#e8e8e8] pt-6 hover:border-emerald-500 transition-colors duration-300">
               <div className="text-4xl font-black text-[#0a0a0a]">{s.val}</div>

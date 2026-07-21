@@ -1,5 +1,52 @@
-import { VehicleType, STANDARD_PRICING, SURCHARGE } from '@/constants/parking.constants';
+import { VehicleType } from '@/constants/parking.constants';
 import { roundCashVND } from './format';
+
+/**
+ * Bảng giá mặc định dự phòng (Fallback) khi chưa tải xong từ API
+ */
+const STANDARD_PRICING = {
+  MOTORBIKE: {
+    DAY: {
+      basePrice:      5_000,
+      baseDuration:   4,
+      blockPrice:     1_000,
+      blockDuration:  1,
+      windowCap:      10_000,
+    },
+    NIGHT: {
+      basePrice:      5_000,
+      baseDuration:   4,
+      blockPrice:     2_000,
+      blockDuration:  1,
+      windowCap:      20_000,
+    },
+  },
+  CAR: {
+    DAY: {
+      basePrice:      30_000,
+      baseDuration:   4,
+      blockPrice:     10_000,
+      blockDuration:  1,
+      windowCap:      100_000,
+    },
+    NIGHT: {
+      basePrice:      30_000,
+      baseDuration:   4,
+      blockPrice:     12_000,
+      blockDuration:  1,
+      windowCap:      120_000,
+    },
+  },
+} as const;
+
+/**
+ * Phụ phí & Phạt mặc định
+ */
+const SURCHARGE = {
+  BOOKING_DEPOSIT:    5_000,
+  LOST_CARD_PENALTY:  50_000,
+  WRONG_ZONE_PENALTY: 100_000,
+} as const;
 
 export interface FeeCalculationResult {
   basePrice: number;
@@ -13,8 +60,7 @@ export interface FeeCalculationResult {
 }
 
 /**
- * Calculates parking fee based on entry and exit times.
- * Supports day/night rates, base 4 hours block, incremental blocks, and caps.
+ * Tính toán phí gửi xe theo thời gian vào/ra và loại phương tiện
  */
 export function calculateParkingFee(
   entryTime: Date | string,
@@ -32,7 +78,7 @@ export function calculateParkingFee(
   const diffMs = exit.getTime() - entry.getTime();
   const rawHours = Math.max(0, diffMs / (1000 * 60 * 60));
 
-  // Determine if rate is Night rate based on entry hour
+  // Kiểm tra khung giờ đêm (18:00 - 06:00)
   const entryHour = entry.getHours();
   const isNightRate = entryHour >= 18 || entryHour < 6;
 
@@ -52,12 +98,12 @@ export function calculateParkingFee(
     totalBeforeRounding += additionalHours * blockPrice;
   }
 
-  // Apply maximum cap
+  // Giới hạn giá tối đa
   if (totalBeforeRounding > cap) {
     totalBeforeRounding = cap;
   }
 
-  // Calculate surcharges
+  // Tính phụ phí
   const surchargesList: { name: string; amount: number }[] = [];
   if (options?.hasLostCard) {
     surchargesList.push({ name: 'Lost Card', amount: SURCHARGE.LOST_CARD_PENALTY });
@@ -66,7 +112,6 @@ export function calculateParkingFee(
     surchargesList.push({ name: 'Wrong Zone', amount: SURCHARGE.WRONG_ZONE_PENALTY });
   }
   if (options?.isBooking) {
-    // Booking deposit is deducted from the final fee
     surchargesList.push({ name: 'Deposit Deducted', amount: -SURCHARGE.BOOKING_DEPOSIT });
   }
 

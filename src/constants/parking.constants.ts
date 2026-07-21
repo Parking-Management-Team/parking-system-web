@@ -1,3 +1,10 @@
+/**
+ * Parking Constants & Type Definitions
+ *
+ * Chứa các enum trạng thái chuẩn và định nghĩa kiểu dữ liệu (Types/Enums)
+ * cho hệ thống quản lý bãi đỗ xe NexPark.
+ */
+
 // ─── Vehicle Types ─────────────────────────────────────────────────
 export const VEHICLE_TYPE = {
   MOTORBIKE: 'MOTORBIKE',
@@ -35,61 +42,6 @@ export const BOOKING_STATUS = {
 } as const;
 
 export type BookingStatus = typeof BOOKING_STATUS[keyof typeof BOOKING_STATUS];
-
-// ─── Pricing Windows ───────────────────────────────────────────────
-export const PRICING_WINDOW = {
-  DAY:   'DAY',    // 06:00 - 18:00
-  NIGHT: 'NIGHT',  // 18:00 - 06:00
-} as const;
-
-// ─── Standard Pricing (VNĐ) ────────────────────────────────────────
-export const STANDARD_PRICING = {
-  MOTORBIKE: {
-    DAY: {
-      basePrice:      5_000,
-      baseDuration:   4,    // hours
-      blockPrice:     1_000,
-      blockDuration:  1,    // hour
-      windowCap:      10_000,
-    },
-    NIGHT: {
-      basePrice:      5_000,
-      baseDuration:   4,
-      blockPrice:     2_000,
-      blockDuration:  1,
-      windowCap:      20_000,
-    },
-  },
-  CAR: {
-    DAY: {
-      basePrice:      30_000,
-      baseDuration:   4,
-      blockPrice:     10_000,
-      blockDuration:  1,
-      windowCap:      100_000,
-    },
-    NIGHT: {
-      basePrice:      30_000,
-      baseDuration:   4,
-      blockPrice:     12_000,
-      blockDuration:  1,
-      windowCap:      120_000,
-    },
-  },
-} as const;
-
-// ─── Monthly Pass Pricing (VNĐ) ────────────────────────────────────
-export const MONTHLY_PRICING = {
-  MOTORBIKE: 200_000,
-  CAR:       1_500_000,
-} as const;
-
-// ─── Fees & Penalties (VNĐ) ────────────────────────────────────────
-export const SURCHARGE = {
-  BOOKING_DEPOSIT:    5_000,
-  LOST_CARD_PENALTY:  50_000,
-  WRONG_ZONE_PENALTY: 100_000,
-} as const;
 
 // ─── Payment Methods ───────────────────────────────────────────────
 export const PAYMENT_METHOD = {

@@ -26,12 +26,12 @@ const fade = (delay = 0) => ({
 })
 
 const features = [
-  { tag: 'Access',   title: 'Sơ đồ vị trí đỗ trực tuyến',  body: 'Cập nhật trạng thái từng ô đỗ xe máy và ô tô theo từng giây.' },
-  { tag: 'Booking',  title: 'Giữ chỗ trước đến 8 giờ',     body: 'Đặt trước vị trí mong muốn, tự động phân bổ slot an toàn.' },
-  { tag: 'Sessions', title: 'Quẹt thẻ RFID & Quét mã QR',   body: 'Vào bãi không qua rào cản thủ công, tự động nhận diện biển số.' },
-  { tag: 'Pricing',  title: 'Tính phí theo khung giờ',     body: 'Biểu phí rõ ràng theo khung ngày/đêm với mức trần tối đa hợp lý.' },
-  { tag: 'Payment',  title: 'Thanh toán trực tuyến & VNPay', body: 'Tự động tính phí khi xe check-out, khấu trừ tiền cọc linh hoạt.' },
-  { tag: 'Fleet',    title: 'Quản lý Ô tô & Xe máy tập trung', body: 'Quy trình xử lý chuyên biệt cho từng dòng xe trên một hệ thống.' },
+  { tag: 'Access',   title: 'Live Slot Map Tracking',  body: 'Real-time status updates for every car and motorbike parking spot.' },
+  { tag: 'Booking',  title: 'Reserve Up to 8 Hours Ahead',     body: 'Book your preferred spot in advance with automatic safe allocation.' },
+  { tag: 'Sessions', title: 'RFID Card & QR Code Access',   body: 'Seamless entry with automated license plate recognition & digital access.' },
+  { tag: 'Pricing',  title: 'Time-Block & Hourly Rates',     body: 'Transparent daytime and overnight pricing with fair maximum limits.' },
+  { tag: 'Payment',  title: 'Online Payment & VNPay', body: 'Automatic checkout fee calculation with flexible deposit deductions.' },
+  { tag: 'Fleet',    title: 'Unified Car & Motorbike Fleet', body: 'Tailored workflows for all vehicle types on a single platform.' },
 ]
 
 export default function Features() {
@@ -46,12 +46,12 @@ export default function Features() {
           <div>
             <p className="font-mono text-[11px] uppercase tracking-[0.25em] text-emerald-600 mb-4">03 / Features</p>
             <h2 className="text-5xl md:text-6xl font-black text-[#0a0a0a] leading-none tracking-tight">
-              Tính năng tối ưu.<br />
-              <span className="text-emerald-500">Toàn diện.</span>
+              Designed for performance.<br />
+              <span className="text-emerald-500">Complete solution.</span>
             </h2>
           </div>
           <p className="text-[#707070] text-sm leading-relaxed max-w-xs md:text-right">
-            Nền tảng quản lý hạ tầng bãi đỗ hiện đại hàng đầu.
+            Leading modern parking infrastructure platform.
           </p>
         </motion.div>
 

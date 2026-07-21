@@ -55,16 +55,16 @@ export default function Pricing() {
               className="font-black leading-[0.9] tracking-tighter text-white select-none"
               style={{ fontSize: 'clamp(2.5rem, 7vw, 5.5rem)' }}
             >
-              HỢP LÝ.<br />
+              FAIR.<br />
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 via-emerald-500 to-emerald-200">
-                MINH BẠCH. TỐI ƯU.
+                TRANSPARENT. OPTIMIZED.
               </span>
             </h2>
           </motion.div>
           
           <motion.div {...fadeUp(0.2)} className="lg:col-span-4 lg:pt-8 text-white/50 space-y-4">
             <p className="text-sm font-mono leading-relaxed uppercase tracking-wider border-l border-emerald-500/40 pl-4">
-              Chúng tôi tin rằng việc gửi xe không nên là gánh nặng chi phí. NexPark áp dụng cơ chế tính phí linh hoạt, rõ ràng và tối ưu nhất cho người dùng.
+              We believe parking should never be a cost burden. NexPark applies flexible, clear, and optimized pricing for every user.
             </p>
           </motion.div>
         </div>
@@ -81,12 +81,12 @@ export default function Pricing() {
               <div className="absolute left-2.5 top-1.5 w-3 h-3 border border-emerald-500 bg-[#050505] flex items-center justify-center">
                 <div className="w-1 h-1 bg-emerald-400" />
               </div>
-              <div className="font-mono text-xs text-white/30 uppercase tracking-widest mb-1">01 / Định giá theo hạ tầng</div>
+              <div className="font-mono text-xs text-white/30 uppercase tracking-widest mb-1">01 / Infrastructure Pricing</div>
               <h3 className="text-lg font-bold text-white mb-2 group-hover:text-emerald-400 transition-colors">
-                Tối ưu theo Tòa nhà
+                Facility-Based Optimization
               </h3>
               <p className="text-sm text-white/40 leading-relaxed max-w-xl">
-                Không áp đặt mức phí cứng nhắc. Biểu phí được điều chỉnh linh hoạt phù hợp với đặc thù và tiện ích của từng vị trí tòa nhà.
+                No rigid fee structures. Rates are dynamically adjusted to fit the features and amenities of each building.
               </p>
             </motion.div>
 
@@ -95,12 +95,12 @@ export default function Pricing() {
               <div className="absolute left-2.5 top-1.5 w-3 h-3 border border-white/20 bg-[#050505] flex items-center justify-center group-hover:border-emerald-500 transition-colors">
                 <div className="w-1 h-1 bg-white/40 group-hover:bg-emerald-400 transition-colors" />
               </div>
-              <div className="font-mono text-xs text-white/30 uppercase tracking-widest mb-1">02 / Tính phí theo Block nhỏ</div>
+              <div className="font-mono text-xs text-white/30 uppercase tracking-widest mb-1">02 / Fractional Block Billing</div>
               <h3 className="text-lg font-bold text-white mb-2 group-hover:text-emerald-400 transition-colors">
-                Thanh toán chính xác theo thời gian đỗ
+                Accurate Pay-as-You-Park
               </h3>
               <p className="text-sm text-white/40 leading-relaxed max-w-xl">
-                Nói không với việc làm tròn lên cả tiếng gây lãng phí. Phiên gửi xe của bạn được tính chính xác theo từng khung giờ thực tế.
+                Say goodbye to rounding up to whole hours. Your parking session is billed based on actual duration.
               </p>
             </motion.div>
 
@@ -109,12 +109,12 @@ export default function Pricing() {
               <div className="absolute left-2.5 top-1.5 w-3 h-3 border border-white/20 bg-[#050505] flex items-center justify-center group-hover:border-emerald-500 transition-colors">
                 <div className="w-1 h-1 bg-white/40 group-hover:bg-emerald-400 transition-colors" />
               </div>
-              <div className="font-mono text-xs text-white/30 uppercase tracking-widest mb-1">03 / Giới hạn mức trần</div>
+              <div className="font-mono text-xs text-white/30 uppercase tracking-widest mb-1">03 / Daily Fee Capping</div>
               <h3 className="text-lg font-bold text-white mb-2 group-hover:text-emerald-400 transition-colors">
-                Khóa mức phí tối đa ngày
+                Maximum Daily Rate Limit
               </h3>
               <p className="text-sm text-white/40 leading-relaxed max-w-xl">
-                An tâm gửi xe cả ngày dài. Hệ thống tự động giới hạn mức phí tối đa theo ngày, không bao giờ phát sinh chi phí bất ngờ.
+                Park all day with peace of mind. The system automatically caps daily fees so you never face unexpected costs.
               </p>
             </motion.div>
 
@@ -135,7 +135,7 @@ export default function Pricing() {
                     <Cpu className="w-5 h-5 text-emerald-400" />
                   </div>
                   <div>
-                    <h4 className="font-bold text-white uppercase tracking-wider text-sm">Cam kết từ NexPark</h4>
+                    <h4 className="font-bold text-white uppercase tracking-wider text-sm">NexPark Commitments</h4>
                     <p className="text-[10px] text-white/30 font-mono">SECURE BILLING PROTOCOL</p>
                   </div>
                 </div>
@@ -143,19 +143,19 @@ export default function Pricing() {
                 <ul className="space-y-4 mb-8">
                   <li className="flex items-start gap-3">
                     <CheckCircle2 className="w-4 h-4 text-emerald-400 mt-0.5 shrink-0" />
-                    <span className="text-xs text-white/70">Tuyệt đối không phí ẩn hay phí duy trì tài khoản hàng tháng.</span>
+                    <span className="text-xs text-white/70">Zero hidden fees or monthly account maintenance charges.</span>
                   </li>
                   <li className="flex items-start gap-3">
                     <CheckCircle2 className="w-4 h-4 text-emerald-400 mt-0.5 shrink-0" />
-                    <span className="text-xs text-white/70">Không tự ý tăng giá giờ cao điểm hoặc thời tiết bất lợi.</span>
+                    <span className="text-xs text-white/70">No surge pricing during peak hours or bad weather.</span>
                   </li>
                   <li className="flex items-start gap-3">
                     <CheckCircle2 className="w-4 h-4 text-emerald-400 mt-0.5 shrink-0" />
-                    <span className="text-xs text-white/70">Tra cứu lịch sử gửi xe và hóa đơn điện tử 24/7 trực tuyến.</span>
+                    <span className="text-xs text-white/70">24/7 online access to parking history and digital e-invoices.</span>
                   </li>
                   <li className="flex items-start gap-3">
                     <CheckCircle2 className="w-4 h-4 text-emerald-400 mt-0.5 shrink-0" />
-                    <span className="text-xs text-white/70">Đăng nhập để xem bảng giá chi tiết của từng tòa nhà cụ thể.</span>
+                    <span className="text-xs text-white/70">Log in to view detailed rate cards for specific facilities.</span>
                   </li>
                 </ul>
 
@@ -165,7 +165,7 @@ export default function Pricing() {
                     href="/login" 
                     className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-emerald-500 hover:bg-emerald-400 text-black text-xs font-black uppercase tracking-widest transition-all duration-300 rounded-xl group"
                   >
-                    Đăng nhập để xem Biểu phí
+                    Sign In to View Rates
                     <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                   </Link>
                   
@@ -180,9 +180,9 @@ export default function Pricing() {
             {/* Thông tin liên hệ đối tác quản lý */}
             <motion.div {...fadeUp(0.4)} className="mt-8 lg:mt-0 text-center lg:text-left">
               <p className="text-xs text-white/30">
-                Bạn là Quản lý Tòa nhà muốn hợp tác tối ưu bãi đỗ xe?{' '}
+                Are you a Building Manager interested in optimizing your parking?{' '}
                 <a href="#contact" className="text-emerald-400 hover:text-emerald-300 font-bold underline transition-colors">
-                  Hợp tác với chúng tôi
+                  Partner with us
                 </a>
               </p>
             </motion.div>

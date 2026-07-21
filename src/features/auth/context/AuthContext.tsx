@@ -1,8 +1,24 @@
+/**
+ * ═══════════════════════════════════════════════════════════════════════════════
+ * 📌 FILE: AuthContext.tsx - TRUNG TÂM QUẢN LÝ XÁC THỰC VÀ XÁC THỰC NGƯỜI DÙNG (AUTH CONTEXT)
+ * ═══════════════════════════════════════════════════════════════════════════════
+ *
+ * 🎯 MỤC ĐÍCH FILE:
+ * Quản lý tập trung toàn bộ trạng thái (State) và luồng xử lý (Flow) liên quan đến Xác thực tài khoản:
+ * 1. 🔑 Luồng Đăng nhập (Login Flow): Thường (Email/Password) & Đăng nhập Google (OAuth 2.0).
+ * 2. 🚪 Luồng Đăng xuất (Logout Flow): Xóa Token, Clear Cache & Reset State.
+ * 3. 🔄 Luồng Phục hồi phiên làm việc (Session Hydration): Giữ trạng thái khi F5 reload trang.
+ * 4. 🔑 Luồng Đổi / Đặt lại mật khẩu (Forgot & Reset Password Flow): Quy trình 3 bước OTP.
+ * 5. 🛡️ Luồng Bảo vệ tuyến đường (ProtectedRoute Integration).
+ * ═══════════════════════════════════════════════════════════════════════════════
+ */
+
 'use client';
 
 import * as React from 'react';
 import { api } from '@/lib/api/client';
 
+/** Kiểu dữ liệu Thông tin người dùng hiển thị trên Frontend */
 export interface User {
   id?: number;
   fullName: string;
@@ -11,6 +27,7 @@ export interface User {
   role?: string;
 }
 
+/** Dữ liệu nhận về từ API Backend khi Đăng nhập thành công */
 interface LoginResponseDto {
   token: string;
   expiration: string;
@@ -21,6 +38,7 @@ interface LoginResponseDto {
   roleName: string;
 }
 
+/** Cấu trúc Phản hồi API chuẩn */
 interface BaseResponse<T> {
   success?: boolean;
   isSuccess?: boolean;
@@ -31,6 +49,7 @@ interface BaseResponse<T> {
   errors?: Record<string, string[]>;
 }
 
+/** Cấu trúc Phản hồi API OTP */
 interface OtpResponse<T = null> {
   success?: boolean;
   isSuccess?: boolean;
@@ -39,6 +58,9 @@ interface OtpResponse<T = null> {
   data?: T;
 }
 
+/**
+ * Hàm hỗ trợ trích xuất thông báo lỗi từ Phản hồi API của Backend
+ */
 const extractErrorMessage = (error: unknown, defaultMessage: string): string => {
   if (error && typeof error === 'object') {
     if ('name' in error && (error as any).name === 'ApiError' && 'data' in error) {
@@ -68,45 +90,46 @@ const extractErrorMessage = (error: unknown, defaultMessage: string): string => 
   return defaultMessage;
 };
 
+/** Giao diện public của AuthContext */
 interface AuthContextType {
-  user: User | null;                          // Thông tin người dùng hiện tại (null nếu chưa đăng nhập)
-  token: string | null;                        // JWT Token hiện tại (null nếu chưa đăng nhập)
-  isAuthenticated: boolean;                   // Flag kiểm tra nhanh xem đã đăng nhập chưa
-  isLoading: boolean;                         // Trạng thái đang tải (đang gọi API, đang hồi phục session...)
-  login: (identifier: string, password: string) => Promise<User>; // Hàm đăng nhập thường
-  sendOtp: (email: string) => Promise<void>; // Hàm gửi mã OTP
-  verifyOtp: (email: string, otp: string) => Promise<string>; // Hàm xác thực mã OTP
-  register: (fullName: string, email: string, phone: string, password: string, verificationToken: string) => Promise<void>; // Hàm đăng ký bằng OTP
-  loginWithGoogle: (idToken?: string) => Promise<User>; // Hàm đăng nhập Google
-  verifyGoogleOtp: (idToken: string, otp: string) => Promise<User>; // Hàm xác thực mã OTP đăng ký Google
-  verifyLoginOtp: (email: string, password: string, otp: string) => Promise<User>; // Hàm xác thực mã OTP đăng nhập thường
-  sendPasswordResetOtp: (email: string) => Promise<void>; // Hàm gửi OTP khôi phục mật khẩu
-  verifyPasswordResetOtp: (email: string, otp: string) => Promise<string>; // Hàm xác thực OTP khôi phục mật khẩu
-  resetPassword: (email: string, newPassword: string, verificationToken: string) => Promise<void>; // Hàm đặt lại mật khẩu bằng OTP
-  logout: () => void;                         // Hàm đăng xuất
-  showToast: (message: string, type?: 'success' | 'error' | 'info') => void; // Hàm hiển thị thông báo nhanh
+  user: User | null;
+  token: string | null;
+  isAuthenticated: boolean;
+  isLoading: boolean;
+  login: (identifier: string, password: string) => Promise<User>;
+  sendOtp: (email: string) => Promise<void>;
+  verifyOtp: (email: string, otp: string) => Promise<string>;
+  register: (fullName: string, email: string, phone: string, password: string, verificationToken: string) => Promise<void>;
+  loginWithGoogle: (idToken?: string) => Promise<User>;
+  verifyGoogleOtp: (idToken: string, otp: string) => Promise<User>;
+  verifyLoginOtp: (email: string, password: string, otp: string) => Promise<User>;
+  sendPasswordResetOtp: (email: string) => Promise<void>;
+  verifyPasswordResetOtp: (email: string, otp: string) => Promise<string>;
+  resetPassword: (email: string, newPassword: string, verificationToken: string) => Promise<void>;
+  logout: () => void;
+  showToast: (message: string, type?: 'success' | 'error' | 'info') => void;
 }
 
-// Khởi tạo React Context
 const AuthContext = React.createContext<AuthContextType | undefined>(undefined);
 
 /**
- * Provider Component - Bọc quanh ứng dụng ở file layout gốc
- * Chứa logic quản lý State và thực hiện các cuộc gọi API.
+ * Provider Component - Bọc quanh ứng dụng ở Root Layout
  */
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  // State lưu thông tin User và JWT Token
   const [user, setUser] = React.useState<User | null>(null);
   const [token, setToken] = React.useState<string | null>(null);
   const [isLoading, setIsLoading] = React.useState(true);
 
-  // State quản lý danh sách Toast thông báo nổi trên góc màn hình
+  // State quản lý danh sách Toast thông báo nổi trên màn hình
   const [toasts, setToasts] = React.useState<Array<{ id: string; message: string; type: 'success' | 'error' | 'info' }>>([]);
 
   /**
-   * EFFECT: Khôi phục Session tự động (Hydration)
-   * Chạy duy nhất 1 lần khi trang web vừa được tải xong trên trình duyệt.
-   * Giúp người dùng không bị mất trạng thái đăng nhập khi bấm F5 reload trang.
+   * 🔄 LUỒNG PHỤC HỒI PHIÊN LÀM VIỆC (SESSION HYDRATION FLOW)
+   * 
+   * Bước 1: Trình duyệt hoàn tất tải trang (Mounting).
+   * Bước 2: Đọc `nexpark_token` và `nexpark_user` từ localStorage.
+   * Bước 3: Nếu tồn tại token & thông tin user -> Nạp vào React State `token` & `user`.
+   * Bước 4: Đặt `isLoading = false` để hiển thị UI. Nếu lỗi parse -> Xóa sạch localStorage.
    */
   React.useEffect(() => {
     try {
@@ -118,8 +141,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(JSON.parse(storedUser));
       }
     } catch (error) {
-      console.error('Failed to restore login session:', error);
-      // Xóa dữ liệu lỗi nếu có lỗi parse JSON để tránh bị lỗi lặp lại ở lần sau
+      console.error('Lỗi khi khôi phục phiên đăng nhập:', error);
       localStorage.removeItem('nexpark_token');
       localStorage.removeItem('nexpark_user');
     } finally {
@@ -128,45 +150,44 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   /**
-   * HÀM ĐĂNG NHẬP THƯỜNG (EMAIL + PASSWORD)
-   * Gọi POST request đến API `/auth/login` của Backend.
+   * 🔑 LUỒNG ĐĂNG NHẬP THƯỜNG (EMAIL + PASSWORD LOGIN FLOW)
+   *
+   * Bước 1: Người dùng nhập Email + Mật khẩu ở LoginForm.
+   * Bước 2: Gọi `login(identifier, password)` -> Gửi POST `/auth/login`.
+   * Bước 3: Backend kiểm tra thông tin -> Trả về JWT Token + Thông tin Tài khoản (Role, ID, FullName).
+   * Bước 4: Lưu `nexpark_token` và `nexpark_user` vào `localStorage`.
+   * Bước 5: Cập nhật State `token` & `user` -> Đăng nhập thành công.
    */
   const login = React.useCallback(async (identifier: string, password: string): Promise<User> => {
     setIsLoading(true);
     try {
-      // 1. Gọi API đến Backend. baseUrl tự động gắn ở api client (ví dụ http://localhost:5029/api)
       const res = await api.post<BaseResponse<LoginResponseDto>>('/auth/login', {
-        email: identifier, // 'identifier' từ form đăng nhập đóng vai trò làm email gửi lên
+        email: identifier,
         password: password
       });
 
       const isSuccess = res.success ?? res.isSuccess;
-      const errorCode = res.errorCode ?? res.code;
 
-      // 2. Kiểm tra xem Backend trả về thành công không
       if (!isSuccess || !res.data) {
-        throw new Error(res.message || 'Login failed');
+        throw new Error(res.message || 'Đăng nhập thất bại.');
       }
 
-      // 3. Chuẩn hóa dữ liệu user từ Backend về kiểu User hiển thị ở Frontend
       const systemUser: User = {
-        id: res.data.accountId, // Gán ID từ Api phản hồi
+        id: res.data.accountId,
         fullName: res.data.fullName || res.data.username,
         email: res.data.email || '',
         role: res.data.roleName ? res.data.roleName.toUpperCase() : '',
       };
 
-      // 4. Lưu JWT Token và thông tin User vào localStorage để lưu trữ lâu dài
       localStorage.setItem('nexpark_token', res.data.token);
       localStorage.setItem('nexpark_user', JSON.stringify(systemUser));
 
-      // 5. Cập nhật State để các Component React vẽ lại giao diện đăng nhập thành công
       setToken(res.data.token);
       setUser(systemUser);
 
       return systemUser;
     } catch (error: any) {
-      const errorMsg = extractErrorMessage(error, 'Login failed');
+      const errorMsg = extractErrorMessage(error, 'Đăng nhập thất bại.');
       throw new Error(errorMsg);
     } finally {
       setIsLoading(false);
@@ -174,8 +195,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   /**
-   * HÀM GỬI MÃ OTP VỀ EMAIL
-   * Gọi POST request đến API `/auth/send-otp` của Backend.
+   * 📧 LUỒNG GỬI MÃ OTP ĐĂNG KÝ / XÁC THỰC EMAIL
    */
   const sendOtp = React.useCallback(async (email: string): Promise<void> => {
     setIsLoading(true);
@@ -183,10 +203,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const res = await api.post<OtpResponse>('/auth/send-otp', { email });
       const isSuccess = res.success ?? res.isSuccess ?? true;
       if (!isSuccess) {
-        throw new Error(res.message || 'Failed to send OTP code.');
+        throw new Error(res.message || 'Không thể gửi mã OTP.');
       }
     } catch (error) {
-      const errorMsg = extractErrorMessage(error, 'Failed to send OTP code.');
+      const errorMsg = extractErrorMessage(error, 'Không thể gửi mã OTP.');
       throw new Error(errorMsg);
     } finally {
       setIsLoading(false);
@@ -194,8 +214,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   /**
-   * HÀM XÁC THỰC MÃ OTP
-   * Gửi mã OTP lên để nhận về verification token tạm thời.
+   * 🔐 LUỒNG XÁC THỰC MÃ OTP
    */
   const verifyOtp = React.useCallback(async (email: string, otp: string): Promise<string> => {
     setIsLoading(true);
@@ -203,11 +222,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const res = await api.post<OtpResponse<string>>('/auth/verify-otp', { email, otp });
       const isSuccess = res.success ?? res.isSuccess ?? true;
       if (!isSuccess || !res.data) {
-        throw new Error(res.message || 'OTP verification failed.');
+        throw new Error(res.message || 'Xác thực OTP thất bại.');
       }
       return res.data;
     } catch (error) {
-      const errorMsg = extractErrorMessage(error, 'OTP verification failed.');
+      const errorMsg = extractErrorMessage(error, 'Xác thực OTP thất bại.');
       throw new Error(errorMsg);
     } finally {
       setIsLoading(false);
@@ -215,8 +234,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   /**
-   * HÀM ĐĂNG KÝ TÀI KHOẢN (VỚI TOKEN XÁC MINH OTP)
-   * Gọi POST request đến API `/auth/register-verified` của Backend.
+   * 📝 LUỒNG ĐĂNG KÝ TÀI KHOẢN MỚI
    */
   const register = React.useCallback(async (
     fullName: string,
@@ -236,10 +254,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
       const isSuccess = res.success ?? res.isSuccess ?? true;
       if (!isSuccess) {
-        throw new Error(res.message || 'Registration failed.');
+        throw new Error(res.message || 'Đăng ký tài khoản thất bại.');
       }
     } catch (error) {
-      const errorMsg = extractErrorMessage(error, 'Registration failed.');
+      const errorMsg = extractErrorMessage(error, 'Đăng ký tài khoản thất bại.');
       throw new Error(errorMsg);
     } finally {
       setIsLoading(false);
@@ -247,8 +265,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   /**
-   * HÀM ĐĂNG NHẬP GOOGLE
-   * Nhận ID Token từ SDK Google ở Frontend -> Gửi lên API Backend `/auth/google`.
+   * 🌐 LUỒNG ĐĂNG NHẬP BẰNG GOOGLE (GOOGLE OAUTH 2.0 FLOW)
+   *
+   * Bước 1: Google SDK đăng nhập lấy `idToken` từ Google.
+   * Bước 2: Gọi `loginWithGoogle(idToken)` -> Gửi POST `/auth/google`.
+   * Bước 3A (Tài khoản đã tồn tại): Backend xác thực token -> Trả về JWT Token -> Lưu Session.
+   * Bước 3B (Lần đầu đăng nhập bằng Google): Backend yêu cầu xác thực OTP qua Email (code: REQUIRE_OTP_VERIFICATION).
+   * Bước 4: Chuyển sang giao diện nhập OTP xác nhận email chính chủ.
    */
   const loginWithGoogle = React.useCallback(async (idToken?: string): Promise<User> => {
     setIsLoading(true);
@@ -256,20 +279,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const tokenToSend = idToken;
 
       if (!tokenToSend) {
-        throw new Error('Google ID Token not received.');
+        throw new Error('Chưa nhận được Google ID Token.');
       }
 
-      // 1. Gửi ID Token nhận từ Google lên API của bạn
       const res = await api.post<BaseResponse<LoginResponseDto>>('/auth/google', {
         idToken: tokenToSend
       });
 
-      // 2. Kiểm tra xem Backend đăng nhập Google thành công hay trả về yêu cầu OTP
       const resCode = res?.errorCode ?? res?.code ?? (res?.data as any)?.code ?? (res?.data as any)?.errorCode;
       if (resCode === 'REQUIRE_OTP_VERIFICATION') {
         const email = (res?.data as any)?.email ?? (res as any)?.email;
         const fullName = (res?.data as any)?.fullName ?? (res as any)?.fullName;
-        const err = new Error(res.message || 'Google signup requires email verification.') as any;
+        const err = new Error(res.message || 'Đăng nhập Google yêu cầu xác thực OTP email.') as any;
         err.code = 'REQUIRE_OTP_VERIFICATION';
         err.email = email;
         err.fullName = fullName;
@@ -278,22 +299,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       const isSuccess = res.success ?? res.isSuccess ?? true;
       if (!isSuccess || !res.data) {
-        throw new Error(res.message || 'Google login failed');
+        throw new Error(res.message || 'Đăng nhập Google thất bại.');
       }
 
-      // 3. Chuẩn hóa dữ liệu trả về từ Backend
       const systemUser: User = {
-        id: res.data.accountId, // Gán ID từ Api phản hồi
+        id: res.data.accountId,
         fullName: res.data.fullName || res.data.username,
         email: res.data.email || '',
         role: res.data.roleName ? res.data.roleName.toUpperCase() : '',
       };
 
-      // 4. Lưu trữ vào localStorage
       localStorage.setItem('nexpark_token', res.data.token);
       localStorage.setItem('nexpark_user', JSON.stringify(systemUser));
 
-      // 5. Cập nhật State
       setToken(res.data.token);
       setUser(systemUser);
 
@@ -310,14 +328,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (errorCode === 'REQUIRE_OTP_VERIFICATION' || errorMsgText.includes('REQUIRE_OTP_VERIFICATION')) {
         const email = body?.data?.email ?? body?.data?.Email ?? body?.email ?? body?.Email;
         const fullName = body?.data?.fullName ?? body?.data?.FullName ?? body?.fullName ?? body?.FullName;
-        const err = new Error(body?.message || 'Google signup requires email verification.') as any;
+        const err = new Error(body?.message || 'Đăng nhập Google yêu cầu xác thực OTP email.') as any;
         err.code = 'REQUIRE_OTP_VERIFICATION';
         err.email = email;
         err.fullName = fullName;
         throw err;
       }
 
-      const errorMsg = extractErrorMessage(error, 'Google login failed');
+      const errorMsg = extractErrorMessage(error, 'Đăng nhập Google thất bại.');
       throw new Error(errorMsg);
     } finally {
       setIsLoading(false);
@@ -325,8 +343,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   /**
-   * HÀM XÁC THỰC OTP GOOGLE VÀ ĐĂNG KÝ
-   * Gửi Google ID Token và mã OTP lên API `/auth/google-verify-otp` để tạo tài khoản và đăng nhập.
+   * 🌐 LUỒNG XÁC THỰC OTP GOOGLE VÀ KHỞI TẠO TÀI KHOẢN
    */
   const verifyGoogleOtp = React.useCallback(async (idToken: string, otp: string): Promise<User> => {
     setIsLoading(true);
@@ -339,7 +356,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const isSuccess = res.success ?? res.isSuccess ?? true;
 
       if (!isSuccess || !res.data) {
-        throw new Error(res.message || 'Google OTP verification failed');
+        throw new Error(res.message || 'Xác thực OTP Google thất bại.');
       }
 
       const systemUser: User = {
@@ -357,7 +374,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       return systemUser;
     } catch (error) {
-      const errorMsg = extractErrorMessage(error, 'Google OTP verification failed');
+      const errorMsg = extractErrorMessage(error, 'Xác thực OTP Google thất bại.');
       throw new Error(errorMsg);
     } finally {
       setIsLoading(false);
@@ -365,8 +382,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   /**
-   * HÀM XÁC THỰC OTP ĐĂNG NHẬP THƯỜNG
-   * Gửi Email, Password, và mã OTP lên API `/auth/login-verify-otp` để hoàn tất đăng nhập.
+   * 🔐 LUỒNG XÁC THỰC OTP ĐĂNG NHẬP THƯỜNG
    */
   const verifyLoginOtp = React.useCallback(async (email: string, password: string, otp: string): Promise<User> => {
     setIsLoading(true);
@@ -380,7 +396,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const isSuccess = res.success ?? res.isSuccess;
 
       if (!isSuccess || !res.data) {
-        throw new Error(res.message || 'OTP verification failed');
+        throw new Error(res.message || 'Xác thực OTP đăng nhập thất bại.');
       }
 
       const systemUser: User = {
@@ -398,7 +414,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       return systemUser;
     } catch (error) {
-      const errorMsg = extractErrorMessage(error, 'OTP verification failed');
+      const errorMsg = extractErrorMessage(error, 'Xác thực OTP đăng nhập thất bại.');
       throw new Error(errorMsg);
     } finally {
       setIsLoading(false);
@@ -406,8 +422,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   /**
-   * HÀM GỬI MÃ OTP KHÔI PHỤC MẬT KHẨU
-   * Gọi POST request đến API `/auth/password-recovery/request`.
+   * 🔑 LUỒNG KHÔI PHỤC MẬT KHẨU / ĐỔI MẬT KHẨU (FORGOT & RESET PASSWORD 3-STEP WIZARD)
+   *
+   * 📧 BƯỚC 1: Gửi mã OTP khôi phục mật khẩu về Email.
+   * Gửi POST `/auth/password-recovery/request` -> Backend tạo OTP và gửi qua Email SMTP.
    */
   const sendPasswordResetOtp = React.useCallback(async (email: string): Promise<void> => {
     setIsLoading(true);
@@ -415,10 +433,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const res = await api.post<OtpResponse>('/auth/password-recovery/request', { email });
       const isSuccess = res.success ?? res.isSuccess ?? true;
       if (!isSuccess) {
-        throw new Error(res.message || 'Failed to send password recovery OTP.');
+        throw new Error(res.message || 'Không thể gửi mã OTP khôi phục mật khẩu.');
       }
     } catch (error) {
-      const errorMsg = extractErrorMessage(error, 'Failed to send password recovery OTP.');
+      const errorMsg = extractErrorMessage(error, 'Không thể gửi mã OTP khôi phục mật khẩu.');
       throw new Error(errorMsg);
     } finally {
       setIsLoading(false);
@@ -426,8 +444,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   /**
-   * HÀM XÁC THỰC MÃ OTP KHÔI PHỤC MẬT KHẨU
-   * Gọi POST request đến API `/auth/password-recovery/verify`.
+   * 🔑 BƯỚC 2: Xác thực mã OTP 6 chữ số khôi phục mật khẩu.
+   * Gửi POST `/auth/password-recovery/verify` -> Nhận `verificationToken` tạm thời.
    */
   const verifyPasswordResetOtp = React.useCallback(async (email: string, otp: string): Promise<string> => {
     setIsLoading(true);
@@ -435,11 +453,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const res = await api.post<OtpResponse<string>>('/auth/password-recovery/verify', { email, otp });
       const isSuccess = res.success ?? res.isSuccess ?? true;
       if (!isSuccess || !res.data) {
-        throw new Error(res.message || 'OTP verification failed.');
+        throw new Error(res.message || 'Xác thực OTP khôi phục mật khẩu thất bại.');
       }
       return res.data;
     } catch (error) {
-      const errorMsg = extractErrorMessage(error, 'OTP verification failed.');
+      const errorMsg = extractErrorMessage(error, 'Xác thực OTP khôi phục mật khẩu thất bại.');
       throw new Error(errorMsg);
     } finally {
       setIsLoading(false);
@@ -447,8 +465,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   /**
-   * HÀM ĐẶT LẠI MẬT KHẨU BẰNG OTP
-   * Gửi Email, Mật khẩu mới, và verificationToken nhận được sau khi verify OTP thành công.
+   * 🔑 BƯỚC 3: Đặt mật khẩu mới.
+   * Gửi POST `/auth/password-recovery/reset` cùng `verificationToken` và Mật khẩu mới.
+   * Backend thay đổi mật khẩu tài khoản thành công -> Người dùng điều hướng về đăng nhập với mật khẩu mới.
    */
   const resetPassword = React.useCallback(async (
     email: string,
@@ -464,10 +483,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
       const isSuccess = res.success ?? res.isSuccess ?? true;
       if (!isSuccess) {
-        throw new Error(res.message || 'Password reset failed.');
+        throw new Error(res.message || 'Đặt lại mật khẩu thất bại.');
       }
     } catch (error) {
-      const errorMsg = extractErrorMessage(error, 'Password reset failed.');
+      const errorMsg = extractErrorMessage(error, 'Đặt lại mật khẩu thất bại.');
       throw new Error(errorMsg);
     } finally {
       setIsLoading(false);
@@ -475,8 +494,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   /**
-   * HÀM ĐĂNG XUẤT
-   * Xóa sạch các thông tin đăng nhập ở cả Local Storage và State của ứng dụng.
+   * 🚪 LUỒNG ĐĂNG XUẤT (LOGOUT FLOW)
+   *
+   * Bước 1: Người dùng nhấn nút "Đăng xuất" / Logout ở Header / Sidebar.
+   * Bước 2: Đặt State `user = null` và `token = null`.
+   * Bước 3: Xóa dữ liệu lưu trữ `nexpark_token` và `nexpark_user` khỏi `localStorage`.
+   * Bước 4: Ứng dụng tự động chuyển hướng về `/login` hoặc trang công khai.
    */
   const logout = React.useCallback(() => {
     setUser(null);
@@ -486,8 +509,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   /**
-   * HÀM HIỂN THỊ TOAST THÔNG BÁO (SUCCESS / ERROR / INFO)
-   * Tạo ra các thông báo nổi ở góc màn hình và tự biến mất sau 4 giây.
+   * 🔔 HÀM HIỂN THỊ TOAST THÔNG BÁO NỔI GÓC MÀN HÌNH
    */
   const showToast = React.useCallback((message: string, type: 'success' | 'error' | 'info' = 'info') => {
     const id = Math.random().toString(36).substring(2, 9);
@@ -507,11 +529,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }, 4000);
   }, []);
 
-  // Đóng gói tất cả các State và hàm vào 1 object duy nhất để truyền xuống các Component con
   const value = React.useMemo(() => ({
     user,
     token,
-    isAuthenticated: !!token && !!user, // Đã đăng nhập khi có cả token và thông tin user
+    isAuthenticated: !!token && !!user,
     isLoading,
     login,
     sendOtp,
@@ -531,7 +552,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     <AuthContext.Provider value={value}>
       {children}
 
-      {/* Sleek Floating Toast Container - Khu vực hiển thị danh sách các thông báo nổi */}
+      {/* Floating Toast Notification Container */}
       <div className="fixed top-6 right-6 z-[100000] flex flex-col gap-3 pointer-events-none max-w-sm w-full">
         {toasts.map((toast) => (
           <div
@@ -559,11 +580,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
 /**
  * Custom Hook: useAuth
- * Dùng để gọi nhanh thông tin đăng nhập trong các Component con.
- * Tránh việc phải gọi React.useContext(AuthContext) thủ công ở mọi nơi.
- * 
- * @example
- * const { user, logout } = useAuth();
+ * Sử dụng để truy cập trạng thái đăng nhập ở mọi Component
  */
 export function useAuth() {
   const context = React.useContext(AuthContext);

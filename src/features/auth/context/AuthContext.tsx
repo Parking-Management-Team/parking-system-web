@@ -158,6 +158,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
    * Bước 4: Lưu `nexpark_token` và `nexpark_user` vào `localStorage`.
    * Bước 5: Cập nhật State `token` & `user` -> Đăng nhập thành công.
    */
+  const recentToastsRef = React.useRef<Map<string, number>>(new Map());
+
   const login = React.useCallback(async (identifier: string, password: string): Promise<User> => {
     setIsLoading(true);
     try {
@@ -169,7 +171,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const isSuccess = res.success ?? res.isSuccess;
 
       if (!isSuccess || !res.data) {
-        throw new Error(res.message || 'Đăng nhập thất bại.');
+        throw new Error(res.message || 'Login failed.');
       }
 
       const systemUser: User = {
@@ -187,7 +189,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       return systemUser;
     } catch (error: any) {
-      const errorMsg = extractErrorMessage(error, 'Đăng nhập thất bại.');
+      const errorMsg = extractErrorMessage(error, 'Login failed.');
       throw new Error(errorMsg);
     } finally {
       setIsLoading(false);
@@ -203,10 +205,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const res = await api.post<OtpResponse>('/auth/send-otp', { email });
       const isSuccess = res.success ?? res.isSuccess ?? true;
       if (!isSuccess) {
-        throw new Error(res.message || 'Không thể gửi mã OTP.');
+        throw new Error(res.message || 'Failed to send OTP code.');
       }
     } catch (error) {
-      const errorMsg = extractErrorMessage(error, 'Không thể gửi mã OTP.');
+      const errorMsg = extractErrorMessage(error, 'Failed to send OTP code.');
       throw new Error(errorMsg);
     } finally {
       setIsLoading(false);
@@ -222,11 +224,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const res = await api.post<OtpResponse<string>>('/auth/verify-otp', { email, otp });
       const isSuccess = res.success ?? res.isSuccess ?? true;
       if (!isSuccess || !res.data) {
-        throw new Error(res.message || 'Xác thực OTP thất bại.');
+        throw new Error(res.message || 'OTP verification failed.');
       }
       return res.data;
     } catch (error) {
-      const errorMsg = extractErrorMessage(error, 'Xác thực OTP thất bại.');
+      const errorMsg = extractErrorMessage(error, 'OTP verification failed.');
       throw new Error(errorMsg);
     } finally {
       setIsLoading(false);
@@ -254,10 +256,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
       const isSuccess = res.success ?? res.isSuccess ?? true;
       if (!isSuccess) {
-        throw new Error(res.message || 'Đăng ký tài khoản thất bại.');
+        throw new Error(res.message || 'Account registration failed.');
       }
     } catch (error) {
-      const errorMsg = extractErrorMessage(error, 'Đăng ký tài khoản thất bại.');
+      const errorMsg = extractErrorMessage(error, 'Account registration failed.');
       throw new Error(errorMsg);
     } finally {
       setIsLoading(false);
@@ -266,12 +268,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   /**
    * 🌐 LUỒNG ĐĂNG NHẬP BẰNG GOOGLE (GOOGLE OAUTH 2.0 FLOW)
-   *
-   * Bước 1: Google SDK đăng nhập lấy `idToken` từ Google.
-   * Bước 2: Gọi `loginWithGoogle(idToken)` -> Gửi POST `/auth/google`.
-   * Bước 3A (Tài khoản đã tồn tại): Backend xác thực token -> Trả về JWT Token -> Lưu Session.
-   * Bước 3B (Lần đầu đăng nhập bằng Google): Backend yêu cầu xác thực OTP qua Email (code: REQUIRE_OTP_VERIFICATION).
-   * Bước 4: Chuyển sang giao diện nhập OTP xác nhận email chính chủ.
    */
   const loginWithGoogle = React.useCallback(async (idToken?: string): Promise<User> => {
     setIsLoading(true);
@@ -279,7 +275,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const tokenToSend = idToken;
 
       if (!tokenToSend) {
-        throw new Error('Chưa nhận được Google ID Token.');
+        throw new Error('Google ID Token is missing.');
       }
 
       const res = await api.post<BaseResponse<LoginResponseDto>>('/auth/google', {
@@ -290,7 +286,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (resCode === 'REQUIRE_OTP_VERIFICATION') {
         const email = (res?.data as any)?.email ?? (res as any)?.email;
         const fullName = (res?.data as any)?.fullName ?? (res as any)?.fullName;
-        const err = new Error(res.message || 'Đăng nhập Google yêu cầu xác thực OTP email.') as any;
+        const err = new Error(res.message || 'Google login requires email OTP verification.') as any;
         err.code = 'REQUIRE_OTP_VERIFICATION';
         err.email = email;
         err.fullName = fullName;
@@ -299,7 +295,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       const isSuccess = res.success ?? res.isSuccess ?? true;
       if (!isSuccess || !res.data) {
-        throw new Error(res.message || 'Đăng nhập Google thất bại.');
+        throw new Error(res.message || 'Google sign-in failed.');
       }
 
       const systemUser: User = {
@@ -328,14 +324,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (errorCode === 'REQUIRE_OTP_VERIFICATION' || errorMsgText.includes('REQUIRE_OTP_VERIFICATION')) {
         const email = body?.data?.email ?? body?.data?.Email ?? body?.email ?? body?.Email;
         const fullName = body?.data?.fullName ?? body?.data?.FullName ?? body?.fullName ?? body?.FullName;
-        const err = new Error(body?.message || 'Đăng nhập Google yêu cầu xác thực OTP email.') as any;
+        const err = new Error(body?.message || 'Google login requires email OTP verification.') as any;
         err.code = 'REQUIRE_OTP_VERIFICATION';
         err.email = email;
         err.fullName = fullName;
         throw err;
       }
 
-      const errorMsg = extractErrorMessage(error, 'Đăng nhập Google thất bại.');
+      const errorMsg = extractErrorMessage(error, 'Google sign-in failed.');
       throw new Error(errorMsg);
     } finally {
       setIsLoading(false);
@@ -356,7 +352,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const isSuccess = res.success ?? res.isSuccess ?? true;
 
       if (!isSuccess || !res.data) {
-        throw new Error(res.message || 'Xác thực OTP Google thất bại.');
+        throw new Error(res.message || 'Google OTP verification failed.');
       }
 
       const systemUser: User = {
@@ -374,7 +370,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       return systemUser;
     } catch (error) {
-      const errorMsg = extractErrorMessage(error, 'Xác thực OTP Google thất bại.');
+      const errorMsg = extractErrorMessage(error, 'Google OTP verification failed.');
       throw new Error(errorMsg);
     } finally {
       setIsLoading(false);
@@ -396,7 +392,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const isSuccess = res.success ?? res.isSuccess;
 
       if (!isSuccess || !res.data) {
-        throw new Error(res.message || 'Xác thực OTP đăng nhập thất bại.');
+        throw new Error(res.message || 'Login OTP verification failed.');
       }
 
       const systemUser: User = {
@@ -414,7 +410,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       return systemUser;
     } catch (error) {
-      const errorMsg = extractErrorMessage(error, 'Xác thực OTP đăng nhập thất bại.');
+      const errorMsg = extractErrorMessage(error, 'Login OTP verification failed.');
       throw new Error(errorMsg);
     } finally {
       setIsLoading(false);
@@ -423,9 +419,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   /**
    * 🔑 LUỒNG KHÔI PHỤC MẬT KHẨU / ĐỔI MẬT KHẨU (FORGOT & RESET PASSWORD 3-STEP WIZARD)
-   *
-   * 📧 BƯỚC 1: Gửi mã OTP khôi phục mật khẩu về Email.
-   * Gửi POST `/auth/password-recovery/request` -> Backend tạo OTP và gửi qua Email SMTP.
    */
   const sendPasswordResetOtp = React.useCallback(async (email: string): Promise<void> => {
     setIsLoading(true);
@@ -433,10 +426,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const res = await api.post<OtpResponse>('/auth/password-recovery/request', { email });
       const isSuccess = res.success ?? res.isSuccess ?? true;
       if (!isSuccess) {
-        throw new Error(res.message || 'Không thể gửi mã OTP khôi phục mật khẩu.');
+        throw new Error(res.message || 'Failed to send password reset OTP.');
       }
     } catch (error) {
-      const errorMsg = extractErrorMessage(error, 'Không thể gửi mã OTP khôi phục mật khẩu.');
+      const errorMsg = extractErrorMessage(error, 'Failed to send password reset OTP.');
       throw new Error(errorMsg);
     } finally {
       setIsLoading(false);
@@ -445,7 +438,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   /**
    * 🔑 BƯỚC 2: Xác thực mã OTP 6 chữ số khôi phục mật khẩu.
-   * Gửi POST `/auth/password-recovery/verify` -> Nhận `verificationToken` tạm thời.
    */
   const verifyPasswordResetOtp = React.useCallback(async (email: string, otp: string): Promise<string> => {
     setIsLoading(true);
@@ -453,11 +445,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const res = await api.post<OtpResponse<string>>('/auth/password-recovery/verify', { email, otp });
       const isSuccess = res.success ?? res.isSuccess ?? true;
       if (!isSuccess || !res.data) {
-        throw new Error(res.message || 'Xác thực OTP khôi phục mật khẩu thất bại.');
+        throw new Error(res.message || 'Password reset OTP verification failed.');
       }
       return res.data;
     } catch (error) {
-      const errorMsg = extractErrorMessage(error, 'Xác thực OTP khôi phục mật khẩu thất bại.');
+      const errorMsg = extractErrorMessage(error, 'Password reset OTP verification failed.');
       throw new Error(errorMsg);
     } finally {
       setIsLoading(false);
@@ -466,8 +458,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   /**
    * 🔑 BƯỚC 3: Đặt mật khẩu mới.
-   * Gửi POST `/auth/password-recovery/reset` cùng `verificationToken` và Mật khẩu mới.
-   * Backend thay đổi mật khẩu tài khoản thành công -> Người dùng điều hướng về đăng nhập với mật khẩu mới.
    */
   const resetPassword = React.useCallback(async (
     email: string,
@@ -483,10 +473,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
       const isSuccess = res.success ?? res.isSuccess ?? true;
       if (!isSuccess) {
-        throw new Error(res.message || 'Đặt lại mật khẩu thất bại.');
+        throw new Error(res.message || 'Password reset failed.');
       }
     } catch (error) {
-      const errorMsg = extractErrorMessage(error, 'Đặt lại mật khẩu thất bại.');
+      const errorMsg = extractErrorMessage(error, 'Password reset failed.');
       throw new Error(errorMsg);
     } finally {
       setIsLoading(false);
@@ -495,11 +485,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   /**
    * 🚪 LUỒNG ĐĂNG XUẤT (LOGOUT FLOW)
-   *
-   * Bước 1: Người dùng nhấn nút "Đăng xuất" / Logout ở Header / Sidebar.
-   * Bước 2: Đặt State `user = null` và `token = null`.
-   * Bước 3: Xóa dữ liệu lưu trữ `nexpark_token` và `nexpark_user` khỏi `localStorage`.
-   * Bước 4: Ứng dụng tự động chuyển hướng về `/login` hoặc trang công khai.
    */
   const logout = React.useCallback(() => {
     setUser(null);
@@ -509,9 +494,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   /**
-   * 🔔 HÀM HIỂN THỊ TOAST THÔNG BÁO NỔI GÓC MÀN HÌNH
+   * 🔔 HÀM HIỂN THỊ TOAST THÔNG BÁO NỔI GÓC MÀN HÌNH (CÓ ANTI-SPAM THROTTLE)
    */
   const showToast = React.useCallback((message: string, type: 'success' | 'error' | 'info' = 'info') => {
+    if (!message || !message.trim()) return;
+
+    const now = Date.now();
+    const lastTime = recentToastsRef.current.get(message) || 0;
+    
+    // Throttle duplicate identical toast messages within 2.5 seconds
+    if (now - lastTime < 2500) {
+      return;
+    }
+    recentToastsRef.current.set(message, now);
+
     const id = Math.random().toString(36).substring(2, 9);
     setToasts((prev) => {
       if (prev.some((t) => t.message === message)) {

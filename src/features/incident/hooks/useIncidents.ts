@@ -1,3 +1,24 @@
+/**
+ * ===================================================================================
+ * 🎣 FE CUSTOM HOOK: useIncidents.ts (Logic Quản Lý Sự Cố / Incident Management Logic)
+ * ===================================================================================
+ * 
+ * 📌 VAI TRÒ & NHIỆM VỤ:
+ * - Quản lý state danh sách vé sự cố, tạo báo cáo sự cố mới và danh mục loại sự cố.
+ * - Hỗ trợ lọc sự cố theo mức độ nghiêm trọng, trạng thái xử lý và từ khóa tìm kiếm.
+ * 
+ * ⚙️ KẾT NỐI API BACKEND (ASP.NET Core Controllers):
+ * - GET  /incidents                   --> Lấy danh sách sự cố (IncidentController.cs)
+ * - GET  /IncidentTypes                --> Lấy danh mục các loại sự cố (IncidentTypeController.cs)
+ * - POST /incidents                    --> Tạo vé sự cố mới (IncidentController.cs)
+ * - PUT  /incidents/{id}/status        --> Cập nhật trạng thái sự cố (IncidentController.cs)
+ * 
+ * 🗄️ BẢNG DATABASE LIÊN QUAN (PostgreSQL):
+ * - Incidents     (Id, Title, Description, Severity, IncidentStatus, VehicleId, ReportedByAccountId)
+ * - IncidentTypes (Id, Name, Description, Code)
+ * ===================================================================================
+ */
+
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { incidentService } from '../services/incident.service';
 import type {

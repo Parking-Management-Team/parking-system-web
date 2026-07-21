@@ -1,3 +1,31 @@
+/**
+ * ===================================================================================
+ * 📜 FE COMPONENT: DriverParkingHistory.tsx (Lịch Sử Gửi Xe / Parking History)
+ * ===================================================================================
+ * 
+ * 📌 VAI TRÒ & CHỨC NĂNG CHÍNH TRÊN UI:
+ * - Hiển thị toàn bộ lịch sử các lượt gửi xe và đặt chỗ hoàn tất của tài xế dưới dạng bảng dữ liệu / danh sách thẻ.
+ * - Bộ lọc nâng cao: Lọc theo khoảng thời gian (Từ ngày - Đến ngày), Theo phương tiện (Biển số), Theo bãi đỗ (Tòa nhà).
+ * - Xem chi tiết hóa đơn của lượt gửi: Phí đỗ xe, thời gian gửi thực tế, phương thức đã thanh toán (VNPAY / Tiền mặt).
+ * - Xuất lịch sử hoặc in hóa đơn xác nhận.
+ * 
+ * ⚙️ KẾT NỐI API BACKEND (ASP.NET Core Controllers):
+ * - GET /parking-sessions?accountId={accountId}   --> Lấy danh sách lượt đỗ đã hoàn tất (ParkingSessionsController.cs)
+ * - GET /bookings/by-account/{accountId}         --> Lấy danh sách lịch đặt chỗ đã hoàn tất (BookingsController.cs)
+ * - GET /Buildings                               --> Lấy danh mục bãi đỗ để lọc (BuildingsController.cs)
+ * 
+ * 🗄️ BẢNG DATABASE LIÊN QUAN (PostgreSQL):
+ * - ParkingSessions (Id, LicensePlateIn, CheckInTime, CheckOutTime, SessionStatus, Amount)
+ * - Bookings        (Id, Code, AccountId, DepositAmount, BookingStatus)
+ * - Payments        (Id, Amount, PaymentMethod, PaymentStatus)
+ * 
+ * 🔄 LUỒNG CẬP NHẬT DỮ LIỆU & RENDER UI:
+ * 1. Mounting: Gọi API nạp danh sách lịch sử.
+ * 2. Lọc dữ liệu: Chạy hàm `useMemo` lọc danh sách theo từ khóa tìm kiếm và khoảng thời gian do người dùng chọn trên UI.
+ * 3. Render UI: Render mảng dữ liệu đã lọc thành bảng responsive kèm phân trang.
+ * ===================================================================================
+ */
+
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';

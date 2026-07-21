@@ -1,16 +1,27 @@
 /**
- * LoginForm Component - Form đăng nhập
- *
- * Component form đăng nhập với 2 chế độ hiển thị:
- * 1. Modal mode (isModal=true): Hiển thị trong AuthDrawer (split layout)
- * 2. Standalone mode (isModal=false): Hiển thị trên trang /login riêng
- *
- * Tính năng:
- * - Đăng nhập bằng username hoặc email
- * - Đăng nhập bằng Google (mock)
- * - Show/hide password
- * - Validation (kiểm tra dữ liệu trước khi submit)
- * - Responsive: ẩn brand panel trên mobile
+ * ===================================================================================
+ * 🔑 FE COMPONENT: LoginForm.tsx (Form Đăng Nhập / Driver & User Authentication)
+ * ===================================================================================
+ * 
+ * 📌 VAI TRÒ & CHỨC NĂNG CHÍNH TRÊN UI:
+ * - Đăng nhập tài khoản bằng tên đăng nhập (Username) hoặc Email kèm Mật khẩu.
+ * - Hỗ trợ 2 chế độ hiển thị: Modal Mode (trong AuthDrawer) & Standalone Page (/login).
+ * - Validation phía máy khách (Client-side validation): Kiểm tra khoảng trắng, ô trống, định dạng.
+ * - Lưu phiên làm việc JWT Token vào `localStorage` và tự động chuyển hướng theo vai trò (Driver -> `/dashboard/driver`).
+ * 
+ * ⚙️ KẾT NỐI API BACKEND (ASP.NET Core Controllers):
+ * - POST /Auth/login        --> Xác thực thông tin tài khoản và trả về JWT Bearer Token (AuthController.cs)
+ * - GET  /Accounts/profile  --> Lấy thông tin chi tiết tài khoản sau khi đăng nhập thành công (AccountsController.cs)
+ * 
+ * 🗄️ BẢNG DATABASE LIÊN QUAN (PostgreSQL):
+ * - Accounts (Id, Username, Email, PasswordHash, RoleId, IsActive)
+ * - Roles    (Id, Name) --> 'DRIVER', 'STAFF', 'MANAGER', 'ADMIN'
+ * 
+ * 🔄 LUỒNG CẬP NHẬT DỮ LIỆU & RENDER UI:
+ * 1. Submit Form: Gọi `POST /Auth/login` -> Nhận `{ token, user }`.
+ * 2. Lưu trữ Session: Lưu `nexpark_token` vào `localStorage`, cập nhật state `AuthContext`.
+ * 3. Chuyển hướng: Chuyển thẳng về Dashboard phù hợp với quyền sử dụng (`/dashboard/driver`).
+ * ===================================================================================
  *
  * @param isModal - Có phải đang hiển thị trong drawer/modal không
  * @param onSuccess - Callback khi đăng nhập thành công (modal mode)

@@ -1,12 +1,31 @@
+/**
+ * ===================================================================================
+ * 🎣 FE CUSTOM HOOK: useVehicles.ts (Logic Quản Lý Xe & Nhật Ký Gửi Xe / Vehicle Logic)
+ * ===================================================================================
+ * 
+ * 📌 VAI TRÒ & NHIỆM VỤ:
+ * - Quản lý state danh sách xe, xe đang chọn, trạng thái đỗ xe (Parked/Not Parked), đồng hồ đếm thời gian đỗ.
+ * - Quản lý modals (Modal báo sự cố, Modal xuất vé) và Toast notifications.
+ * - Nạp lịch sử ra vào bãi (Activity logs) của phương tiện từ danh sách phiên đỗ.
+ * 
+ * ⚙️ KẾT NỐI API BACKEND (ASP.NET Core Controllers):
+ * - GET   /vehicles?accountId={accountId}   --> Lấy danh sách xe của tài xế (VehiclesController.cs)
+ * - GET   /parking-sessions/active          --> Lấy phiên đỗ active để xác định xe có đang trong bãi hay không (ParkingSessionsController.cs)
+ * - GET   /parking-sessions                 --> Lấy danh sách tất cả các lượt đỗ xe để tạo Activity Logs (ParkingSessionsController.cs)
+ * - PATCH /parking-sessions/{id}/complete   --> Giải phóng chỗ đỗ cho xe (ParkingSessionsController.cs)
+ * 
+ * 🗄️ BẢNG DATABASE LIÊN QUAN (PostgreSQL):
+ * - Vehicles        (Id, LicensePlate, AccountId, VehicleTypeId, Model, Color)
+ * - ParkingSessions (Id, LicensePlateIn, CheckInTime, CheckOutTime, SessionStatus, SlotId)
+ * ===================================================================================
+ */
+
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/features/auth';
 import { useSearchParams } from 'next/navigation';
 import { api } from '@/lib/api/client';
 import { ActivityLog, VehicleInfo } from '../types';
 
-/**
- * Custom hook quản lý toàn bộ logic nghiệp vụ (state, timers, modals, API thực tế) của quản lý chi tiết xe (Vehicles)
- */
 export function useVehicles() {
   const { user } = useAuth();
   const searchParams = useSearchParams();

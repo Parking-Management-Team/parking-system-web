@@ -98,20 +98,6 @@ export function usePayments() {
     }
   }, []);
 
-  const refundPayment = useCallback(async (id: number) => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      const res = await api.post<{ success: boolean }>(`/payments/${id}/refund`, {});
-      return res;
-    } catch (err) {
-      setError(getApiErrorMessage(err));
-      throw err;
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
-
   return {
     payments,
     isLoading,
@@ -120,6 +106,5 @@ export function usePayments() {
     fetchPayments,
     fetchPaymentsBySession,
     fetchPaymentsByAccount,
-    refundPayment,
   };
 }

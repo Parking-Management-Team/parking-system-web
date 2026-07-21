@@ -1,3 +1,28 @@
+/**
+ * ===================================================================================
+ * 👤 FE COMPONENT: ProfileFeature.tsx (Hồ Sơ Cá Nhân & Cài Đặt / User Profile)
+ * ===================================================================================
+ * 
+ * 📌 VAI TRÒ & CHỨC NĂNG CHÍNH TRÊN UI:
+ * - Quản lý và cập nhật thông tin tài khoản cá nhân của tài xế / người dùng.
+ * - Chỉnh sửa thông tin liên hệ: Họ và tên, số điện thoại, địa chỉ email.
+ * - Form Đổi mật khẩu bảo mật (Change Password Form) có kiểm tra mật khẩu hiện tại và xác nhận mật khẩu mới.
+ * - Hiển thị vai trò hệ thống (`DRIVER`), ngày tham gia và ảnh đại diện/avatar.
+ * 
+ * ⚙️ KẾT NỐI API BACKEND (ASP.NET Core Controllers):
+ * - GET  /Accounts/profile               --> Lấy dữ liệu hồ sơ cá nhân chi tiết (AccountsController.cs)
+ * - PUT  /Accounts/profile               --> Cập nhật thông tin hồ sơ (AccountsController.cs)
+ * - POST /Auth/change-password           --> Thực hiện đổi mật khẩu tài khoản (AuthController.cs)
+ * 
+ * 🗄️ BẢNG DATABASE LIÊN QUAN (PostgreSQL):
+ * - Accounts (Id, Username, Email, Phone, FullName, RoleId, PasswordHash, CreatedAt)
+ * 
+ * 🔄 LUỒNG CẬP NHẬT DỮ LIỆU & RENDER UI:
+ * 1. Rendering: Lấy thông tin người dùng hiện tại từ `AuthContext` hoặc nạp trực tiếp từ API `/Accounts/profile`.
+ * 2. Cập nhật: Submit form -> Gọi `PUT /Accounts/profile` -> Cập nhật lại State toàn cục -> Render Toast notification.
+ * ===================================================================================
+ */
+
 'use client';
 import * as React from 'react';
 import { useAuth } from '@/features/auth';

@@ -1,10 +1,25 @@
 /**
- * RegisterForm Component - Form đăng ký tài khoản xác thực OTP
- *
- * Luồng đăng ký gồm 3 bước:
- * 1. Nhập Email & Gửi OTP (hoặc đăng ký bằng Google)
- * 2. Nhập mã OTP 6 số để xác nhận địa chỉ email
- * 3. Điền thông tin chi tiết (Họ tên, SĐT, Mật khẩu) để hoàn tất
+ * ===================================================================================
+ * 📝 FE COMPONENT: RegisterForm.tsx (Form Đăng Ký Tài Khoản / Driver Registration)
+ * ===================================================================================
+ * 
+ * 📌 VAI TRÒ & CHỨC NĂNG CHÍNH TRÊN UI:
+ * - Đăng ký tài khoản tài xế (Driver Account) mới vào hệ thống.
+ * - Luồng 3 bước: (1) Nhập Email -> (2) Xác nhận mã OTP 6 số -> (3) Điền thông tin Họ tên, SĐT, Mật khẩu.
+ * - Validation thời gian thực: Kiểm tra định dạng Email, độ mạnh mật khẩu và khớp mật khẩu nhập lại.
+ * 
+ * ⚙️ KẾT NỐI API BACKEND (ASP.NET Core Controllers):
+ * - POST /Auth/send-otp     --> Gửi mã OTP xác nhận tới Email tài xế (AuthController.cs)
+ * - POST /Auth/verify-otp   --> Xác minh mã OTP 6 số (AuthController.cs)
+ * - POST /Auth/register     --> Khởi tạo tài khoản Driver mới (AuthController.cs)
+ * 
+ * 🗄️ BẢNG DATABASE LIÊN QUAN (PostgreSQL):
+ * - Accounts (Id, Username, Email, Phone, FullName, PasswordHash, RoleId = 4 (DRIVER))
+ * 
+ * 🔄 LUỒNG CẬP NHẬT DỮ LIỆU & RENDER UI:
+ * 1. Bước 1 & 2: Nhập email -> Gọi `/Auth/send-otp` -> Chuyển UI sang ô nhập OTP 6 số -> Gọi `/Auth/verify-otp`.
+ * 2. Bước 3: Điền tên, sđt, password -> Gọi `POST /Auth/register` -> Tạo Account thành công -> Chuyển sang form Đăng nhập.
+ * ===================================================================================
  */
 
 'use client';

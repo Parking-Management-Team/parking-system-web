@@ -1,3 +1,33 @@
+/**
+ * ===================================================================================
+ * 🚘 FE COMPONENT: DriverVehicles.tsx (Quản Lý Phương Tiện / Vehicle Management)
+ * ===================================================================================
+ * 
+ * 📌 VAI TRÒ & CHỨC NĂNG CHÍNH TRÊN UI:
+ * - Quản lý danh sách phương tiện cá nhân của tài xế (Ô tô, Xe máy).
+ * - Render thẻ xe trực quan: Biển số, loại xe, model/hãng xe, màu sơn (badge màu hex), trạng thái xe (Đang gửi trong bãi / Đã ra ngoài).
+ * - Modal Thêm phương tiện mới (Add Vehicle Modal) với kiểm tra định dạng biển số Việt Nam.
+ * - Modal Chỉnh sửa thông tin phương tiện (Edit Vehicle) & Modal Xóa phương tiện (Delete Vehicle).
+ * - Xem nhật ký lượt gửi xe liên quan tới từng xe cụ thể.
+ * 
+ * ⚙️ KẾT NỐI API BACKEND (ASP.NET Core Controllers):
+ * - GET    /vehicles?accountId={accountId}   --> Lấy danh sách xe của tài xế (VehiclesController.cs)
+ * - GET    /VehicleTypes                     --> Lấy danh mục loại xe: Ô tô (1), Xe máy (2) (VehicleTypeController.cs)
+ * - POST   /vehicles                         --> Đăng ký thêm phương tiện mới (VehiclesController.cs)
+ * - PUT    /vehicles/{id}                    --> Cập nhật thông tin xe (VehiclesController.cs)
+ * - DELETE /vehicles/{id}                    --> Xóa phương tiện khỏi hệ thống (VehiclesController.cs)
+ * 
+ * 🗄️ BẢNG DATABASE LIÊN QUAN (PostgreSQL):
+ * - Vehicles     (Id, LicensePlate, VehicleTypeId, Model, Color, ColorHex, AccountId)
+ * - VehicleTypes (Id, Name, Description)
+ * 
+ * 🔄 LUỒNG CẬP NHẬT DỮ LIỆU & RENDER UI:
+ * 1. Mounting: Hook `useVehicles()` tự động nạp danh sách xe và trạng thái đỗ từ API.
+ * 2. Đăng ký xe mới: Người dùng submit form -> Gọi `POST /vehicles` -> Nhận phản hồi -> Reload danh sách xe -> Toast notification thành công.
+ * 3. Render Card: Mảng xe được render bằng `.map()`, trạng thái đỗ được đối chiếu với `activeSession`.
+ * ===================================================================================
+ */
+
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';

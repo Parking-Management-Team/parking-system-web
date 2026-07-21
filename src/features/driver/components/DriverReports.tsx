@@ -1,3 +1,29 @@
+/**
+ * ===================================================================================
+ * 🚨 FE COMPONENT: DriverReports.tsx (Báo Cáo Sự Cố / Driver Incident Reports)
+ * ===================================================================================
+ * 
+ * 📌 VAI TRÒ & CHỨC NĂNG CHÍNH TRÊN UI:
+ * - Gửi báo cáo sự cố phát sinh tại bãi đỗ xe (Đỗ sai ô, trầy xước xe, hỏng rào chắn, mất thẻ gửi xe,...).
+ * - Modal Form Tạo sự cố mới: Chọn phương tiện liên quan, chọn danh mục loại sự cố, mức độ nghiêm trọng (Low, Medium, High, Critical), nhập mô tả chi tiết.
+ * - Danh sách theo dõi vé sự cố (Incident Tickets Timeline): Xem phản hồi và tiến độ xử lý từ Quản lý / Nhân viên bãi đỗ (Open -> In Progress -> Resolved).
+ * 
+ * ⚙️ KẾT NỐI API BACKEND (ASP.NET Core Controllers):
+ * - GET  /incidents?reportedBy={accountId}  --> Lấy danh sách các vé sự cố do người dùng tạo (IncidentController.cs)
+ * - GET  /IncidentTypes                     --> Lấy danh mục các loại sự cố hệ thống hỗ trợ (IncidentTypeController.cs)
+ * - POST /incidents                         --> Tạo vé báo cáo sự cố mới (IncidentController.cs)
+ * 
+ * 🗄️ BẢNG DATABASE LIÊN QUAN (PostgreSQL):
+ * - Incidents     (Id, Title, Description, Severity, IncidentStatus, VehicleId, ReportedByAccountId, IncidentTypeId)
+ * - IncidentTypes (Id, Name, Description, Code)
+ * 
+ * 🔄 LUỒNG CẬP NHẬT DỮ LIỆU & RENDER UI:
+ * 1. Load Form: Lấy danh mục `IncidentTypes` nạp vào Dropdown selector.
+ * 2. Submit Form: Khách hàng điền thông tin -> Gọi `POST /incidents` -> Nhận phản hồi Ticket ID -> Nạp lại danh sách.
+ * 3. Render Timeline: Render từng sự cố theo mức độ màu sắc (Critical -> Đỏ nhấp nháy, High -> Cam, Resolved -> Xanh lá).
+ * ===================================================================================
+ */
+
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';

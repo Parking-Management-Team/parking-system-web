@@ -392,26 +392,12 @@ function PricingEngineTab() {
 }
 
 function PaymentsTab() {
-  const { payments, isLoading, error, totalCount, fetchPayments, refundPayment } = usePayments();
+  const { payments, isLoading, error, totalCount, fetchPayments } = usePayments();
   const [pageIndex, setPageIndex] = useState(1);
-  const [refunding, setRefunding] = useState<number | null>(null);
 
   React.useEffect(() => {
     fetchPayments({ pageIndex, pageSize: 10 });
   }, [pageIndex, fetchPayments]);
-
-  const handleRefund = async (id: number) => {
-    if (!confirm('Are you sure you want to refund this payment?')) return;
-    setRefunding(id);
-    try {
-      await refundPayment(id);
-      await fetchPayments({ pageIndex, pageSize: 10 });
-    } catch (err) {
-      alert(err instanceof Error ? err.message : 'Failed to refund');
-    } finally {
-      setRefunding(null);
-    }
-  };
 
   return (
     <div>
@@ -431,7 +417,6 @@ function PaymentsTab() {
                   <th className="text-left py-3 px-4 font-medium">Status</th>
                   <th className="text-left py-3 px-4 font-medium">Order Code</th>
                   <th className="text-left py-3 px-4 font-medium">Payment Time</th>
-                  <th className="text-left py-3 px-4 font-medium">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -442,9 +427,7 @@ function PaymentsTab() {
                     <td className="py-3 px-4">{payment.paymentMethod}</td>
                     <td className="py-3 px-4">
                       <span className={`px-2 py-1 text-xs font-medium rounded ${
-                        payment.paymentStatus === 'PAID' ? 'bg-green-100 text-green-700' :
-                        payment.paymentStatus === 'REFUNDED' ? 'bg-yellow-100 text-yellow-700' :
-                        'bg-gray-100 text-gray-700'
+                        payment.paymentStatus === 'PAID' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'
                       }`}>
                         {payment.paymentStatus}
                       </span>
@@ -452,17 +435,6 @@ function PaymentsTab() {
                     <td className="py-3 px-4">{payment.orderCode || '-'}</td>
                     <td className="py-3 px-4">
                       {payment.paymentTime ? new Date(payment.paymentTime).toLocaleString() : '-'}
-                    </td>
-                    <td className="py-3 px-4">
-                      {payment.paymentStatus === 'PAID' && (
-                        <button
-                          onClick={() => handleRefund(payment.id)}
-                          disabled={refunding === payment.id}
-                          className="px-2 py-1 text-xs text-orange-600 hover:bg-orange-50 rounded disabled:opacity-50"
-                        >
-                          Refund
-                        </button>
-                      )}
                     </td>
                   </tr>
                 ))}

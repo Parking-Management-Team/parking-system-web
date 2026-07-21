@@ -1,3 +1,37 @@
+/**
+ * ===================================================================================
+ * 🚗 FE COMPONENT: ParkingUtilsWorkspace.tsx (Driver Workspace & Slot Booking)
+ * ===================================================================================
+ * 
+ * 📌 VAI TRÒ & CHỨC NĂNG CHÍNH TRÊN UI:
+ * - Đặt chỗ gửi xe trước (Slot Booking Wizard 4 bước): Chọn bãi đỗ -> Thời gian -> Tính cọc -> Đặt chỗ.
+ * - Hỗ trợ chọn thời gian đặt chỗ nhiều ngày (Multi-day Range Picker, giới hạn tối đa 30 ngày).
+ * - Đếm ngược 15 phút giữ chỗ (Check-in Grace Period Timer).
+ * - Hiển thị danh sách các đơn đặt chỗ đang hoạt động, đã hủy, hoặc đã check-in.
+ * - Hủy đặt chỗ (Cancel Booking) kèm lý do, hoặc Chỉnh sửa thời gian đặt chỗ (Modify Booking).
+ * - Quản lý mã QR Check-in cho tài xế quét tại cổng.
+ * 
+ * ⚙️ KẾT NỐI API BACKEND (ASP.NET Core Controllers):
+ * - GET  /Buildings                            --> Lấy danh sách bãi đỗ / tòa nhà (BuildingsController.cs)
+ * - GET  /Slots/available                      --> Tìm ô đỗ xe trống khả dụng (ParkingSlotsController.cs)
+ * - POST /bookings/estimate-cost               --> Tính toán ước tính chi phí đỗ & số tiền đặt cọc (BookingsController.cs)
+ * - POST /bookings                             --> Khởi tạo đơn đặt chỗ mới (BookingsController.cs)
+ * - GET  /bookings/by-account/{accountId}      --> Danh sách đặt chỗ của người dùng (BookingsController.cs)
+ * - POST /bookings/{id}/cancel                 --> Hủy đơn đặt chỗ (BookingsController.cs)
+ * - PATCH /bookings/{id}/modify                --> Chỉnh sửa thời gian đặt chỗ (BookingsController.cs)
+ * 
+ * 🗄️ BẢNG DATABASE LIÊN QUAN (PostgreSQL):
+ * - Bookings        (Id, Code, AccountId, VehicleId, BuildingId, SlotId, PlannedCheckinTime, PlannedCheckoutTime, DepositAmount, BookingStatus)
+ * - Buildings       (Id, Code, Name, Address)
+ * - ParkingSlots    (Id, SlotCode, ZoneId, IsAvailable)
+ * 
+ * 🔄 LUỒNG CẬP NHẬT DỮ LIỆU & RENDER UI:
+ * 1. Mounting: Gọi `fetchUserBookings()` nạp danh sách Booking từ API.
+ * 2. Đặt chỗ: Chọn thông tin -> Gọi `estimate-cost` render tiền cọc -> Gọi `POST /bookings` -> Nhận JSON có QR Code.
+ * 3. Render UI: Dữ liệu thời gian UTC được format bằng `toLocaleString('vi-VN')`. Trạng thái được render bằng Badge nhiều màu.
+ * ===================================================================================
+ */
+
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
@@ -2361,7 +2395,7 @@ export default function ParkingUtilsWorkspace() {
               Are you sure you want to cancel this booking reservation?
               <br />
               <span className="text-[10px] text-amber-600 font-bold block mt-1">
-                Notice: Cancellations within 1 hour of scheduled arrival forfeit the deposit.
+                Notice: Cancellations are non-refundable.
               </span>
             </p>
 

@@ -1,3 +1,34 @@
+/**
+ * ===================================================================================
+ * 💳 FE COMPONENT: DriverPayments.tsx (Thanh Toán & Hóa Đơn / Driver Payments Workspace)
+ * ===================================================================================
+ * 
+ * 📌 VAI TRÒ & CHỨC NĂNG CHÍNH TRÊN UI:
+ * - Quản lý các khoản thanh toán của tài xế: Phí gửi xe trực tiếp và Tiền đặt cọc booking (Booking Deposit).
+ * - Render danh sách Hóa đơn cọc chờ nộp kèm đồng hồ đếm ngược hạn thanh toán (Payment Deadline).
+ * - Modal Cổng thanh toán VNPAY: Tạo URL và hiển thị mã QR VNPAY-QR để tài xế quét bằng app ngân hàng.
+ * - Tùy chọn Thanh toán sau (Pay Later) tại quầy khi đến check-in bãi đỗ.
+ * - Bảng Lịch sử giao dịch thanh toán (Payment History) với định dạng tiền VNĐ và phân loại phương thức.
+ * 
+ * ⚙️ KẾT NỐI API BACKEND (ASP.NET Core Controllers):
+ * - GET  /parking-sessions/active                --> Lấy lượt đỗ active để tính tiền phí hiện tại (ParkingSessionsController.cs)
+ * - GET  /bookings/by-account/{accountId}        --> Lấy các đơn đặt cọc chờ thanh toán (BookingsController.cs)
+ * - POST /Payments/vnpay/create-payment-url      --> Tạo URL & mã QR VNPAY trực tuyến (PaymentsController.cs)
+ * - POST /Payments/pay-later                     --> Đăng ký trả tiền sau tại quầy (PaymentsController.cs)
+ * - GET  /Revenue/payments hoặc /Payments/history--> Lịch sử các giao dịch đã thực hiện (RevenueController.cs / PaymentsController.cs)
+ * 
+ * 🗄️ BẢNG DATABASE LIÊN QUAN (PostgreSQL):
+ * - Payments        (Id, Amount, PaymentMethod, PaymentStatus, VnPayTransactionNo, BookingId, ParkingSessionId)
+ * - Bookings        (Id, Code, DepositAmount, BookingStatus, PaymentDeadline)
+ * - ParkingSessions (Id, CheckInTime, SessionStatus)
+ * 
+ * 🔄 LUỒNG CẬP NHẬT DỮ LIỆU & RENDER UI:
+ * 1. Load dữ liệu: Gọi API nạp danh sách Booking Pending cọc và Session Active.
+ * 2. Thanh toán VNPAY: Nhấn thanh toán -> Gọi API lấy `paymentUrl` -> Render Modal VNPAY có nút chuyển hướng và mã QR.
+ * 3. Render danh sách: Các hóa đơn được phân loại theo trạng thái (Pending -> Màu vàng cảnh báo, Paid -> Màu xanh lá).
+ * ===================================================================================
+ */
+
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';

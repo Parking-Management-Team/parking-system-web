@@ -1,3 +1,31 @@
+/**
+ * ===================================================================================
+ * 📊 FE COMPONENT: DriverDashboard.tsx (Tổng Quan Tài Xế / Driver Overview Dashboard)
+ * ===================================================================================
+ * 
+ * 📌 VAI TRÒ & CHỨC NĂNG CHÍNH TRÊN UI:
+ * - Thẻ Phiên gửi xe đang hoạt động (Active Session Card): Hiển thị xe đang đỗ, vị trí ô đỗ, giờ check-in, đồng hồ đếm thời gian đỗ theo thời gian thực và chi phí đỗ tạm tính.
+ * - Thẻ Lịch đặt chỗ sắp tới (Upcoming Booking Card): Mã đỗ, bãi đỗ, giờ check-in dự kiến, đồng hồ đếm ngược giữ chỗ.
+ * - Thống kê nhanh (Quick Metrics): Số lượng xe đã đăng ký, Số hóa đơn đang chờ nộp cọc.
+ * - Nút truy cập nhanh (Quick Actions): Đặt chỗ mới, Thêm xe, Thanh toán cọc, Báo cáo sự cố.
+ * 
+ * ⚙️ KẾT NỐI API BACKEND (ASP.NET Core Controllers):
+ * - GET /parking-sessions/active            --> Lấy phiên gửi xe đang hoạt động (ParkingSessionsController.cs)
+ * - GET /bookings/by-account/{accountId}    --> Lấy danh sách lịch đặt chỗ của tài xế (BookingsController.cs)
+ * - GET /vehicles?accountId={accountId}     --> Lấy danh sách phương tiện sở hữu (VehiclesController.cs)
+ * 
+ * 🗄️ BẢNG DATABASE LIÊN QUAN (PostgreSQL):
+ * - ParkingSessions (Id, LicensePlateIn, CheckInTime, SessionStatus, SlotId)
+ * - Bookings        (Id, Code, AccountId, PlannedCheckinTime, BookingStatus, PaymentDeadline)
+ * - Vehicles        (Id, LicensePlate, AccountId)
+ * 
+ * 🔄 LUỒNG CẬP NHẬT DỮ LIỆU & RENDER UI:
+ * 1. Rendering & Loading: Gọi 3 API trên qua `Promise.all` trong `fetchDashboardData()`.
+ * 2. Đếm thời gian Realtime: Dùng `setInterval(..., 1000)` đếm số giây đỗ (`secondsElapsed`) dựa trên `checkInTime` để render đồng hồ và tính giá tiền tự động.
+ * 3. Nạp lại dữ liệu: Tự động polling định kỳ để giữ giao diện đồng bộ với trạng thái bãi đỗ thực tế.
+ * ===================================================================================
+ */
+
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';

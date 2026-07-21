@@ -2,7 +2,7 @@
  * Parking Constants & Type Definitions
  *
  * Chứa các enum trạng thái chuẩn và định nghĩa kiểu dữ liệu (Types/Enums)
- * cho hệ thống quản lý bãi đỗ xe NexPark.
+ * được sử dụng thực tế trong hệ thống NexPark.
  */
 
 // ─── Vehicle Types ─────────────────────────────────────────────────
@@ -34,28 +34,19 @@ export type SessionStatus = typeof SESSION_STATUS[keyof typeof SESSION_STATUS];
 
 // ─── Booking Status ────────────────────────────────────────────────
 export const BOOKING_STATUS = {
-  PENDING:   'PENDING',
-  CONFIRMED: 'CONFIRMED',
-  CHECKED_IN:'CHECKED_IN',
-  EXPIRED:   'EXPIRED',
-  CANCELLED: 'CANCELLED',
+  PENDING:    'PENDING',
+  CONFIRMED:  'CONFIRMED',
+  CHECKED_IN: 'CHECKED_IN',
+  EXPIRED:    'EXPIRED',
+  CANCELLED:  'CANCELLED',
 } as const;
 
 export type BookingStatus = typeof BOOKING_STATUS[keyof typeof BOOKING_STATUS];
 
-// ─── Payment Methods ───────────────────────────────────────────────
+// ─── Payment Methods (Khớp thực tế với Checkout) ─────────────────
 export const PAYMENT_METHOD = {
-  CASH:    'CASH',
-  QR_CODE: 'QR_CODE',
-  EWALLET: 'EWALLET',
+  CASH:           'CASH',
+  ONLINE_BANKING: 'ONLINE_BANKING',
 } as const;
 
 export type PaymentMethod = typeof PAYMENT_METHOD[keyof typeof PAYMENT_METHOD];
-
-// ─── Zone Access Types ────────────────────────────────────────────
-export const ZONE_ACCESS_TYPE = {
-  GENERAL: 'GENERAL',   // Walk-in / Booking vehicles
-  MONTHLY: 'MONTHLY',   // Monthly subscription vehicles only
-} as const;
-
-export type ZoneAccessType = typeof ZONE_ACCESS_TYPE[keyof typeof ZONE_ACCESS_TYPE];

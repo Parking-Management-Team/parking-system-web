@@ -1,10 +1,25 @@
+/**
+ * ═══════════════════════════════════════════════════════════════════════════════
+ * 📌 FILE: SlotActionModal.tsx (HỘP THOẠI QUẢN LÝ & CHI TIẾT Ô ĐỖ XE)
+ * ═══════════════════════════════════════════════════════════════════════════════
+ *
+ * 🎯 MỤC ĐÍCH FILE:
+ * Hộp thoại Modal làm việc trực tiếp với từng Ô đỗ xe (Slot) trên bản đồ:
+ * 1. 🔍 Xem thông tin chi tiết ô đỗ: Mã slot, Khu vực, Loại slot, Trạng thái hiện tại.
+ * 2. ⚠️ Kiểm tra & Cảnh báo Đặt chỗ tương lai (Future Bookings): Cho phép gợi ý/đổi vị trí đỗ an toàn hơn.
+ * 3. 🚗 Quản lý phương tiện đang đỗ: Biển số xe, Thời gian đỗ (Status OCCUPIED).
+ * 4. 🛡️ Quyền Quản trị (Policy Enforcer): Chỉ Quản lý (MANAGER) hoặc Quản trị viên (ADMIN) 
+ *    mới có quyền thay đổi trạng thái slot (Bảo trì / Khoá / Mở trống). Staff chỉ được xem.
+ * ═══════════════════════════════════════════════════════════════════════════════
+ */
+
 'use client';
 
 import React, { useState, useEffect } from 'react';
 import { Slot } from '../types';
 import { parkingMapService } from '../services/parkingMapService';
 
-interface SlotActionModalProps {
+export interface SlotActionModalProps {
   isOpen: boolean;
   onClose: () => void;
   slot: Slot | null;
@@ -37,7 +52,12 @@ export function SlotActionModal({
   } | null>(null);
   const [loadingFutureBookings, setLoadingFutureBookings] = useState(false);
 
-  // Reset form states on open or slot change
+  // 🛡️ BẢO MẬT & PHÂN QUYỀN (Policy Enforcer):
+  // Cả Quản lý (MANAGER) và Quản trị viên (ADMIN) đều có quyền Quản trị vị trí đỗ.
+  const userRoleUpper = userRole?.toUpperCase();
+  const canManageSlot = userRoleUpper === 'MANAGER' || userRoleUpper === 'ADMIN';
+
+  // 🔄 Reset trạng thái form khi mở Modal hoặc thay đổi Slot được chọn
   useEffect(() => {
     if (isOpen && slot) {
       setActiveSlot(slot);
@@ -45,7 +65,7 @@ export function SlotActionModal({
     }
   }, [isOpen, slot]);
 
-  // Fetch future bookings when activeSlot changes to AVAILABLE
+  // 📧 Tải danh sách lịch đặt chỗ trong tương lai nếu slot đang ở trạng thái AVAILABLE
   useEffect(() => {
     if (isOpen && activeSlot && activeSlot.status === 'AVAILABLE') {
       setLoadingFutureBookings(true);
@@ -57,13 +77,14 @@ export function SlotActionModal({
             setFutureBookingsData(data);
           }
         })
-        .catch((err) => console.error('Error fetching future bookings', err))
+        .catch((err) => console.error('Lỗi khi tải lịch đặt trước tương lai:', err))
         .finally(() => setLoadingFutureBookings(false));
     } else {
       setFutureBookingsData(null);
     }
   }, [isOpen, activeSlot]);
 
+  // 🔀 Hàm chuyển đổi sang vị trí đỗ khác được gợi ý an toàn hơn
   const handleSwitchSlot = async (newSlotId: number) => {
     try {
       setLoadingFutureBookings(true);
@@ -77,19 +98,25 @@ export function SlotActionModal({
           buildingId: activeSlot?.buildingId || 0,
         };
         setActiveSlot(fullSlot);
-        showToastMessage(`Switched to parking slot ${fullSlot.slotCode}`);
+        showToastMessage(`Đã chuyển sang vị trí đỗ ${fullSlot.slotCode}`);
       }
     } catch {
-      showToastMessage('Failed to switch to new slot.', 'error');
+      showToastMessage('Không thể chuyển sang vị trí đỗ mới.', 'error');
     } finally {
+      setIsSubmitting(false);
       setLoadingFutureBookings(false);
     }
   };
 
   if (!isOpen || !slot || !activeSlot) return null;
 
-  // Toggle maintenance or block status
+  // 🛠️ Thay đổi trạng thái vị trí đỗ (Bảo trì / Khoá / Mở hoạt động)
   const handleSetStatus = async (newStatus: 'AVAILABLE' | 'BLOCKED' | 'MAINTENANCE') => {
+    if (!canManageSlot) {
+      showToastMessage('Bạn không có quyền thay đổi trạng thái vị trí đỗ.', 'error');
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       const slotId = activeSlot.id;
@@ -101,23 +128,21 @@ export function SlotActionModal({
         vehicleTypeId: activeSlot.vehicleTypeId,
       });
 
-      // Check if response indicates success
+      // Kiểm tra xem phản hồi có thông báo lỗi từ backend không
       if (res && res.success === false) {
-        throw new Error(res.message || `Failed to update status to ${newStatus}`);
+        throw new Error(res.message || `Không thể cập nhật trạng thái vị trí đỗ sang ${newStatus}`);
       }
 
-      // Trigger Parent callback
+      // Gọi callback cập nhật State ở Component cha
       onSlotUpdated(activeSlot.id, newStatus, newStatus === 'AVAILABLE' ? undefined : activeSlot.assignedVehicle);
 
-      // Get the message from backend or use a dynamic fallback
-      const successMessage = res?.message || `Slot ${activeSlot.slotCode} status updated to ${newStatus}.`;
+      const successMessage = res?.message || `Vị trí đỗ ${activeSlot.slotCode} đã được cập nhật sang trạng thái ${newStatus}.`;
       showToastMessage(successMessage);
       onClose();
     } catch (err: any) {
       console.error(err);
 
-      // Extract detailed error message from backend response
-      let errorMsg = 'Could not update status on backend.';
+      let errorMsg = 'Không thể cập nhật trạng thái vị trí đỗ trên máy chủ.';
       if (err && err.data) {
         const data = err.data;
         if (typeof data === 'object' && data !== null) {
@@ -149,19 +174,19 @@ export function SlotActionModal({
         isOpen ? 'opacity-100 visible' : 'opacity-0 invisible pointer-events-none'
       }`}
     >
-      {/* Backdrop Overlay */}
+      {/* Backdrop mờ nền xung quanh Modal */}
       <div
         className="absolute inset-0 bg-black/40 backdrop-blur-sm transition-opacity"
         onClick={onClose}
       ></div>
 
-      {/* Modal content */}
+      {/* Nguồn nội dung Modal */}
       <div
         className={`relative w-full max-w-lg bg-white rounded-2xl shadow-2xl flex flex-col overflow-hidden transition-all duration-300 transform ${
           isOpen ? 'scale-100 opacity-100 translate-y-0' : 'scale-95 opacity-0 translate-y-4'
         } max-h-[90vh]`}
       >
-        {/* Header */}
+        {/* Header Modal */}
         <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-emerald-50">
           <div>
             <h2 className="text-lg font-extrabold text-slate-800">
@@ -179,24 +204,24 @@ export function SlotActionModal({
           </button>
         </div>
 
-        {/* Body */}
+        {/* Nội dung chính Modal */}
         <div className="p-6 flex-grow overflow-y-auto space-y-6">
-          {/* Drawer Mode: AVAILABLE -> New Allocation Form */}
+          {/* TRẠNG THÁI: TRỐNG (AVAILABLE) */}
           {activeSlot.status === 'AVAILABLE' && (
             <div className="space-y-6 animate-in fade-in duration-150">
               {loadingFutureBookings && (
                 <div className="flex items-center justify-center p-4">
                   <div className="w-5 h-5 border-2 border-[#006d43] border-t-transparent rounded-full animate-spin"></div>
-                  <span className="ml-2 text-xs font-semibold text-slate-500">Checking future bookings...</span>
+                  <span className="ml-2 text-xs font-semibold text-slate-500">Đang kiểm tra lịch đặt chỗ tương lai...</span>
                 </div>
               )}
 
-              {/* Warning Banner & Recommendations */}
+              {/* Cảnh báo Đặt chỗ Tương lai & Vị trí đỗ thay thế được gợi ý */}
               {!loadingFutureBookings && futureBookingsData?.futureBookings && futureBookingsData.futureBookings.length > 0 && (
                 <div className="rounded-2xl border border-amber-100 bg-amber-50/70 p-4 text-xs text-amber-800 space-y-3">
                   <div className="flex items-center gap-2 font-bold text-amber-900">
                     <span className="material-symbols-outlined text-[18px] text-amber-600">warning</span>
-                    Warning: This parking slot has upcoming bookings!
+                    Cảnh báo: Vị trí đỗ này đã có lịch đặt chỗ trước sắp tới!
                   </div>
                   <ul className="list-disc pl-4 space-y-1 font-semibold text-amber-700">
                     {futureBookingsData.futureBookings.map((b: any) => (
@@ -207,7 +232,7 @@ export function SlotActionModal({
                   </ul>
                   {futureBookingsData.recommendedSlots && futureBookingsData.recommendedSlots.length > 0 && (
                     <div className="pt-2 border-t border-amber-200/50">
-                      <p className="font-bold text-amber-900 mb-2">Recommended safer available slots:</p>
+                      <p className="font-bold text-amber-900 mb-2">Gợi ý các vị trí đỗ trống an toàn hơn:</p>
                       <div className="flex flex-wrap gap-2">
                         {futureBookingsData.recommendedSlots.map((rec: any) => (
                           <button
@@ -232,19 +257,19 @@ export function SlotActionModal({
                 </span>
                 <div>
                   <h4 className="text-sm font-extrabold text-[#006d43] uppercase tracking-wide">
-                    Slot Available
+                    Vị trí đỗ trống
                   </h4>
                   <p className="text-xs text-slate-500 mt-1">
-                    This parking bay is vacant and available. Entry gate systems will automatically assign and register vehicles to this slot upon check-in.
+                    Vị trí đỗ này hiện đang sẵn sàng. Hệ thống cổng vào sẽ tự động gán phương tiện vào vị trí này khi xe Check-in.
                   </p>
                 </div>
               </div>
 
-              {/* Administrative Actions */}
-              {userRole === 'MANAGER' && (
+              {/* Thao tác Quản trị (Chỉ dành cho Manager & Admin) */}
+              {canManageSlot && (
                 <div className="pt-4 border-t border-slate-100 space-y-3">
                   <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider">
-                    Administrative Controls
+                    Quyền Quản trị Trạng thái Slot
                   </label>
                   <div className="flex gap-3">
                     <button
@@ -254,7 +279,7 @@ export function SlotActionModal({
                       className="flex-1 py-2.5 px-3 text-white bg-[#d97706] hover:bg-amber-700 hover:brightness-110 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition-all shadow-md shadow-amber-500/10 disabled:bg-amber-300 disabled:cursor-not-allowed"
                     >
                       <span className="material-symbols-outlined text-[16px]">build</span>
-                      Set Maintenance
+                      Chuyển Bảo trì
                     </button>
                     <button
                       type="button"
@@ -263,7 +288,7 @@ export function SlotActionModal({
                       className="flex-1 py-2.5 px-3 text-white bg-[#ba1a1a] hover:bg-red-700 hover:brightness-110 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition-all shadow-md shadow-red-500/10 disabled:bg-red-300 disabled:cursor-not-allowed"
                     >
                       <span className="material-symbols-outlined text-[16px]">block</span>
-                      Block Slot
+                      Khoá vị trí
                     </button>
                   </div>
                 </div>
@@ -271,27 +296,27 @@ export function SlotActionModal({
             </div>
           )}
 
-          {/* Drawer Mode: OCCUPIED -> Details and Actions */}
+          {/* TRẠNG THÁI: ĐANG ĐỖ XE (OCCUPIED) */}
           {activeSlot.status === 'OCCUPIED' && activeSlot.assignedVehicle && (
             <div className="space-y-6 animate-in fade-in duration-150">
               <div className="bg-slate-50 border border-slate-200/60 rounded-2xl p-5 space-y-4">
                 <div className="flex justify-between items-start">
                   <div>
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Parked Vehicle</p>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Phương tiện đang đỗ</p>
                     <h3 className="text-xl font-black text-slate-800 tracking-tight mt-0.5">{activeSlot.assignedVehicle.plate}</h3>
                   </div>
                   <span className="px-2.5 py-1 bg-slate-200/60 text-slate-700 font-bold rounded-lg text-[10px] uppercase tracking-wide">
-                    Occupied
+                    Đang sử dụng
                   </span>
                 </div>
 
                 <div className="border-t border-slate-200/50 pt-4 text-xs">
                   <div>
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Parked Since</p>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Thời điểm vào bãi</p>
                     <p className="font-semibold text-slate-700 mt-0.5">
                       {activeSlot.assignedVehicle.startDate
-                        ? new Date(activeSlot.assignedVehicle.startDate).toLocaleString()
-                        : 'N/A'}
+                        ? new Date(activeSlot.assignedVehicle.startDate).toLocaleString('vi-VN')
+                        : 'Không có dữ liệu'}
                     </p>
                   </div>
                 </div>
@@ -299,7 +324,7 @@ export function SlotActionModal({
             </div>
           )}
 
-          {/* Drawer Mode: BLOCKED or MAINTENANCE -> Action Panel */}
+          {/* TRẠNG THÁI: KHOÁ HOẶC BẢO TRÌ (BLOCKED / MAINTENANCE) */}
           {(activeSlot.status === 'BLOCKED' || activeSlot.status === 'MAINTENANCE') && (
             <div className="space-y-6 animate-in fade-in duration-150">
               <div className="bg-red-50 p-5 rounded-2xl border border-red-500/10 flex items-start gap-4">
@@ -308,19 +333,19 @@ export function SlotActionModal({
                 </span>
                 <div>
                   <h4 className="text-sm font-extrabold text-slate-800 uppercase tracking-wide">
-                    Slot currently {activeSlot.status}
+                    Vị trí đỗ hiện đang {activeSlot.status === 'BLOCKED' ? 'KHOÁ' : 'BẢO TRÌ'}
                   </h4>
                   <p className="text-xs text-slate-500 mt-1">
-                    This parking bay has been marked out of service for operations/maintenance. It cannot be assigned or utilized by check-in sessions.
+                    Ô đỗ này đã được đánh dấu dừng phục vụ để vận hành/bảo trì. Xe Check-in sẽ không thể phân bổ vào vị trí này.
                   </p>
                 </div>
               </div>
 
-              {/* Administrative Actions */}
-              {userRole === 'MANAGER' && (
+              {/* Quản trị chuyển đổi qua lại giữa Khoá và Bảo trì (Manager & Admin) */}
+              {canManageSlot && (
                 <div className="pt-4 border-t border-slate-100 space-y-2">
                   <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider">
-                    Switch Status
+                    Đổi trạng thái bảo trì/khoá
                   </label>
                   <button
                     type="button"
@@ -335,14 +360,14 @@ export function SlotActionModal({
                     <span className="material-symbols-outlined text-[16px]">
                       {activeSlot.status === 'BLOCKED' ? 'build' : 'block'}
                     </span>
-                    Change to {activeSlot.status === 'BLOCKED' ? 'MAINTENANCE' : 'BLOCKED'}
+                    Chuyển sang {activeSlot.status === 'BLOCKED' ? 'BẢO TRÌ' : 'KHOÁ (BLOCKED)'}
                   </button>
                 </div>
               )}
             </div>
           )}
 
-          {/* Drawer Mode: RESERVED -> Action Panel */}
+          {/* TRẠNG THÁI: ĐÃ ĐẶT TRƯỚC (RESERVED) */}
           {activeSlot.status === 'RESERVED' && (
             <div className="space-y-6 animate-in fade-in duration-150">
               <div className="bg-blue-50 p-5 rounded-2xl border border-blue-200 flex items-start gap-4">
@@ -351,10 +376,10 @@ export function SlotActionModal({
                 </span>
                 <div>
                   <h4 className="text-sm font-extrabold text-slate-800 uppercase tracking-wide">
-                    Reserved for Booking
+                    Đã đặt chỗ trước
                   </h4>
                   <p className="text-xs text-slate-500 mt-1">
-                    This parking slot is reserved for an upcoming booking. It will become available after the booking is completed or cancelled.
+                    Vị trí đỗ này đã được khách hàng đặt giữ trước qua hệ thống Booking. Slot sẽ sẵn sàng sau khi phiên gửi kết thúc hoặc đơn bị hủy.
                   </p>
                 </div>
               </div>
@@ -362,7 +387,7 @@ export function SlotActionModal({
           )}
         </div>
 
-        {/* Footer Actions */}
+        {/* Nút thao tác dưới Footer */}
         <div className="p-6 border-t border-slate-100 bg-slate-50 flex gap-3">
           {activeSlot.status === 'AVAILABLE' && (
             <button
@@ -370,7 +395,7 @@ export function SlotActionModal({
               onClick={onClose}
               className="w-full py-3 bg-white hover:bg-slate-50 border border-slate-200 rounded-xl font-bold text-sm text-slate-600 transition-all shadow-sm"
             >
-              Close
+              Đóng
             </button>
           )}
 
@@ -380,16 +405,16 @@ export function SlotActionModal({
                 onClick={onClose}
                 className="flex-1 py-3 bg-white hover:bg-slate-50 border border-slate-200 rounded-xl font-bold text-sm text-slate-600 transition-all shadow-sm"
               >
-                Close
+                Đóng
               </button>
-              {userRole === 'MANAGER' && (
+              {canManageSlot && (
                 <button
                   onClick={() => handleSetStatus('MAINTENANCE')}
                   disabled={isSubmitting}
                   className="flex-[2] py-3 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-xl font-bold text-sm flex items-center justify-center gap-1.5 transition-all shadow-sm disabled:bg-slate-100 disabled:text-slate-400 disabled:cursor-not-allowed"
                 >
                   <span className="material-symbols-outlined text-[16px]">build</span>
-                  Maintain
+                  Bảo trì
                 </button>
               )}
             </>
@@ -401,9 +426,9 @@ export function SlotActionModal({
                 onClick={onClose}
                 className="flex-1 py-3 bg-white hover:bg-slate-50 border border-slate-200 rounded-xl font-bold text-sm text-slate-600 transition-all shadow-sm"
               >
-                Cancel
+                Hủy
               </button>
-              {userRole === 'MANAGER' && (
+              {canManageSlot && (
                 <button
                   onClick={() => handleSetStatus('AVAILABLE')}
                   disabled={isSubmitting}
@@ -414,7 +439,7 @@ export function SlotActionModal({
                   ) : (
                     <>
                       <span className="material-symbols-outlined text-[18px]">verified</span>
-                      Set Available
+                      Mở hoạt động (Available)
                     </>
                   )}
                 </button>
@@ -427,7 +452,7 @@ export function SlotActionModal({
               onClick={onClose}
               className="w-full py-3 bg-white hover:bg-slate-50 border border-slate-200 rounded-xl font-bold text-sm text-slate-600 transition-all shadow-sm"
             >
-              Close
+              Đóng
             </button>
           )}
         </div>

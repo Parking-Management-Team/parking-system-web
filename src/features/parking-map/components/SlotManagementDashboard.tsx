@@ -1,3 +1,21 @@
+/**
+ * ═══════════════════════════════════════════════════════════════════════════════
+ * 📌 FILE: SlotManagementDashboard.tsx (MÀN HÌNH SƠ ĐỒ BÃI ĐỖ XE & GIÁM SÁT TRỰC TUYẾN)
+ * ═══════════════════════════════════════════════════════════════════════════════
+ *
+ * 🎯 MỤC ĐÍCH FILE:
+ * Màn hình trung tâm quản lý sơ đồ vị trí đỗ xe theo thời gian thực (Real-time Parking Map Dashboard):
+ * 1. 🏢 Bộ lọc hạ tầng: Chọn Tòa nhà -> Chọn Tầng trực quan.
+ * 2. 🗺️ Chế độ Sơ đồ trực quan (Visual Layout Map): Trình bày các ô đỗ Ô tô (Standard / EV Charging) 
+ *    theo từng khu vực (Zone) đi kèm trạng thái màu tương ứng (Trống, Đang đỗ, Khoá, Bảo trì, Đặt trước).
+ * 3. 🏍️ Giám sát sức chứa Xe máy (Motorbike Capacity Monitoring): Bảng tổng hợp công suất sử dụng khu xe máy.
+ * 4. 📋 Danh sách phiên đỗ (Session Allocations List): Tra cứu chi tiết thẻ đỗ, biển số xe, thời gian Check-in.
+ * 5. 🛡️ Bảo mật & Phân quyền (Policy Enforcer): Hỗ trợ đa vai trò (ADMIN, MANAGER, STAFF):
+ *    - Quản lý / Quản trị viên: Có đầy đủ quyền thay đổi trạng thái slot và Cưỡng chế giải phóng phiên (Force Release).
+ *    - Nhân viên (Staff): Chỉ xem sơ đồ & tra cứu phiên đỗ xe.
+ * ═══════════════════════════════════════════════════════════════════════════════
+ */
+
 'use client';
 
 import React from 'react';
@@ -9,9 +27,19 @@ import { SlotActionModal } from './SlotActionModal';
 
 export function SlotManagementDashboard() {
   const { user } = useAuth();
+  
+  // 🛡️ BẢO MẬT & PHÂN QUYỀN (Policy Enforcer):
   const userRole = user?.role?.toUpperCase();
-  const backLink = userRole === 'STAFF' ? '/dashboard/staff' : '/dashboard/manager/facilities';
+  const canManageSlot = userRole === 'MANAGER' || userRole === 'ADMIN';
 
+  // Điều hướng nút quay lại theo vai trò tài khoản
+  const backLink = userRole === 'STAFF' 
+    ? '/dashboard/staff' 
+    : userRole === 'ADMIN' 
+      ? '/dashboard/admin' 
+      : '/dashboard/manager/facilities';
+
+  // Trích xuất toàn bộ state và hàm xử lý từ custom hook useParkingMap
   const {
     buildings,
     zones,
@@ -51,7 +79,7 @@ export function SlotManagementDashboard() {
     filteredSessions,
   } = useParkingMap();
 
-  // Color Coding maps
+  // Ánh xạ lớp màu nền và viền cho từng trạng thái Ô đỗ xe
   const getSlotColorClass = (status: Slot['status']) => {
     switch (status) {
       case 'AVAILABLE':
@@ -72,7 +100,7 @@ export function SlotManagementDashboard() {
   return (
     <div className="flex-grow flex flex-col min-h-screen relative bg-slate-50/50">
 
-      {/* ===== TOAST NOTIFICATION ===== */}
+      {/* ===== THÔNG BÁO POPUP (TOAST NOTIFICATION) ===== */}
       {toast && (
         <div className={`fixed top-6 right-6 z-[100] flex items-center gap-3.5 text-white px-6 py-4 rounded-2xl shadow-xl transition-all duration-300 transform scale-100 border border-white/10 animate-in fade-in slide-in-from-top-4 ${
           toast.type === 'error' ? 'bg-[#ba1a1a] shadow-red-600/30' : 'bg-[#006d43] shadow-[#006d43]/30'
@@ -84,7 +112,7 @@ export function SlotManagementDashboard() {
         </div>
       )}
 
-      {/* ===== HEADER & INFRASTRUCTURE FILTERS ===== */}
+      {/* ===== HEADER & BỘ LỌC HẠ TẦNG (BUILDING / FLOOR) ===== */}
       <main className="flex-grow p-6 lg:p-8 w-full max-w-[1440px] mx-auto">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
           <div>
@@ -92,18 +120,19 @@ export function SlotManagementDashboard() {
               <Link
                 href={backLink}
                 className="p-1.5 rounded-lg text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 transition-colors"
+                title="Quay lại Màn hình chính"
               >
                 ←
               </Link>
-              <h1 className="text-2xl font-bold text-slate-855 tracking-tight">Slot Management</h1>
+              <h1 className="text-2xl font-bold text-slate-855 tracking-tight">Quản lý Sơ đồ Ô đỗ (Slot Management)</h1>
             </div>
-            <p className="text-slate-500 text-sm mt-1 ml-8">Configure, allocate, and monitor parking bays for Cars and Motorbike capacity.</p>
+            <p className="text-slate-500 text-sm mt-1 ml-8">Giám sát công suất, phân bổ và trạng thái vị trí đỗ ô tô và xe máy theo thời gian thực.</p>
           </div>
 
-          {/* Infrastructure selector (Building -> Floor) */}
+          {/* Thanh chọn Tòa nhà -> Tầng */}
           <div className="flex flex-wrap items-center gap-3 bg-white p-2.5 rounded-xl border border-slate-100 shadow-sm ml-8 md:ml-0">
             <div className="flex flex-col min-w-[140px]">
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 px-1">Building</span>
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 px-1">Tòa nhà</span>
               <select
                 value={selectedBuildingId || ''}
                 onChange={handleBuildingChange}
@@ -118,7 +147,7 @@ export function SlotManagementDashboard() {
             <div className="h-6 w-px bg-slate-200"></div>
 
             <div className="flex flex-col min-w-[120px]">
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 px-1">Floor</span>
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 px-1">Tầng</span>
               <select
                 value={selectedFloorId || ''}
                 onChange={handleFloorChange}
@@ -133,7 +162,7 @@ export function SlotManagementDashboard() {
           </div>
         </div>
 
-        {/* ===== TAB BAR NAVIGATION ===== */}
+        {/* ===== THANH CHUYỂN TAB CÔNG VIỆC ===== */}
         <div className="mb-4 border-b border-slate-200 flex justify-between items-center">
           <div className="flex gap-8">
             <button
@@ -144,7 +173,7 @@ export function SlotManagementDashboard() {
                   : 'text-slate-400 border-transparent hover:text-slate-600'
               }`}
             >
-              Visual Layout Map
+              Sơ đồ ô đỗ trực quan (Visual Layout Map)
             </button>
             <button
               onClick={() => setActiveTab('list')}
@@ -154,7 +183,7 @@ export function SlotManagementDashboard() {
                   : 'text-slate-400 border-transparent hover:text-slate-600'
               }`}
             >
-              Session Allocations ({activeSessions.filter(s => zones.find(z => z.id === s.zoneId)?.floorId === selectedFloorId).length})
+              Danh sách phiên đang đỗ ({activeSessions.filter(s => zones.find(z => z.id === s.zoneId)?.floorId === selectedFloorId).length})
             </button>
           </div>
 
@@ -162,7 +191,7 @@ export function SlotManagementDashboard() {
             {loading && (
               <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-500">
                 <div className="w-3.5 h-3.5 border-2 border-[#006d43] border-t-transparent rounded-full animate-spin"></div>
-                Syncing...
+                Đang đồng bộ...
               </div>
             )}
             {lastUpdated && !loading && (
@@ -171,20 +200,20 @@ export function SlotManagementDashboard() {
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#006d43] opacity-60"></span>
                   <span className="relative inline-flex rounded-full h-2 w-2 bg-[#006d43]"></span>
                 </span>
-                LIVE · Updated {lastUpdated.toLocaleTimeString()}
+                TRỰC TUYẾN · Cập nhật {lastUpdated.toLocaleTimeString('vi-VN')}
               </div>
             )}
             <button
               onClick={refreshSlotsAndSessions}
-              title="Refresh now"
+              title="Làm mới ngay"
               className="px-3 py-1.5 rounded-lg text-slate-500 hover:text-[#006d43] hover:bg-emerald-50 transition-colors text-xs font-bold"
             >
-              Refresh
+              Làm mới
             </button>
           </div>
         </div>
 
-        {/* ===== FLOOR CAPACITY SUMMARY BAR ===== */}
+        {/* ===== THANH TỔNG QUAN CÔNG SUẤT THEO TẦNG ===== */}
         {selectedFloorId && floorSlotSummary && (
           <div className="mb-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {floorSlotSummary.vehicleTypeSummaries
@@ -209,7 +238,7 @@ export function SlotManagementDashboard() {
                   effectiveTotal = effectiveMotorTotal;
                 }
 
-                // Find zone for this vehicle type to get bookingLimitRate
+                // Tìm Zone của phương tiện này để tính tỷ lệ giới hạn đặt chỗ (Booking Limit Rate)
                 const zoneForType = zones.find(z => {
                   if (z.floorId !== selectedFloorId) return false;
                   if (isMotorbike) return z.vehicleType === 'Motorbike';
@@ -217,7 +246,7 @@ export function SlotManagementDashboard() {
                 });
                 const bookingLimitRate = zoneForType?.bookingLimitRate ?? 80;
 
-                // Calculate booking capacity
+                // Tính toán công suất đặt chỗ trước khả dụng
                 const maxBookable = Math.floor(Math.max(0, effectiveTotal - blocked - maintenance) * bookingLimitRate / 100);
                 const reservedCount = activeSessions.filter(s => {
                   const zone = zones.find(z => z.id === s.zoneId);
@@ -236,41 +265,41 @@ export function SlotManagementDashboard() {
                   <div key={vehicleType.vehicleTypeId} className="bg-white border-2 border-slate-200 shadow-md rounded-2xl p-5 flex flex-col gap-3 hover:shadow-lg transition-shadow">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2.5">
-                        <span className="text-xs font-extrabold text-slate-700 uppercase tracking-wide">{isMotorbike ? 'Motorbike' : 'Car'} · Floor {floorSlotSummary.floorNumber}</span>
+                        <span className="text-xs font-extrabold text-slate-700 uppercase tracking-wide">{isMotorbike ? 'Xe máy' : 'Ô tô'} · Tầng {floorSlotSummary.floorNumber}</span>
                       </div>
                       <span className="text-[10px] font-bold text-slate-400 bg-slate-100 px-2 py-1 rounded-lg">
-                        Booking limit: {bookingLimitRate}%
+                        Giới hạn đặt: {bookingLimitRate}%
                       </span>
                     </div>
                     
                     <div className="flex items-end gap-3 flex-wrap">
                       <div className="text-center min-w-[50px]">
                         <p className="text-2xl font-black text-[#006d43]">{effectiveAvailable}</p>
-                        <p className="text-[10px] font-bold text-slate-400 uppercase mt-0.5">Available</p>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase mt-0.5">Trống</p>
                       </div>
                       <div className="h-8 w-px bg-slate-100"></div>
                       <div className="text-center min-w-[50px]">
                         <p className="text-2xl font-black text-[#263143]">{effectiveOccupied}</p>
-                        <p className="text-[10px] font-bold text-slate-400 uppercase mt-0.5">Occupied</p>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase mt-0.5">Đang đỗ</p>
                       </div>
                       <div className="h-8 w-px bg-slate-100"></div>
                       <div className="text-center min-w-[50px]">
                         <p className="text-2xl font-black text-[#ba1a1a]">{blocked}</p>
-                        <p className="text-[10px] font-bold text-slate-400 uppercase mt-0.5">Blocked</p>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase mt-0.5">Khoá</p>
                       </div>
                       <div className="h-8 w-px bg-slate-100"></div>
                       <div className="text-center min-w-[50px]">
                         <p className="text-2xl font-black text-[#d97706]">{maintenance}</p>
-                        <p className="text-[10px] font-bold text-slate-400 uppercase mt-0.5">Maintenance</p>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase mt-0.5">Bảo trì</p>
                       </div>
                       <div className="h-8 w-px bg-slate-100"></div>
                       <div className="text-center min-w-[50px]">
                         <p className="text-2xl font-black text-slate-600">{effectiveTotal}</p>
-                        <p className="text-[10px] font-bold text-slate-400 uppercase mt-0.5">Total</p>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase mt-0.5">Tổng số</p>
                       </div>
                     </div>
 
-                    {/* Booking Capacity Info */}
+                    {/* Khung giám sát ngưỡng Đặt chỗ tương lai (Booking Capacity) */}
                     {(() => {
                       const usedBookable = Math.min(reservedCount, maxBookable);
                       const bookingUsagePct = maxBookable > 0 ? Math.round((usedBookable / maxBookable) * 100) : 0;
@@ -289,20 +318,20 @@ export function SlotManagementDashboard() {
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-1.5">
                               <span className={`material-symbols-outlined text-base ${statusColor.text}`}>{statusColor.icon}</span>
-                              <span className="text-[11px] font-black uppercase tracking-wider text-slate-700">Booking Capacity</span>
+                              <span className="text-[11px] font-black uppercase tracking-wider text-slate-700">Công suất Đặt trước</span>
                             </div>
                             <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-md border ${statusColor.bg} ${statusColor.text}`}>
-                              {bookingUsagePct}% used
+                              {bookingUsagePct}% đã dùng
                             </span>
                           </div>
                           
                           <div className="flex items-baseline justify-between">
                             <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">
-                              Remaining capacity
+                              Còn có thể đặt trước
                             </div>
                             <div className="text-right">
                               <span className="text-xl font-black text-slate-800">{remainingBookable}</span>
-                              <span className="text-xs font-bold text-slate-400 ml-1">/ {maxBookable} slots</span>
+                              <span className="text-xs font-bold text-slate-400 ml-1">/ {maxBookable} slot</span>
                             </div>
                           </div>
 
@@ -314,22 +343,22 @@ export function SlotManagementDashboard() {
                           </div>
 
                           <div className="flex items-center justify-between text-[10px] font-bold text-slate-400">
-                            <span>Limit: {bookingLimitRate}% of floor capacity</span>
-                            <span className="text-slate-500 font-extrabold">{usedBookable} booked</span>
+                            <span>Giới hạn: {bookingLimitRate}% tổng sức chứa tầng</span>
+                            <span className="text-slate-500 font-extrabold">{usedBookable} đã giữ</span>
                           </div>
                         </div>
                       );
                     })()}
                     
-                    {/* Progress Bar with Percentage */}
+                    {/* Thanh tiến trình tỷ lệ lấp đầy */}
                     <div className="space-y-1.5">
                       <div className="flex items-center justify-between text-[10px] font-bold">
-                        <span className="text-slate-500 uppercase tracking-wider">Capacity Usage</span>
+                        <span className="text-slate-500 uppercase tracking-wider">Tỷ lệ lấp đầy</span>
                         <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-[#006d43]">{effectiveAvailablePct}% free</span>
-                          <span className="text-[#263143]">{effectiveOccupiedPct}% occupied</span>
-                          {blocked > 0 && <span className="text-[#ba1a1a]">{blockedPct}% blocked</span>}
-                          {maintenance > 0 && <span className="text-[#d97706]">{maintenancePct}% maintaining</span>}
+                          <span className="text-[#006d43]">{effectiveAvailablePct}% trống</span>
+                          <span className="text-[#263143]">{effectiveOccupiedPct}% có xe</span>
+                          {blocked > 0 && <span className="text-[#ba1a1a]">{blockedPct}% khoá</span>}
+                          {maintenance > 0 && <span className="text-[#d97706]">{maintenancePct}% bảo trì</span>}
                         </div>
                       </div>
                       <div className="w-full bg-slate-100 h-3 rounded-full overflow-hidden flex">
@@ -345,35 +374,35 @@ export function SlotManagementDashboard() {
           </div>
         )}
 
-        {/* ===== TAB CONTENT 1: VISUAL LAYOUT MAP ===== */}
+        {/* ===== TAB CONTENT 1: SƠ ĐỒ TRỰC QUAN (VISUAL LAYOUT MAP) ===== */}
         {activeTab === 'map' && (
           <div className="space-y-8 animate-in fade-in duration-200">
-            {/* Status Legend */}
+            {/* Chú thích màu sắc (Legend) */}
             <div className="flex flex-wrap items-center gap-6 bg-white px-6 py-3.5 rounded-xl border border-slate-100 shadow-sm text-xs font-bold text-slate-500">
-              <span className="text-slate-400 uppercase tracking-wider text-[10px] mr-2">Legend:</span>
+              <span className="text-slate-400 uppercase tracking-wider text-[10px] mr-2">Chú thích:</span>
               <div className="flex items-center gap-2">
                 <div className="w-3.5 h-3.5 rounded-md bg-[#006d43]"></div>
-                <span>Available</span>
+                <span>Sẵn sàng (Available)</span>
               </div>
               <div className="flex items-center gap-2">
                 <div className="w-3.5 h-3.5 rounded-md bg-[#263143]"></div>
-                <span>Occupied</span>
+                <span>Đang đỗ (Occupied)</span>
               </div>
               <div className="flex items-center gap-2">
                 <div className="w-3.5 h-3.5 rounded-md bg-[#ba1a1a]"></div>
-                <span>Blocked</span>
+                <span>Tạm khoá (Blocked)</span>
               </div>
               <div className="flex items-center gap-2">
                 <div className="w-3.5 h-3.5 rounded-md bg-[#d97706]"></div>
-                <span>Maintenance</span>
+                <span>Đang bảo trì (Maintenance)</span>
               </div>
             </div>
 
-            {/* Car Slots Layout grids (rendered per zone) */}
+            {/* Lưới các Ô đỗ Xe Ô tô theo từng Khu vực (Car Zones) */}
             {activeCarZones.length === 0 ? (
               <div className="bg-white border border-dashed border-slate-200 rounded-2xl p-12 text-center">
-                <h3 className="text-sm font-bold text-slate-600">No Car Zones Configured</h3>
-                <p className="text-xs text-slate-400 mt-1">Configure your zones and slots under Facilities Management first.</p>
+                <h3 className="text-sm font-bold text-slate-600">Chưa cấu hình Khu vực đỗ Ô tô</h3>
+                <p className="text-xs text-slate-400 mt-1">Vui lòng thiết lập Khu vực và Ô đỗ trong mục Quản lý Hạ tầng trước.</p>
               </div>
             ) : (
               activeCarZones.map(zone => {
@@ -389,24 +418,24 @@ export function SlotManagementDashboard() {
                         </h3>
                         <div className="flex items-center gap-2 mt-1">
                           <span className="text-[11px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-emerald-50 text-[#006d43] border border-emerald-500/10">
-                            Car
+                            Ô tô (Car)
                           </span>
                         </div>
                       </div>
                       <span className="text-xs font-bold text-slate-600 bg-emerald-50 border border-emerald-100 px-3 py-1.5 rounded-xl">
-                        {availableCount} / {zoneSlots.length} Available
+                        Còn trống {availableCount} / {zoneSlots.length} ô
                       </span>
                     </div>
 
                     {zoneSlots.length === 0 ? (
-                      <p className="text-xs text-slate-400 font-semibold italic text-center py-6 col-span-full">No slots configured in this zone.</p>
+                      <p className="text-xs text-slate-400 font-semibold italic text-center py-6 col-span-full">Chưa có ô đỗ nào được tạo trong khu vực này.</p>
                     ) : (
                       <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10 gap-3.5">
                         {zoneSlots.map(slot => (
                           <button
                             key={slot.id}
                             onClick={() => handleSlotClick(slot)}
-                            title={slot.status === 'RESERVED' ? 'Reserved for booking' : undefined}
+                            title={slot.status === 'RESERVED' ? 'Đã được đặt giữ chỗ trước' : undefined}
                             className={`h-24 border rounded-xl flex flex-col items-center justify-center py-3 px-3.5 shadow-sm transition-all hover:scale-[1.03] active:scale-95 group font-bold text-sm ${getSlotColorClass(
                               slot.status
                             )}`}
@@ -419,7 +448,7 @@ export function SlotManagementDashboard() {
                             )}
                             {slot.status === 'RESERVED' && (
                               <span className="block text-[8px] font-extrabold mt-1 opacity-80 uppercase">
-                                Booked
+                                Đã giữ chỗ
                               </span>
                             )}
                           </button>
@@ -431,12 +460,12 @@ export function SlotManagementDashboard() {
               })
             )}
 
-            {/* Motorbike Capacity Monitoring Section */}
+            {/* Bảng Giám sát Công suất Khu vực Xe máy */}
             <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 mb-6 border-b border-slate-100 gap-4">
                 <div>
-                  <h3 className="text-base font-extrabold text-slate-800">Motorbike Capacity Monitoring</h3>
-                  <p className="text-xs text-slate-400 font-semibold mt-0.5">Real-time occupancy of motorbike parking zones</p>
+                  <h3 className="text-base font-extrabold text-slate-800">Giám sát Sức chứa Khu vực Xe máy</h3>
+                  <p className="text-xs text-slate-400 font-semibold mt-0.5">Tỷ lệ lấp đầy theo thời gian thực của các phân khu xe máy</p>
                 </div>
               </div>
 
@@ -444,30 +473,30 @@ export function SlotManagementDashboard() {
                 floorSlotSummary ? (
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
                     <div className="md:col-span-1">
-                      <h4 className="text-sm font-extrabold text-slate-700">General Motorbike Area</h4>
-                      <p className="text-xs text-slate-400 font-medium mt-1">No individual motorbike zones configured, showing aggregated floor metrics.</p>
+                      <h4 className="text-sm font-extrabold text-slate-700">Khu vực Xe máy Chung</h4>
+                      <p className="text-xs text-slate-400 font-medium mt-1">Chưa phân vùng xe máy riêng lẻ, hiển thị số liệu tổng hợp của tầng.</p>
                     </div>
                     
                     <div className="grid grid-cols-3 gap-4 md:col-span-2">
                       <div className="bg-emerald-50/40 border border-emerald-500/10 rounded-xl p-4 text-center">
-                        <span className="text-xs font-bold text-emerald-700 block uppercase tracking-wider mb-1">Available</span>
+                        <span className="text-xs font-bold text-emerald-700 block uppercase tracking-wider mb-1">Chỗ trống</span>
                         <span className="text-2xl font-black text-[#006d43]">{effectiveMotorAvailable}</span>
                       </div>
                       
                       <div className="bg-slate-50/50 border border-slate-150 rounded-xl p-4 text-center">
-                        <span className="text-xs font-bold text-slate-500 block uppercase tracking-wider mb-1">Occupied</span>
+                        <span className="text-xs font-bold text-slate-500 block uppercase tracking-wider mb-1">Đang đỗ</span>
                         <span className="text-2xl font-black text-[#263143]">{effectiveMotorOccupied}</span>
                       </div>
 
                       <div className="bg-slate-50/50 border border-slate-150 rounded-xl p-4 text-center">
-                        <span className="text-xs font-bold text-slate-500 block uppercase tracking-wider mb-1">Total Capacity</span>
+                        <span className="text-xs font-bold text-slate-500 block uppercase tracking-wider mb-1">Tổng sức chứa</span>
                         <span className="text-2xl font-black text-slate-600">{effectiveMotorTotal}</span>
                       </div>
                     </div>
                   </div>
                 ) : (
                   <div className="text-center py-6 text-slate-400 text-xs font-medium">
-                    No motorbike capacity data available.
+                    Chưa có dữ liệu sức chứa xe máy.
                   </div>
                 )
               ) : (
@@ -475,11 +504,11 @@ export function SlotManagementDashboard() {
                   <table className="w-full text-left border-collapse">
                     <thead>
                       <tr className="border-b border-slate-100 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-                        <th className="pb-3 font-extrabold">Zone Name</th>
-                        <th className="pb-3 font-extrabold text-center">Available</th>
-                        <th className="pb-3 font-extrabold text-center">Occupied</th>
-                        <th className="pb-3 font-extrabold text-center">Total Capacity</th>
-                        <th className="pb-3 font-extrabold text-right w-1/3">Occupancy Rate</th>
+                        <th className="pb-3 font-extrabold">Tên Khu vực</th>
+                        <th className="pb-3 font-extrabold text-center">Chỗ trống</th>
+                        <th className="pb-3 font-extrabold text-center">Đang đỗ</th>
+                        <th className="pb-3 font-extrabold text-center">Tổng sức chứa</th>
+                        <th className="pb-3 font-extrabold text-right w-1/3">Tỷ lệ sử dụng</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-50">
@@ -526,10 +555,10 @@ export function SlotManagementDashboard() {
           </div>
         )}
 
-        {/* ===== TAB CONTENT 2: SESSION ALLOCATIONS LIST ===== */}
+        {/* ===== TAB CONTENT 2: DANH SÁCH PHIÊN ĐANG ĐỖ (SESSION ALLOCATIONS) ===== */}
         {activeTab === 'list' && (
           <div className="space-y-6 animate-in fade-in duration-200">
-            {/* Table Filters */}
+            {/* Thanh tìm kiếm & lọc dữ liệu bảng */}
             <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-white p-4 rounded-xl border border-slate-100 shadow-sm">
               <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
                 <div className="flex-1 sm:w-72">
@@ -537,7 +566,7 @@ export function SlotManagementDashboard() {
                     type="text"
                     value={tableSearchQuery}
                     onChange={(e) => setTableSearchQuery(e.target.value)}
-                    placeholder="Search by Slot, Plate, or Subscriber..."
+                    placeholder="Tìm theo Mã slot, Biển số xe, hoặc Mã đặt chỗ..."
                     className="w-full px-4 py-2 border border-slate-200 rounded-lg text-sm focus:ring-1 focus:ring-emerald-500/30 focus:border-emerald-500 focus:outline-none font-medium"
                   />
                 </div>
@@ -547,34 +576,34 @@ export function SlotManagementDashboard() {
                   onChange={(e) => setTableTypeFilter(e.target.value)}
                   className="border border-slate-200 rounded-lg py-2 pl-3 pr-8 text-sm focus:ring-1 focus:ring-emerald-500/30 focus:border-emerald-500 text-slate-600 focus:outline-none"
                 >
-                  <option value="All">All Types</option>
-                  <option value="Standard">Standard (Car)</option>
-                  <option value="EV Charging">EV Charging (Car)</option>
-                  <option value="Motorbike">Motorbike</option>
+                  <option value="All">Tất cả loại xe</option>
+                  <option value="Standard">Ô tô tiêu chuẩn</option>
+                  <option value="EV Charging">Ô tô sạc điện (EV)</option>
+                  <option value="Motorbike">Xe máy</option>
                 </select>
               </div>
             </div>
 
-            {/* List Table */}
+            {/* Bảng danh sách phiên đỗ xe */}
             <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="w-full text-left">
                   <thead className="bg-slate-50/70 border-b border-slate-100">
                     <tr>
-                      <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Slot / Space</th>
-                      <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Zone</th>
-                      <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Vehicle Plate</th>
-                      <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Card ID</th>
-                      <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Allocation Type</th>
-                      <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Check-In Time</th>
-                      <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider text-right">Actions</th>
+                      <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Vị trí / Slot</th>
+                      <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Khu vực (Zone)</th>
+                      <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Biển số xe</th>
+                      <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Mã Thẻ (Card ID)</th>
+                      <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Loại phân bổ</th>
+                      <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Thời điểm Check-in</th>
+                      <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider text-right">Thao tác</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
                     {filteredSessions.length === 0 ? (
                       <tr>
                         <td colSpan={7} className="px-6 py-12 text-center text-slate-400 font-medium text-xs">
-                          No active parking sessions found matching your search.
+                          Không tìm thấy phiên đỗ xe nào phù hợp với bộ lọc.
                         </td>
                       </tr>
                     ) : (
@@ -588,11 +617,11 @@ export function SlotManagementDashboard() {
                                 <span>{slot.slotCode}</span>
                               ) : (
                                 <span className="text-slate-400 text-xs font-semibold italic">
-                                  Motorbike Area
+                                  Khu Xe máy (Chung)
                                 </span>
                               )}
                             </td>
-                            <td className="px-6 py-4 text-xs font-semibold text-slate-500">{zone?.name || 'N/A'}</td>
+                            <td className="px-6 py-4 text-xs font-semibold text-slate-500">{zone?.name || 'Chưa xác định'}</td>
                             <td className="px-6 py-4 font-mono text-sm font-bold text-[#006d43]">
                               <span className="px-2.5 py-1 border border-emerald-500/20 bg-emerald-50/50 rounded-lg">
                                 {session.licensePlateIn}
@@ -602,31 +631,32 @@ export function SlotManagementDashboard() {
                             <td className="px-6 py-4">
                               {session.bookingId ? (
                                 <span className="inline-flex px-2 py-0.5 bg-blue-50 text-blue-700 border border-blue-100 rounded-md text-[10px] font-bold uppercase tracking-wide">
-                                  Booking (#{session.bookingId})
+                                  Đặt trước (#{session.bookingId})
                                 </span>
                               ) : (
                                 <span className="inline-flex px-2 py-0.5 bg-slate-100 text-slate-600 rounded-md text-[10px] font-bold uppercase tracking-wide">
-                                  Walk-in / Guest
+                                  Khách vãng lai
                                 </span>
                               )}
                             </td>
                             <td className="px-6 py-4 text-xs font-medium text-slate-500">
-                              {new Date(session.checkInTime).toLocaleString()}
+                              {new Date(session.checkInTime).toLocaleString('vi-VN')}
                             </td>
                             <td className="px-6 py-4 text-right space-x-3">
                               <button
                                 onClick={() => setSelectedSessionDetails(session)}
                                 className="text-[#006d43] font-bold text-xs hover:underline"
                               >
-                                Details
+                                Chi tiết
                               </button>
-                              {userRole === 'MANAGER' && (
+                              {/* Cưỡng chế giải phóng phiên (Manager & Admin) */}
+                              {canManageSlot && (
                                 <button
                                   onClick={() => handleForceCompleteSession(session.id)}
                                   disabled={completingSessionId === session.id}
                                   className="text-[#ba1a1a] font-bold text-xs hover:underline disabled:opacity-50"
                                 >
-                                  {completingSessionId === session.id ? 'Releasing...' : 'Force Release'}
+                                  {completingSessionId === session.id ? 'Đang giải phóng...' : 'Giải phóng khẩn cấp'}
                                 </button>
                               )}
                             </td>
@@ -642,7 +672,7 @@ export function SlotManagementDashboard() {
         )}
       </main>
 
-      {/* ===== ACTION MODAL WINDOW ===== */}
+      {/* ===== HỘP THOẠI MODAL LÀM VIỆC VỚI SLOT (SLOT ACTION MODAL) ===== */}
       <SlotActionModal
         isOpen={isModalOpen}
         onClose={handleCloseModal}
@@ -653,15 +683,15 @@ export function SlotManagementDashboard() {
         showToastMessage={showToastMessage}
       />
 
-      {/* ===== TEXT-BASED SESSION DETAILS MODAL ===== */}
+      {/* ===== HỘP THOẠI MODAL XEM CHI TIẾT PHIÊN ĐỖ XE ===== */}
       {selectedSessionDetails && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[110] flex items-center justify-center p-4">
           <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in fade-in zoom-in duration-200">
             {/* Header */}
             <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-emerald-50/20">
               <div>
-                <h3 className="text-base font-extrabold text-slate-800">Active Session Details</h3>
-                <p className="text-xs text-slate-400 font-bold mt-0.5">Session ID: #{selectedSessionDetails.id}</p>
+                <h3 className="text-base font-extrabold text-slate-800">Chi tiết Phiên đỗ xe</h3>
+                <p className="text-xs text-slate-400 font-bold mt-0.5">Mã phiên: #{selectedSessionDetails.id}</p>
               </div>
               <button
                 onClick={() => setSelectedSessionDetails(null)}
@@ -671,63 +701,63 @@ export function SlotManagementDashboard() {
               </button>
             </div>
 
-            {/* Body */}
+            {/* Nội dung chi tiết */}
             <div className="p-6 space-y-6">
-              {/* Monospaced License Plate representation */}
+              {/* Hiển thị biển số xe dạng khung định dạng */}
               <div className="flex flex-col items-center py-4 bg-slate-50 border border-slate-100 rounded-2xl">
                 <div className="border-[2px] border-slate-800 rounded-lg bg-white px-6 py-2.5 shadow-sm text-center min-w-[200px]">
                   <span className="text-[10px] font-black text-slate-400 tracking-widest uppercase border-b border-slate-100 pb-0.5 block mb-1">
-                    NexPark Session
+                    NexPark Parking Session
                   </span>
                   <span className="font-mono text-2xl font-black text-slate-800 tracking-wide">
                     {selectedSessionDetails.licensePlateIn}
                   </span>
                 </div>
                 <span className="text-[10px] text-slate-400 font-bold mt-2 uppercase tracking-wide">
-                  Text-Based Vehicle Record
+                  Thông tin Biển số xe ghi nhận
                 </span>
               </div>
 
-              {/* Grid of Details */}
+              {/* Chi tiết theo lưới Grid */}
               <div className="grid grid-cols-2 gap-4 text-xs">
                 <div className="bg-slate-50/50 p-3 rounded-xl border border-slate-100">
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Zone / Space</p>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Khu vực (Zone)</p>
                   <p className="font-extrabold text-slate-700 mt-1">
-                    {zones.find(z => z.id === selectedSessionDetails.zoneId)?.name || 'N/A'}
+                    {zones.find(z => z.id === selectedSessionDetails.zoneId)?.name || 'Chưa xác định'}
                   </p>
                 </div>
 
                 <div className="bg-slate-50/50 p-3 rounded-xl border border-slate-100">
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Slot Number</p>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Số hiệu Ô đỗ</p>
                   <p className="font-extrabold text-slate-700 mt-1">
-                    {slots.find(s => s.id === selectedSessionDetails.slotId)?.slotCode || 'Motorbike Area (No Slot)'}
+                    {slots.find(s => s.id === selectedSessionDetails.slotId)?.slotCode || 'Khu Xe máy (Chung)'}
                   </p>
                 </div>
 
                 <div className="bg-slate-50/50 p-3 rounded-xl border border-slate-100">
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">RFID Card Code</p>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Mã Thẻ đỗ RFID</p>
                   <p className="font-extrabold font-mono text-emerald-600 mt-1">
                     #{selectedSessionDetails.cardId}
                   </p>
                 </div>
 
                 <div className="bg-slate-50/50 p-3 rounded-xl border border-slate-100">
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Member Classification</p>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Phân loại Khách</p>
                   <p className="font-extrabold text-slate-700 mt-1">
-                    {selectedSessionDetails.bookingId ? 'Booking Customer' : 'Visitor / Walk-in'}
+                    {selectedSessionDetails.bookingId ? 'Khách đặt trước' : 'Khách vãng lai'}
                   </p>
                 </div>
 
                 <div className="col-span-2 bg-slate-50/50 p-3 rounded-xl border border-slate-100">
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Check-In Timestamp</p>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Thời điểm Check-in</p>
                   <p className="font-extrabold text-slate-700 mt-1">
-                    {new Date(selectedSessionDetails.checkInTime).toLocaleString()}
+                    {new Date(selectedSessionDetails.checkInTime).toLocaleString('vi-VN')}
                   </p>
                 </div>
 
                 {selectedSessionDetails.bookingId && (
                   <div className="col-span-2 bg-emerald-50/20 p-3 rounded-xl border border-emerald-500/10">
-                    <p className="text-[10px] font-bold text-[#006d43] uppercase tracking-wider">Booking Reference</p>
+                    <p className="text-[10px] font-bold text-[#006d43] uppercase tracking-wider">Mã Đặt chỗ tham chiếu</p>
                     <p className="font-extrabold text-[#006d43] mt-1">
                       Booking ID #{selectedSessionDetails.bookingId}
                     </p>
@@ -736,21 +766,22 @@ export function SlotManagementDashboard() {
               </div>
             </div>
 
-            {/* Footer Actions */}
+            {/* Nút hành động Footer Modal */}
             <div className="p-5 bg-slate-50 border-t border-slate-100 flex gap-3">
               <button
                 onClick={() => setSelectedSessionDetails(null)}
                 className="flex-1 py-2.5 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-xl text-xs font-extrabold transition-colors shadow-sm"
               >
-                Close Details
+                Đóng
               </button>
-              {userRole === 'MANAGER' && (
+              {/* Giải phóng khẩn cấp phiên đỗ xe (Manager & Admin) */}
+              {canManageSlot && (
                 <button
                   onClick={() => handleForceCompleteSession(selectedSessionDetails.id)}
                   disabled={completingSessionId === selectedSessionDetails.id}
                   className="flex-1 py-2.5 bg-[#ba1a1a] hover:bg-red-700 hover:brightness-110 text-white rounded-xl text-xs font-extrabold transition-all shadow-md shadow-red-500/10 disabled:opacity-50"
                 >
-                  {completingSessionId === selectedSessionDetails.id ? 'Releasing...' : 'Force Release'}
+                  {completingSessionId === selectedSessionDetails.id ? 'Đang giải phóng...' : 'Giải phóng khẩn cấp'}
                 </button>
               )}
             </div>

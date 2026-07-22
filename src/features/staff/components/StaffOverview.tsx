@@ -1,3 +1,35 @@
+/**
+ * ===================================================================================
+ * 📊 FE COMPONENT: StaffOverview.tsx (Tổng Quan Ca Trực / Staff Dashboard Overview Workspace)
+ * ===================================================================================
+ * 
+ * 📌 VAI TRÒ & CHỨC NĂNG CHÍNH TRÊN UI:
+ * - Bảng điều khiển trung tâm dành cho Nhân viên vận hành bãi đỗ (Staff Dashboard Overview).
+ * - Hiển thị các thẻ chỉ số thời gian thực (KPI Cards):
+ *   + Tổng số xe đang đỗ trong bãi (Currently Parked Vehicles).
+ *   + Lượt xe vào & lượt xe ra trong ca làm việc.
+ *   + Số vé đỗ xe được đặt trước trong ngày (Today's Bookings).
+ *   + Doanh thu thu trực tiếp trong ca làm việc.
+ * - Danh sách lối tắt xử lý nhanh (Quick Actions): Chuyển nhanh tới Check-in, Check-out, Xử lý sự cố.
+ * - Danh sách xem nhanh các lượt xe ra/vào mới nhất (Live Activity Feed).
+ * 
+ * ⚙️ KẾT NỐI API BACKEND (ASP.NET Core Controllers):
+ * - GET /parking-sessions/active  --> Thống kê số xe đang đỗ trong bãi (ParkingSessionController.cs)
+ * - GET /bookings/today           --> Thống kê các lượt đặt chỗ trong ngày (BookingController.cs)
+ * - GET /payments/shift-summary   --> Tổng hợp doanh thu ca làm việc (PaymentController.cs)
+ * 
+ * 🗄️ BẢNG DATABASE LIÊN QUAN (PostgreSQL):
+ * - ParkingSessions (Id, LicensePlateIn, CheckInTime, Status)
+ * - Bookings        (Id, LicensePlate, BookingDate, Status)
+ * - Payments        (Id, Amount, PaymentMethod, CreatedAt)
+ * 
+ * 🔄 LUỒNG CẬP NHẬT DỮ LIỆU & RENDER UI:
+ * 1. Nạp Trang: Tự động gọi API `GET /parking-sessions/active` & `GET /bookings`.
+ * 2. Tính Thống Kê: Đếm tổng số xe đang trong bãi và tính tổng số tiền thu được.
+ * 3. Render Dashboard: Cập nhật các thẻ KPI Card và bảng hoạt động gần nhất.
+ * ===================================================================================
+ */
+
 'use client';
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';

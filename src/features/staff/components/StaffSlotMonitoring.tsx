@@ -1,3 +1,35 @@
+/**
+ * ===================================================================================
+ * 🅿️ FE COMPONENT: StaffSlotMonitoring.tsx (Giám Sát Ô Đỗ / Slot Monitoring Workspace)
+ * ===================================================================================
+ * 
+ * 📌 VAI TRÒ & CHỨC NĂNG CHÍNH TRÊN UI:
+ * - Giám sát sơ đồ trạng thái ô đỗ thời gian thực tại các tầng bãi đỗ dành cho Nhân viên (Staff).
+ * - Chọn Tòa nhà (Building) & Tầng đỗ (Floor) để hiển thị ma trận ô đỗ (Parking Slot Grid Matrix).
+ * - Trực quan hóa màu sắc trạng thái từng ô đỗ:
+ *   + Available (Xanh lá)  : Ô đỗ đang trống, sẵn sàng tiếp nhận xe.
+ *   + Occupied (Đỏ)       : Ô đỗ đang có xe đỗ trong bãi.
+ *   + Reserved (Vàng/Cam)  : Ô đỗ đã có khách hàng Đặt trước (Booking).
+ *   + OutOfService (Xám)   : Ô đỗ đang tạm đóng / bảo trì kỹ thuật.
+ * - Nhấp vào ô đỗ để xem chi tiết biển số xe, thông tin đặt chỗ hoặc nhanh chóng Báo cáo sự cố tại ô đỗ đó.
+ * 
+ * ⚙️ KẾT NỐI API BACKEND (ASP.NET Core Controllers):
+ * - GET /buildings                   --> Lấy danh sách Tòa nhà đỗ xe (BuildingController.cs)
+ * - GET /floors/building/{id}        --> Lấy danh sách Tầng thuộc Tòa nhà (FloorController.cs)
+ * - GET /slots/floor/{id}/status     --> Lấy ma trận sơ đồ ô đỗ thời gian thực (SlotController.cs)
+ * 
+ * 🗄️ BẢNG DATABASE LIÊN QUAN (PostgreSQL):
+ * - Buildings (Id, Name, Code)
+ * - Floors    (Id, BuildingId, Name, FloorNumber)
+ * - Slots     (Id, FloorId, ZoneId, SlotCode, SlotStatus, VehicleTypeId)
+ * 
+ * 🔄 LUỒNG CẬP NHẬT DỮ LIỆU & RENDER UI:
+ * 1. Chọn Vị Trí: Chọn Tòa nhà & Tầng đỗ -> Gọi API `GET /slots/floor/{id}/status`.
+ * 2. Render Sơ Đồ: Phân loại ô đỗ theo Zone (Phân khu) & tô màu tương ứng.
+ * 3. Thao Tác Chi Tiết: Click vào ô đỗ -> Mở Modal chi tiết hoặc báo cáo sự cố ngay tại vị trí.
+ * ===================================================================================
+ */
+
 'use client';
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';

@@ -1,3 +1,27 @@
+/**
+ * ===================================================================================
+ * 🔀 FE COMPONENT: combined-gate/page.tsx (Cổng Gộp Song Song / Combined Staff Gate Workspace)
+ * ===================================================================================
+ * 
+ * 📌 VAI TRÒ & CHỨC NĂNG CHÍNH TRÊN UI:
+ * - Giao diện gộp 2 làn xe đỗ (Check-in & Check-out) song song trên cùng 1 màn hình duy nhất cho Nhân viên bảo vệ (Staff).
+ * - Render side-by-side 2 Component chính:
+ *   + Nửa bên trái: [VehicleCheckin.tsx](file:///c:/Users/HUNG%20NGHI/OneDrive/文档/FPTU/SEMESTER%205/SWP/parking-system-web/src/features/vehicles/components/VehicleCheckin.tsx) (Xử lý xe vào)
+ *   + Nửa bên phải: [VehicleCheckout.tsx](file:///c:/Users/HUNG%20NGHI/OneDrive/文档/FPTU/SEMESTER%205/SWP/parking-system-web/src/features/vehicles/components/VehicleCheckout.tsx) (Xử lý xe ra & thanh toán)
+ * - Tự động đồng bộ State liên động (State Triggering): Khi xe check-in xong -> Tự động nạp lại danh sách xe đỗ active bên cổng Check-out và ngược lại.
+ * 
+ * ⚙️ KẾT NỐI API BACKEND (ASP.NET Core Controllers):
+ * - Kế thừa trực tiếp các endpoint từ CheckinSessionController.cs và CheckoutController.cs.
+ * 
+ * 🗄️ BẢNG DATABASE LIÊN QUAN (PostgreSQL):
+ * - ParkingSessions, ParkingCards, Payments
+ * 
+ * 🔄 LUỒNG CẬP NHẬT DỮ LIỆU & RENDER UI:
+ * 1. Nạp Trang: Render song song 2 khung điều phối lối ra/vào.
+ * 2. Kích Hoạt Liên Động: `handleCheckinSuccess` tăng `checkoutRefreshTrigger` -> Tự động nạp lại danh sách xe đang trong bãi.
+ * ===================================================================================
+ */
+
 'use client';
 
 import React, { useState } from 'react';

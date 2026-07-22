@@ -1,3 +1,36 @@
+/**
+ * ===================================================================================
+ * 🚨 FE COMPONENT: VehicleCheckout.tsx (Cho Xe Ra Bãi & Thanh Toán / Gate Check-out Workspace)
+ * ===================================================================================
+ * 
+ * 📌 VAI TRÒ & CHỨC NĂNG CHÍNH TRÊN UI:
+ * - Xử lý quy trình cho xe ra bãi đỗ & tính toán phí đỗ xe cho Nhân viên bảo vệ (Staff).
+ * - Quét/Đọc thẻ từ RFID hoặc nhập biển số xe ra bãi đỗ.
+ * - So sánh ảnh camera lúc vào vs lúc ra (ALPR Image Verification) để phát hiện tráo biển số.
+ * - Tính phí đỗ xe tự động dựa trên thời gian đỗ, loại xe và bảng giá áp dụng.
+ * - Hỗ trợ các phương thức thanh toán: Tiền mặt (Cash), Ví MoMo / VNPAY QR Code, hoặc Vé tháng.
+ * - Xử lý các trường hợp ngoại lệ: Mất thẻ từ (bị phạt phí), báo cáo sự cố hư hỏng tại lối ra.
+ * - Mở rào chắn Barie sau khi thanh toán thành công.
+ * 
+ * ⚙️ KẾT NỐI API BACKEND (ASP.NET Core Controllers):
+ * - POST /parking-sessions/checkout/start     --> Khởi tạo tính phí đỗ xe lúc ra (CheckoutController.cs)
+ * - POST /parking-sessions/checkout/complete  --> Hoàn tất thanh toán & đóng phiên (CheckoutController.cs)
+ * - POST /parking-sessions/checkout/lost-card --> Xử lý báo mất thẻ đỗ xe (CheckoutController.cs)
+ * - GET  /parking-sessions/active              --> Tra cứu các xe đang đỗ trong bãi (CheckoutController.cs)
+ * 
+ * 🗄️ BẢNG DATABASE LIÊN QUAN (PostgreSQL):
+ * - ParkingSessions (Id, LicensePlateIn, LicensePlateOut, CheckInTime, CheckOutTime, TotalFee, Status)
+ * - Payments        (Id, SessionId, Amount, PaymentMethod, PaymentStatus, TransactionDate)
+ * - ParkingCards    (Id, CardCode, CardStatus)
+ * - Incidents       (Id, SessionId, IncidentTypeId, PenaltyFee)
+ * 
+ * 🔄 LUỒNG CẬP NHẬT DỮ LIỆU & RENDER UI:
+ * 1. Quét Thẻ / Biển Số: Nhân viên quẹt thẻ -> Gọi `POST /checkout/start` để lấy ảnh vào/ra & tiền phí.
+ * 2. Chọn Thanh Toán: Chọn Tiền mặt / Quét QR MoMo -> Gọi API thanh toán `POST /checkout/complete`.
+ * 3. Barie Mở: Hiển thị Modal xanh mở cổng -> Cập nhật trạng thái thẻ & nạp lại danh sách xe đỗ.
+ * ===================================================================================
+ */
+
 'use client';
 
 import React, { useCallback, useEffect, useMemo, useState, useRef } from 'react';

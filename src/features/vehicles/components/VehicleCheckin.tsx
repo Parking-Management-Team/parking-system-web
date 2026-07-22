@@ -1,3 +1,35 @@
+/**
+ * ===================================================================================
+ * 🚨 FE COMPONENT: VehicleCheckin.tsx (Cho Xe Vào Bãi / Gate Check-in Workspace)
+ * ===================================================================================
+ * 
+ * 📌 VAI TRÒ & CHỨC NĂNG CHÍNH TRÊN UI:
+ * - Xử lý quy trình cho xe vào bãi đỗ dành cho Nhân viên bảo vệ (Staff).
+ * - Quét/Đọc camera nhận diện biển số xe (ALPR Camera Engine Simulation), chụp ảnh lối vào.
+ * - Quẹt thẻ từ RFID / Thẻ gửi xe (Smart Card), kiểm tra trạng thái thẻ khả dụng.
+ * - Phân luồng kiểm tra: Xe đã đăng ký vé tháng, Xe đã Đặt chỗ trước (Booking), hoặc Xe gửi lượt (Visitor).
+ * - Kiểm tra Blacklist (Biển số xe bị cấm) & Cảnh báo ô đỗ quá tải.
+ * - Hiển thị Overlay mở rào chắn Barie và in thẻ lượt tự động.
+ * 
+ * ⚙️ KẾT NỐI API BACKEND (ASP.NET Core Controllers):
+ * - POST /parking-sessions/check-in  --> Khởi tạo phiên đỗ xe mới (CheckinSessionController.cs)
+ * - GET  /parking-cards/active        --> Lấy danh sách thẻ từ khả dụng (CardController.cs)
+ * - GET  /bookings/check-in           --> Tra cứu vé đặt chỗ đã được xác nhận (BookingController.cs)
+ * - GET  /blacklist/check             --> Kiểm tra biển số vi phạm trong danh sách đen (BlacklistController.cs)
+ * 
+ * 🗄️ BẢNG DATABASE LIÊN QUAN (PostgreSQL):
+ * - ParkingSessions (Id, LicensePlateIn, CheckInTime, CardId, SlotId, Status)
+ * - Bookings        (Id, LicensePlate, BuildingId, FloorId, SlotId, BookingStatus)
+ * - ParkingCards    (Id, CardCode, CardStatus, CardType)
+ * - Blacklists      (Id, LicensePlate, Reason, IsActive)
+ * 
+ * 🔄 LUỒNG CẬP NHẬT DỮ LIỆU & RENDER UI:
+ * 1. Quét Biển Số: Nhân viên nhập/quét biển số -> Tự động nhận diện loại xe (Ô tô/Xe máy/Xe điện).
+ * 2. Xác Minh Thẻ: Quẹt thẻ từ -> Kiểm tra thẻ khả dụng và phân bổ ô đỗ tự động.
+ * 3. Xác Nhận Check-in: Gọi API `POST /check-in` -> Hiển thị Modal Barie Mở -> Nạp lại lịch sử phiên.
+ * ===================================================================================
+ */
+
 'use client';
 
 import React, { useCallback, useEffect, useMemo, useState, useRef } from 'react';

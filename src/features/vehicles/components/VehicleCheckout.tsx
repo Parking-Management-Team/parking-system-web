@@ -2,7 +2,7 @@
  * ===================================================================================
  * 🚨 FE COMPONENT: VehicleCheckout.tsx (Cho Xe Ra Bãi & Thanh Toán / Gate Check-out Workspace)
  * ===================================================================================
- * 
+ *
  * 📌 VAI TRÒ & CHỨC NĂNG CHÍNH TRÊN UI:
  * - Xử lý quy trình cho xe ra bãi đỗ & tính toán phí đỗ xe cho Nhân viên bảo vệ (Staff).
  * - Quét/Đọc thẻ từ RFID hoặc nhập biển số xe ra bãi đỗ.
@@ -11,19 +11,19 @@
  * - Hỗ trợ các phương thức thanh toán: Tiền mặt (Cash), Ví MoMo / VNPAY QR Code, hoặc Vé tháng.
  * - Xử lý các trường hợp ngoại lệ: Mất thẻ từ (bị phạt phí), báo cáo sự cố hư hỏng tại lối ra.
  * - Mở rào chắn Barie sau khi thanh toán thành công.
- * 
+ *
  * ⚙️ KẾT NỐI API BACKEND (ASP.NET Core Controllers):
  * - POST /parking-sessions/checkout/start     --> Khởi tạo tính phí đỗ xe lúc ra (CheckoutController.cs)
  * - POST /parking-sessions/checkout/complete  --> Hoàn tất thanh toán & đóng phiên (CheckoutController.cs)
  * - POST /parking-sessions/checkout/lost-card --> Xử lý báo mất thẻ đỗ xe (CheckoutController.cs)
  * - GET  /parking-sessions/active              --> Tra cứu các xe đang đỗ trong bãi (CheckoutController.cs)
- * 
+ *
  * 🗄️ BẢNG DATABASE LIÊN QUAN (PostgreSQL):
  * - ParkingSessions (Id, LicensePlateIn, LicensePlateOut, CheckInTime, CheckOutTime, TotalFee, Status)
  * - Payments        (Id, SessionId, Amount, PaymentMethod, PaymentStatus, TransactionDate)
  * - ParkingCards    (Id, CardCode, CardStatus)
  * - Incidents       (Id, SessionId, IncidentTypeId, PenaltyFee)
- * 
+ *
  * 🔄 LUỒNG CẬP NHẬT DỮ LIỆU & RENDER UI:
  * 1. Quét Thẻ / Biển Số: Nhân viên quẹt thẻ -> Gọi `POST /checkout/start` để lấy ảnh vào/ra & tiền phí.
  * 2. Chọn Thanh Toán: Chọn Tiền mặt / Quét QR MoMo -> Gọi API thanh toán `POST /checkout/complete`.
@@ -31,15 +31,24 @@
  * ===================================================================================
  */
 
-'use client';
+"use client";
 
-import React, { useCallback, useEffect, useMemo, useState, useRef } from 'react';
-import { createPortal } from 'react-dom';
-import { useAuth } from '@/features/auth/context/AuthContext';
-import { markCardLost, fetchCards } from '@/features/card/services/card.service';
-import type { ParkingCard } from '@/features/card/types/card';
-import { incidentService } from '@/features/incident/services/incident.service';
-import type { IncidentType } from '@/features/incident/types';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  useRef,
+} from "react";
+import { createPortal } from "react-dom";
+import { useAuth } from "@/features/auth/context/AuthContext";
+import {
+  markCardLost,
+  fetchCards,
+} from "@/features/card/services/card.service";
+import type { ParkingCard } from "@/features/card/types/card";
+import { incidentService } from "@/features/incident/services/incident.service";
+import type { IncidentType } from "@/features/incident/types";
 import {
   createCheckoutPayment,
   fetchCheckoutActiveSessions,
@@ -50,16 +59,16 @@ import {
   type CheckoutPaymentMethod,
   type CheckoutSession,
   type StartCheckoutResponse,
-} from '@/features/vehicles/services/vehicle-checkout.service';
-import { scanLicensePlate } from '@/features/vehicles/services/vehicle-checkin.service';
-import { formatPlate } from '@/lib/utils/format';
+} from "@/features/vehicles/services/vehicle-checkout.service";
+import { scanLicensePlate } from "@/features/vehicles/services/vehicle-checkin.service";
+import { formatPlate } from "@/lib/utils/format";
 
 type CheckoutHistoryItem = {
   id: string;
   sessionId: number;
   licensePlate: string;
   cardCode: string;
-  customerType: CheckoutSession['customerType'];
+  customerType: CheckoutSession["customerType"];
   checkInTime: string | null;
   checkOutTime: string;
   amount: number;
@@ -75,35 +84,41 @@ type CheckoutOverlay = {
   duration: string;
 };
 
-type VehicleTypeFilter = 'ALL' | 'CAR' | 'MOTORCYCLE' | 'UNKNOWN';
+type VehicleTypeFilter = "ALL" | "CAR" | "MOTORCYCLE" | "UNKNOWN";
 
 const STAFF_ID = 2;
-const HISTORY_STORAGE_KEY = 'pbms_staff_checkout_history';
+const HISTORY_STORAGE_KEY = "pbms_staff_checkout_history";
 
-const normalizeText = (value?: string | null) => String(value ?? '').trim().toUpperCase();
+const normalizeText = (value?: string | null) =>
+  String(value ?? "")
+    .trim()
+    .toUpperCase();
 const normalizeComparable = (value?: string | null) =>
-  normalizeText(value).replace(/[^A-Z0-9]/g, '');
+  normalizeText(value).replace(/[^A-Z0-9]/g, "");
 
 const formatDateTime = (value?: string | null) => {
-  if (!value) return '—';
+  if (!value) return "—";
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return '—';
+  if (Number.isNaN(date.getTime())) return "—";
 
-  return new Intl.DateTimeFormat('vi-VN', {
-    dateStyle: 'short',
-    timeStyle: 'medium',
+  return new Intl.DateTimeFormat("vi-VN", {
+    dateStyle: "short",
+    timeStyle: "medium",
   }).format(date);
 };
 
 const formatCurrency = (amount?: number | null) =>
-  `${new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 0 }).format(amount ?? 0)} đ`;
+  `${new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 0 }).format(amount ?? 0)} đ`;
 
-const getDurationLabel = (checkInTime?: string | null, checkOutTime?: string | null) => {
-  if (!checkInTime) return '—';
+const getDurationLabel = (
+  checkInTime?: string | null,
+  checkOutTime?: string | null,
+) => {
+  if (!checkInTime) return "—";
   const start = new Date(checkInTime).getTime();
   const end = checkOutTime ? new Date(checkOutTime).getTime() : Date.now();
 
-  if (Number.isNaN(start) || Number.isNaN(end) || end <= start) return '—';
+  if (Number.isNaN(start) || Number.isNaN(end) || end <= start) return "—";
 
   const minutes = Math.max(1, Math.floor((end - start) / 60000));
   const hours = Math.floor(minutes / 60);
@@ -115,15 +130,19 @@ const getDurationLabel = (checkInTime?: string | null, checkOutTime?: string | n
 
 const getVehicleTypeGroup = (vehicleType: string): VehicleTypeFilter => {
   const value = normalizeText(vehicleType);
-  if (value.includes('MOTOR') || value.includes('BIKE') || value.includes('TWO')) {
-    return 'MOTORCYCLE';
+  if (
+    value.includes("MOTOR") ||
+    value.includes("BIKE") ||
+    value.includes("TWO")
+  ) {
+    return "MOTORCYCLE";
   }
-  if (value.includes('CAR') || value.includes('AUTO')) return 'CAR';
-  return 'UNKNOWN';
+  if (value.includes("CAR") || value.includes("AUTO")) return "CAR";
+  return "UNKNOWN";
 };
 
 const readHistory = (): CheckoutHistoryItem[] => {
-  if (typeof window === 'undefined') return [];
+  if (typeof window === "undefined") return [];
 
   try {
     const raw = window.localStorage.getItem(HISTORY_STORAGE_KEY);
@@ -136,8 +155,11 @@ const readHistory = (): CheckoutHistoryItem[] => {
 };
 
 const writeHistory = (items: CheckoutHistoryItem[]) => {
-  if (typeof window === 'undefined') return;
-  window.localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(items.slice(0, 50)));
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(
+    HISTORY_STORAGE_KEY,
+    JSON.stringify(items.slice(0, 50)),
+  );
 };
 
 export default function VehicleCheckout({
@@ -151,13 +173,17 @@ export default function VehicleCheckout({
 } = {}) {
   const { showToast } = useAuth();
   const [sessions, setSessions] = useState<CheckoutSession[]>([]);
-  const [selectedSessionId, setSelectedSessionId] = useState<number | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [filterFrom, setFilterFrom] = useState('');
-  const [filterTo, setFilterTo] = useState('');
-  const [vehicleTypeFilter, setVehicleTypeFilter] = useState<VehicleTypeFilter>('ALL');
-  const [exitPlate, setExitPlate] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState<CheckoutPaymentMethod>('CASH');
+  const [selectedSessionId, setSelectedSessionId] = useState<number | null>(
+    null,
+  );
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filterFrom, setFilterFrom] = useState("");
+  const [filterTo, setFilterTo] = useState("");
+  const [vehicleTypeFilter, setVehicleTypeFilter] =
+    useState<VehicleTypeFilter>("ALL");
+  const [exitPlate, setExitPlate] = useState("");
+  const [paymentMethod, setPaymentMethod] =
+    useState<CheckoutPaymentMethod>("CASH");
   const [history, setHistory] = useState<CheckoutHistoryItem[]>([]);
   const [overlay, setOverlay] = useState<CheckoutOverlay | null>(null);
   const [isMounted, setIsMounted] = useState(false);
@@ -169,25 +195,28 @@ export default function VehicleCheckout({
 
   // Card list and selection states
   const [allCards, setAllCards] = useState<ParkingCard[]>([]);
-  const [checkoutCardCode, setCheckoutCardCode] = useState<string>('');
+  const [checkoutCardCode, setCheckoutCardCode] = useState<string>("");
   const [cardLostConfirmed, setCardLostConfirmed] = useState(false);
   const [showConfirmLostModal, setShowConfirmLostModal] = useState(false);
   const [showNoCardErrorModal, setShowNoCardErrorModal] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   // Fee calculation state
-  const [calculatedFee, setCalculatedFee] = useState<StartCheckoutResponse | null>(null);
-  const [lockedCheckoutTime, setLockedCheckoutTime] = useState<string | null>(null);
+  const [calculatedFee, setCalculatedFee] =
+    useState<StartCheckoutResponse | null>(null);
+  const [lockedCheckoutTime, setLockedCheckoutTime] = useState<string | null>(
+    null,
+  );
 
   // Webcam & LPR states
   const videoRef = useRef<HTMLVideoElement>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [devices, setDevices] = useState<MediaDeviceInfo[]>([]);
-  const [selectedDeviceId, setSelectedDeviceId] = useState<string>('');
+  const [selectedDeviceId, setSelectedDeviceId] = useState<string>("");
   const [cameraActive, setCameraActive] = useState<boolean>(false);
   const [isScanning, setIsScanning] = useState<boolean>(false);
-  const [scanProgress, setScanProgress] = useState<string>('');
-  const [ocrText, setOcrText] = useState<string>('');
+  const [scanProgress, setScanProgress] = useState<string>("");
+  const [ocrText, setOcrText] = useState<string>("");
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const activeSessionsRequestRef = useRef<Promise<void> | null>(null);
   const checkoutStartSessionRef = useRef<number | null>(null);
@@ -197,60 +226,74 @@ export default function VehicleCheckout({
 
   const sortedCards = useMemo(() => {
     return [...allCards].sort((a, b) => {
-      const codeA = a.cardCode || '';
-      const codeB = b.cardCode || '';
-      return codeA.localeCompare(codeB, undefined, { numeric: true, sensitivity: 'base' });
+      const codeA = a.cardCode || "";
+      const codeB = b.cardCode || "";
+      return codeA.localeCompare(codeB, undefined, {
+        numeric: true,
+        sensitivity: "base",
+      });
     });
   }, [allCards]);
 
   // Enumerate cameras
   const enumerateCameras = useCallback(async () => {
-    if (typeof window === 'undefined' || !navigator.mediaDevices) {
-      console.warn('Camera API is not available.');
+    if (typeof window === "undefined" || !navigator.mediaDevices) {
+      console.warn("Camera API is not available.");
       return;
     }
     try {
       const mediaDevices = await navigator.mediaDevices.enumerateDevices();
-      const videoDevices = mediaDevices.filter(device => device.kind === 'videoinput');
+      const videoDevices = mediaDevices.filter(
+        (device) => device.kind === "videoinput",
+      );
       setDevices(videoDevices);
       if (videoDevices.length > 0 && !selectedDeviceId) {
         setSelectedDeviceId(videoDevices[0].deviceId);
       }
     } catch (err) {
-      console.error('No camera device found:', err);
+      console.error("No camera device found:", err);
     }
   }, [selectedDeviceId]);
 
   // Start camera stream
   const startCamera = useCallback(async () => {
-    if (typeof window === 'undefined' || !navigator.mediaDevices) {
-      showToast('Unable to open the camera: the browser is unsupported or the connection is insecure. Use localhost or HTTPS.', 'error');
+    if (typeof window === "undefined" || !navigator.mediaDevices) {
+      showToast(
+        "Unable to open the camera: the browser is unsupported or the connection is insecure. Use localhost or HTTPS.",
+        "error",
+      );
       return;
     }
     try {
       if (stream) {
-        stream.getTracks().forEach(track => track.stop());
+        stream.getTracks().forEach((track) => track.stop());
       }
       const constraints = {
-        video: selectedDeviceId ? { deviceId: { exact: selectedDeviceId } } : true,
+        video: selectedDeviceId
+          ? { deviceId: { exact: selectedDeviceId } }
+          : true,
       };
-      const mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
+      const mediaStream =
+        await navigator.mediaDevices.getUserMedia(constraints);
       setStream(mediaStream);
       if (videoRef.current) {
         videoRef.current.srcObject = mediaStream;
       }
       setCameraActive(true);
-      showToast('Exit camera started successfully!', 'success');
+      showToast("Exit camera started successfully!", "success");
     } catch (err) {
-      console.error('Unable to open the camera:', err);
-      showToast('Unable to connect to the camera. Please grant camera permission.', 'error');
+      console.error("Unable to open the camera:", err);
+      showToast(
+        "Unable to connect to the camera. Please grant camera permission.",
+        "error",
+      );
     }
   }, [selectedDeviceId, stream, showToast]);
 
   // Stop camera stream
   const stopCamera = useCallback(() => {
     if (stream) {
-      stream.getTracks().forEach(track => track.stop());
+      stream.getTracks().forEach((track) => track.stop());
       setStream(null);
     }
     setCameraActive(false);
@@ -267,7 +310,7 @@ export default function VehicleCheckout({
   useEffect(() => {
     return () => {
       if (stream) {
-        stream.getTracks().forEach(track => track.stop());
+        stream.getTracks().forEach((track) => track.stop());
       }
     };
   }, [stream]);
@@ -275,43 +318,52 @@ export default function VehicleCheckout({
   // Capture frame to base64
   const captureFrame = useCallback((): string | null => {
     if (!videoRef.current || !cameraActive) {
-      showToast('Please activate the exit camera first.', 'info');
+      showToast("Please activate the exit camera first.", "info");
       return null;
     }
     const video = videoRef.current;
-    const canvas = document.createElement('canvas');
+    const canvas = document.createElement("canvas");
     canvas.width = video.videoWidth || 640;
     canvas.height = video.videoHeight || 480;
 
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext("2d");
     if (!ctx) return null;
 
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-    const dataUrl = canvas.toDataURL('image/jpeg', 0.75);
+    const dataUrl = canvas.toDataURL("image/jpeg", 0.75);
     setCapturedImage(dataUrl);
     return dataUrl;
   }, [cameraActive, showToast]);
 
   // Run OCR on Backend Cloud API
-  const performOCR = useCallback(async (base64Img: string) => {
-    setIsScanning(true);
-    setScanProgress('Scanning exit license plate...');
-    setOcrText('');
+  const performOCR = useCallback(
+    async (base64Img: string) => {
+      setIsScanning(true);
+      setScanProgress("Scanning exit license plate...");
+      setOcrText("");
 
-    try {
-      const result = await scanLicensePlate({ image: base64Img });
-      setOcrText(result.licensePlate);
-      showToast(`Exit license plate recognized: ${result.licensePlate}`, 'success');
-      return result.licensePlate;
-    } catch (err: any) {
-      console.error('OCR error:', err);
-      showToast(err.message || 'An error occurred during the OCR scan.', 'error');
-      return '';
-    } finally {
-      setIsScanning(false);
-      setScanProgress('');
-    }
-  }, [showToast]);
+      try {
+        const result = await scanLicensePlate({ image: base64Img });
+        setOcrText(result.licensePlate);
+        showToast(
+          `Exit license plate recognized: ${result.licensePlate}`,
+          "success",
+        );
+        return result.licensePlate;
+      } catch (err: any) {
+        console.error("OCR error:", err);
+        showToast(
+          err.message || "An error occurred during the OCR scan.",
+          "error",
+        );
+        return "";
+      } finally {
+        setIsScanning(false);
+        setScanProgress("");
+      }
+    },
+    [showToast],
+  );
 
   const handleCheckoutScan = useCallback(async () => {
     const base64 = captureFrame();
@@ -321,7 +373,9 @@ export default function VehicleCheckout({
       if (!selectedSession) {
         const queryKey = normalizeComparable(plate);
         const matched = sessions.find(
-          s => normalizeComparable(s.cardCode) === queryKey || normalizeComparable(s.licensePlate) === queryKey
+          (s) =>
+            normalizeComparable(s.cardCode) === queryKey ||
+            normalizeComparable(s.licensePlate) === queryKey,
         );
         if (matched) {
           setSelectedSessionId(matched.id);
@@ -329,19 +383,21 @@ export default function VehicleCheckout({
           setCalculatedFee(null);
           setLockedCheckoutTime(null);
           setExitPlate(plate);
-          showToast(`Automatically matched the parking session for vehicle: ${plate}`, 'success');
+          showToast(
+            `Automatically matched the parking session for vehicle: ${plate}`,
+            "success",
+          );
         } else {
-          showToast(`No active parking session found for license plate: ${plate}`, 'error');
+          showToast(
+            `No active parking session found for license plate: ${plate}`,
+            "error",
+          );
         }
       } else {
         setExitPlate(plate);
       }
     }
   }, [captureFrame, performOCR, selectedSession, sessions, showToast]);
-
-
-
-
 
   const filteredSessions = useMemo(() => {
     const fromTime = filterFrom ? new Date(filterFrom).getTime() : null;
@@ -354,7 +410,7 @@ export default function VehicleCheckout({
       const vehicleGroup = getVehicleTypeGroup(session.vehicleType);
 
       const matchesVehicle =
-        vehicleTypeFilter === 'ALL' || vehicleGroup === vehicleTypeFilter;
+        vehicleTypeFilter === "ALL" || vehicleGroup === vehicleTypeFilter;
 
       const matchesFrom =
         fromTime == null ||
@@ -372,22 +428,28 @@ export default function VehicleCheckout({
     });
   }, [filterFrom, filterTo, sessions, vehicleTypeFilter]);
 
-  const isFilterActive = Boolean(filterFrom || filterTo || vehicleTypeFilter !== 'ALL');
+  const isFilterActive = Boolean(
+    filterFrom || filterTo || vehicleTypeFilter !== "ALL",
+  );
   const isPlateMatched =
     Boolean(selectedSession) &&
-    normalizeComparable(exitPlate) === normalizeComparable(selectedSession?.licensePlate);
+    normalizeComparable(exitPlate) ===
+      normalizeComparable(selectedSession?.licensePlate);
 
   const isCardMatched = useMemo(() => {
     if (!selectedSession) return false;
     if (!checkoutCardCode) return false;
-    return normalizeComparable(checkoutCardCode) === normalizeComparable(selectedSession.cardCode);
+    return (
+      normalizeComparable(checkoutCardCode) ===
+      normalizeComparable(selectedSession.cardCode)
+    );
   }, [selectedSession, checkoutCardCode]);
 
   const isSelectedCardLost = useMemo(() => {
     if (cardLostConfirmed) return true;
     if (!selectedSession || !selectedSession.cardId) return false;
     const card = allCards.find((c) => c.id === selectedSession.cardId);
-    return card?.cardStatus?.toUpperCase() === 'LOST';
+    return card?.cardStatus?.toUpperCase() === "LOST";
   }, [selectedSession, allCards, cardLostConfirmed]);
 
   const loadActiveSessions = useCallback(async () => {
@@ -401,8 +463,10 @@ export default function VehicleCheckout({
         setSessions(await fetchCheckoutActiveSessions());
       } catch (error) {
         showToast(
-          error instanceof Error ? error.message : 'Could not load active sessions.',
-          'error'
+          error instanceof Error
+            ? error.message
+            : "Could not load active sessions.",
+          "error",
         );
       } finally {
         setIsLoading(false);
@@ -423,8 +487,8 @@ export default function VehicleCheckout({
       setAllCards(cardsData);
     } catch (error) {
       showToast(
-        error instanceof Error ? error.message : 'Could not load cards.',
-        'error'
+        error instanceof Error ? error.message : "Could not load cards.",
+        "error",
       );
     }
   }, [showToast]);
@@ -453,8 +517,8 @@ export default function VehicleCheckout({
 
   const selectSession = (session: CheckoutSession) => {
     setSelectedSessionId(session.id);
-    setExitPlate('');
-    setCheckoutCardCode(''); // default empty to simulate card loss
+    setExitPlate("");
+    setCheckoutCardCode(""); // default empty to simulate card loss
     setCardLostConfirmed(false);
     setShowConfirmLostModal(false);
     setShowNoCardErrorModal(false);
@@ -462,22 +526,22 @@ export default function VehicleCheckout({
     setCalculatedFee(null);
     setLockedCheckoutTime(null);
     setCapturedImage(null);
-    setOcrText('');
+    setOcrText("");
   };
 
   const resetForNextVehicle = () => {
     setSelectedSessionId(null);
-    setExitPlate('');
-    setCheckoutCardCode('');
+    setExitPlate("");
+    setCheckoutCardCode("");
     setCardLostConfirmed(false);
     setShowConfirmLostModal(false);
     setShowNoCardErrorModal(false);
-    setPaymentMethod('CASH');
-    setSearchQuery('');
+    setPaymentMethod("CASH");
+    setSearchQuery("");
     setCalculatedFee(null);
     setLockedCheckoutTime(null);
     setCapturedImage(null);
-    setOcrText('');
+    setOcrText("");
 
     // Auto-focus search input on reset
     setTimeout(() => {
@@ -492,7 +556,7 @@ export default function VehicleCheckout({
 
     const queryKey = normalizeComparable(searchQuery);
     if (!queryKey) {
-      showToast('Please enter card code or license plate.', 'error');
+      showToast("Please enter card code or license plate.", "error");
       return;
     }
 
@@ -500,30 +564,36 @@ export default function VehicleCheckout({
       filteredSessions.find(
         (session) =>
           normalizeComparable(session.cardCode) === queryKey ||
-          normalizeComparable(session.licensePlate) === queryKey
+          normalizeComparable(session.licensePlate) === queryKey,
       ) ?? null;
 
     const partialMatches = filteredSessions.filter(
       (session) =>
         normalizeComparable(session.cardCode).includes(queryKey) ||
-        normalizeComparable(session.licensePlate).includes(queryKey)
+        normalizeComparable(session.licensePlate).includes(queryKey),
     );
 
     const matchedSession = exactMatch ?? partialMatches[0] ?? null;
 
     if (!matchedSession) {
-      showToast('No active session found for this card or license plate.', 'error');
+      showToast(
+        "No active session found for this card or license plate.",
+        "error",
+      );
       return;
     }
 
     selectSession(matchedSession);
-    showToast('Active session loaded. Please compare exit plate.', 'success');
+    showToast("Active session loaded. Please compare exit plate.", "success");
   };
 
   const handleMarkLost = () => {
     if (!selectedSession) return;
     if (!selectedSession.cardId) {
-      showToast('This session does not have a card ID from the system.', 'error');
+      showToast(
+        "This session does not have a card ID from the system.",
+        "error",
+      );
       return;
     }
     setShowConfirmLostModal(true);
@@ -533,7 +603,10 @@ export default function VehicleCheckout({
     if (!selectedSession) return;
 
     if (!selectedSession.cardId) {
-      showToast('This session does not have a card ID from the system.', 'error');
+      showToast(
+        "This session does not have a card ID from the system.",
+        "error",
+      );
       return;
     }
 
@@ -546,7 +619,7 @@ export default function VehicleCheckout({
       });
       await loadActiveSessions();
       setCardLostConfirmed(true);
-      setCheckoutCardCode('');
+      setCheckoutCardCode("");
 
       // Automatically recalculate the parking fee after the card is reported lost.
       const checkoutTimeStr = new Date().toISOString();
@@ -559,11 +632,16 @@ export default function VehicleCheckout({
       setCalculatedFee(res);
       setLockedCheckoutTime(checkoutTimeStr);
 
-      showToast(`Card ${selectedSession.cardCode ?? selectedSession.cardId} was reported lost and the parking fee was recalculated successfully.`, 'success');
+      showToast(
+        `Card ${selectedSession.cardCode ?? selectedSession.cardId} was reported lost and the parking fee was recalculated successfully.`,
+        "success",
+      );
     } catch (error) {
       showToast(
-        error instanceof Error ? error.message : 'Unable to report the card as lost and recalculate the fee.',
-        'error'
+        error instanceof Error
+          ? error.message
+          : "Unable to report the card as lost and recalculate the fee.",
+        "error",
       );
     } finally {
       setIsSubmitting(false);
@@ -573,22 +651,28 @@ export default function VehicleCheckout({
 
   const handleStartCheckout = async () => {
     if (!selectedSession) {
-      showToast('Please search and load a session first.', 'error');
+      showToast("Please search and load a session first.", "error");
       return;
     }
 
     if (!exitPlate.trim()) {
-      showToast('Please enter exit license plate for comparison.', 'error');
+      showToast("Please enter exit license plate for comparison.", "error");
       return;
     }
 
     if (!isPlateMatched) {
-      showToast('Exit plate does not match check-in plate. Please route to incident handling.', 'error');
+      showToast(
+        "Exit plate does not match check-in plate. Please route to incident handling.",
+        "error",
+      );
       return;
     }
 
     if (checkoutCardCode && !isCardMatched) {
-      showToast('The presented card does not match the check-in card. Please verify the card.', 'error');
+      showToast(
+        "The presented card does not match the check-in card. Please verify the card.",
+        "error",
+      );
       return;
     }
 
@@ -610,11 +694,16 @@ export default function VehicleCheckout({
 
       setCalculatedFee(res);
       setLockedCheckoutTime(checkoutTimeStr);
-      showToast('Parking fee calculated successfully. Please confirm payment.', 'success');
+      showToast(
+        "Parking fee calculated successfully. Please confirm payment.",
+        "success",
+      );
     } catch (error) {
       showToast(
-        error instanceof Error ? error.message : 'Unable to calculate the parking fee.',
-        'error'
+        error instanceof Error
+          ? error.message
+          : "Unable to calculate the parking fee.",
+        "error",
       );
     } finally {
       checkoutStartSessionRef.current = null;
@@ -640,7 +729,7 @@ export default function VehicleCheckout({
     checkoutCardCode,
     isCardMatched,
     calculatedFee,
-    isSubmitting
+    isSubmitting,
   ]);
 
   useEffect(() => {
@@ -658,18 +747,24 @@ export default function VehicleCheckout({
     setIsSubmitting(true);
 
     try {
-      const payment = await createCheckoutPayment(selectedSession, paymentMethod);
-      if (normalizeText(payment.paymentStatus) !== 'PAID') {
+      const payment = await createCheckoutPayment(
+        selectedSession,
+        paymentMethod,
+      );
+      if (normalizeText(payment.paymentStatus) !== "PAID") {
         await completeCheckout(selectedSession.id);
       }
 
-      const duration = getDurationLabel(selectedSession.checkInTime, lockedCheckoutTime);
+      const duration = getDurationLabel(
+        selectedSession.checkInTime,
+        lockedCheckoutTime,
+      );
 
       const nextHistory: CheckoutHistoryItem = {
         id: `${selectedSession.id}-${lockedCheckoutTime}`,
         sessionId: selectedSession.id,
         licensePlate: selectedSession.licensePlate,
-        cardCode: selectedSession.cardCode ?? '—',
+        cardCode: selectedSession.cardCode ?? "—",
         customerType: selectedSession.customerType,
         checkInTime: selectedSession.checkInTime,
         checkOutTime: lockedCheckoutTime,
@@ -690,20 +785,26 @@ export default function VehicleCheckout({
         duration,
       });
 
-      setSessions((current) => current.filter((session) => session.id !== selectedSession.id));
-      setAllCards((current) => current.map((card) =>
-        card.id === selectedSession.cardId
-          ? { ...card, cardStatus: 'AVAILABLE', currentSessionId: null }
-          : card
-      ));
+      setSessions((current) =>
+        current.filter((session) => session.id !== selectedSession.id),
+      );
+      setAllCards((current) =>
+        current.map((card) =>
+          card.id === selectedSession.cardId
+            ? { ...card, cardStatus: "AVAILABLE", currentSessionId: null }
+            : card,
+        ),
+      );
       resetForNextVehicle();
       onCheckoutSuccess?.();
-      showToast('Check-out and payment completed successfully!', 'success');
+      showToast("Check-out and payment completed successfully!", "success");
       void loadActiveSessions();
     } catch (error) {
       showToast(
-        error instanceof Error ? error.message : 'Could not complete checkout flow.',
-        'error'
+        error instanceof Error
+          ? error.message
+          : "Could not complete checkout flow.",
+        "error",
       );
     } finally {
       setIsSubmitting(false);
@@ -712,7 +813,7 @@ export default function VehicleCheckout({
 
   const handleCompleteCheckout = async () => {
     if (!selectedSession || !calculatedFee || !lockedCheckoutTime) {
-      showToast('Please calculate the parking fee first.', 'error');
+      showToast("Please calculate the parking fee first.", "error");
       return;
     }
 
@@ -731,14 +832,14 @@ export default function VehicleCheckout({
       const code = normalizeText(type.incidentCode);
       const name = normalizeText(type.incidentName);
       return (
-        code === 'UNPAID_VEHICLE' ||
-        code.includes('UNPAID') ||
-        code.includes('PAYMENT') ||
-        name.includes('UNPAID') ||
-        name.includes('PAYMENT') ||
-        name.includes('REFUSE') ||
-        name.includes('KHONG THANH TOAN') ||
-        name.includes('UNPAID')
+        code === "UNPAID_VEHICLE" ||
+        code.includes("UNPAID") ||
+        code.includes("PAYMENT") ||
+        name.includes("UNPAID") ||
+        name.includes("PAYMENT") ||
+        name.includes("REFUSE") ||
+        name.includes("KHONG THANH TOAN") ||
+        name.includes("UNPAID")
       );
     }) ?? null;
 
@@ -753,8 +854,8 @@ export default function VehicleCheckout({
 
       if (!incidentType) {
         showToast(
-          'Missing incident type for unpaid/refused payment. Please ask Backend/Manager to add it first.',
-          'error'
+          "Missing incident type for unpaid/refused payment. Please ask Backend/Manager to add it first.",
+          "error",
         );
         return;
       }
@@ -762,15 +863,17 @@ export default function VehicleCheckout({
       await incidentService.create({
         sessionId: overlay.session.id,
         incidentTypeId: incidentType.id,
-        description: `Driver refused or could not complete payment. Plate: ${overlay.session.licensePlate}. Card: ${overlay.session.cardCode ?? 'N/A'}. Amount: ${formatCurrency(overlay.payment.amount)}. Payment status: ${overlay.payment.paymentStatus}.`,
+        description: `Driver refused or could not complete payment. Plate: ${overlay.session.licensePlate}. Card: ${overlay.session.cardCode ?? "N/A"}. Amount: ${formatCurrency(overlay.payment.amount)}. Payment status: ${overlay.payment.paymentStatus}.`,
         penaltyFee: null,
       });
 
-      showToast('Payment issue was reported to manager.', 'success');
+      showToast("Payment issue was reported to manager.", "success");
     } catch (error) {
       showToast(
-        error instanceof Error ? error.message : 'Could not report payment issue.',
-        'error'
+        error instanceof Error
+          ? error.message
+          : "Could not report payment issue.",
+        "error",
       );
     } finally {
       setIsReporting(false);
@@ -778,18 +881,30 @@ export default function VehicleCheckout({
   };
 
   return (
-    <div className={compact ? 'text-slate-900' : 'bg-slate-50 p-4 text-slate-900'}>
-      <div className={compact ? 'flex flex-col gap-4' : 'mx-auto flex max-w-[1600px] flex-col gap-4'}>
+    <div
+      className={compact ? "text-slate-900" : "bg-slate-50 p-4 text-slate-900"}
+    >
+      <div
+        className={
+          compact
+            ? "flex flex-col gap-4"
+            : "mx-auto flex max-w-[1600px] flex-col gap-4"
+        }
+      >
         {!compact && (
           <div className="flex shrink-0 items-center justify-between gap-3">
-            <h1 className="text-xl font-black text-slate-900">Staff Gate Check-out</h1>
+            <h1 className="text-xl font-black text-slate-900">
+              Staff Gate Check-out
+            </h1>
             <div className="flex items-center gap-2">
               <button
                 type="button"
                 onClick={() => setIsHistoryOpen(true)}
                 className="inline-flex h-11 items-center gap-2 rounded-2xl bg-white px-4 text-sm font-black text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50"
               >
-                <span className="material-symbols-outlined text-lg">history</span>
+                <span className="material-symbols-outlined text-lg">
+                  history
+                </span>
                 History
               </button>
               <button
@@ -798,7 +913,7 @@ export default function VehicleCheckout({
                 className="inline-flex h-11 items-center gap-2 rounded-2xl bg-slate-900 px-4 text-sm font-black text-white hover:bg-slate-700"
               >
                 <span className="material-symbols-outlined text-lg">
-                  {isLoading ? 'progress_activity' : 'refresh'}
+                  {isLoading ? "progress_activity" : "refresh"}
                 </span>
                 Refresh
               </button>
@@ -806,7 +921,13 @@ export default function VehicleCheckout({
           </div>
         )}
 
-        <main className={compact ? 'grid gap-4 md:grid-cols-2' : 'grid min-h-0 flex-1 gap-4 xl:grid-cols-2'}>
+        <main
+          className={
+            compact
+              ? "grid gap-4 md:grid-cols-2"
+              : "grid min-h-0 flex-1 gap-4 xl:grid-cols-2"
+          }
+        >
           {/* LEFT COLUMN: EXIT CAMERA (LICENSE PLATE SCAN) */}
           <div className="space-y-4 flex flex-col min-h-0">
             <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm flex flex-col">
@@ -822,13 +943,17 @@ export default function VehicleCheckout({
                   autoPlay
                   playsInline
                   muted
-                  className={`h-full w-full object-cover ${cameraActive ? 'block' : 'hidden'}`}
+                  className={`h-full w-full object-cover ${cameraActive ? "block" : "hidden"}`}
                 />
 
                 {!cameraActive && (
                   <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-6 space-y-3 bg-slate-950">
-                    <span className="material-symbols-outlined text-3xl text-slate-600">videocam_off</span>
-                    <p className="text-slate-400 text-xs font-semibold">Camera is not active.</p>
+                    <span className="material-symbols-outlined text-3xl text-slate-600">
+                      videocam_off
+                    </span>
+                    <p className="text-slate-400 text-xs font-semibold">
+                      Camera is not active.
+                    </p>
                     <button
                       type="button"
                       onClick={startCamera}
@@ -852,7 +977,9 @@ export default function VehicleCheckout({
                 {isScanning && (
                   <div className="absolute inset-0 bg-slate-950/85 flex flex-col items-center justify-center p-6 text-center space-y-4">
                     <div className="h-8 w-8 border-3 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
-                    <p className="text-emerald-400 text-xs font-black tracking-wider animate-pulse">{scanProgress}</p>
+                    <p className="text-emerald-400 text-xs font-black tracking-wider animate-pulse">
+                      {scanProgress}
+                    </p>
                   </div>
                 )}
               </div>
@@ -866,7 +993,10 @@ export default function VehicleCheckout({
                       className="w-full rounded-xl bg-white border border-slate-200 px-3 py-1.5 text-xs text-slate-700 outline-none focus:border-emerald-500"
                     >
                       {devices.map((device, idx) => (
-                        <option key={device.deviceId || idx} value={device.deviceId}>
+                        <option
+                          key={device.deviceId || idx}
+                          value={device.deviceId}
+                        >
                           {device.label || `Camera ${idx + 1}`}
                         </option>
                       ))}
@@ -876,12 +1006,13 @@ export default function VehicleCheckout({
                     <button
                       type="button"
                       onClick={cameraActive ? stopCamera : startCamera}
-                      className={`flex-1 rounded-xl py-1.5 text-xs font-bold transition flex items-center justify-center gap-1.5 border ${cameraActive
-                        ? 'bg-red-50 border-red-200 text-red-700 hover:bg-red-100'
-                        : 'bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100'
-                        }`}
+                      className={`flex-1 rounded-xl py-1.5 text-xs font-bold transition flex items-center justify-center gap-1.5 border ${
+                        cameraActive
+                          ? "bg-red-50 border-red-200 text-red-700 hover:bg-red-100"
+                          : "bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100"
+                      }`}
                     >
-                      {cameraActive ? 'Stop Cam' : 'Start Cam'}
+                      {cameraActive ? "Stop Cam" : "Start Cam"}
                     </button>
                   </div>
                 </div>
@@ -893,7 +1024,9 @@ export default function VehicleCheckout({
                     disabled={isScanning || !cameraActive}
                     className="w-full rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white py-2 text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-md shadow-emerald-600/10 disabled:opacity-50"
                   >
-                    <span className="material-symbols-outlined text-base">photo_camera</span>
+                    <span className="material-symbols-outlined text-base">
+                      photo_camera
+                    </span>
                     Scan Camera
                   </button>
                 </div>
@@ -901,11 +1034,19 @@ export default function VehicleCheckout({
                 {capturedImage && (
                   <div className="bg-white rounded-xl p-2 border border-slate-100 flex items-center gap-3">
                     <div className="h-12 w-20 bg-slate-950 rounded-lg overflow-hidden border border-slate-200 flex-shrink-0">
-                      <img src={capturedImage} alt="Captured checkout snapshot" className="h-full w-full object-contain" />
+                      <img
+                        src={capturedImage}
+                        alt="Captured checkout snapshot"
+                        className="h-full w-full object-contain"
+                      />
                     </div>
                     <div>
-                      <p className="text-[8px] font-bold text-slate-400 uppercase tracking-wider">Detected Checkout Plate</p>
-                      <p className="font-mono text-base font-black text-slate-900 tracking-wider mt-0.5">{exitPlate || '---'}</p>
+                      <p className="text-[8px] font-bold text-slate-400 uppercase tracking-wider">
+                        Detected Checkout Plate
+                      </p>
+                      <p className="font-mono text-base font-black text-slate-900 tracking-wider mt-0.5">
+                        {exitPlate || "---"}
+                      </p>
                     </div>
                   </div>
                 )}
@@ -917,7 +1058,10 @@ export default function VehicleCheckout({
           <div className="space-y-3 flex flex-col min-h-0">
             <section className="min-h-0 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm space-y-3 flex flex-col">
               {/* Compact session search bar */}
-              <form onSubmit={handleSearch} className="flex gap-2 items-center border-b border-slate-100 pb-3">
+              <form
+                onSubmit={handleSearch}
+                className="flex gap-2 items-center border-b border-slate-100 pb-3"
+              >
                 <div className="relative flex-1">
                   <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-base">
                     search
@@ -925,7 +1069,9 @@ export default function VehicleCheckout({
                   <input
                     ref={searchInputRef}
                     value={searchQuery}
-                    onChange={(event) => setSearchQuery(event.target.value.toUpperCase())}
+                    onChange={(event) =>
+                      setSearchQuery(event.target.value.toUpperCase())
+                    }
                     placeholder="Scan or enter card/plate..."
                     className="h-10 w-full rounded-xl border border-slate-200 bg-slate-50 pl-9 pr-3 font-mono text-xs font-bold uppercase outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
                   />
@@ -952,7 +1098,9 @@ export default function VehicleCheckout({
                         />
                       ) : (
                         <div className="flex flex-col items-center justify-center text-slate-500 text-[10px] gap-1">
-                          <span className="material-symbols-outlined text-xl">image_not_supported</span>
+                          <span className="material-symbols-outlined text-xl">
+                            image_not_supported
+                          </span>
                           <span>No check-in photo</span>
                         </div>
                       )}
@@ -971,7 +1119,9 @@ export default function VehicleCheckout({
                         />
                       ) : (
                         <div className="flex flex-col items-center justify-center text-slate-500 text-[10px] gap-1">
-                          <span className="material-symbols-outlined text-xl">photo_camera</span>
+                          <span className="material-symbols-outlined text-xl">
+                            photo_camera
+                          </span>
                           <span>No checkout photo</span>
                         </div>
                       )}
@@ -984,7 +1134,9 @@ export default function VehicleCheckout({
                   {/* License plate entry and matching */}
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">Check-in Plate</label>
+                      <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">
+                        Check-in Plate
+                      </label>
                       <div className="mt-1 rounded-xl bg-emerald-50 border border-emerald-100 p-2.5 text-center">
                         <span className="font-mono text-lg font-black text-slate-900 tracking-wider">
                           {formatPlate(selectedSession.licensePlate)}
@@ -992,10 +1144,14 @@ export default function VehicleCheckout({
                       </div>
                     </div>
                     <div>
-                      <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">Checkout Plate</label>
+                      <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">
+                        Checkout Plate
+                      </label>
                       <input
                         value={exitPlate}
-                        onChange={(event) => setExitPlate(event.target.value.toUpperCase())}
+                        onChange={(event) =>
+                          setExitPlate(event.target.value.toUpperCase())
+                        }
                         placeholder="Enter checkout plate"
                         className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-2.5 py-2.5 font-mono text-lg font-black uppercase tracking-wider text-slate-900 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
                       />
@@ -1005,21 +1161,31 @@ export default function VehicleCheckout({
                   {/* Card entry and matching */}
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">Check-in Card</label>
+                      <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">
+                        Check-in Card
+                      </label>
                       <div className="mt-1 rounded-xl bg-slate-50 border border-slate-100 p-2.5 text-center">
                         <span className="font-mono text-sm font-bold text-slate-800">
-                          {selectedSession.cardCode ?? '—'}
+                          {selectedSession.cardCode ?? "—"}
                         </span>
                       </div>
                     </div>
                     <div>
-                      <label className="text-[10px] font-black uppercase tracking-wider text-slate-550">Checkout Card</label>
+                      <label className="text-[10px] font-black uppercase tracking-wider text-slate-550">
+                        Checkout Card
+                      </label>
                       <input
                         list="checkout-cards-list"
                         value={checkoutCardCode}
-                        onChange={(e) => setCheckoutCardCode(e.target.value.toUpperCase())}
+                        onChange={(e) =>
+                          setCheckoutCardCode(e.target.value.toUpperCase())
+                        }
                         disabled={isSelectedCardLost}
-                        placeholder={isSelectedCardLost ? "Card reported lost" : "Type/select card code"}
+                        placeholder={
+                          isSelectedCardLost
+                            ? "Card reported lost"
+                            : "Type/select card code"
+                        }
                         className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-2.5 py-2 font-mono text-xs font-bold uppercase tracking-wider text-slate-900 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 disabled:bg-slate-100 disabled:text-slate-400 disabled:cursor-not-allowed"
                       />
                       <datalist id="checkout-cards-list">
@@ -1034,35 +1200,53 @@ export default function VehicleCheckout({
                   <div className="grid grid-cols-2 gap-3">
                     {/* Plate Match status */}
                     <div
-                      className={`rounded-xl border px-3 py-2 flex items-center gap-1.5 text-xs font-bold ${!exitPlate
-                        ? 'border-amber-200 bg-amber-50 text-amber-700'
-                        : isPlateMatched
-                          ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
-                          : 'border-red-200 bg-red-50 text-red-700'
-                        }`}
+                      className={`rounded-xl border px-3 py-2 flex items-center gap-1.5 text-xs font-bold ${
+                        !exitPlate
+                          ? "border-amber-200 bg-amber-50 text-amber-700"
+                          : isPlateMatched
+                            ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                            : "border-red-200 bg-red-50 text-red-700"
+                      }`}
                     >
                       <span className="material-symbols-outlined text-base">
-                        {!exitPlate ? 'visibility' : isPlateMatched ? 'check_circle' : 'error'}
+                        {!exitPlate
+                          ? "visibility"
+                          : isPlateMatched
+                            ? "check_circle"
+                            : "error"}
                       </span>
                       <span>
-                        {!exitPlate ? 'Waiting Plate' : isPlateMatched ? 'Plate Matched' : 'Plate Mismatch!'}
+                        {!exitPlate
+                          ? "Waiting Plate"
+                          : isPlateMatched
+                            ? "Plate Matched"
+                            : "Plate Mismatch!"}
                       </span>
                     </div>
 
                     {/* Card Match status */}
                     <div
-                      className={`rounded-xl border px-3 py-2 flex items-center gap-1.5 text-xs font-bold ${!checkoutCardCode
-                        ? 'border-amber-200 bg-amber-50/70 text-amber-700'
-                        : isCardMatched
-                          ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
-                          : 'border-red-200 bg-red-50 text-red-700'
-                        }`}
+                      className={`rounded-xl border px-3 py-2 flex items-center gap-1.5 text-xs font-bold ${
+                        !checkoutCardCode
+                          ? "border-amber-200 bg-amber-50/70 text-amber-700"
+                          : isCardMatched
+                            ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                            : "border-red-200 bg-red-50 text-red-700"
+                      }`}
                     >
                       <span className="material-symbols-outlined text-base">
-                        {!checkoutCardCode ? 'warning' : isCardMatched ? 'check_circle' : 'error'}
+                        {!checkoutCardCode
+                          ? "warning"
+                          : isCardMatched
+                            ? "check_circle"
+                            : "error"}
                       </span>
                       <span>
-                        {!checkoutCardCode ? 'No Card (Lost)' : isCardMatched ? 'Card Matched' : 'Card Mismatch!'}
+                        {!checkoutCardCode
+                          ? "No Card (Lost)"
+                          : isCardMatched
+                            ? "Card Matched"
+                            : "Card Mismatch!"}
                       </span>
                     </div>
                   </div>
@@ -1070,16 +1254,23 @@ export default function VehicleCheckout({
                   {/* Additional check-in information */}
                   <div className="grid grid-cols-2 gap-3">
                     <div className="rounded-xl border border-slate-100 bg-slate-50 p-2">
-                      <p className="text-[9px] font-black uppercase text-slate-400">Duration / Slot</p>
+                      <p className="text-[9px] font-black uppercase text-slate-400">
+                        Duration / Slot
+                      </p>
                       <p className="text-xs font-bold text-slate-700">
-                        {getDurationLabel(selectedSession.checkInTime)} · {selectedSession.zoneCode ?? '—'}/{selectedSession.slotCode ?? '—'}
+                        {getDurationLabel(selectedSession.checkInTime)} ·{" "}
+                        {selectedSession.zoneCode ?? "—"}/
+                        {selectedSession.slotCode ?? "—"}
                       </p>
                     </div>
                     <div className="rounded-xl border border-slate-100 bg-slate-50 p-2 flex justify-between items-center">
                       <div>
-                        <p className="text-[9px] font-black uppercase text-slate-400">Type / Cust</p>
+                        <p className="text-[9px] font-black uppercase text-slate-400">
+                          Type / Cust
+                        </p>
                         <p className="text-xs font-bold text-slate-700">
-                          {selectedSession.vehicleType} · {selectedSession.customerType}
+                          {selectedSession.vehicleType} ·{" "}
+                          {selectedSession.customerType}
                         </p>
                       </div>
                       {selectedSession.cardId && (
@@ -1100,33 +1291,52 @@ export default function VehicleCheckout({
                     <div className="border-t border-slate-100 pt-3 space-y-3">
                       <div className="bg-slate-50 rounded-xl p-2.5 border border-slate-100 flex justify-between items-center text-xs">
                         <div>
-                          <span className="font-semibold text-slate-500 font-mono">Checkout: </span>
-                          <span className="font-mono font-bold text-slate-800 mr-2">{formatDateTime(lockedCheckoutTime)}</span>
-                          <span className="font-semibold text-slate-500 font-mono">Fee: </span>
-                          <span className="font-bold text-slate-800">{formatCurrency(calculatedFee.totalFee)}</span>
+                          <span className="font-semibold text-slate-500 font-mono">
+                            Checkout:{" "}
+                          </span>
+                          <span className="font-mono font-bold text-slate-800 mr-2">
+                            {formatDateTime(lockedCheckoutTime)}
+                          </span>
+                          <span className="font-semibold text-slate-500 font-mono">
+                            Fee:{" "}
+                          </span>
+                          <span className="font-bold text-slate-800">
+                            {formatCurrency(calculatedFee.totalFee)}
+                          </span>
                           {calculatedFee.penaltyFee > 0 && (
-                            <span className="text-red-600 font-bold ml-2"> (Penalty: {formatCurrency(calculatedFee.penaltyFee)})</span>
+                            <span className="text-red-600 font-bold ml-2">
+                              {" "}
+                              (Penalty:{" "}
+                              {formatCurrency(calculatedFee.penaltyFee)})
+                            </span>
                           )}
                         </div>
                         <div>
-                          <span className="font-black text-slate-500">Due: </span>
-                          <span className="font-black text-emerald-600 text-sm">{formatCurrency(calculatedFee.amountDue)}</span>
+                          <span className="font-black text-slate-500">
+                            Due:{" "}
+                          </span>
+                          <span className="font-black text-emerald-600 text-sm">
+                            {formatCurrency(calculatedFee.amountDue)}
+                          </span>
                         </div>
                       </div>
 
                       {/* Payment method selection */}
                       <div className="grid grid-cols-2 gap-3">
-                        {(['CASH', 'ONLINE_BANKING'] as CheckoutPaymentMethod[]).map((method) => (
+                        {(
+                          ["CASH", "ONLINE_BANKING"] as CheckoutPaymentMethod[]
+                        ).map((method) => (
                           <button
                             key={method}
                             type="button"
                             onClick={() => setPaymentMethod(method)}
-                            className={`rounded-xl border px-3 py-2 text-xs font-black transition ${paymentMethod === method
-                              ? 'border-emerald-500 bg-emerald-50 text-emerald-700'
-                              : 'border-slate-200 bg-white text-slate-500 hover:bg-slate-50'
-                              }`}
+                            className={`rounded-xl border px-3 py-2 text-xs font-black transition ${
+                              paymentMethod === method
+                                ? "border-emerald-500 bg-emerald-50 text-emerald-700"
+                                : "border-slate-200 bg-white text-slate-500 hover:bg-slate-50"
+                            }`}
                           >
-                            {method === 'CASH' ? 'Cash' : 'Online banking'}
+                            {method === "CASH" ? "Cash" : "Online banking"}
                           </button>
                         ))}
                       </div>
@@ -1139,8 +1349,12 @@ export default function VehicleCheckout({
                           onClick={() => void handleCompleteCheckout()}
                           className="flex w-full items-center justify-center gap-1.5 rounded-xl bg-emerald-600 py-2.5 text-xs font-black text-white shadow-md hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-300 transition"
                         >
-                          <span className="material-symbols-outlined text-base">payments</span>
-                          {isSubmitting ? 'Confirming...' : 'Confirm Payment & Checkout'}
+                          <span className="material-symbols-outlined text-base">
+                            payments
+                          </span>
+                          {isSubmitting
+                            ? "Confirming..."
+                            : "Confirm Payment & Checkout"}
                         </button>
                         <button
                           type="button"
@@ -1150,7 +1364,9 @@ export default function VehicleCheckout({
                           }}
                           className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white py-2 text-xs font-black text-slate-700 hover:bg-slate-50 hover:border-slate-300 transition shadow-sm"
                         >
-                          <span className="material-symbols-outlined text-base text-slate-500">refresh</span>
+                          <span className="material-symbols-outlined text-base text-slate-500">
+                            refresh
+                          </span>
                           Recalculate Fee / Rescan License Plate
                         </button>
                       </div>
@@ -1158,7 +1374,10 @@ export default function VehicleCheckout({
                   )}
                 </div>
               ) : (
-                <EmptyState icon="logout" text="Waiting to load session. Please scan or enter plate/card." />
+                <EmptyState
+                  icon="logout"
+                  text="Waiting to load session. Please scan or enter plate/card."
+                />
               )}
             </section>
           </div>
@@ -1172,7 +1391,9 @@ export default function VehicleCheckout({
             <div className="mx-auto flex h-full max-w-5xl flex-col rounded-[2rem] bg-white p-6 shadow-2xl">
               <div className="flex shrink-0 items-center justify-between gap-4">
                 <div>
-                  <h2 className="text-2xl font-black text-slate-900">Checkout history</h2>
+                  <h2 className="text-2xl font-black text-slate-900">
+                    Checkout history
+                  </h2>
                   <p className="text-sm font-semibold text-slate-500">
                     Recent vehicles that have exited the gate.
                   </p>
@@ -1189,7 +1410,10 @@ export default function VehicleCheckout({
 
               <div className="mt-5 min-h-0 flex-1 overflow-y-auto pr-1">
                 {history.length === 0 ? (
-                  <EmptyState icon="history" text="No checkout history in this browser yet." />
+                  <EmptyState
+                    icon="history"
+                    text="No checkout history in this browser yet."
+                  />
                 ) : (
                   <div className="grid gap-3 md:grid-cols-2">
                     {history.map((item) => (
@@ -1223,7 +1447,7 @@ export default function VehicleCheckout({
               </div>
             </div>
           </div>,
-          document.body
+          document.body,
         )}
 
       {isMounted &&
@@ -1241,14 +1465,33 @@ export default function VehicleCheckout({
                 {formatPlate(overlay.session.licensePlate)}
               </h2>
               <div className="mt-8 grid gap-3 text-left md:grid-cols-2">
-                <OverlayInfo label="Card code" value={overlay.session.cardCode ?? '—'} />
+                <OverlayInfo
+                  label="Card code"
+                  value={overlay.session.cardCode ?? "—"}
+                />
                 <OverlayInfo label="Checkout plate" value={overlay.exitPlate} />
-                <OverlayInfo label="Check-in time" value={formatDateTime(overlay.session.checkInTime)} />
-                <OverlayInfo label="Check-out time" value={formatDateTime(overlay.checkOutTime)} />
+                <OverlayInfo
+                  label="Check-in time"
+                  value={formatDateTime(overlay.session.checkInTime)}
+                />
+                <OverlayInfo
+                  label="Check-out time"
+                  value={formatDateTime(overlay.checkOutTime)}
+                />
                 <OverlayInfo label="Duration" value={overlay.duration} />
-                <OverlayInfo label="Payment method" value={String(overlay.payment.paymentMethod || paymentMethod)} />
-                <OverlayInfo label="Payment status" value={String(overlay.payment.paymentStatus)} />
-                <OverlayInfo label="Amount due" value={formatCurrency(overlay.payment.amount)} strong />
+                <OverlayInfo
+                  label="Payment method"
+                  value={String(overlay.payment.paymentMethod || paymentMethod)}
+                />
+                <OverlayInfo
+                  label="Payment status"
+                  value={String(overlay.payment.paymentStatus)}
+                />
+                <OverlayInfo
+                  label="Amount due"
+                  value={formatCurrency(overlay.payment.amount)}
+                  strong
+                />
               </div>
               {overlay.payment.paymentUrl && (
                 <a
@@ -1261,22 +1504,28 @@ export default function VehicleCheckout({
                 </a>
               )}
               <div className="mt-6 flex flex-col justify-center gap-3 sm:flex-row">
-                {String(overlay.payment.paymentStatus).toUpperCase() !== 'PAID' && (
+                {String(overlay.payment.paymentStatus).toUpperCase() !==
+                  "PAID" && (
                   <button
                     type="button"
                     onClick={() => {
                       setSessions((current) =>
-                        current.some((session) => session.id === overlay.session.id)
+                        current.some(
+                          (session) => session.id === overlay.session.id,
+                        )
                           ? current
-                          : [overlay.session, ...current]
+                          : [overlay.session, ...current],
                       );
                       setSelectedSessionId(overlay.session.id);
                       setExitPlate(overlay.exitPlate);
-                      setSearchQuery(overlay.session.cardCode || overlay.session.licensePlate);
+                      setSearchQuery(
+                        overlay.session.cardCode ||
+                          overlay.session.licensePlate,
+                      );
                       setOverlay(null);
                       showToast(
-                        'Returned to checkout screen. Current pending payment is still open until Backend supports cancel/change payment.',
-                        'info'
+                        "Returned to checkout screen. Current pending payment is still open until Backend supports cancel/change payment.",
+                        "info",
                       );
                     }}
                     className="rounded-2xl border border-white/40 px-5 py-3 text-sm font-black text-white hover:bg-white/10"
@@ -1290,7 +1539,7 @@ export default function VehicleCheckout({
                   onClick={() => void handleReportPaymentIssue()}
                   className="rounded-2xl bg-red-600 px-5 py-3 text-sm font-black text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-red-300"
                 >
-                  {isReporting ? 'Reporting...' : 'Report to manager'}
+                  {isReporting ? "Reporting..." : "Report to manager"}
                 </button>
                 <button
                   type="button"
@@ -1302,7 +1551,7 @@ export default function VehicleCheckout({
               </div>
             </div>
           </div>,
-          document.body
+          document.body,
         )}
 
       {isMounted &&
@@ -1311,22 +1560,39 @@ export default function VehicleCheckout({
           <div className="fixed inset-0 z-[100000] flex items-center justify-center bg-slate-950/75 p-6 backdrop-blur-sm">
             <div className="w-full max-w-md rounded-3xl bg-white p-6 text-slate-900 shadow-2xl border border-slate-100 space-y-5 animate-in fade-in zoom-in-95 duration-200">
               <div className="flex items-center gap-3 text-red-600">
-                <span className="material-symbols-outlined text-4xl">warning</span>
+                <span className="material-symbols-outlined text-4xl">
+                  warning
+                </span>
                 <div>
-                  <h3 className="text-xl font-black text-slate-900">Confirm Lost Card Report</h3>
-                  <p className="text-sm font-semibold text-slate-500">Lock the parking card in the system</p>
+                  <h3 className="text-xl font-black text-slate-900">
+                    Confirm Lost Card Report
+                  </h3>
+                  <p className="text-sm font-semibold text-slate-500">
+                    Lock the parking card in the system
+                  </p>
                 </div>
               </div>
 
               <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100 text-sm space-y-2">
                 <p className="text-slate-600 leading-relaxed">
-                  You are about to report parking card <strong className="font-mono text-slate-950 font-black">{selectedSession?.cardCode}</strong> as lost for vehicle <strong className="font-mono text-slate-950 font-black">{formatPlate(selectedSession?.licensePlate ?? '')}</strong>.
+                  You are about to report parking card{" "}
+                  <strong className="font-mono text-slate-950 font-black">
+                    {selectedSession?.cardCode}
+                  </strong>{" "}
+                  as lost for vehicle{" "}
+                  <strong className="font-mono text-slate-950 font-black">
+                    {formatPlate(selectedSession?.licensePlate ?? "")}
+                  </strong>
+                  .
                 </p>
                 <p className="text-slate-600 leading-relaxed">
-                  This action will lock the card and mark the parking session as a lost-card case. The customer will be charged the applicable penalty and parking fee.
+                  This action will lock the card and mark the parking session as
+                  a lost-card case. The customer will be charged the applicable
+                  penalty and parking fee.
                 </p>
                 <p className="text-[11px] text-red-500 font-bold border-t border-slate-200/60 pt-2 mt-2">
-                  * Note: A card reported as lost cannot be used at the entry or exit gate until it is unlocked.
+                  * Note: A card reported as lost cannot be used at the entry or
+                  exit gate until it is unlocked.
                 </p>
               </div>
 
@@ -1350,7 +1616,7 @@ export default function VehicleCheckout({
               </div>
             </div>
           </div>,
-          document.body
+          document.body,
         )}
 
       {isMounted &&
@@ -1359,24 +1625,40 @@ export default function VehicleCheckout({
           <div className="fixed inset-0 z-[100000] flex items-center justify-center bg-slate-950/75 p-6 backdrop-blur-sm">
             <div className="w-full max-w-md rounded-3xl bg-white p-6 text-slate-900 shadow-2xl border border-slate-100 space-y-5 animate-in fade-in zoom-in-95 duration-200">
               <div className="flex items-center gap-3 text-red-600">
-                <span className="material-symbols-outlined text-4xl">error</span>
+                <span className="material-symbols-outlined text-4xl">
+                  error
+                </span>
                 <div>
-                  <h3 className="text-xl font-black text-slate-900">Lost Card Report Required</h3>
-                  <p className="text-sm font-semibold text-slate-500">A lost-card incident must be reported</p>
+                  <h3 className="text-xl font-black text-slate-900">
+                    Lost Card Report Required
+                  </h3>
+                  <p className="text-sm font-semibold text-slate-500">
+                    A lost-card incident must be reported
+                  </p>
                 </div>
               </div>
 
               <div className="bg-red-50 rounded-2xl p-4 border border-red-100 text-sm text-red-800 space-y-2 leading-relaxed">
                 <p>
-                  The vehicle is checking out without presenting its card, but the card has not been reported as lost.
+                  The vehicle is checking out without presenting its card, but
+                  the card has not been reported as lost.
                 </p>
-                <p className="font-bold">
-                  Required procedure:
-                </p>
+                <p className="font-bold">Required procedure:</p>
                 <ol className="list-decimal list-inside space-y-1">
-                  <li>Click <strong className="underline text-red-950">Report Lost Card</strong> on the right.</li>
-                  <li>Confirm the report so the system can update the card status.</li>
-                  <li>Continue with check-out payment only after the card status changes to lost.</li>
+                  <li>
+                    Click{" "}
+                    <strong className="underline text-red-950">
+                      Report Lost Card
+                    </strong>{" "}
+                    on the right.
+                  </li>
+                  <li>
+                    Confirm the report so the system can update the card status.
+                  </li>
+                  <li>
+                    Continue with check-out payment only after the card status
+                    changes to lost.
+                  </li>
                 </ol>
               </div>
 
@@ -1391,7 +1673,7 @@ export default function VehicleCheckout({
               </div>
             </div>
           </div>,
-          document.body
+          document.body,
         )}
     </div>
   );
@@ -1429,8 +1711,9 @@ function InfoBox({
         {label}
       </p>
       <p
-        className={`mt-1 truncate text-sm font-black text-slate-800 ${mono ? 'font-mono' : ''
-          }`}
+        className={`mt-1 truncate text-sm font-black text-slate-800 ${
+          mono ? "font-mono" : ""
+        }`}
         title={value}
       >
         {value}
@@ -1451,7 +1734,7 @@ function OverlayInfo({
   return (
     <div className="rounded-2xl bg-white/15 p-4">
       <p className="text-xs font-black uppercase text-white/60">{label}</p>
-      <p className={`mt-1 font-black ${strong ? 'text-3xl' : 'text-xl'}`}>
+      <p className={`mt-1 font-black ${strong ? "text-3xl" : "text-xl"}`}>
         {value}
       </p>
     </div>

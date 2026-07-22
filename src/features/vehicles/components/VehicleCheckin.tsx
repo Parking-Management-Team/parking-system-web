@@ -2,7 +2,7 @@
  * ===================================================================================
  * 🚨 FE COMPONENT: VehicleCheckin.tsx (Cho Xe Vào Bãi / Gate Check-in Workspace)
  * ===================================================================================
- * 
+ *
  * 📌 VAI TRÒ & CHỨC NĂNG CHÍNH TRÊN UI:
  * - Xử lý quy trình cho xe vào bãi đỗ dành cho Nhân viên bảo vệ (Staff).
  * - Quét/Đọc camera nhận diện biển số xe (ALPR Camera Engine Simulation), chụp ảnh lối vào.
@@ -10,19 +10,19 @@
  * - Phân luồng kiểm tra: Xe đã đăng ký vé tháng, Xe đã Đặt chỗ trước (Booking), hoặc Xe gửi lượt (Visitor).
  * - Kiểm tra Blacklist (Biển số xe bị cấm) & Cảnh báo ô đỗ quá tải.
  * - Hiển thị Overlay mở rào chắn Barie và in thẻ lượt tự động.
- * 
+ *
  * ⚙️ KẾT NỐI API BACKEND (ASP.NET Core Controllers):
  * - POST /parking-sessions/check-in  --> Khởi tạo phiên đỗ xe mới (CheckinSessionController.cs)
  * - GET  /parking-cards/active        --> Lấy danh sách thẻ từ khả dụng (CardController.cs)
  * - GET  /bookings/check-in           --> Tra cứu vé đặt chỗ đã được xác nhận (BookingController.cs)
  * - GET  /blacklist/check             --> Kiểm tra biển số vi phạm trong danh sách đen (BlacklistController.cs)
- * 
+ *
  * 🗄️ BẢNG DATABASE LIÊN QUAN (PostgreSQL):
  * - ParkingSessions (Id, LicensePlateIn, CheckInTime, CardId, SlotId, Status)
  * - Bookings        (Id, LicensePlate, BuildingId, FloorId, SlotId, BookingStatus)
  * - ParkingCards    (Id, CardCode, CardStatus, CardType)
  * - Blacklists      (Id, LicensePlate, Reason, IsActive)
- * 
+ *
  * 🔄 LUỒNG CẬP NHẬT DỮ LIỆU & RENDER UI:
  * 1. Quét Biển Số: Nhân viên nhập/quét biển số -> Tự động nhận diện loại xe (Ô tô/Xe máy/Xe điện).
  * 2. Xác Minh Thẻ: Quẹt thẻ từ -> Kiểm tra thẻ khả dụng và phân bổ ô đỗ tự động.
@@ -30,15 +30,21 @@
  * ===================================================================================
  */
 
-'use client';
+"use client";
 
-import React, { useCallback, useEffect, useMemo, useState, useRef } from 'react';
-import { createPortal } from 'react-dom';
-import { useAuth } from '@/features/auth';
-import { fetchCards } from '@/features/card/services/card.service';
-import type { ParkingCard } from '@/features/card/types/card';
-import { blacklistService, type BlacklistDto } from '@/features/blacklist';
-import { api } from '@/lib/api/client';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  useRef,
+} from "react";
+import { createPortal } from "react-dom";
+import { useAuth } from "@/features/auth";
+import { fetchCards } from "@/features/card/services/card.service";
+import type { ParkingCard } from "@/features/card/types/card";
+import { blacklistService, type BlacklistDto } from "@/features/blacklist";
+import { api } from "@/lib/api/client";
 import {
   checkInVehicle,
   fetchActiveParkingSessions,
@@ -49,54 +55,55 @@ import {
   type VehicleCheckinBooking,
   type VehicleCheckinSession,
   type ReallocateSlotDto,
-} from '@/features/vehicles/services/vehicle-checkin.service';
-import { ApiError } from '@/lib/api/client';
-import { formatPlate, detectVehicleTypeFromPlate } from '@/lib/utils/format';
+} from "@/features/vehicles/services/vehicle-checkin.service";
+import { ApiError } from "@/lib/api/client";
+import { formatPlate, detectVehicleTypeFromPlate } from "@/lib/utils/format";
 
 type GateOverlay =
   | {
-    type: 'success';
-    title: string;
-    message: string;
-    session?: VehicleCheckinSession;
-    vehicleType: string;
-    cardCode: string;
-    checkInTime: string;
-  }
+      type: "success";
+      title: string;
+      message: string;
+      session?: VehicleCheckinSession;
+      vehicleType: string;
+      cardCode: string;
+      checkInTime: string;
+    }
   | {
-    type: 'error';
-    title: string;
-    message: string;
-  };
+      type: "error";
+      title: string;
+      message: string;
+    };
 
 const BUILDING_ID = 3;
 const STAFF_ID = 2;
 
 const normalizeText = (value: string) => value.trim().toUpperCase();
 const normalizeComparable = (value: string) =>
-  normalizeText(value).replace(/[^A-Z0-9]/g, '');
+  normalizeText(value).replace(/[^A-Z0-9]/g, "");
 
 const formatDateTime = (value?: string | null) => {
-  if (!value) return '—';
+  if (!value) return "—";
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return '—';
-  return new Intl.DateTimeFormat('vi-VN', {
-    dateStyle: 'short',
-    timeStyle: 'medium',
+  if (Number.isNaN(date.getTime())) return "—";
+  return new Intl.DateTimeFormat("vi-VN", {
+    dateStyle: "short",
+    timeStyle: "medium",
   }).format(date);
 };
 
 const formatCurrency = (amount?: number | null) =>
-  `${new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 0 }).format(amount ?? 0)} đ`;
+  `${new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 0 }).format(amount ?? 0)} đ`;
 
 const isConfirmedBookingForPlate = (
   booking: VehicleCheckinBooking,
-  formattedPlate: string
+  formattedPlate: string,
 ) => {
   const samePlate =
-    normalizeComparable(booking.licensePlate) === normalizeComparable(formattedPlate);
+    normalizeComparable(booking.licensePlate) ===
+    normalizeComparable(formattedPlate);
   const status = normalizeText(booking.bookingStatus);
-  if (!samePlate || status !== 'CONFIRMED') return false;
+  if (!samePlate || status !== "CONFIRMED") return false;
 
   if (!booking.checkinGraceUntil) return true;
   const graceUntil = new Date(booking.checkinGraceUntil).getTime();
@@ -115,15 +122,19 @@ export default function VehicleCheckin({
   const { showToast } = useAuth();
 
   const [buildingId, setBuildingId] = useState<number>(3);
-  const [buildings, setBuildings] = useState<{ id: number; name: string }[]>([]);
+  const [buildings, setBuildings] = useState<{ id: number; name: string }[]>(
+    [],
+  );
   const [cards, setCards] = useState<ParkingCard[]>([]);
-  const [activeSessions, setActiveSessions] = useState<VehicleCheckinSession[]>([]);
+  const [activeSessions, setActiveSessions] = useState<VehicleCheckinSession[]>(
+    [],
+  );
   const [bookings, setBookings] = useState<VehicleCheckinBooking[]>([]);
   const [blacklist, setBlacklist] = useState<BlacklistDto[]>([]);
-  const [licensePlate, setLicensePlate] = useState('');
+  const [licensePlate, setLicensePlate] = useState("");
   const [vehicleTypes, setVehicleTypes] = useState<any[]>([]);
   const [vehicleTypeId, setVehicleTypeId] = useState<number | null>(null);
-  const [cardCode, setCardCode] = useState('');
+  const [cardCode, setCardCode] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [overlay, setOverlay] = useState<GateOverlay | null>(null);
   const [isMounted, setIsMounted] = useState(false);
@@ -133,13 +144,23 @@ export default function VehicleCheckin({
   useEffect(() => {
     if (!licensePlate.trim() || vehicleTypes.length === 0) return;
     const detected = detectVehicleTypeFromPlate(licensePlate);
-    
+
     const matchedType = vehicleTypes.find((t: any) => {
-      const name = (t.name || t.typeName || t.TypeName || '').toLowerCase();
-      if (detected === 'Motorcycle') {
-        return name.includes('motor') || name.includes('bike') || name.includes('scoot') || name.includes('máy');
+      const name = (t.name || t.typeName || t.TypeName || "").toLowerCase();
+      if (detected === "Motorcycle") {
+        return (
+          name.includes("motor") ||
+          name.includes("bike") ||
+          name.includes("scoot") ||
+          name.includes("máy")
+        );
       } else {
-        return !(name.includes('motor') || name.includes('bike') || name.includes('scoot') || name.includes('máy'));
+        return !(
+          name.includes("motor") ||
+          name.includes("bike") ||
+          name.includes("scoot") ||
+          name.includes("máy")
+        );
       }
     });
 
@@ -157,83 +178,99 @@ export default function VehicleCheckin({
     () =>
       cards.filter(
         (card) =>
-          card.cardType === 'PARKING_CARD' &&
-          card.cardStatus === 'AVAILABLE'
+          card.cardType === "PARKING_CARD" && card.cardStatus === "AVAILABLE",
       ),
-    [cards]
+    [cards],
   );
 
   const sortedAvailableCards = useMemo(
     () =>
       [...availableCards].sort((a, b) => {
-        const codeA = a.cardCode || '';
-        const codeB = b.cardCode || '';
-        return codeA.localeCompare(codeB, undefined, { numeric: true, sensitivity: 'base' });
+        const codeA = a.cardCode || "";
+        const codeB = b.cardCode || "";
+        return codeA.localeCompare(codeB, undefined, {
+          numeric: true,
+          sensitivity: "base",
+        });
       }),
-    [availableCards]
+    [availableCards],
   );
 
   // Webcam & LPR states
   const videoRef = useRef<HTMLVideoElement>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [devices, setDevices] = useState<MediaDeviceInfo[]>([]);
-  const [selectedDeviceId, setSelectedDeviceId] = useState<string>('');
+  const [selectedDeviceId, setSelectedDeviceId] = useState<string>("");
   const [cameraActive, setCameraActive] = useState<boolean>(false);
   const [isScanning, setIsScanning] = useState<boolean>(false);
-  const [scanProgress, setScanProgress] = useState<string>('');
-  const [ocrText, setOcrText] = useState<string>('');
+  const [scanProgress, setScanProgress] = useState<string>("");
+  const [ocrText, setOcrText] = useState<string>("");
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
-  const operationalRefreshRef = useRef<{ buildingId: number; promise: Promise<void> } | null>(null);
+  const operationalRefreshRef = useRef<{
+    buildingId: number;
+    promise: Promise<void>;
+  } | null>(null);
   const operationalRefreshVersionRef = useRef(0);
 
   // Enumerate cameras
   const enumerateCameras = useCallback(async () => {
-    if (typeof window === 'undefined' || !navigator.mediaDevices) {
-      console.warn('Camera API (navigator.mediaDevices) is not available.');
+    if (typeof window === "undefined" || !navigator.mediaDevices) {
+      console.warn("Camera API (navigator.mediaDevices) is not available.");
       return;
     }
     try {
       const mediaDevices = await navigator.mediaDevices.enumerateDevices();
-      const videoDevices = mediaDevices.filter(device => device.kind === 'videoinput');
+      const videoDevices = mediaDevices.filter(
+        (device) => device.kind === "videoinput",
+      );
       setDevices(videoDevices);
       if (videoDevices.length > 0 && !selectedDeviceId) {
         setSelectedDeviceId(videoDevices[0].deviceId);
       }
     } catch (err) {
-      console.error('No camera device found:', err);
+      console.error("No camera device found:", err);
     }
   }, [selectedDeviceId]);
 
   // Start webcam stream
   const startCamera = useCallback(async () => {
-    if (typeof window === 'undefined' || !navigator.mediaDevices) {
-      showToast('Unable to open the camera: the browser is unsupported or the connection is insecure (HTTP). Use localhost or configure HTTPS.', 'error');
+    if (typeof window === "undefined" || !navigator.mediaDevices) {
+      showToast(
+        "Unable to open the camera: the browser is unsupported or the connection is insecure (HTTP). Use localhost or configure HTTPS.",
+        "error",
+      );
       return;
     }
     try {
       if (stream) {
-        stream.getTracks().forEach(track => track.stop());
+        stream.getTracks().forEach((track) => track.stop());
       }
       const constraints = {
-        video: selectedDeviceId ? { deviceId: { exact: selectedDeviceId } } : true,
+        video: selectedDeviceId
+          ? { deviceId: { exact: selectedDeviceId } }
+          : true,
       };
-      const mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
+      const mediaStream =
+        await navigator.mediaDevices.getUserMedia(constraints);
       setStream(mediaStream);
       if (videoRef.current) {
         videoRef.current.srcObject = mediaStream;
       }
       setCameraActive(true);
-      showToast('Camera started successfully!', 'success');
+      showToast("Camera started successfully!", "success");
     } catch (err) {
-      console.error('Unable to open the camera:', err);
-      showToast('Unable to connect to the camera. Please grant camera permission.', 'error');
+      console.error("Unable to open the camera:", err);
+      showToast(
+        "Unable to connect to the camera. Please grant camera permission.",
+        "error",
+      );
     }
   }, [selectedDeviceId, stream, showToast]);
 
   // Stop webcam stream
   const stopCamera = useCallback(() => {
     if (stream) {
-      stream.getTracks().forEach(track => track.stop());
+      stream.getTracks().forEach((track) => track.stop());
       setStream(null);
     }
     setCameraActive(false);
@@ -243,7 +280,7 @@ export default function VehicleCheckin({
   useEffect(() => {
     return () => {
       if (stream) {
-        stream.getTracks().forEach(track => track.stop());
+        stream.getTracks().forEach((track) => track.stop());
       }
     };
   }, [stream]);
@@ -251,44 +288,53 @@ export default function VehicleCheckin({
   // Capture frame from video stream to base64
   const captureFrame = useCallback((): string | null => {
     if (!videoRef.current || !cameraActive) {
-      showToast('Please activate the camera first.', 'info');
+      showToast("Please activate the camera first.", "info");
       return null;
     }
 
     const video = videoRef.current;
-    const canvas = document.createElement('canvas');
+    const canvas = document.createElement("canvas");
     canvas.width = video.videoWidth || 640;
     canvas.height = video.videoHeight || 480;
 
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext("2d");
     if (!ctx) return null;
 
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-    const dataUrl = canvas.toDataURL('image/jpeg', 0.75);
+    const dataUrl = canvas.toDataURL("image/jpeg", 0.75);
     setCapturedImage(dataUrl);
     return dataUrl;
   }, [cameraActive, showToast]);
 
   // Run OCR on Backend Cloud API
-  const performOCR = useCallback(async (base64Img: string) => {
-    setIsScanning(true);
-    setScanProgress('Scanning license plate...');
-    setOcrText('');
+  const performOCR = useCallback(
+    async (base64Img: string) => {
+      setIsScanning(true);
+      setScanProgress("Scanning license plate...");
+      setOcrText("");
 
-    try {
-      const result = await scanLicensePlate({ image: base64Img });
-      setOcrText(result.licensePlate);
-      showToast(`License plate recognized: ${result.licensePlate}`, 'success');
-      return result.licensePlate;
-    } catch (err: any) {
-      console.error('OCR error:', err);
-      showToast(err.message || 'An error occurred during the OCR scan.', 'error');
-      return '';
-    } finally {
-      setIsScanning(false);
-      setScanProgress('');
-    }
-  }, [showToast]);
+      try {
+        const result = await scanLicensePlate({ image: base64Img });
+        setOcrText(result.licensePlate);
+        showToast(
+          `License plate recognized: ${result.licensePlate}`,
+          "success",
+        );
+        return result.licensePlate;
+      } catch (err: any) {
+        console.error("OCR error:", err);
+        showToast(
+          err.message || "An error occurred during the OCR scan.",
+          "error",
+        );
+        return "";
+      } finally {
+        setIsScanning(false);
+        setScanProgress("");
+      }
+    },
+    [showToast],
+  );
 
   const handleCheckinScan = useCallback(async () => {
     const base64 = captureFrame();
@@ -296,17 +342,16 @@ export default function VehicleCheckin({
     const plate = await performOCR(base64);
     if (plate) {
       setLicensePlate(plate);
-      console.log('Check-in scan: availableCards =', availableCards);
+      console.log("Check-in scan: availableCards =", availableCards);
       if (availableCards.length > 0) {
-        const randomCard = availableCards[Math.floor(Math.random() * availableCards.length)];
+        const randomCard =
+          availableCards[Math.floor(Math.random() * availableCards.length)];
         setCardCode(randomCard.cardCode);
       } else {
-        console.warn('Check-in scan: No available cards found!');
+        console.warn("Check-in scan: No available cards found!");
       }
     }
   }, [captureFrame, performOCR, availableCards]);
-
-
 
   const formattedPlate = normalizeText(licensePlate);
   const normalizedCardCode = normalizeText(cardCode);
@@ -314,17 +359,17 @@ export default function VehicleCheckin({
   const selectedCard = useMemo(
     () =>
       cards.find(
-        (card) => normalizeText(card.cardCode) === normalizedCardCode
+        (card) => normalizeText(card.cardCode) === normalizedCardCode,
       ) ?? null,
-    [cards, normalizedCardCode]
+    [cards, normalizedCardCode],
   );
 
   const matchedBooking = useMemo(
     () =>
       bookings.find((booking) =>
-        isConfirmedBookingForPlate(booking, formattedPlate)
+        isConfirmedBookingForPlate(booking, formattedPlate),
       ) ?? null,
-    [bookings, formattedPlate]
+    [bookings, formattedPlate],
   );
 
   const activeSessionCount = activeSessions.length;
@@ -341,53 +386,73 @@ export default function VehicleCheckin({
     }, 3000);
   }, []);
 
-  const refreshOperationalData = useCallback(async (targetBuildingId = buildingId) => {
-    if (operationalRefreshRef.current?.buildingId === targetBuildingId) {
-      return operationalRefreshRef.current.promise;
-    }
-
-    const refreshVersion = ++operationalRefreshVersionRef.current;
-    const request = (async () => {
-      const [cardData, sessionData, bookingData] = await Promise.all([
-        fetchCards(),
-        fetchActiveParkingSessions(),
-        fetchCheckinBookingsByBuilding(targetBuildingId).catch(async (error) => {
-          console.warn(
-            'Booking by building API is not ready; falling back to all bookings.',
-            error
-          );
-          return fetchCheckinBookings().catch((fallbackError) => {
-            console.warn('Booking API is not ready; booking detection is disabled.', fallbackError);
-            return [];
-          });
-        }),
-      ]);
-
-      if (refreshVersion !== operationalRefreshVersionRef.current) {
-        return;
+  const refreshOperationalData = useCallback(
+    async (targetBuildingId = buildingId) => {
+      if (operationalRefreshRef.current?.buildingId === targetBuildingId) {
+        return operationalRefreshRef.current.promise;
       }
 
-      setCards(cardData);
-      setActiveSessions(sessionData);
-      setBookings(bookingData);
-    })();
+      const refreshVersion = ++operationalRefreshVersionRef.current;
+      const request = (async () => {
+        const [cardData, sessionData, bookingData] = await Promise.all([
+          fetchCards(),
+          fetchActiveParkingSessions(),
+          fetchCheckinBookingsByBuilding(targetBuildingId).catch(
+            async (error) => {
+              console.warn(
+                "Booking by building API is not ready; falling back to all bookings.",
+                error,
+              );
+              return fetchCheckinBookings().catch((fallbackError) => {
+                console.warn(
+                  "Booking API is not ready; booking detection is disabled.",
+                  fallbackError,
+                );
+                return [];
+              });
+            },
+          ),
+        ]);
 
-    operationalRefreshRef.current = { buildingId: targetBuildingId, promise: request };
-    try {
-      await request;
-    } finally {
-      if (operationalRefreshRef.current?.promise === request) {
-        operationalRefreshRef.current = null;
+        if (refreshVersion !== operationalRefreshVersionRef.current) {
+          return;
+        }
+
+        setCards(cardData);
+        setActiveSessions(sessionData);
+        setBookings(bookingData);
+      })();
+
+      operationalRefreshRef.current = {
+        buildingId: targetBuildingId,
+        promise: request,
+      };
+      try {
+        await request;
+      } finally {
+        if (operationalRefreshRef.current?.promise === request) {
+          operationalRefreshRef.current = null;
+        }
       }
-    }
-  }, [buildingId]);
+    },
+    [buildingId],
+  );
 
   const loadGateData = useCallback(async () => {
     let currentBuildingId = buildingId;
     try {
-      const buildingsRes = await api.get<any>('/Buildings/paged?pageIndex=1&pageSize=100');
-      if (buildingsRes.success && buildingsRes.data?.items && Array.isArray(buildingsRes.data.items)) {
-        const mapped = buildingsRes.data.items.map((b: any) => ({ id: b.id, name: b.name }));
+      const buildingsRes = await api.get<any>(
+        "/Buildings/paged?pageIndex=1&pageSize=100",
+      );
+      if (
+        buildingsRes.success &&
+        buildingsRes.data?.items &&
+        Array.isArray(buildingsRes.data.items)
+      ) {
+        const mapped = buildingsRes.data.items.map((b: any) => ({
+          id: b.id,
+          name: b.name,
+        }));
         setBuildings(mapped);
 
         if (mapped.length > 0) {
@@ -399,40 +464,56 @@ export default function VehicleCheckin({
         }
       }
     } catch (err) {
-      console.warn('Failed to fetch building list:', err);
+      console.warn("Failed to fetch building list:", err);
     }
 
     try {
-      const vehicleTypesRes = await api.get<any>('/vehicle-types');
-      if (vehicleTypesRes && vehicleTypesRes.success && Array.isArray(vehicleTypesRes.data)) {
+      const vehicleTypesRes = await api.get<any>("/vehicle-types");
+      if (
+        vehicleTypesRes &&
+        vehicleTypesRes.success &&
+        Array.isArray(vehicleTypesRes.data)
+      ) {
         setVehicleTypes(vehicleTypesRes.data);
         if (vehicleTypesRes.data.length > 0) {
           setVehicleTypeId((prev) => {
             if (prev) return prev;
             const carType = vehicleTypesRes.data.find((vt: any) => {
-              const name = (vt.name ?? vt.typeName ?? vt.TypeName ?? '').toUpperCase();
-              return name.includes('CAR') || name.includes('AUTO');
+              const name = (
+                vt.name ??
+                vt.typeName ??
+                vt.TypeName ??
+                ""
+              ).toUpperCase();
+              return name.includes("CAR") || name.includes("AUTO");
             });
-            return carType ? (carType.id ?? carType.Id) : (vehicleTypesRes.data[0].id ?? vehicleTypesRes.data[0].Id);
+            return carType
+              ? (carType.id ?? carType.Id)
+              : (vehicleTypesRes.data[0].id ?? vehicleTypesRes.data[0].Id);
           });
         }
       }
     } catch (err) {
-      console.warn('Failed to fetch vehicle types:', err);
+      console.warn("Failed to fetch vehicle types:", err);
     }
 
     // Blacklist/reference data is loaded during bootstrap; successful gate operations
     // only refresh the smaller operational data set.
-    const blacklistData = await blacklistService.getAll(1, 1000).catch((error) => {
-      console.warn('Blacklist API is not ready; blacklist pre-check is disabled.', error);
-      return {
-        items: [],
-        totalCount: 0,
-        totalPages: 0,
-        pageIndex: 1,
-        pageSize: 1000,
-      };
-    });
+    const blacklistData = await blacklistService
+      .getAll(1, 1000)
+      .catch((error) => {
+        console.warn(
+          "Blacklist API is not ready; blacklist pre-check is disabled.",
+          error,
+        );
+        return {
+          items: [],
+          totalCount: 0,
+          totalPages: 0,
+          pageIndex: 1,
+          pageSize: 1000,
+        };
+      });
 
     setBlacklist(blacklistData.items ?? []);
     await refreshOperationalData(currentBuildingId);
@@ -446,8 +527,10 @@ export default function VehicleCheckin({
   useEffect(() => {
     void loadGateData().catch((error) => {
       const message =
-        error instanceof Error ? error.message : 'Could not load check-in data.';
-      showToast(message, 'error');
+        error instanceof Error
+          ? error.message
+          : "Could not load check-in data.";
+      showToast(message, "error");
     });
   }, [loadGateData, showToast]);
 
@@ -464,7 +547,7 @@ export default function VehicleCheckin({
     const plateBlock = blacklist.find(
       (item) =>
         item.licensePlate &&
-        normalizeComparable(item.licensePlate) === plateKey
+        normalizeComparable(item.licensePlate) === plateKey,
     );
 
     if (plateBlock) {
@@ -472,9 +555,7 @@ export default function VehicleCheckin({
     }
 
     const cardBlock = blacklist.find(
-      (item) =>
-        item.cardCode &&
-        normalizeComparable(item.cardCode) === cardKey
+      (item) => item.cardCode && normalizeComparable(item.cardCode) === cardKey,
     );
 
     if (cardBlock) {
@@ -489,18 +570,18 @@ export default function VehicleCheckin({
 
     if (!formattedPlate) {
       showGateOverlay({
-        type: 'error',
-        title: 'Missing license plate',
-        message: 'Please enter the vehicle license plate before check-in.',
+        type: "error",
+        title: "Missing license plate",
+        message: "Please enter the vehicle license plate before check-in.",
       });
       return;
     }
 
     if (!normalizedCardCode) {
       showGateOverlay({
-        type: 'error',
-        title: 'Missing card code',
-        message: 'Please enter or scan a parking card code.',
+        type: "error",
+        title: "Missing card code",
+        message: "Please enter or scan a parking card code.",
       });
       return;
     }
@@ -508,8 +589,8 @@ export default function VehicleCheckin({
     const blacklistReason = checkBlacklistBeforeSubmit();
     if (blacklistReason) {
       showGateOverlay({
-        type: 'error',
-        title: 'Check-in blocked',
+        type: "error",
+        title: "Check-in blocked",
         message: blacklistReason,
       });
       return;
@@ -517,17 +598,17 @@ export default function VehicleCheckin({
 
     if (!selectedCard) {
       showGateOverlay({
-        type: 'error',
-        title: 'Card not found',
+        type: "error",
+        title: "Card not found",
         message: `Card ${normalizedCardCode} does not exist in Card Management.`,
       });
       return;
     }
 
-    if (selectedCard.cardStatus !== 'AVAILABLE') {
+    if (selectedCard.cardStatus !== "AVAILABLE") {
       showGateOverlay({
-        type: 'error',
-        title: 'Card is not available',
+        type: "error",
+        title: "Card is not available",
         message: `Card ${normalizedCardCode} is currently ${selectedCard.cardStatus}. Please use another available card.`,
       });
       return;
@@ -536,18 +617,33 @@ export default function VehicleCheckin({
     setIsSubmitting(true);
     setShowReallocateBtn(false);
 
-    const selectedType = vehicleTypes.find((vt: any) => (vt.id ?? vt.Id) === vehicleTypeId);
-    const vehicleTypeName = selectedType ? (selectedType.name ?? selectedType.typeName ?? selectedType.TypeName ?? '') : 'Unknown';
+    const selectedType = vehicleTypes.find(
+      (vt: any) => (vt.id ?? vt.Id) === vehicleTypeId,
+    );
+    const vehicleTypeName = selectedType
+      ? (selectedType.name ??
+        selectedType.typeName ??
+        selectedType.TypeName ??
+        "")
+      : "Unknown";
 
     try {
-      const selectedType = vehicleTypes.find((vt: any) => (vt.id ?? vt.Id) === vehicleTypeId);
-      const vehicleTypeName = selectedType ? (selectedType.name ?? selectedType.typeName ?? selectedType.TypeName ?? '') : 'Unknown';
+      const selectedType = vehicleTypes.find(
+        (vt: any) => (vt.id ?? vt.Id) === vehicleTypeId,
+      );
+      const vehicleTypeName = selectedType
+        ? (selectedType.name ??
+          selectedType.typeName ??
+          selectedType.TypeName ??
+          "")
+        : "Unknown";
 
       const session = await checkInVehicle({
         licensePlate: formattedPlate,
-        vehicleTypeId: matchedBooking && matchedBooking.vehicleTypeId
-          ? matchedBooking.vehicleTypeId
-          : vehicleTypeId!,
+        vehicleTypeId:
+          matchedBooking && matchedBooking.vehicleTypeId
+            ? matchedBooking.vehicleTypeId
+            : vehicleTypeId!,
         cardCode: normalizedCardCode,
         buildingId: buildingId,
         staffId: STAFF_ID,
@@ -559,25 +655,29 @@ export default function VehicleCheckin({
         session,
         ...current.filter((item) => item.id !== session.id),
       ]);
-      setCards((current) => current.map((card) =>
-        card.id === selectedCard.id
-          ? { ...card, cardStatus: 'ACTIVE', currentSessionId: session.id }
-          : card
-      ));
+      setCards((current) =>
+        current.map((card) =>
+          card.id === selectedCard.id
+            ? { ...card, cardStatus: "ACTIVE", currentSessionId: session.id }
+            : card,
+        ),
+      );
       if (matchedBooking) {
-        setBookings((current) => current.filter((booking) => booking.id !== matchedBooking.id));
+        setBookings((current) =>
+          current.filter((booking) => booking.id !== matchedBooking.id),
+        );
       }
-      setCardCode('');
-      setLicensePlate('');
+      setCardCode("");
+      setLicensePlate("");
       setCapturedImage(null);
       onCheckinSuccess?.();
 
       showGateOverlay({
-        type: 'success',
-        title: 'Check-in successful',
+        type: "success",
+        title: "Check-in successful",
         message: matchedBooking
           ? `Booking ${matchedBooking.bookingCode} was converted to a parking session.`
-          : 'Walk-in parking session was created.',
+          : "Walk-in parking session was created.",
         session,
         vehicleType: vehicleTypeName,
         cardCode: normalizedCardCode,
@@ -585,17 +685,26 @@ export default function VehicleCheckin({
       });
     } catch (error) {
       let isSlotUnavailableError = false;
-      let errMsg = 'This vehicle cannot be checked in. Please verify the information.';
+      let errMsg =
+        "This vehicle cannot be checked in. Please verify the information.";
 
-      if (error instanceof ApiError && error.data && typeof error.data === 'object') {
+      if (
+        error instanceof ApiError &&
+        error.data &&
+        typeof error.data === "object"
+      ) {
         const body = error.data as { errorCode?: string; message?: string };
-        if (body.errorCode === 'SLOT_NOT_AVAILABLE') {
+        if (body.errorCode === "SLOT_NOT_AVAILABLE") {
           isSlotUnavailableError = true;
         }
         if (body.message) errMsg = body.message;
       } else if (error instanceof Error) {
         errMsg = error.message;
-        if (error.message.includes('SLOT_NOT_AVAILABLE') || error.message.includes('occupied') || error.message.includes('unavailable')) {
+        if (
+          error.message.includes("SLOT_NOT_AVAILABLE") ||
+          error.message.includes("occupied") ||
+          error.message.includes("unavailable")
+        ) {
           isSlotUnavailableError = true;
         }
       }
@@ -605,8 +714,8 @@ export default function VehicleCheckin({
       }
 
       showGateOverlay({
-        type: 'error',
-        title: 'Check-in failed',
+        type: "error",
+        title: "Check-in failed",
         message: errMsg,
       });
     } finally {
@@ -622,12 +731,17 @@ export default function VehicleCheckin({
         buildingId,
         matchedBooking.vehicleTypeId ?? vehicleTypeId!,
         matchedBooking.plannedCheckinTime || new Date().toISOString(),
-        matchedBooking.plannedCheckoutTime || new Date(Date.now() + 4 * 3600000).toISOString()
+        matchedBooking.plannedCheckoutTime ||
+          new Date(Date.now() + 4 * 3600000).toISOString(),
       );
       setAvailableSlots(slots);
       setIsReallocateModalOpen(true);
     } catch (err) {
-      showToast('Unable to load available parking spaces: ' + (err instanceof Error ? err.message : String(err)), 'error');
+      showToast(
+        "Unable to load available parking spaces: " +
+          (err instanceof Error ? err.message : String(err)),
+        "error",
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -638,8 +752,15 @@ export default function VehicleCheckin({
     setIsReallocateModalOpen(false);
     setIsSubmitting(true);
     try {
-      const selectedType = vehicleTypes.find((vt: any) => (vt.id ?? vt.Id) === vehicleTypeId);
-      const vehicleTypeName = selectedType ? (selectedType.name ?? selectedType.typeName ?? selectedType.TypeName ?? '') : 'Unknown';
+      const selectedType = vehicleTypes.find(
+        (vt: any) => (vt.id ?? vt.Id) === vehicleTypeId,
+      );
+      const vehicleTypeName = selectedType
+        ? (selectedType.name ??
+          selectedType.typeName ??
+          selectedType.TypeName ??
+          "")
+        : "Unknown";
 
       const session = await checkInVehicle({
         licensePlate: formattedPlate,
@@ -655,21 +776,25 @@ export default function VehicleCheckin({
         session,
         ...current.filter((item) => item.id !== session.id),
       ]);
-      setCards((current) => current.map((card) =>
-        card.id === selectedCard?.id
-          ? { ...card, cardStatus: 'ACTIVE', currentSessionId: session.id }
-          : card
-      ));
-      setBookings((current) => current.filter((booking) => booking.id !== matchedBooking.id));
-      setCardCode('');
-      setLicensePlate('');
+      setCards((current) =>
+        current.map((card) =>
+          card.id === selectedCard?.id
+            ? { ...card, cardStatus: "ACTIVE", currentSessionId: session.id }
+            : card,
+        ),
+      );
+      setBookings((current) =>
+        current.filter((booking) => booking.id !== matchedBooking.id),
+      );
+      setCardCode("");
+      setLicensePlate("");
       setShowReallocateBtn(false);
       setSelectedSlotId(null);
       onCheckinSuccess?.();
 
       showGateOverlay({
-        type: 'success',
-        title: 'Check-in successful',
+        type: "success",
+        title: "Check-in successful",
         message: `Vehicle ${formattedPlate} was checked in successfully at the new parking space.`,
         session,
         vehicleType: vehicleTypeName,
@@ -677,16 +802,21 @@ export default function VehicleCheckin({
         checkInTime: session.checkInTime || new Date().toISOString(),
       });
     } catch (error) {
-      let errMsg = 'Failed to change the parking space and check in the vehicle.';
-      if (error instanceof ApiError && error.data && typeof error.data === 'object') {
+      let errMsg =
+        "Failed to change the parking space and check in the vehicle.";
+      if (
+        error instanceof ApiError &&
+        error.data &&
+        typeof error.data === "object"
+      ) {
         const body = error.data as { message?: string };
         if (body.message) errMsg = body.message;
       } else if (error instanceof Error) {
         errMsg = error.message;
       }
       showGateOverlay({
-        type: 'error',
-        title: 'Reallocation failed',
+        type: "error",
+        title: "Reallocation failed",
         message: errMsg,
       });
     } finally {
@@ -695,18 +825,28 @@ export default function VehicleCheckin({
   };
 
   return (
-    <div className={compact ? '' : 'bg-slate-50 p-4 text-slate-900'}>
-      <div className={compact ? 'flex flex-col gap-4' : 'mx-auto flex max-w-[1600px] flex-col gap-4'}>
+    <div className={compact ? "" : "bg-slate-50 p-4 text-slate-900"}>
+      <div
+        className={
+          compact
+            ? "flex flex-col gap-4"
+            : "mx-auto flex max-w-[1600px] flex-col gap-4"
+        }
+      >
         {!compact && (
           <div className="flex shrink-0 items-center justify-between gap-3">
-            <h1 className="text-xl font-black text-slate-900">Staff Gate Check-in</h1>
+            <h1 className="text-xl font-black text-slate-900">
+              Staff Gate Check-in
+            </h1>
 
             <button
               type="button"
               onClick={() => setIsSessionsOpen(true)}
               className="inline-flex items-center gap-2 rounded-2xl bg-white px-4 py-3 text-sm font-black text-slate-700 shadow-sm ring-1 ring-slate-200 hover:bg-slate-50"
             >
-              <span className="material-symbols-outlined text-lg">local_parking</span>
+              <span className="material-symbols-outlined text-lg">
+                local_parking
+              </span>
               Active sessions
               <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-xs text-emerald-700">
                 {activeSessionCount}
@@ -715,7 +855,13 @@ export default function VehicleCheckin({
           </div>
         )}
 
-        <div className={compact ? 'grid gap-4 md:grid-cols-2' : 'grid min-h-0 flex-1 gap-4 xl:grid-cols-2'}>
+        <div
+          className={
+            compact
+              ? "grid gap-4 md:grid-cols-2"
+              : "grid min-h-0 flex-1 gap-4 xl:grid-cols-2"
+          }
+        >
           {/* LEFT COLUMN: ENTRY CAMERA (LIVE FEED & LPR) */}
           <div className="space-y-4 flex flex-col min-h-0">
             <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm flex flex-col">
@@ -731,13 +877,17 @@ export default function VehicleCheckin({
                   autoPlay
                   playsInline
                   muted
-                  className={`h-full w-full object-cover ${cameraActive ? 'block' : 'hidden'}`}
+                  className={`h-full w-full object-cover ${cameraActive ? "block" : "hidden"}`}
                 />
 
                 {!cameraActive && (
                   <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-6 space-y-3 bg-slate-950">
-                    <span className="material-symbols-outlined text-3xl text-slate-600">videocam_off</span>
-                    <p className="text-slate-400 text-xs font-semibold">Camera is not active.</p>
+                    <span className="material-symbols-outlined text-3xl text-slate-600">
+                      videocam_off
+                    </span>
+                    <p className="text-slate-400 text-xs font-semibold">
+                      Camera is not active.
+                    </p>
                     <button
                       type="button"
                       onClick={startCamera}
@@ -761,7 +911,9 @@ export default function VehicleCheckin({
                 {isScanning && (
                   <div className="absolute inset-0 bg-slate-950/85 flex flex-col items-center justify-center p-6 text-center space-y-4">
                     <div className="h-8 w-8 border-3 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
-                    <p className="text-emerald-400 text-xs font-black tracking-wider animate-pulse">{scanProgress}</p>
+                    <p className="text-emerald-400 text-xs font-black tracking-wider animate-pulse">
+                      {scanProgress}
+                    </p>
                   </div>
                 )}
               </div>
@@ -775,7 +927,10 @@ export default function VehicleCheckin({
                       className="w-full rounded-xl bg-white border border-slate-200 px-3 py-1.5 text-xs text-slate-700 outline-none focus:border-emerald-500"
                     >
                       {devices.map((device, idx) => (
-                        <option key={device.deviceId || idx} value={device.deviceId}>
+                        <option
+                          key={device.deviceId || idx}
+                          value={device.deviceId}
+                        >
                           {device.label || `Camera ${idx + 1}`}
                         </option>
                       ))}
@@ -785,12 +940,13 @@ export default function VehicleCheckin({
                     <button
                       type="button"
                       onClick={cameraActive ? stopCamera : startCamera}
-                      className={`flex-1 rounded-xl py-1.5 text-xs font-bold transition flex items-center justify-center gap-1.5 border ${cameraActive
-                        ? 'bg-red-50 border-red-200 text-red-700 hover:bg-red-100'
-                        : 'bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100'
-                        }`}
+                      className={`flex-1 rounded-xl py-1.5 text-xs font-bold transition flex items-center justify-center gap-1.5 border ${
+                        cameraActive
+                          ? "bg-red-50 border-red-200 text-red-700 hover:bg-red-100"
+                          : "bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100"
+                      }`}
                     >
-                      {cameraActive ? 'Stop Cam' : 'Start Cam'}
+                      {cameraActive ? "Stop Cam" : "Start Cam"}
                     </button>
                   </div>
                 </div>
@@ -802,7 +958,9 @@ export default function VehicleCheckin({
                     disabled={isScanning || !cameraActive}
                     className="w-full rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white py-2 text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-md shadow-emerald-600/10 disabled:opacity-50"
                   >
-                    <span className="material-symbols-outlined text-base">photo_camera</span>
+                    <span className="material-symbols-outlined text-base">
+                      photo_camera
+                    </span>
                     Scan Camera
                   </button>
                 </div>
@@ -810,15 +968,22 @@ export default function VehicleCheckin({
                 {capturedImage && (
                   <div className="bg-white rounded-xl p-2 border border-slate-100 flex items-center gap-3">
                     <div className="h-12 w-20 bg-slate-950 rounded-lg overflow-hidden border border-slate-200 flex-shrink-0">
-                      <img src={capturedImage} alt="Captured plate snapshot" className="h-full w-full object-contain" />
+                      <img
+                        src={capturedImage}
+                        alt="Captured plate snapshot"
+                        className="h-full w-full object-contain"
+                      />
                     </div>
                     <div>
-                      <p className="text-[8px] font-bold text-slate-400 uppercase tracking-wider">Detected License Plate</p>
-                      <p className="font-mono text-base font-black text-slate-900 tracking-wider mt-0.5">{licensePlate || '---'}</p>
+                      <p className="text-[8px] font-bold text-slate-400 uppercase tracking-wider">
+                        Detected License Plate
+                      </p>
+                      <p className="font-mono text-base font-black text-slate-900 tracking-wider mt-0.5">
+                        {licensePlate || "---"}
+                      </p>
                     </div>
                   </div>
                 )}
-
               </div>
             </section>
           </div>
@@ -864,7 +1029,9 @@ export default function VehicleCheckin({
                   </label>
                   <input
                     value={licensePlate}
-                    onChange={(event) => setLicensePlate(event.target.value.toUpperCase())}
+                    onChange={(event) =>
+                      setLicensePlate(event.target.value.toUpperCase())
+                    }
                     placeholder="Example: 51A-123.45"
                     className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 font-mono text-lg font-black uppercase tracking-wider text-slate-900 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
                   />
@@ -876,7 +1043,9 @@ export default function VehicleCheckin({
                   </label>
                   <input
                     value={cardCode}
-                    onChange={(event) => setCardCode(event.target.value.toUpperCase())}
+                    onChange={(event) =>
+                      setCardCode(event.target.value.toUpperCase())
+                    }
                     placeholder="Type/select card"
                     list="available-checkin-cards"
                     className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 font-mono text-sm font-bold uppercase text-slate-900 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
@@ -896,21 +1065,25 @@ export default function VehicleCheckin({
                 <div className="mt-1 grid grid-cols-2 gap-3">
                   {vehicleTypes.map((type) => {
                     const id = type.id ?? type.Id;
-                    const name = type.name ?? type.typeName ?? type.TypeName ?? '';
+                    const name =
+                      type.name ?? type.typeName ?? type.TypeName ?? "";
                     const isSelected = vehicleTypeId === id;
-                    const isCar = name.toUpperCase().includes('CAR') || name.toUpperCase().includes('AUTO');
+                    const isCar =
+                      name.toUpperCase().includes("CAR") ||
+                      name.toUpperCase().includes("AUTO");
                     return (
                       <button
                         key={id}
                         type="button"
                         onClick={() => setVehicleTypeId(id)}
-                        className={`rounded-xl border px-3 py-2 text-xs font-black transition ${isSelected
-                          ? 'border-emerald-500 bg-emerald-50 text-emerald-700'
-                          : 'border-slate-200 bg-white text-slate-500 hover:bg-slate-50'
-                          }`}
+                        className={`rounded-xl border px-3 py-2 text-xs font-black transition ${
+                          isSelected
+                            ? "border-emerald-500 bg-emerald-50 text-emerald-700"
+                            : "border-slate-200 bg-white text-slate-500 hover:bg-slate-50"
+                        }`}
                       >
                         <span className="material-symbols-outlined mr-1.5 align-middle text-base">
-                          {isCar ? 'directions_car' : 'two_wheeler'}
+                          {isCar ? "directions_car" : "two_wheeler"}
                         </span>
                         {name}
                       </button>
@@ -928,7 +1101,7 @@ export default function VehicleCheckin({
                     {formattedPlate ? (
                       matchedBooking ? (
                         <p className="mt-0.5 text-xs font-bold text-slate-800">
-                          Booking matched{' '}
+                          Booking matched{" "}
                           <span className="font-mono text-emerald-700 font-bold">
                             {matchedBooking.bookingCode}
                           </span>
@@ -951,9 +1124,15 @@ export default function VehicleCheckin({
 
                 {matchedBooking && (
                   <div className="mt-2 grid grid-cols-2 gap-2 text-[10px] font-bold text-slate-600 border-t border-emerald-100/50 pt-2">
-                    <span>Deposit: {formatCurrency(matchedBooking.depositAmount)}</span>
-                    <span>Grace: {formatDateTime(matchedBooking.checkinGraceUntil)}</span>
-                    <span>Building: {matchedBooking.buildingName || buildingId}</span>
+                    <span>
+                      Deposit: {formatCurrency(matchedBooking.depositAmount)}
+                    </span>
+                    <span>
+                      Grace: {formatDateTime(matchedBooking.checkinGraceUntil)}
+                    </span>
+                    <span>
+                      Building: {matchedBooking.buildingName || buildingId}
+                    </span>
                     <span>Type: {matchedBooking.vehicleTypeName}</span>
                   </div>
                 )}
@@ -966,9 +1145,9 @@ export default function VehicleCheckin({
                   className="flex w-full items-center justify-center gap-1.5 rounded-xl bg-emerald-600 py-2.5 text-xs font-black text-white shadow-md hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-300 transition"
                 >
                   <span className="material-symbols-outlined text-base">
-                    {isSubmitting ? 'progress_activity' : 'login'}
+                    {isSubmitting ? "progress_activity" : "login"}
                   </span>
-                  {isSubmitting ? 'Checking in...' : 'Confirm Check-in'}
+                  {isSubmitting ? "Checking in..." : "Confirm Check-in"}
                 </button>
 
                 {showReallocateBtn && matchedBooking && (
@@ -978,7 +1157,9 @@ export default function VehicleCheckin({
                     disabled={isSubmitting}
                     className="flex w-full items-center justify-center gap-1.5 rounded-xl bg-amber-500 py-2.5 text-xs font-black text-white shadow-md hover:bg-amber-600 disabled:cursor-not-allowed disabled:bg-slate-300 transition"
                   >
-                    <span className="material-symbols-outlined text-base">swap_horiz</span>
+                    <span className="material-symbols-outlined text-base">
+                      swap_horiz
+                    </span>
                     Reallocate Parking Slot
                   </button>
                 )}
@@ -1027,7 +1208,9 @@ export default function VehicleCheckin({
                     <span className="material-symbols-outlined text-5xl">
                       local_parking
                     </span>
-                    <p className="mt-3 text-sm font-semibold">No active sessions.</p>
+                    <p className="mt-3 text-sm font-semibold">
+                      No active sessions.
+                    </p>
                   </div>
                 ) : (
                   <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
@@ -1059,19 +1242,20 @@ export default function VehicleCheckin({
               </div>
             </div>
           </div>,
-          document.body
+          document.body,
         )}
 
       {isMounted &&
         overlay &&
         createPortal(
           <div
-            className={`fixed inset-0 z-[100000] flex flex-col items-center justify-center px-6 text-center text-white ${overlay.type === 'success' ? 'bg-emerald-600' : 'bg-red-600'
-              }`}
+            className={`fixed inset-0 z-[100000] flex flex-col items-center justify-center px-6 text-center text-white ${
+              overlay.type === "success" ? "bg-emerald-600" : "bg-red-600"
+            }`}
           >
             <div className="flex h-28 w-28 items-center justify-center rounded-full bg-white/20 shadow-2xl">
               <span className="material-symbols-outlined text-7xl">
-                {overlay.type === 'success' ? 'check_circle' : 'error'}
+                {overlay.type === "success" ? "check_circle" : "error"}
               </span>
             </div>
             <h2 className="mt-8 text-4xl font-black md:text-5xl">
@@ -1081,28 +1265,44 @@ export default function VehicleCheckin({
               {overlay.message}
             </p>
 
-            {overlay.type === 'success' && (
+            {overlay.type === "success" && (
               <div className="mt-8 grid w-full max-w-3xl grid-cols-1 gap-3 rounded-3xl bg-white/15 p-5 text-left md:grid-cols-2">
                 <div>
-                  <p className="text-xs font-black uppercase text-white/60">License plate</p>
-                  <p className="font-mono text-3xl font-black">{formatPlate(overlay.session?.licensePlate ?? formattedPlate)}</p>
+                  <p className="text-xs font-black uppercase text-white/60">
+                    License plate
+                  </p>
+                  <p className="font-mono text-3xl font-black">
+                    {formatPlate(
+                      overlay.session?.licensePlate ?? formattedPlate,
+                    )}
+                  </p>
                 </div>
                 <div>
-                  <p className="text-xs font-black uppercase text-white/60">Card code</p>
-                  <p className="font-mono text-2xl font-black">{overlay.cardCode}</p>
+                  <p className="text-xs font-black uppercase text-white/60">
+                    Card code
+                  </p>
+                  <p className="font-mono text-2xl font-black">
+                    {overlay.cardCode}
+                  </p>
                 </div>
                 <div>
-                  <p className="text-xs font-black uppercase text-white/60">Vehicle type</p>
+                  <p className="text-xs font-black uppercase text-white/60">
+                    Vehicle type
+                  </p>
                   <p className="text-2xl font-black">{overlay.vehicleType}</p>
                 </div>
                 <div>
-                  <p className="text-xs font-black uppercase text-white/60">Check-in time</p>
-                  <p className="text-2xl font-black">{formatDateTime(overlay.checkInTime)}</p>
+                  <p className="text-xs font-black uppercase text-white/60">
+                    Check-in time
+                  </p>
+                  <p className="text-2xl font-black">
+                    {formatDateTime(overlay.checkInTime)}
+                  </p>
                 </div>
               </div>
             )}
           </div>,
-          document.body
+          document.body,
         )}
 
       {isMounted &&
@@ -1125,7 +1325,9 @@ export default function VehicleCheckin({
                   className="rounded-2xl bg-slate-100 p-2.5 text-slate-600 hover:bg-slate-200"
                   aria-label="Close modal"
                 >
-                  <span className="material-symbols-outlined text-lg">close</span>
+                  <span className="material-symbols-outlined text-lg">
+                    close
+                  </span>
                 </button>
               </div>
 
@@ -1135,7 +1337,9 @@ export default function VehicleCheckin({
                     <span className="material-symbols-outlined text-4xl">
                       search_off
                     </span>
-                    <p className="mt-2 text-xs font-semibold">No available parking spaces were found.</p>
+                    <p className="mt-2 text-xs font-semibold">
+                      No available parking spaces were found.
+                    </p>
                   </div>
                 ) : (
                   <div className="grid grid-cols-2 gap-2">
@@ -1144,12 +1348,15 @@ export default function VehicleCheckin({
                         key={slot.id}
                         type="button"
                         onClick={() => setSelectedSlotId(slot.id)}
-                        className={`flex flex-col items-start rounded-2xl border p-3 text-left transition ${selectedSlotId === slot.id
-                          ? 'border-emerald-500 bg-emerald-50 text-emerald-950 ring-2 ring-emerald-500'
-                          : 'border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700'
-                          }`}
+                        className={`flex flex-col items-start rounded-2xl border p-3 text-left transition ${
+                          selectedSlotId === slot.id
+                            ? "border-emerald-500 bg-emerald-50 text-emerald-950 ring-2 ring-emerald-500"
+                            : "border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700"
+                        }`}
                       >
-                        <span className="font-mono text-sm font-black">{slot.code}</span>
+                        <span className="font-mono text-sm font-black">
+                          {slot.code}
+                        </span>
                         <span className="mt-1 text-[10px] font-bold text-slate-400">
                           {slot.floorName} · {slot.zoneName}
                         </span>
@@ -1178,7 +1385,7 @@ export default function VehicleCheckin({
               </div>
             </div>
           </div>,
-          document.body
+          document.body,
         )}
     </div>
   );

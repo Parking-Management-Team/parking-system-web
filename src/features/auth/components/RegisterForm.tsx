@@ -123,6 +123,9 @@ export function RegisterForm({ isModal = false, onSuccess, onClose, onSwitchMode
     }
   };
 
+  // Ref lưu mã OTP đã từng thử xác thực để tránh lặp vô hạn khi sai OTP
+  const lastAttemptedOtpRef = React.useRef<string>('');
+
   // STEP 2: Verify OTP
   const handleOtpVerify = React.useCallback(async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -133,6 +136,7 @@ export function RegisterForm({ isModal = false, onSuccess, onClose, onSwitchMode
       return;
     }
 
+    lastAttemptedOtpRef.current = otpCode;
     setErrors({});
     setIsSubmitting(true);
 
@@ -175,12 +179,14 @@ export function RegisterForm({ isModal = false, onSuccess, onClose, onSwitchMode
       }
       showToast('A new OTP has been sent to your email.', 'success');
       startCooldown();
+      lastAttemptedOtpRef.current = '';
       setOtpCode('');
     } catch (err: any) {
       // Vì backend sẽ ném exception REQUIRE_OTP_VERIFICATION, ta bắt lỗi đó để hiểu là thành công gửi OTP mới
       if (err.code === 'REQUIRE_OTP_VERIFICATION') {
         showToast('A new OTP has been sent to your email.', 'success');
         startCooldown();
+        lastAttemptedOtpRef.current = '';
         setOtpCode('');
       } else {
         showToast(err.message || 'Failed to resend OTP.', 'error');
@@ -334,15 +340,15 @@ export function RegisterForm({ isModal = false, onSuccess, onClose, onSwitchMode
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Trigger verification automatically when 6th digit is typed
+  // Trigger verification automatically ONCE when 6th digit is typed
   React.useEffect(() => {
-    if (otpCode.length === 6 && step === 2) {
+    if (otpCode.length === 6 && step === 2 && otpCode !== lastAttemptedOtpRef.current && !isSubmitting) {
       const timer = setTimeout(() => {
         handleOtpVerify();
       }, 300);
       return () => clearTimeout(timer);
     }
-  }, [otpCode, step, handleOtpVerify]);
+  }, [otpCode, step, handleOtpVerify, isSubmitting]);
 
   const googleLoadingOverlay = googleLoading && (
     <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-slate-900/60 backdrop-blur-sm animate-fade-in">
@@ -498,6 +504,9 @@ export function RegisterForm({ isModal = false, onSuccess, onClose, onSwitchMode
                   value={otpCode}
                   onChange={(val) => {
                     setOtpCode(val);
+                    if (val !== lastAttemptedOtpRef.current) {
+                      lastAttemptedOtpRef.current = '';
+                    }
                     if (errors.otp) {
                       setErrors(prev => {
                         const next = { ...prev };

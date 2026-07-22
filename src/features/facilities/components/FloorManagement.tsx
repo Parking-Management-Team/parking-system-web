@@ -28,11 +28,17 @@
 'use client';
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { useFacilitiesContext } from '../context/FacilitiesContext';
 import { Floor } from '../types';
 import FacilitiesModals from './FacilitiesModals';
 
 export default function FloorManagement() {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   const facilities = useFacilitiesContext();
   const {
     selectedBuilding,
@@ -274,8 +280,8 @@ export default function FloorManagement() {
       {/* ─────────────────────────────────────────────────────────────────── */}
       {/* 🔀 POPUP MODAL: QUẢN LÝ PHÂN KHU TỔNG THỂ (MANAGE ZONES POPUP)      */}
       {/* ─────────────────────────────────────────────────────────────────── */}
-      {isManageZonesOpen && selectedFloor && (
-        <div className="fixed inset-0 bg-[#111c2d]/40 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
+      {isManageZonesOpen && selectedFloor && mounted && createPortal(
+        <div className="fixed inset-0 bg-[#111c2d]/60 backdrop-blur-md z-[99999] flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-xl border border-[#006d43]/10 max-w-2xl w-full max-h-[85vh] flex flex-col animate-in fade-in zoom-in-95 duration-150">
             {/* Header Modal */}
             <div className="flex justify-between items-center p-6 border-b border-slate-100">
@@ -409,7 +415,8 @@ export default function FloorManagement() {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* RENDER TẤT CẢ CÁC MODAL THỰC HIỆN TÁC VỤ CRUD */}

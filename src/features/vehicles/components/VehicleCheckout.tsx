@@ -55,6 +55,7 @@ import {
   startCheckout,
   completeCheckout,
   reportLostCard,
+  unpaidCheckout,
   type CheckoutPayment,
   type CheckoutPaymentMethod,
   type CheckoutSession,
@@ -199,6 +200,7 @@ export default function VehicleCheckout({
   const [cardLostConfirmed, setCardLostConfirmed] = useState(false);
   const [showConfirmLostModal, setShowConfirmLostModal] = useState(false);
   const [showNoCardErrorModal, setShowNoCardErrorModal] = useState(false);
+  const [showPlateMismatchModal, setShowPlateMismatchModal] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   // Fee calculation state
@@ -860,10 +862,13 @@ export default function VehicleCheckout({
         return;
       }
 
+      const rawDesc = `Unpaid exit for plate ${overlay.session.licensePlate}. Amount: ${formatCurrency(overlay.payment.amount)}.`;
+      const description = rawDesc.length > 95 ? rawDesc.substring(0, 95) : rawDesc;
+
       await incidentService.create({
         sessionId: overlay.session.id,
         incidentTypeId: incidentType.id,
-        description: `Driver refused or could not complete payment. Plate: ${overlay.session.licensePlate}. Card: ${overlay.session.cardCode ?? "N/A"}. Amount: ${formatCurrency(overlay.payment.amount)}. Payment status: ${overlay.payment.paymentStatus}.`,
+        description,
         penaltyFee: null,
       });
 
@@ -877,6 +882,103 @@ export default function VehicleCheckout({
       );
     } finally {
       setIsReporting(false);
+    }
+  };
+
+  const handlePlateMismatch = () => {
+    if (!selectedSession) return;
+    setShowPlateMismatchModal(true);
+  };
+
+  const executeReportFraud = async () => {
+    if (!selectedSession) return;
+    const currentExit = exitPlate.trim();
+    const checkInPlate = selectedSession.licensePlate;
+
+    setIsReporting(true);
+    try {
+      const incidentTypes = await incidentService.getIncidentTypes();
+      const mismatchType =
+        incidentTypes.find((type) => {
+          const code = normalizeText(type.incidentCode);
+          const name = normalizeText(type.incidentName);
+          return (
+            code.includes("MISMATCH") ||
+            code.includes("PLATE") ||
+            name.includes("MISMATCH") ||
+            name.includes("LECH BIEN SO") ||
+            name.includes("TRAO BIEN SO")
+          );
+        }) ?? incidentTypes[0];
+
+      if (!mismatchType) {
+        showToast("Could not find appropriate incident type for plate mismatch.", "error");
+        return;
+      }
+
+      const rawDesc = `Plate mismatch. Check-in: ${checkInPlate}, Exit: ${currentExit || "None"}`;
+      const description = rawDesc.length > 95 ? rawDesc.substring(0, 95) : rawDesc;
+
+      await incidentService.create({
+        sessionId: selectedSession.id,
+        incidentTypeId: mismatchType.id,
+        description,
+        penaltyFee: null,
+      });
+
+      showToast(
+        `Suspected vehicle swap reported to Manager (Incident logged for ${checkInPlate}).`,
+        "info"
+      );
+    } catch (error) {
+      showToast(
+        error instanceof Error ? error.message : "Could not report plate mismatch incident.",
+        "error"
+      );
+    } finally {
+      setIsReporting(false);
+    }
+  };
+
+  const handleUnpaidCheckout = async () => {
+    if (!selectedSession) return;
+
+    const feeLabel = calculatedFee
+      ? formatCurrency(calculatedFee.amountDue)
+      : "amount unknown";
+
+    if (
+      !window.confirm(
+        `Process Unpaid Exit for plate ${selectedSession.licensePlate}?\n\nOutstanding fee: ${feeLabel}\n\nThis will:\n• Force-complete the session\n• Add vehicle to Blacklist with the outstanding fee amount noted\n• Manager will need to remove from Blacklist once paid`
+      )
+    ) {
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      await unpaidCheckout(selectedSession.id, {
+        staffId: STAFF_ID,
+        reason: calculatedFee
+          ? `Vehicle exited without payment. Outstanding parking fee: ${feeLabel} (Session #${selectedSession.id}, Check-in: ${formatDateTime(selectedSession.checkInTime)}). Remove from blacklist after fee is settled.`
+          : `Vehicle exited without payment. Session #${selectedSession.id}. Remove from blacklist after fee is settled.`,
+      });
+      showToast(
+        `Unpaid exit processed for ${selectedSession.licensePlate}. Outstanding fee (${feeLabel}) noted in Blacklist — Manager can remove after payment.`,
+        "success"
+      );
+      resetForNextVehicle();
+      void loadActiveSessions();
+      if (onCheckoutSuccess) {
+        onCheckoutSuccess();
+      }
+    } catch (error) {
+      showToast(
+        error instanceof Error ? error.message : "Could not process unpaid checkout.",
+        "error"
+      );
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -1273,16 +1375,26 @@ export default function VehicleCheckout({
                           {selectedSession.customerType}
                         </p>
                       </div>
-                      {selectedSession.cardId && (
+                      <div className="flex gap-1.5 items-center">
+                        {selectedSession.cardId && (
+                          <button
+                            type="button"
+                            disabled={isSubmitting || isReporting}
+                            onClick={() => void handleMarkLost()}
+                            className="rounded-lg border border-red-200 bg-red-50 px-2 py-1 text-[10px] font-black text-red-700 hover:bg-red-100 transition disabled:opacity-60"
+                          >
+                            Lost card
+                          </button>
+                        )}
                         <button
                           type="button"
-                          disabled={isSubmitting}
-                          onClick={() => void handleMarkLost()}
-                          className="rounded-lg border border-red-200 bg-red-50 px-2 py-1 text-[10px] font-black text-red-700 hover:bg-red-100 transition disabled:opacity-60"
+                          disabled={isSubmitting || isReporting}
+                          onClick={() => void handlePlateMismatch()}
+                          className="rounded-lg border border-amber-200 bg-amber-50 px-2 py-1 text-[10px] font-black text-amber-700 hover:bg-amber-100 transition disabled:opacity-60"
                         >
-                          Lost card
+                          Plate Mismatch
                         </button>
-                      )}
+                      </div>
                     </div>
                   </div>
 
@@ -1315,7 +1427,7 @@ export default function VehicleCheckout({
                           <span className="font-black text-slate-500">
                             Due:{" "}
                           </span>
-                          <span className="font-black text-emerald-600 text-sm">
+                          <span className="font-black text-[#006d43] text-sm">
                             {formatCurrency(calculatedFee.amountDue)}
                           </span>
                         </div>
@@ -1341,33 +1453,46 @@ export default function VehicleCheckout({
                         ))}
                       </div>
 
-                      {/* Payment button */}
-                      <div className="flex flex-col gap-1.5">
+                      {/* Primary: Payment & Checkout */}
+                      <button
+                        type="button"
+                        disabled={isSubmitting}
+                        onClick={() => void handleCompleteCheckout()}
+                        className="flex w-full items-center justify-center gap-1.5 rounded-xl bg-emerald-600 py-2.5 text-xs font-black text-white shadow-md hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-300 transition"
+                      >
+                        <span className="material-symbols-outlined text-base">
+                          payments
+                        </span>
+                        {isSubmitting ? "Confirming..." : "Confirm Payment & Checkout"}
+                      </button>
+
+                      {/* Danger Zone — Unpaid Exit */}
+                      <div className="relative mt-1">
+                        <div className="absolute inset-0 flex items-center" aria-hidden="true">
+                          <div className="w-full border-t border-red-100" />
+                        </div>
+                        <div className="relative flex justify-center">
+                          <span className="bg-white px-2 text-[9px] font-black uppercase tracking-widest text-red-400">
+                            danger zone
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="rounded-xl border border-red-100 bg-red-50/60 p-2.5 space-y-2">
+                        <p className="text-[9px] font-bold text-red-500 leading-relaxed">
+                          <span className="font-black">Force-completes</span> session without payment and
+                          automatically adds vehicle to Blacklist.
+                        </p>
                         <button
                           type="button"
-                          disabled={isSubmitting}
-                          onClick={() => void handleCompleteCheckout()}
-                          className="flex w-full items-center justify-center gap-1.5 rounded-xl bg-emerald-600 py-2.5 text-xs font-black text-white shadow-md hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-300 transition"
+                          disabled={isSubmitting || isReporting}
+                          onClick={() => void handleUnpaidCheckout()}
+                          className="flex w-full items-center justify-center gap-2 rounded-lg border border-red-300 bg-white py-2 text-xs font-black text-red-700 hover:bg-red-100 hover:border-red-400 transition disabled:opacity-40 disabled:cursor-not-allowed shadow-sm"
                         >
-                          <span className="material-symbols-outlined text-base">
-                            payments
+                          <span className="material-symbols-outlined text-sm text-red-600">
+                            block
                           </span>
-                          {isSubmitting
-                            ? "Confirming..."
-                            : "Confirm Payment & Checkout"}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setCalculatedFee(null);
-                            setLockedCheckoutTime(null);
-                          }}
-                          className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white py-2 text-xs font-black text-slate-700 hover:bg-slate-50 hover:border-slate-300 transition shadow-sm"
-                        >
-                          <span className="material-symbols-outlined text-base text-slate-500">
-                            refresh
-                          </span>
-                          Recalculate Fee / Rescan License Plate
+                          {isReporting ? "Processing..." : "Unpaid Exit & Blacklist"}
                         </button>
                       </div>
                     </div>
@@ -1669,6 +1794,145 @@ export default function VehicleCheckout({
                   className="w-full sm:w-auto rounded-xl bg-slate-900 px-6 py-2.5 text-sm font-black text-white hover:bg-slate-800 transition"
                 >
                   Understood
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body,
+        )}
+
+      {isMounted &&
+        showPlateMismatchModal &&
+        createPortal(
+          <div className="fixed inset-0 z-[100000] flex items-center justify-center bg-slate-950/75 p-6 backdrop-blur-sm">
+            <div className="w-full max-w-lg rounded-3xl bg-white p-6 text-slate-900 shadow-2xl border border-slate-100 space-y-5 animate-in fade-in zoom-in-95 duration-200">
+              {/* Modal Header */}
+              <div className="flex items-start justify-between border-b border-slate-100 pb-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-11 h-11 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center border border-amber-100 shrink-0">
+                    <span className="material-symbols-outlined text-2xl">
+                      warning
+                    </span>
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-black text-slate-900 tracking-tight">
+                      Plate Mismatch Resolution
+                    </h3>
+                    <p className="text-xs font-semibold text-slate-500 mt-0.5">
+                      Select gate procedure for mismatched license plate
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowPlateMismatchModal(false)}
+                  className="rounded-xl p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition"
+                >
+                  <span className="material-symbols-outlined text-xl">close</span>
+                </button>
+              </div>
+
+              {/* License Plate Comparison Box */}
+              <div className="grid grid-cols-2 gap-3 bg-slate-50 p-3.5 rounded-2xl border border-slate-100">
+                <div>
+                  <span className="text-[9px] font-black uppercase text-slate-400">
+                    Check-in Plate
+                  </span>
+                  <p className="font-mono text-base font-black text-emerald-700 mt-0.5">
+                    {selectedSession?.licensePlate || "—"}
+                  </p>
+                </div>
+                <div>
+                  <span className="text-[9px] font-black uppercase text-slate-400">
+                    Checkout Plate
+                  </span>
+                  <p className="font-mono text-base font-black text-rose-600 mt-0.5">
+                    {exitPlate || "Not entered"}
+                  </p>
+                </div>
+              </div>
+
+              {/* Clickable Option Cards */}
+              <div className="space-y-3">
+                <p className="text-xs font-extrabold text-slate-600 uppercase tracking-wider">
+                  Select Action Procedure:
+                </p>
+
+                {/* Option 1: Fix OCR Plate */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowPlateMismatchModal(false);
+                    if (selectedSession) {
+                      setExitPlate(selectedSession.licensePlate);
+                      showToast(
+                        `License plate corrected to ${selectedSession.licensePlate} per BR-OPS-002 (Staff Physical Verification).`,
+                        "success"
+                      );
+                    }
+                  }}
+                  className="w-full text-left p-4 rounded-2xl border border-emerald-200 bg-emerald-50/60 hover:bg-emerald-100/90 hover:border-emerald-400 transition group flex items-start gap-3.5 shadow-sm"
+                >
+                  <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-md group-hover:scale-105 transition-transform">
+                    <span className="material-symbols-outlined text-xl">
+                      check_circle
+                    </span>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-black text-emerald-950">
+                        1-Click Fix &amp; Match Plate
+                      </span>
+                      <span className="text-[9px] font-black uppercase tracking-wider bg-emerald-200/80 text-emerald-900 px-2 py-0.5 rounded-md">
+                        BR-OPS-002
+                      </span>
+                    </div>
+                    <p className="text-xs text-emerald-800 font-medium mt-1 leading-relaxed">
+                      Staff verifies vehicle physically at gate. Corrects camera OCR reading mistake in 1 second and allows standard checkout.
+                    </p>
+                  </div>
+                </button>
+
+                {/* Option 2: Report Fraud Incident */}
+                <button
+                  type="button"
+                  onClick={async () => {
+                    setShowPlateMismatchModal(false);
+                    if (selectedSession) {
+                      await executeReportFraud();
+                    }
+                  }}
+                  className="w-full text-left p-4 rounded-2xl border border-rose-200 bg-rose-50/60 hover:bg-rose-100/90 hover:border-rose-400 transition group flex items-start gap-3.5 shadow-sm"
+                >
+                  <div className="w-10 h-10 rounded-xl bg-rose-600 text-white flex items-center justify-center shrink-0 shadow-md group-hover:scale-105 transition-transform">
+                    <span className="material-symbols-outlined text-xl">
+                      report_problem
+                    </span>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-black text-rose-950">
+                        Report Fraud Incident to Manager
+                      </span>
+                      <span className="text-[9px] font-black uppercase tracking-wider bg-rose-200/80 text-rose-900 px-2 py-0.5 rounded-md">
+                        Incident Log
+                      </span>
+                    </div>
+                    <p className="text-xs text-rose-800 font-medium mt-1 leading-relaxed">
+                      Log suspicious vehicle/plate swap incident to Manager Tracking Dashboard for legal &amp; safety investigation.
+                    </p>
+                  </div>
+                </button>
+              </div>
+
+              {/* Footer */}
+              <div className="flex justify-end pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowPlateMismatchModal(false)}
+                  className="w-full sm:w-auto rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-xs font-black text-slate-700 hover:bg-slate-50 transition"
+                >
+                  Cancel
                 </button>
               </div>
             </div>

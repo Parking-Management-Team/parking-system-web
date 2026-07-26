@@ -145,11 +145,18 @@ const getApiErrorMessage = (error: unknown): string => {
   return error instanceof Error ? error.message : 'Vehicle check-in request failed.';
 };
 
-const unwrap = <T>(response: BaseResponse<T>, fallbackMessage: string): T => {
-  if (!response.success || response.data == null) {
-    throw new Error(response.message || fallbackMessage);
+const unwrap = <T>(response: BaseResponse<T> | T, fallbackMessage: string): T => {
+  if (response && typeof response === 'object' && 'data' in response) {
+    const baseResponse = response as BaseResponse<T>;
+    if (baseResponse.success === false) {
+      throw new Error(baseResponse.message || fallbackMessage);
+    }
+    if (baseResponse.data == null) {
+      throw new Error(baseResponse.message || fallbackMessage);
+    }
+    return baseResponse.data;
   }
-  return response.data;
+  return response as T;
 };
 
 export const mapActiveParkingSession = (

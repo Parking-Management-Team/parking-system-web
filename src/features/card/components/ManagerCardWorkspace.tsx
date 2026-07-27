@@ -409,8 +409,12 @@ export default function ManagerCardWorkspace() {
 
       {/* CREATE CARD MODAL */}
       {isCreateOpen && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
-          <div className="bg-white w-full max-w-sm rounded-2xl shadow-xl overflow-hidden border border-slate-100">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 overflow-y-auto">
+          <div
+            className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity"
+            onClick={() => setIsCreateOpen(false)}
+          />
+          <div className="relative bg-white w-full max-w-sm rounded-2xl shadow-xl overflow-hidden border border-slate-100 max-h-[90vh] my-auto">
             <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
               <h3 className="font-bold text-slate-800">Add New Card</h3>
               <button
@@ -422,7 +426,7 @@ export default function ManagerCardWorkspace() {
             </div>
             <form onSubmit={handleCreateCard} className="p-6 space-y-4">
               <div>
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Card Code Code *</label>
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Card Code *</label>
                 <input
                   type="text"
                   required

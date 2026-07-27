@@ -23,7 +23,8 @@
  * ═══════════════════════════════════════════════════════════════════════════════
  */
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Building, BuildingStatus } from '@/lib/types/building.types';
 import { Floor, Zone, VehicleType } from '../types';
 
@@ -205,13 +206,18 @@ export default function FacilitiesModals({
   setDeletingZone,
   executeDeleteZone
 }: FacilitiesModalsProps) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   return (
     <>
       {/* ─────────────────────────────────────────────────────────────────── */}
       {/* 1. MODAL THÊM TÒA NHÀ MỚI (ADD BUILDING MODAL)                      */}
       {/* ─────────────────────────────────────────────────────────────────── */}
-      {isAddBldOpen && (
-        <div className="fixed inset-0 bg-[#111c2d]/40 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
+      {isAddBldOpen && mounted && createPortal(
+        <div className="fixed inset-0 bg-[#111c2d]/60 backdrop-blur-md z-[99999] flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-xl border border-[#006d43]/10 p-6 max-w-md w-full animate-in fade-in zoom-in-95 duration-150">
             <h3 className="text-lg font-bold text-[#111c2d] mb-4">Add New Building</h3>
             <form onSubmit={handleAddBldSubmit} className="space-y-4">
@@ -279,14 +285,15 @@ export default function FacilitiesModals({
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* ─────────────────────────────────────────────────────────────────── */}
       {/* 2. MODAL CHỈNH SỬA TÒA NHÀ (EDIT BUILDING MODAL)                    */}
       {/* ─────────────────────────────────────────────────────────────────── */}
-      {isEditBldOpen && (
-        <div className="fixed inset-0 bg-[#111c2d]/40 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
+      {isEditBldOpen && mounted && createPortal(
+        <div className="fixed inset-0 bg-[#111c2d]/60 backdrop-blur-md z-[99999] flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-xl border border-[#006d43]/10 p-6 max-w-md w-full animate-in fade-in zoom-in-95 duration-150">
             <h3 className="text-lg font-bold text-[#111c2d] mb-4">Edit Building Configuration</h3>
             <form onSubmit={handleEditBldPreSubmit} className="space-y-4">
@@ -366,14 +373,15 @@ export default function FacilitiesModals({
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* ─────────────────────────────────────────────────────────────────── */}
       {/* 3. MODAL CẢNH BÁO GIẢM TẦNG TÒA NHÀ (FLOOR REDUCTION WARNING MODAL) */}
       {/* ─────────────────────────────────────────────────────────────────── */}
-      {isWarningBldOpen && (
-        <div className="fixed inset-0 bg-[#111c2d]/40 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
+      {isWarningBldOpen && mounted && createPortal(
+        <div className="fixed inset-0 bg-[#111c2d]/60 backdrop-blur-md z-[99999] flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-xl border border-red-100 p-6 max-w-md w-full animate-in fade-in zoom-in-95 duration-150">
             <div className="flex items-center gap-2 text-red-600 mb-3">
               <span className="material-symbols-outlined text-2xl">warning</span>
@@ -402,14 +410,15 @@ export default function FacilitiesModals({
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* ─────────────────────────────────────────────────────────────────── */}
       {/* 4. MODAL XÁC NHẬN XÓA TÒA NHÀ (DELETE BUILDING MODAL)               */}
       {/* ─────────────────────────────────────────────────────────────────── */}
-      {isDelBldOpen && (
-        <div className="fixed inset-0 bg-[#111c2d]/40 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
+      {isDelBldOpen && mounted && createPortal(
+        <div className="fixed inset-0 bg-[#111c2d]/60 backdrop-blur-md z-[99999] flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-xl border border-red-100 p-6 max-w-md w-full animate-in fade-in zoom-in-95 duration-150">
             <div className="flex items-center gap-2 text-red-600 mb-3">
               <span className="material-symbols-outlined text-2xl">delete_forever</span>
@@ -441,14 +450,15 @@ export default function FacilitiesModals({
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* ─────────────────────────────────────────────────────────────────── */}
       {/* 5. MODAL THÊM TẦNG MỚI (ADD FLOOR MODAL)                            */}
       {/* ─────────────────────────────────────────────────────────────────── */}
-      {isAddFloorOpen && (
-        <div className="fixed inset-0 bg-[#111c2d]/40 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
+      {isAddFloorOpen && mounted && createPortal(
+        <div className="fixed inset-0 bg-[#111c2d]/60 backdrop-blur-md z-[99999] flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-xl border border-[#006d43]/10 p-6 max-w-md w-full animate-in fade-in zoom-in-95 duration-150">
             <h3 className="text-lg font-bold text-[#111c2d] mb-4">Add Floor level</h3>
             <form onSubmit={handleAddFloorSubmit} className="space-y-4">
@@ -516,14 +526,15 @@ export default function FacilitiesModals({
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* ─────────────────────────────────────────────────────────────────── */}
       {/* 6. MODAL CHỈNH SỬA TẦNG (EDIT FLOOR MODAL)                          */}
       {/* ─────────────────────────────────────────────────────────────────── */}
-      {isEditFloorOpen && (
-        <div className="fixed inset-0 bg-[#111c2d]/40 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
+      {isEditFloorOpen && mounted && createPortal(
+        <div className="fixed inset-0 bg-[#111c2d]/60 backdrop-blur-md z-[99999] flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-xl border border-[#006d43]/10 p-6 max-w-md w-full animate-in fade-in zoom-in-95 duration-150">
             <h3 className="text-lg font-bold text-[#111c2d] mb-4">Edit Floor Structure</h3>
             <form onSubmit={handleEditFloorSubmit} className="space-y-4">
@@ -594,14 +605,15 @@ export default function FacilitiesModals({
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* ─────────────────────────────────────────────────────────────────── */}
       {/* 7. MODAL XÁC NHẬN XÓA TẦNG (DELETE FLOOR MODAL)                     */}
       {/* ─────────────────────────────────────────────────────────────────── */}
-      {isDelFloorOpen && (
-        <div className="fixed inset-0 bg-[#111c2d]/40 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
+      {isDelFloorOpen && mounted && createPortal(
+        <div className="fixed inset-0 bg-[#111c2d]/60 backdrop-blur-md z-[99999] flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-xl border border-red-100 p-6 max-w-md w-full animate-in fade-in zoom-in-95 duration-150">
             <div className="flex items-center gap-2 text-red-600 mb-3">
               <span className="material-symbols-outlined">delete</span>
@@ -632,14 +644,15 @@ export default function FacilitiesModals({
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* ─────────────────────────────────────────────────────────────────── */}
       {/* 8. MODAL THÊM PHÂN KHU (ADD ZONE MODAL)                              */}
       {/* ─────────────────────────────────────────────────────────────────── */}
-      {isAddZoneOpen && (
-        <div className="fixed inset-0 bg-[#111c2d]/40 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
+      {isAddZoneOpen && mounted && createPortal(
+        <div className="fixed inset-0 bg-[#111c2d]/60 backdrop-blur-md z-[99999] flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-xl border border-[#006d43]/10 p-6 max-w-md w-full animate-in fade-in zoom-in-95 duration-150">
             <h3 className="text-lg font-bold text-[#111c2d] mb-4">Add Parking Zone</h3>
             <form onSubmit={handleAddZoneSubmit} className="space-y-4">
@@ -730,14 +743,15 @@ export default function FacilitiesModals({
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* ─────────────────────────────────────────────────────────────────── */}
       {/* 9. MODAL CHỈNH SỬA PHÂN KHU (EDIT ZONE MODAL)                        */}
       {/* ─────────────────────────────────────────────────────────────────── */}
-      {isEditZoneOpen && (
-        <div className="fixed inset-0 bg-[#111c2d]/40 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
+      {isEditZoneOpen && mounted && createPortal(
+        <div className="fixed inset-0 bg-[#111c2d]/60 backdrop-blur-md z-[99999] flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-xl border border-[#006d43]/10 p-6 max-w-md w-full animate-in fade-in zoom-in-95 duration-150">
             <h3 className="text-lg font-bold text-[#111c2d] mb-4">Edit Zone Details</h3>
             <form onSubmit={handleEditZoneSubmit} className="space-y-4">
@@ -826,14 +840,15 @@ export default function FacilitiesModals({
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* ─────────────────────────────────────────────────────────────────── */}
       {/* 10. MODAL XÁC NHẬN XÓA PHÂN KHU (DELETE ZONE MODAL)                  */}
       {/* ─────────────────────────────────────────────────────────────────── */}
-      {isDelZoneOpen && (
-        <div className="fixed inset-0 bg-[#111c2d]/40 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
+      {isDelZoneOpen && mounted && createPortal(
+        <div className="fixed inset-0 bg-[#111c2d]/60 backdrop-blur-md z-[99999] flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-xl border border-red-100 p-6 max-w-md w-full animate-in fade-in zoom-in-95 duration-150">
             <div className="flex items-center gap-2 text-red-600 mb-3">
               <span className="material-symbols-outlined text-2xl">delete</span>
@@ -864,7 +879,8 @@ export default function FacilitiesModals({
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   );

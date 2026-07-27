@@ -312,3 +312,25 @@ export const reportLostCard = async (
     throw new Error(getApiErrorMessage(error));
   }
 };
+
+export const unpaidCheckout = async (
+  sessionId: number,
+  input?: {
+    staffId?: number;
+    reason?: string;
+  }
+): Promise<any> => {
+  try {
+    const response = await api.post<BaseResponse<any>>(
+      `/parking-sessions/${sessionId}/unpaid-checkout`,
+      {
+        staffId: input?.staffId ?? 2,
+        reason: input?.reason ?? 'Vehicle exited without completing parking fee payment.',
+      }
+    );
+    return unwrap(response, 'Could not complete unpaid checkout.');
+  } catch (error) {
+    throw new Error(getApiErrorMessage(error));
+  }
+};
+

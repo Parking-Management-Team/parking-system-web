@@ -117,6 +117,9 @@ export function ForgotPasswordForm({ isModal = false, onSuccess, onClose }: Forg
     }
   };
 
+  // Ref lưu mã OTP đã từng thử xác thực để tránh lặp vô hạn khi sai OTP
+  const lastAttemptedOtpRef = React.useRef<string>('');
+
   // ─── BƯỚC 2: Xác nhận mã OTP 6 chữ số ────────────────────────────────────
   const handleOtpVerify = React.useCallback(async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -127,6 +130,7 @@ export function ForgotPasswordForm({ isModal = false, onSuccess, onClose }: Forg
       return;
     }
 
+    lastAttemptedOtpRef.current = otpCode;
     setErrors({});
     setIsSubmitting(true);
 
@@ -153,6 +157,7 @@ export function ForgotPasswordForm({ isModal = false, onSuccess, onClose }: Forg
       await sendPasswordResetOtp(email);
       showToast('A new OTP code has been sent to your email.', 'success');
       startCooldown();
+      lastAttemptedOtpRef.current = '';
       setOtpCode('');
     } catch (err: any) {
       showToast(err.message || 'Failed to resend OTP code.', 'error');
@@ -201,15 +206,15 @@ export function ForgotPasswordForm({ isModal = false, onSuccess, onClose }: Forg
     }
   };
 
-  // Tự động kiểm tra OTP khi người dùng nhập đủ 6 chữ số
+  // Tự động kiểm tra OTP duy nhất 1 lần khi người dùng nhập đủ 6 chữ số
   React.useEffect(() => {
-    if (otpCode.length === 6 && step === 2) {
+    if (otpCode.length === 6 && step === 2 && otpCode !== lastAttemptedOtpRef.current && !isSubmitting) {
       const timer = setTimeout(() => {
         handleOtpVerify();
       }, 300);
       return () => clearTimeout(timer);
     }
-  }, [otpCode, step, handleOtpVerify]);
+  }, [otpCode, step, handleOtpVerify, isSubmitting]);
 
   const stepVariants = {
     hidden: { opacity: 0, x: 10 },
@@ -345,6 +350,9 @@ export function ForgotPasswordForm({ isModal = false, onSuccess, onClose }: Forg
                   value={otpCode}
                   onChange={(val) => {
                     setOtpCode(val);
+                    if (val !== lastAttemptedOtpRef.current) {
+                      lastAttemptedOtpRef.current = '';
+                    }
                     if (errors.otp) {
                       setErrors(prev => {
                         const next = { ...prev };

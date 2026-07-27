@@ -58,6 +58,7 @@ import {
 } from "@/features/vehicles/services/vehicle-checkin.service";
 import { ApiError } from "@/lib/api/client";
 import { formatPlate, detectVehicleTypeFromPlate } from "@/lib/utils/format";
+import { LicensePlateValidation } from "@/lib/validation/LicensePlateValidation";
 
 type GateOverlay =
   | {
@@ -564,6 +565,16 @@ export default function VehicleCheckin({
       return;
     }
 
+    const plateValidation = LicensePlateValidation.validate(formattedPlate);
+    if (!plateValidation.isValid) {
+      showGateOverlay({
+        type: "error",
+        title: "Invalid license plate",
+        message: plateValidation.error ?? "License plate format is invalid.",
+      });
+      return;
+    }
+
     if (!normalizedCardCode) {
       showGateOverlay({
         type: "error",
@@ -1018,7 +1029,14 @@ export default function VehicleCheckin({
                     onChange={(event) =>
                       setLicensePlate(event.target.value.toUpperCase())
                     }
+                    onBlur={() => {
+                      const validation = LicensePlateValidation.validate(licensePlate);
+                      if (validation.isValid) {
+                        setLicensePlate(validation.formatted);
+                      }
+                    }}
                     placeholder="Example: 51A-123.45"
+                    maxLength={20}
                     className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 font-mono text-lg font-black uppercase tracking-wider text-slate-900 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
                   />
                 </div>

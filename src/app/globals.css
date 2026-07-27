@@ -46,6 +46,12 @@
   body {
     @apply bg-white text-gray-900;
   }
+
+  /* Hide native browser password reveal & clear buttons in Edge/IE to prevent duplicate eye icons */
+  input::-ms-reveal,
+  input::-ms-clear {
+    display: none;
+  }
 }
 
 /* ===== CUSTOM CLASSES - Class tự tạo dùng lại nhiều lần ===== */

@@ -696,7 +696,7 @@ export default function DriverDashboard() {
             )}
           </div>
 
-          {hasActiveSession && activeSession ? (() => {
+          {hasActiveSession && activeSession && activeSession.licensePlateIn === activeVehiclePlate ? (() => {
             const isOverdue = activeBookingDetails && new Date(activeBookingDetails.plannedCheckoutTime) < new Date();
             return (
               <div className="space-y-2">
@@ -735,16 +735,10 @@ export default function DriverDashboard() {
 
                 <div className="flex items-center gap-2 pt-1">
                   <button
-                    onClick={() => router.push('/dashboard/driver/parking-utils')}
+                    onClick={() => router.push('/dashboard/driver/parking-utils?tab=sessions')}
                     className="flex-1 py-2 rounded-xl bg-[#00a86b] text-white font-bold text-xs shadow-sm hover:bg-[#00905b] active:scale-[0.98] transition-all text-center"
                   >
                     View Session Details
-                  </button>
-                  <button
-                    onClick={() => router.push('/dashboard/driver/parking-utils')}
-                    className="px-3 py-2 rounded-xl border border-slate-200 text-slate-600 font-bold text-xs hover:bg-slate-50 transition-all"
-                  >
-                    QR Check-out
                   </button>
                 </div>
               </div>
@@ -891,7 +885,9 @@ export default function DriverDashboard() {
               </div>
               <p className="text-sm font-bold text-slate-700">Hourly Motorbike Parking Registration</p>
               <p className="text-xs text-slate-500 max-w-md mx-auto leading-relaxed">
-                Motorcycles are parked in the general Motorbike Zone on Floor 1. The system does not require selecting a specific parking slot. You only need to choose your planned parking duration in the Reservation Summary section.
+                Motorcycles are parked in the general Motorbike Zone
+                {visibleFloors.length > 0 ? ` on ${visibleFloors[0].name || `Floor ${visibleFloors[0].floorNumber}`}` : ''}.
+                The system does not require selecting a specific parking slot. You only need to choose your planned parking duration in the Reservation Summary section.
               </p>
             </div>
           ) : isLoadingMap ? (

@@ -27,7 +27,7 @@ export default function AdminLayout({
         <Sidebar />
 
         {/* Vùng nội dung chính bên phải */}
-        <div className={`flex-1 min-h-screen flex flex-col transition-[padding-left] duration-200 ${
+        <div className={`flex-1 min-h-screen flex flex-col transition-all duration-200 ${
           isCollapsed ? 'pl-[80px]' : 'pl-[260px]'
         }`}>
           <Header />

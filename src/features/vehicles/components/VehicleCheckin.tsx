@@ -61,19 +61,19 @@ import { formatPlate, detectVehicleTypeFromPlate } from "@/lib/utils/format";
 
 type GateOverlay =
   | {
-      type: "success";
-      title: string;
-      message: string;
-      session?: VehicleCheckinSession;
-      vehicleType: string;
-      cardCode: string;
-      checkInTime: string;
-    }
+    type: "success";
+    title: string;
+    message: string;
+    session?: VehicleCheckinSession;
+    vehicleType: string;
+    cardCode: string;
+    checkInTime: string;
+  }
   | {
-      type: "error";
-      title: string;
-      message: string;
-    };
+    type: "error";
+    title: string;
+    message: string;
+  };
 
 const BUILDING_ID = 3;
 const STAFF_ID = 2;
@@ -388,15 +388,16 @@ export default function VehicleCheckin({
 
   const refreshOperationalData = useCallback(
     async (targetBuildingId = buildingId) => {
-      if (operationalRefreshRef.current?.buildingId === targetBuildingId) {
-        return operationalRefreshRef.current.promise;
-      }
-
-      const refreshVersion = ++operationalRefreshVersionRef.current;
-      const request = (async () => {
+      try {
         const [cardData, sessionData, bookingData] = await Promise.all([
-          fetchCards(),
-          fetchActiveParkingSessions(),
+          fetchCards().catch((err) => {
+            console.warn("fetchCards failed:", err);
+            return [];
+          }),
+          fetchActiveParkingSessions().catch((err) => {
+            console.warn("fetchActiveParkingSessions failed:", err);
+            return [];
+          }),
           fetchCheckinBookingsByBuilding(targetBuildingId).catch(
             async (error) => {
               console.warn(
@@ -414,25 +415,11 @@ export default function VehicleCheckin({
           ),
         ]);
 
-        if (refreshVersion !== operationalRefreshVersionRef.current) {
-          return;
-        }
-
         setCards(cardData);
         setActiveSessions(sessionData);
         setBookings(bookingData);
-      })();
-
-      operationalRefreshRef.current = {
-        buildingId: targetBuildingId,
-        promise: request,
-      };
-      try {
-        await request;
-      } finally {
-        if (operationalRefreshRef.current?.promise === request) {
-          operationalRefreshRef.current = null;
-        }
+      } catch (err) {
+        console.error("refreshOperationalData error:", err);
       }
     },
     [buildingId],
@@ -732,14 +719,14 @@ export default function VehicleCheckin({
         matchedBooking.vehicleTypeId ?? vehicleTypeId!,
         matchedBooking.plannedCheckinTime || new Date().toISOString(),
         matchedBooking.plannedCheckoutTime ||
-          new Date(Date.now() + 4 * 3600000).toISOString(),
+        new Date(Date.now() + 4 * 3600000).toISOString(),
       );
       setAvailableSlots(slots);
       setIsReallocateModalOpen(true);
     } catch (err) {
       showToast(
         "Unable to load available parking spaces: " +
-          (err instanceof Error ? err.message : String(err)),
+        (err instanceof Error ? err.message : String(err)),
         "error",
       );
     } finally {
@@ -940,11 +927,10 @@ export default function VehicleCheckin({
                     <button
                       type="button"
                       onClick={cameraActive ? stopCamera : startCamera}
-                      className={`flex-1 rounded-xl py-1.5 text-xs font-bold transition flex items-center justify-center gap-1.5 border ${
-                        cameraActive
+                      className={`flex-1 rounded-xl py-1.5 text-xs font-bold transition flex items-center justify-center gap-1.5 border ${cameraActive
                           ? "bg-red-50 border-red-200 text-red-700 hover:bg-red-100"
                           : "bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100"
-                      }`}
+                        }`}
                     >
                       {cameraActive ? "Stop Cam" : "Start Cam"}
                     </button>
@@ -1076,11 +1062,10 @@ export default function VehicleCheckin({
                         key={id}
                         type="button"
                         onClick={() => setVehicleTypeId(id)}
-                        className={`rounded-xl border px-3 py-2 text-xs font-black transition ${
-                          isSelected
+                        className={`rounded-xl border px-3 py-2 text-xs font-black transition ${isSelected
                             ? "border-emerald-500 bg-emerald-50 text-emerald-700"
                             : "border-slate-200 bg-white text-slate-500 hover:bg-slate-50"
-                        }`}
+                          }`}
                       >
                         <span className="material-symbols-outlined mr-1.5 align-middle text-base">
                           {isCar ? "directions_car" : "two_wheeler"}
@@ -1249,9 +1234,8 @@ export default function VehicleCheckin({
         overlay &&
         createPortal(
           <div
-            className={`fixed inset-0 z-[100000] flex flex-col items-center justify-center px-6 text-center text-white ${
-              overlay.type === "success" ? "bg-emerald-600" : "bg-red-600"
-            }`}
+            className={`fixed inset-0 z-[100000] flex flex-col items-center justify-center px-6 text-center text-white ${overlay.type === "success" ? "bg-emerald-600" : "bg-red-600"
+              }`}
           >
             <div className="flex h-28 w-28 items-center justify-center rounded-full bg-white/20 shadow-2xl">
               <span className="material-symbols-outlined text-7xl">
@@ -1348,11 +1332,10 @@ export default function VehicleCheckin({
                         key={slot.id}
                         type="button"
                         onClick={() => setSelectedSlotId(slot.id)}
-                        className={`flex flex-col items-start rounded-2xl border p-3 text-left transition ${
-                          selectedSlotId === slot.id
+                        className={`flex flex-col items-start rounded-2xl border p-3 text-left transition ${selectedSlotId === slot.id
                             ? "border-emerald-500 bg-emerald-50 text-emerald-950 ring-2 ring-emerald-500"
                             : "border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700"
-                        }`}
+                          }`}
                       >
                         <span className="font-mono text-sm font-black">
                           {slot.code}

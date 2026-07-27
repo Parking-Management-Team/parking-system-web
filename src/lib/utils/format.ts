@@ -1,3 +1,5 @@
+import { LicensePlateValidation } from '@/lib/validation/LicensePlateValidation';
+
 /**
  * Format a number as Vietnamese Dong currency.
  * Output: "5.000 ₫"  (dot as thousands separator)
@@ -56,21 +58,7 @@ export function formatDateTimeVI(date: Date | string): string {
  * Example: "51a12345" -> "51A-123.45", "29g11234" -> "29G1-1234"
  */
 export function formatPlate(plate: string): string {
-  if (!plate) return '';
-  const clean = plate.toUpperCase().replace(/[^A-Z0-9]/g, '');
-  if (clean.length < 5) return clean;
-
-  const match = clean.match(/^(.*?)(\d{4,5})$/);
-  if (!match) return clean;
-
-  const prefix = match[1];
-  const suffix = match[2];
-
-  if (suffix.length === 5) {
-    return `${prefix}-${suffix.substring(0, 3)}.${suffix.substring(3)}`;
-  } else {
-    return `${prefix}-${suffix}`;
-  }
+  return LicensePlateValidation.format(plate);
 }
 
 /**
@@ -78,32 +66,7 @@ export function formatPlate(plate: string): string {
  * Returns 'Motorcycle' or 'Car'.
  */
 export function detectVehicleTypeFromPlate(plate: string): 'Motorcycle' | 'Car' {
-  if (!plate) return 'Car';
-  const clean = plate.toUpperCase().replace(/[^A-Z0-9]/g, '');
-  if (clean.length < 3) return 'Car';
-
-  const match = clean.match(/^(.*?)(\d{4,5})$/);
-  if (!match) return 'Car';
-
-  const prefix = match[1];
-
-  // 1. Motorcycle standard: 2 digits + 1 letter + 1 digit (e.g., 29G1, 59T2)
-  if (/^\d{2}[A-Z]\d$/.test(prefix)) {
-    return 'Motorcycle';
-  }
-
-  // 2. Motorcycle electric / under 50cc: 2 digits + 2 letters (e.g., 29AA, 59AB, 29MĐ/29MD)
-  // Excluding special car prefixes: LD, DA, MK, HC, NG, QT, NN, KT
-  if (/^\d{2}[A-Z]{2}$/.test(prefix)) {
-    const letters = prefix.substring(2);
-    const carSpecialLetters = ['LD', 'DA', 'MK', 'HC', 'NG', 'QT', 'NN', 'KT'];
-    if (carSpecialLetters.includes(letters)) {
-      return 'Car';
-    }
-    return 'Motorcycle';
-  }
-
-  return 'Car';
+  return LicensePlateValidation.detectVehicleType(plate);
 }
 
 /**

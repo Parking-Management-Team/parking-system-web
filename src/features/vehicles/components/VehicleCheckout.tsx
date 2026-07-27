@@ -62,6 +62,7 @@ import {
 } from "@/features/vehicles/services/vehicle-checkout.service";
 import { scanLicensePlate } from "@/features/vehicles/services/vehicle-checkin.service";
 import { formatPlate } from "@/lib/utils/format";
+import { LicensePlateValidation } from "@/lib/validation/LicensePlateValidation";
 
 type CheckoutHistoryItem = {
   id: string;
@@ -94,7 +95,7 @@ const normalizeText = (value?: string | null) =>
     .trim()
     .toUpperCase();
 const normalizeComparable = (value?: string | null) =>
-  normalizeText(value).replace(/[^A-Z0-9]/g, "");
+  LicensePlateValidation.normalize(String(value ?? ""));
 
 const formatDateTime = (value?: string | null) => {
   if (!value) return "—";
@@ -660,6 +661,15 @@ export default function VehicleCheckout({
       return;
     }
 
+    const plateValidation = LicensePlateValidation.validate(exitPlate);
+    if (!plateValidation.isValid) {
+      showToast(
+        plateValidation.error ?? "Invalid license plate format.",
+        "error",
+      );
+      return;
+    }
+
     if (!isPlateMatched) {
       showToast(
         "Exit plate does not match check-in plate. Please route to incident handling.",
@@ -687,7 +697,7 @@ export default function VehicleCheckout({
     try {
       const res = await startCheckout(selectedSession.id, {
         checkOutTime: checkoutTimeStr,
-        licensePlateOut: normalizeText(exitPlate),
+        licensePlateOut: plateValidation.normalized,
         outStaffId: STAFF_ID,
         imageOut: capturedImage || undefined,
       });
@@ -1152,7 +1162,15 @@ export default function VehicleCheckout({
                         onChange={(event) =>
                           setExitPlate(event.target.value.toUpperCase())
                         }
+                        onBlur={() => {
+                          const validation =
+                            LicensePlateValidation.validate(exitPlate);
+                          if (validation.isValid) {
+                            setExitPlate(validation.formatted);
+                          }
+                        }}
                         placeholder="Enter checkout plate"
+                        maxLength={20}
                         className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-2.5 py-2.5 font-mono text-lg font-black uppercase tracking-wider text-slate-900 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
                       />
                     </div>

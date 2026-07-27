@@ -57,7 +57,8 @@ import {
   type ReallocateSlotDto,
 } from "@/features/vehicles/services/vehicle-checkin.service";
 import { ApiError } from "@/lib/api/client";
-import { formatPlate, detectVehicleTypeFromPlate } from "@/lib/utils/format";
+import { formatPlate } from "@/lib/utils/format";
+import { LicensePlateValidation } from "@/lib/validation/LicensePlateValidation";
 
 type GateOverlay =
   | {
@@ -80,7 +81,7 @@ const STAFF_ID = 2;
 
 const normalizeText = (value: string) => value.trim().toUpperCase();
 const normalizeComparable = (value: string) =>
-  normalizeText(value).replace(/[^A-Z0-9]/g, "");
+  LicensePlateValidation.normalize(value);
 
 const formatDateTime = (value?: string | null) => {
   if (!value) return "—";
@@ -143,7 +144,7 @@ export default function VehicleCheckin({
   // Auto-detect vehicle type based on license plate input/scan
   useEffect(() => {
     if (!licensePlate.trim() || vehicleTypes.length === 0) return;
-    const detected = detectVehicleTypeFromPlate(licensePlate);
+    const detected = LicensePlateValidation.detectVehicleType(licensePlate);
 
     const matchedType = vehicleTypes.find((t: any) => {
       const name = (t.name || t.typeName || t.TypeName || "").toLowerCase();
@@ -577,6 +578,16 @@ export default function VehicleCheckin({
       return;
     }
 
+    const plateValidation = LicensePlateValidation.validate(formattedPlate);
+    if (!plateValidation.isValid) {
+      showGateOverlay({
+        type: "error",
+        title: "Invalid license plate",
+        message: plateValidation.error ?? "Invalid license plate format.",
+      });
+      return;
+    }
+
     if (!normalizedCardCode) {
       showGateOverlay({
         type: "error",
@@ -639,7 +650,7 @@ export default function VehicleCheckin({
         : "Unknown";
 
       const session = await checkInVehicle({
-        licensePlate: formattedPlate,
+        licensePlate: plateValidation.normalized,
         vehicleTypeId:
           matchedBooking && matchedBooking.vehicleTypeId
             ? matchedBooking.vehicleTypeId
@@ -1032,7 +1043,15 @@ export default function VehicleCheckin({
                     onChange={(event) =>
                       setLicensePlate(event.target.value.toUpperCase())
                     }
+                    onBlur={() => {
+                      const validation =
+                        LicensePlateValidation.validate(licensePlate);
+                      if (validation.isValid) {
+                        setLicensePlate(validation.formatted);
+                      }
+                    }}
                     placeholder="Example: 51A-123.45"
+                    maxLength={20}
                     className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 font-mono text-lg font-black uppercase tracking-wider text-slate-900 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
                   />
                 </div>

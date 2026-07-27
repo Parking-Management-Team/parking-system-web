@@ -35,6 +35,7 @@ import { createPortal } from 'react-dom';
 import { useAuth } from '@/features/auth';
 import { api } from '@/lib/api/client';
 import { formatPlate, detectVehicleTypeFromPlate } from '@/lib/utils/format';
+import { LicensePlateValidation } from '@/lib/validation/LicensePlateValidation';
 import { 
   Plus, 
   Trash2, 
@@ -176,6 +177,14 @@ export default function DriverVehicles() {
       showToast('Please enter a license plate.', 'error');
       return;
     }
+    const plateValidation = LicensePlateValidation.validate(addPlate);
+    if (!plateValidation.isValid) {
+      showToast(
+        plateValidation.error ?? 'Invalid license plate format.',
+        'error',
+      );
+      return;
+    }
     if (!addTypeId) {
       showToast('Please select a vehicle type.', 'error');
       return;
@@ -184,7 +193,7 @@ export default function DriverVehicles() {
     setIsSaving(true);
     try {
       await api.post('/vehicles', {
-        licensePlate: addPlate.toUpperCase().replace(/[^A-Z0-9]/g, ''),
+        licensePlate: plateValidation.normalized,
         vehicleTypeId: Number(addTypeId),
         accountId: user?.id,
       });
@@ -412,10 +421,16 @@ export default function DriverVehicles() {
                 <label className="block text-xs font-bold text-slate-400 uppercase tracking-wide">
                   License Plate *
                 </label>
-                <input
+                 <input
                   type="text"
                   value={addPlate}
-                  onChange={(e) => setAddPlate(e.target.value)}
+                   onChange={(e) => setAddPlate(e.target.value)}
+                   onBlur={() => {
+                     const validation = LicensePlateValidation.validate(addPlate);
+                     if (validation.isValid) {
+                       setAddPlate(validation.formatted);
+                     }
+                   }}
                   placeholder="e.g. 30A-123.45"
                   maxLength={20}
                   required

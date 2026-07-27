@@ -498,6 +498,16 @@ export default function ParkingUtilsWorkspace() {
     }
   }, [user, vehicles]);
 
+  // Đọc ?tab=sessions từ URL để tự động switch tab (e.g. từ Dashboard "View Session Details")
+  useEffect(() => {
+    const tabParam = searchParams.get('tab');
+    if (tabParam === 'sessions') {
+      setMainTab('sessions');
+    } else if (tabParam === 'history') {
+      setMainTab('history');
+    }
+  }, [searchParams]);
+
   // Trigger loads
   useEffect(() => {
     fetchActiveData();
@@ -1893,7 +1903,11 @@ export default function ParkingUtilsWorkspace() {
                       </div>
                       <p className="text-sm font-bold text-slate-700">Motorbike Parking Registration</p>
                       <p className="text-xs text-slate-500 max-w-md mx-auto leading-relaxed">
-                        Motorbikes park in the shared Motorbike Zone on Floor 1. No specific slot selection is required. Please advance to schedule timing directly.
+                        {(() => {
+                          const motoFloor = allFloors.find(f => Array.isArray(f.vehicleTypeIds) && f.vehicleTypeIds.includes(1));
+                          const floorLabel = motoFloor ? (motoFloor.name || `Floor ${motoFloor.floorNumber}`) : null;
+                          return <>Motorbikes park in the shared Motorbike Zone{floorLabel ? ` on ${floorLabel}` : ''}. No specific slot selection is required. Please advance to schedule timing directly.</>;
+                        })()}
                       </p>
                     </div>
                   ) : floors.length === 0 ? (

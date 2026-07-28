@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { api } from '@/lib/api/client';
+import { api, ApiError } from '@/lib/api/client';
 import { ApiResponse } from '@/lib/types/api.types';
 import { useAuth } from '@/features/auth';
 
@@ -128,7 +128,17 @@ export function useAccounts() {
       }
     } catch (err: unknown) {
       console.error('Error creating account:', err);
-      const errorMsg = err instanceof Error ? err.message : 'An error occurred while creating the account.';
+      let errorMsg = 'An error occurred while creating the account.';
+      if (err instanceof ApiError && err.data) {
+        const apiData = err.data as { message?: string; errors?: Record<string, string[]> };
+        if (apiData.message) {
+          errorMsg = apiData.message;
+        } else if (apiData.errors) {
+          errorMsg = Object.values(apiData.errors).flat().join(', ');
+        }
+      } else if (err instanceof Error) {
+        errorMsg = err.message;
+      }
       showToast(errorMsg, 'error');
       return false;
     }

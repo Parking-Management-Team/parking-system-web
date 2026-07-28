@@ -79,14 +79,21 @@ export default function StaffIncidentSelector({
 
     setSubmittingTypeId(type.id);
     try {
-      await incidentService.create({
+      const createdInc = await incidentService.create({
         sessionId,
         incidentTypeId: type.id,
         penaltyFee: type.defaultPenaltyFee ?? null,
         description: `${type.incidentName} - ${licensePlate}${cardCode ? ` - ${cardCode}` : ''}`,
       });
 
-      showToast(`Added incident: ${type.incidentName}`, 'success');
+      if (createdInc?.autoBlacklisted) {
+        showToast(
+          `🚨 AUTOMATED BLACKLIST TRIGGERED! Vehicle (${licensePlate}) accumulated 3+ violations and was AUTOMATICALLY BLACKLISTED!`,
+          'error'
+        );
+      } else {
+        showToast(`Added incident: ${type.incidentName}`, 'success');
+      }
       await loadIncidentData();
       onChanged?.();
     } catch (error) {

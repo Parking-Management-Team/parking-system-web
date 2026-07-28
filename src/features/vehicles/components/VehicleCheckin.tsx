@@ -41,13 +41,10 @@ import React, {
 } from "react";
 import { createPortal } from "react-dom";
 import { useAuth } from "@/features/auth";
-import { fetchCards } from "@/features/card/services/card.service";
 import type { ParkingCard } from "@/features/card/types/card";
-import { blacklistService, type BlacklistDto } from "@/features/blacklist";
-import { api } from "@/lib/api/client";
+import type { BlacklistDto } from "@/features/blacklist";
 import {
   checkInVehicle,
-  fetchActiveParkingSessions,
   fetchCheckinBookings,
   fetchCheckinBookingsByBuilding,
   fetchAvailableSlotsForReallocation,
@@ -56,6 +53,7 @@ import {
   type VehicleCheckinSession,
   type ReallocateSlotDto,
 } from "@/features/vehicles/services/vehicle-checkin.service";
+import { useStaffGateData } from "@/features/vehicles/context/StaffGateDataContext";
 import { ApiError } from "@/lib/api/client";
 import { formatPlate, detectVehicleTypeFromPlate } from "@/lib/utils/format";
 import { LicensePlateValidation } from "@/lib/validation/LicensePlateValidation";
@@ -121,6 +119,10 @@ export default function VehicleCheckin({
   onCheckinSuccess?: () => void;
 } = {}) {
   const { showToast } = useAuth();
+  const {
+    refreshGateData,
+    invalidateOperationalData,
+  } = useStaffGateData();
 
   const [buildingId, setBuildingId] = useState<number>(3);
   const [buildings, setBuildings] = useState<{ id: number; name: string }[]>(
@@ -390,15 +392,8 @@ export default function VehicleCheckin({
   const refreshOperationalData = useCallback(
     async (targetBuildingId = buildingId) => {
       try {
-        const [cardData, sessionData, bookingData] = await Promise.all([
-          fetchCards().catch((err) => {
-            console.warn("fetchCards failed:", err);
-            return [];
-          }),
-          fetchActiveParkingSessions().catch((err) => {
-            console.warn("fetchActiveParkingSessions failed:", err);
-            return [];
-          }),
+        const [gateData, bookingData] = await Promise.all([
+          refreshGateData(),
           fetchCheckinBookingsByBuilding(targetBuildingId).catch(
             async (error) => {
               console.warn(
@@ -416,96 +411,50 @@ export default function VehicleCheckin({
           ),
         ]);
 
-        setCards(cardData);
-        setActiveSessions(sessionData);
+        setCards(gateData.cards);
+        setActiveSessions(gateData.checkinSessions);
+        setBlacklist(gateData.blacklist);
         setBookings(bookingData);
       } catch (err) {
         console.error("refreshOperationalData error:", err);
       }
     },
-    [buildingId],
+    [buildingId, refreshGateData],
   );
 
   const loadGateData = useCallback(async () => {
+    const gateData = await refreshGateData();
     let currentBuildingId = buildingId;
-    try {
-      const buildingsRes = await api.get<any>(
-        "/Buildings/paged?pageIndex=1&pageSize=100",
-      );
-      if (
-        buildingsRes.success &&
-        buildingsRes.data?.items &&
-        Array.isArray(buildingsRes.data.items)
-      ) {
-        const mapped = buildingsRes.data.items.map((b: any) => ({
-          id: b.id,
-          name: b.name,
-        }));
-        setBuildings(mapped);
+    setBuildings(gateData.buildings);
+    setBlacklist(gateData.blacklist);
 
-        if (mapped.length > 0) {
-          const hasCurrent = mapped.some((b: any) => b.id === buildingId);
-          if (!hasCurrent) {
-            currentBuildingId = mapped[0].id;
-            setBuildingId(currentBuildingId);
-          }
-        }
+    if (gateData.buildings.length > 0) {
+      const hasCurrent = gateData.buildings.some((b) => b.id === buildingId);
+      if (!hasCurrent) {
+        currentBuildingId = gateData.buildings[0].id;
+        setBuildingId(currentBuildingId);
       }
-    } catch (err) {
-      console.warn("Failed to fetch building list:", err);
     }
 
-    try {
-      const vehicleTypesRes = await api.get<any>("/vehicle-types");
-      if (
-        vehicleTypesRes &&
-        vehicleTypesRes.success &&
-        Array.isArray(vehicleTypesRes.data)
-      ) {
-        setVehicleTypes(vehicleTypesRes.data);
-        if (vehicleTypesRes.data.length > 0) {
-          setVehicleTypeId((prev) => {
-            if (prev) return prev;
-            const carType = vehicleTypesRes.data.find((vt: any) => {
-              const name = (
-                vt.name ??
-                vt.typeName ??
-                vt.TypeName ??
-                ""
-              ).toUpperCase();
-              return name.includes("CAR") || name.includes("AUTO");
-            });
-            return carType
-              ? (carType.id ?? carType.Id)
-              : (vehicleTypesRes.data[0].id ?? vehicleTypesRes.data[0].Id);
-          });
-        }
-      }
-    } catch (err) {
-      console.warn("Failed to fetch vehicle types:", err);
-    }
-
-    // Blacklist/reference data is loaded during bootstrap; successful gate operations
-    // only refresh the smaller operational data set.
-    const blacklistData = await blacklistService
-      .getAll(1, 1000)
-      .catch((error) => {
-        console.warn(
-          "Blacklist API is not ready; blacklist pre-check is disabled.",
-          error,
+    setVehicleTypes(gateData.vehicleTypes);
+    if (gateData.vehicleTypes.length > 0) {
+      setVehicleTypeId((prev) => {
+        if (prev) return prev;
+        const carType = gateData.vehicleTypes.find((vt) => {
+          const name = String(vt.name ?? vt.typeName ?? vt.TypeName ?? "").toUpperCase();
+          return name.includes("CAR") || name.includes("AUTO");
+        });
+        return Number(
+          carType?.id ??
+          carType?.Id ??
+          gateData.vehicleTypes[0].id ??
+          gateData.vehicleTypes[0].Id,
         );
-        return {
-          items: [],
-          totalCount: 0,
-          totalPages: 0,
-          pageIndex: 1,
-          pageSize: 1000,
-        };
       });
+    }
 
-    setBlacklist(blacklistData.items ?? []);
     await refreshOperationalData(currentBuildingId);
-  }, [buildingId, refreshOperationalData]);
+  }, [buildingId, refreshGateData, refreshOperationalData]);
 
   useEffect(() => {
     setIsMounted(true);
@@ -669,6 +618,7 @@ export default function VehicleCheckin({
       setLicensePlate("");
       setCapturedImage(null);
       onCheckinSuccess?.();
+      void invalidateOperationalData();
 
       showGateOverlay({
         type: "success",
@@ -789,6 +739,7 @@ export default function VehicleCheckin({
       setShowReallocateBtn(false);
       setSelectedSlotId(null);
       onCheckinSuccess?.();
+      void invalidateOperationalData();
 
       showGateOverlay({
         type: "success",

@@ -42,16 +42,12 @@ import React, {
 } from "react";
 import { createPortal } from "react-dom";
 import { useAuth } from "@/features/auth/context/AuthContext";
-import {
-  markCardLost,
-  fetchCards,
-} from "@/features/card/services/card.service";
 import type { ParkingCard } from "@/features/card/types/card";
 import { incidentService } from "@/features/incident/services/incident.service";
 import type { IncidentType } from "@/features/incident/types";
 import {
   createCheckoutPayment,
-  fetchCheckoutActiveSessions,
+  fetchCheckoutSessionDetail,
   startCheckout,
   completeCheckout,
   reportLostCard,
@@ -61,6 +57,7 @@ import {
   type CheckoutSession,
   type StartCheckoutResponse,
 } from "@/features/vehicles/services/vehicle-checkout.service";
+import { useStaffGateData } from "@/features/vehicles/context/StaffGateDataContext";
 import { scanLicensePlate } from "@/features/vehicles/services/vehicle-checkin.service";
 import { formatPlate } from "@/lib/utils/format";
 import { LicensePlateValidation } from "@/lib/validation/LicensePlateValidation";
@@ -174,6 +171,12 @@ export default function VehicleCheckout({
   onCheckoutSuccess?: () => void;
 } = {}) {
   const { showToast } = useAuth();
+  const {
+    checkoutSessions: cachedCheckoutSessions,
+    cards: cachedCards,
+    refreshGateData,
+    invalidateOperationalData,
+  } = useStaffGateData();
   const [sessions, setSessions] = useState<CheckoutSession[]>([]);
   const [selectedSessionId, setSelectedSessionId] = useState<number | null>(
     null,
@@ -221,6 +224,7 @@ export default function VehicleCheckout({
   const [scanProgress, setScanProgress] = useState<string>("");
   const [ocrText, setOcrText] = useState<string>("");
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
+  const [loadingImageSessionId, setLoadingImageSessionId] = useState<number | null>(null);
   const activeSessionsRequestRef = useRef<Promise<void> | null>(null);
   const checkoutStartSessionRef = useRef<number | null>(null);
 
@@ -463,7 +467,9 @@ export default function VehicleCheckout({
     setIsLoading(true);
     const request = (async () => {
       try {
-        setSessions(await fetchCheckoutActiveSessions());
+        const gateData = await refreshGateData();
+        setSessions(gateData.checkoutSessions);
+        setAllCards(gateData.cards);
       } catch (error) {
         showToast(
           error instanceof Error
@@ -482,25 +488,27 @@ export default function VehicleCheckout({
     } finally {
       activeSessionsRequestRef.current = null;
     }
-  }, [showToast]);
+  }, [refreshGateData, showToast]);
 
-  const loadCards = useCallback(async () => {
+  const refreshAfterMutation = useCallback(async () => {
     try {
-      const cardsData = await fetchCards();
-      setAllCards(cardsData);
+      const gateData = await invalidateOperationalData();
+      setSessions(gateData.checkoutSessions);
+      setAllCards(gateData.cards);
     } catch (error) {
       showToast(
-        error instanceof Error ? error.message : "Could not load cards.",
+        error instanceof Error
+          ? error.message
+          : "The operation succeeded, but gate data could not be refreshed.",
         "error",
       );
     }
-  }, [showToast]);
+  }, [invalidateOperationalData, showToast]);
 
   useEffect(() => {
     setIsMounted(true);
     setHistory(readHistory());
     void loadActiveSessions();
-    void loadCards();
     void enumerateCameras();
 
     // Auto-focus search input on load
@@ -509,14 +517,18 @@ export default function VehicleCheckout({
         searchInputRef.current.focus();
       }
     }, 100);
-  }, [loadActiveSessions, loadCards, enumerateCameras]);
+  }, [loadActiveSessions, enumerateCameras]);
+
+  useEffect(() => {
+    setSessions(cachedCheckoutSessions);
+    setAllCards(cachedCards);
+  }, [cachedCheckoutSessions, cachedCards]);
 
   useEffect(() => {
     if (refreshTrigger !== undefined && refreshTrigger > 0) {
       void loadActiveSessions();
-      void loadCards();
     }
-  }, [refreshTrigger, loadActiveSessions, loadCards]);
+  }, [refreshTrigger, loadActiveSessions]);
 
   const selectSession = (session: CheckoutSession) => {
     setSelectedSessionId(session.id);
@@ -530,6 +542,35 @@ export default function VehicleCheckout({
     setLockedCheckoutTime(null);
     setCapturedImage(null);
     setOcrText("");
+
+    setLoadingImageSessionId(session.id);
+    void fetchCheckoutSessionDetail(session.id)
+      .then((detail) => {
+        setSessions((current) =>
+          current.map((item) =>
+            item.id === session.id
+              ? {
+                  ...item,
+                  imageIn: detail.imageIn,
+                  imageOut: detail.imageOut,
+                }
+              : item,
+          ),
+        );
+      })
+      .catch((error) => {
+        showToast(
+          error instanceof Error
+            ? error.message
+            : "Could not load the check-in image.",
+          "error",
+        );
+      })
+      .finally(() => {
+        setLoadingImageSessionId((current) =>
+          current === session.id ? null : current,
+        );
+      });
   };
 
   const resetForNextVehicle = () => {
@@ -620,7 +661,7 @@ export default function VehicleCheckout({
         staffId: STAFF_ID,
         description: "Card reported lost during check-out",
       });
-      await loadActiveSessions();
+      await refreshAfterMutation();
       setCardLostConfirmed(true);
       setCheckoutCardCode("");
 
@@ -810,7 +851,7 @@ export default function VehicleCheckout({
       resetForNextVehicle();
       onCheckoutSuccess?.();
       showToast("Check-out and payment completed successfully!", "success");
-      void loadActiveSessions();
+      void refreshAfterMutation();
     } catch (error) {
       showToast(
         error instanceof Error
@@ -978,7 +1019,7 @@ export default function VehicleCheckout({
         "success"
       );
       resetForNextVehicle();
-      void loadActiveSessions();
+      void refreshAfterMutation();
       if (onCheckoutSuccess) {
         onCheckoutSuccess();
       }
@@ -1202,7 +1243,14 @@ export default function VehicleCheckout({
                   <div className="grid grid-cols-2 gap-3">
                     {/* Check-in Photo */}
                     <div className="overflow-hidden rounded-xl border border-slate-200 bg-slate-900 aspect-[4/3] relative flex items-center justify-center h-28">
-                      {selectedSession.imageIn ? (
+                      {loadingImageSessionId === selectedSession.id ? (
+                        <div className="flex flex-col items-center justify-center text-slate-300 text-[10px] gap-1">
+                          <span className="material-symbols-outlined text-xl animate-spin">
+                            progress_activity
+                          </span>
+                          <span>Loading check-in photo...</span>
+                        </div>
+                      ) : selectedSession.imageIn ? (
                         <img
                           src={selectedSession.imageIn}
                           alt="Check-in snapshot"

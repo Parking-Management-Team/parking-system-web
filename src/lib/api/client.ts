@@ -22,9 +22,25 @@ export class ApiError extends Error {
   constructor(
     public readonly status: number,
     public readonly data: unknown,
-    message = `API error ${status}`
+    message?: string
   ) {
-    super(message);
+    let extractedMessage = message;
+    if (!extractedMessage && data && typeof data === 'object') {
+      const apiData = data as { message?: string; title?: string; errors?: Record<string, string[]> | string[] };
+      if (apiData.message) {
+        extractedMessage = apiData.message;
+      } else if (apiData.errors) {
+        if (Array.isArray(apiData.errors)) {
+          extractedMessage = apiData.errors.join(', ');
+        } else if (typeof apiData.errors === 'object') {
+          const errorList = Object.values(apiData.errors).flat();
+          if (errorList.length > 0) extractedMessage = errorList.join(', ');
+        }
+      } else if (apiData.title) {
+        extractedMessage = apiData.title;
+      }
+    }
+    super(extractedMessage || `API error ${status}`);
     this.name = 'ApiError';
   }
 }

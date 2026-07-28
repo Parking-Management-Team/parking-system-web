@@ -414,7 +414,10 @@ export default function DriverDashboard() {
     const zonePart = parts[0] || slot.code;
     const numberPart = parts[1] || '';
 
-    const slotSizeClass = isLargeMap ? 'w-[36px] h-[88px] p-1 text-[9px]' : 'w-[56px] h-[112px] p-1.5';
+    const slotSizeClass = isLargeMap 
+      ? 'w-[28px] sm:w-[32px] md:w-[36px] h-[70px] sm:h-[78px] md:h-[84px] p-0.5 text-[8px]' 
+      : 'w-[40px] sm:w-[46px] md:w-[52px] h-[80px] sm:h-[92px] md:h-[104px] p-1';
+
     const codeTextClass = isLargeMap ? 'text-[8px]' : 'text-[10px]';
     const bottomTextClass = isLargeMap ? 'text-[6px]' : 'text-[8px]';
     const carIconClass = isLargeMap ? 'w-4 h-4' : 'w-5 h-5';
@@ -903,10 +906,13 @@ export default function DriverDashboard() {
               <p className="text-xs text-slate-400">No slot data available. Please check back later.</p>
             </div>
           ) : (
-            /* Interactive Floor Plan Map for all Buildings */
-            <div className="w-full overflow-x-auto overflow-y-auto pb-4 max-w-full" style={{ WebkitOverflowScrolling: 'touch' }}>
-              <div className="py-6 min-w-[1200px]">
-                <div className="w-[1200px] mx-auto space-y-2">
+            /* Interactive Floor Plan Map for all Buildings - Auto scaled to fit container frame */
+            <div className="w-full max-w-full overflow-hidden flex flex-col items-center justify-center py-2">
+              <div className="w-full max-w-full flex justify-center">
+                <div className="w-full max-w-[1200px] mx-auto space-y-2 transform scale-[0.78] sm:scale-[0.86] md:scale-[0.93] lg:scale-100 origin-top transition-transform duration-300">
+
+
+
                 {/* Cams Top */}
                 <div className="flex justify-around px-20">
                   <div className="flex flex-col items-center text-slate-400 font-bold text-[9px]">

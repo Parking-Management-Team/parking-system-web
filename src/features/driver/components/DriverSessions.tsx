@@ -307,18 +307,34 @@ export default function DriverSessions() {
   };
 
   // ── Extend Booking ──────────────────────────────────────────
+  const [extendStep, setExtendStep] = useState<'picker' | 'confirm'>('picker');
+  const [extendPreview, setExtendPreview] = useState<{
+    originalFee: number;
+    penaltyFee?: number;
+    additionalFee: number;
+    newTotalFee: number;
+    adjustedEndTime: string;
+    isCapped: boolean;
+    maxAllowedEndTime: string;
+    message: string;
+  } | null>(null);
+
+  const [isPreviewLoading, setIsPreviewLoading] = useState(false);
+
   const openExtendModal = (booking: BookingRecord) => {
     setExtendingBooking(booking);
+    setExtendStep('picker');
+    setExtendPreview(null);
     
-    // Set default: current planned checkout time plus 1 hour (in VN timezone)
-    const currentCheckout = new Date(booking.plannedCheckoutTime);
-    const dt = new Date(currentCheckout.getTime() + 60 * 60 * 1000);
+    // Set default value: Current Time (Now) plus 4 hours in VN timezone
+    const now = new Date();
+    const targetDt = new Date(now.getTime() + 4 * 60 * 60 * 1000);
     
     const parts = new Intl.DateTimeFormat('en-US', {
       timeZone: 'Asia/Ho_Chi_Minh',
       year: 'numeric', month: '2-digit', day: '2-digit',
       hour: '2-digit', minute: '2-digit', hour12: false,
-    }).formatToParts(dt);
+    }).formatToParts(targetDt);
     const year = parts.find(p => p.type === 'year')?.value ?? '';
     const month = parts.find(p => p.type === 'month')?.value ?? '';
     const day = parts.find(p => p.type === 'day')?.value ?? '';
@@ -326,46 +342,123 @@ export default function DriverSessions() {
     if (hour === '24') hour = '00';
     const minute = parts.find(p => p.type === 'minute')?.value ?? '00';
     
-    setNewCheckoutDate(`${year}-${month}-${day}`);
-    setNewCheckoutTime(`${hour}:${minute}`);
+    const initialDateStr = `${year}-${month}-${day}`;
+    const initialTimeStr = `${hour}:${minute}`;
+
+    setNewCheckoutDate(initialDateStr);
+    setNewCheckoutTime(initialTimeStr);
     setShowExtendModal(true);
+
+    // Auto-check slot buffer rule for upcoming booking and auto-adjust date/time if capped
+    const checkoutDate = new Date(`${initialDateStr}T${initialTimeStr}:00+07:00`);
+    api.get<any>(
+      `/bookings/${booking.id}/extend-preview?requestedNewEndTime=${encodeURIComponent(formatLocalVNTime(checkoutDate))}`
+    ).then(res => {
+      if (res.success && res.data && res.data.isCapped && res.data.adjustedEndTime) {
+        const cappedDt = new Date(res.data.adjustedEndTime);
+        const cappedParts = new Intl.DateTimeFormat('en-US', {
+          timeZone: 'Asia/Ho_Chi_Minh',
+          year: 'numeric', month: '2-digit', day: '2-digit',
+          hour: '2-digit', minute: '2-digit', hour12: false,
+        }).formatToParts(cappedDt);
+
+        const cYear = cappedParts.find(p => p.type === 'year')?.value ?? '';
+        const cMonth = cappedParts.find(p => p.type === 'month')?.value ?? '';
+        const cDay = cappedParts.find(p => p.type === 'day')?.value ?? '';
+        let cHour = cappedParts.find(p => p.type === 'hour')?.value ?? '00';
+        if (cHour === '24') cHour = '00';
+        const cMin = cappedParts.find(p => p.type === 'minute')?.value ?? '00';
+
+        setNewCheckoutDate(`${cYear}-${cMonth}-${cDay}`);
+        setNewCheckoutTime(`${cHour}:${cMin}`);
+      }
+    }).catch(() => {
+      // Ignore preview precheck errors on modal load
+    });
   };
 
-  const handleSaveExtend = async (payLater: boolean = false) => {
+
+  const formatLocalVNTime = (date: Date): string => {
+    const parts = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'Asia/Ho_Chi_Minh',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false,
+    }).formatToParts(date);
+
+    const y = parts.find(p => p.type === 'year')?.value;
+    const m = parts.find(p => p.type === 'month')?.value;
+    const d = parts.find(p => p.type === 'day')?.value;
+    let hr = parts.find(p => p.type === 'hour')?.value ?? '00';
+    const min = parts.find(p => p.type === 'minute')?.value ?? '00';
+    const sec = parts.find(p => p.type === 'second')?.value ?? '00';
+
+    if (hr === '24') hr = '00';
+
+    return `${y}-${m}-${d}T${hr}:${min}:${sec}+07:00`;
+  };
+
+  const handlePreviewExtend = async () => {
     if (!extendingBooking) return;
     if (!newCheckoutDate || !newCheckoutTime) {
       showToast('Please select a valid date and time.', 'error');
       return;
     }
+    
+    const checkoutDate = new Date(`${newCheckoutDate}T${newCheckoutTime}:00+07:00`);
+    const now = new Date();
+
+    if (checkoutDate.getTime() <= now.getTime()) {
+      showToast('New checkout time cannot be in the past.', 'error');
+      return;
+    }
+
+    const currentCheckoutMs = new Date(extendingBooking.plannedCheckoutTime).getTime();
+    if (checkoutDate.getTime() <= currentCheckoutMs) {
+      showToast('New checkout time must be strictly after current checkout time.', 'error');
+      return;
+    }
+
+    setIsPreviewLoading(true);
+    try {
+      const res = await api.get<any>(
+        `/bookings/${extendingBooking.id}/extend-preview?requestedNewEndTime=${encodeURIComponent(formatLocalVNTime(checkoutDate))}`
+      );
+
+      if (res.success && res.data) {
+        if (!res.data.success) {
+          showToast(res.data.message || 'Cannot extend booking due to next reservation conflict.', 'error');
+          return;
+        }
+        setExtendPreview(res.data);
+        setExtendStep('confirm');
+      } else {
+        showToast('Failed to preview extension fee.', 'error');
+      }
+    } catch (err: any) {
+      console.error('Extend preview error:', err);
+      const errMsg = err?.data?.message || err?.message || 'Failed to preview extension fee.';
+      showToast(errMsg, 'error');
+    } finally {
+      setIsPreviewLoading(false);
+    }
+  };
+
+  const handleConfirmExtend = async () => {
+    if (!extendingBooking) return;
     setIsSavingExtend(true);
     try {
-      const formatLocalVNTime = (date: Date): string => {
-        const parts = new Intl.DateTimeFormat('en-US', {
-          timeZone: 'Asia/Ho_Chi_Minh',
-          year: 'numeric',
-          month: '2-digit',
-          day: '2-digit',
-          hour: '2-digit',
-          minute: '2-digit',
-          second: '2-digit',
-          hour12: false,
-        }).formatToParts(date);
-
-        const y = parts.find(p => p.type === 'year')?.value;
-        const m = parts.find(p => p.type === 'month')?.value;
-        const d = parts.find(p => p.type === 'day')?.value;
-        let hr = parts.find(p => p.type === 'hour')?.value ?? '00';
-        const min = parts.find(p => p.type === 'minute')?.value ?? '00';
-        const sec = parts.find(p => p.type === 'second')?.value ?? '00';
-
-        if (hr === '24') hr = '00';
-
-        return `${y}-${m}-${d}T${hr}:${min}:${sec}+07:00`;
-      };
-
       const checkoutDate = new Date(`${newCheckoutDate}T${newCheckoutTime}:00+07:00`);
       
-      const res = await api.post<any>(`/bookings/${extendingBooking.id}/extend?requestedNewEndTime=${encodeURIComponent(formatLocalVNTime(checkoutDate))}&payLater=${payLater}`, null);
+      // PayLater = false forces VNPay online payment
+      const res = await api.post<any>(
+        `/bookings/${extendingBooking.id}/extend?requestedNewEndTime=${encodeURIComponent(formatLocalVNTime(checkoutDate))}&payLater=false`,
+        null
+      );
       
       if (res.success && res.data) {
         const extResult = res.data;
@@ -766,14 +859,20 @@ export default function DriverSessions() {
         document.body
       )}
 
-      {/* ── EXTEND STAY MODAL ── */}
+      {/* ── EXTEND STAY MODAL (2-STEP) ── */}
       {mounted && showExtendModal && extendingBooking && createPortal(
         <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
           <div className="bg-white w-full max-w-md rounded-2xl shadow-xl overflow-hidden">
             <div className="px-6 py-5 border-b border-slate-100 flex justify-between items-start">
               <div>
-                <h3 className="font-bold text-slate-800">Extend Stay #BK-{extendingBooking.id}</h3>
-                <p className="text-xs text-slate-400 mt-1">Select a new checkout date and time for this reservation.</p>
+                <h3 className="font-bold text-slate-800">
+                  {extendStep === 'picker' ? `Extend Stay #BK-${extendingBooking.id}` : 'Confirm & Pay Extension'}
+                </h3>
+                <p className="text-xs text-slate-400 mt-1">
+                  {extendStep === 'picker'
+                    ? 'Select a new checkout date and time for this reservation.'
+                    : 'Review fee breakdown and confirm payment via VNPay.'}
+                </p>
               </div>
               <button
                 onClick={() => setShowExtendModal(false)}
@@ -782,76 +881,153 @@ export default function DriverSessions() {
                 <X className="w-5 h-5" />
               </button>
             </div>
-            <div className="p-6 space-y-4">
-              <div className="space-y-1">
-                <label className="block text-xs font-bold text-slate-400 uppercase tracking-wide">Current Checkout Time</label>
-                <div className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 text-sm rounded-xl text-slate-600 font-semibold">
-                  {new Date(extendingBooking.plannedCheckoutTime).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}
+
+            {/* STEP 1: TIME PICKER */}
+            {extendStep === 'picker' && (
+              <>
+                <div className="p-6 space-y-4">
+                  <div className="space-y-1">
+                    <label className="block text-xs font-bold text-slate-400 uppercase tracking-wide">Current Checkout Time</label>
+                    <div className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 text-sm rounded-xl text-slate-600 font-semibold">
+                      {new Date(extendingBooking.plannedCheckoutTime).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="block text-xs font-bold text-slate-400 uppercase tracking-wide">New Checkout Date</label>
+                    <input
+                      type="date"
+                      value={newCheckoutDate}
+                      min={(() => {
+                        const currentCheckoutMs = new Date(extendingBooking.plannedCheckoutTime).getTime();
+                        const minMs = Math.max(Date.now(), currentCheckoutMs);
+                        const d = new Date(minMs);
+                        const p = new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Ho_Chi_Minh', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(d);
+                        return `${p.find(x => x.type === 'year')?.value}-${p.find(x => x.type === 'month')?.value}-${p.find(x => x.type === 'day')?.value}`;
+                      })()}
+                      onChange={(e) => setNewCheckoutDate(e.target.value)}
+                      className="w-full px-4 py-2.5 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 text-sm rounded-xl"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="block text-xs font-bold text-slate-400 uppercase tracking-wide">New Checkout Time</label>
+                    <input
+                      type="time"
+                      value={newCheckoutTime}
+                      onChange={(e) => setNewCheckoutTime(e.target.value)}
+                      className="w-full px-4 py-2.5 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 text-sm rounded-xl"
+                    />
+                  </div>
+                  <div className="p-3 bg-blue-50 border border-blue-100 rounded-xl text-blue-800 text-xs flex gap-2">
+                    <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-blue-600" />
+                    <span>Click "Preview Fee" to calculate the extension fee and verify slot availability.</span>
+                  </div>
                 </div>
-              </div>
-              <div className="space-y-1">
-                <label className="block text-xs font-bold text-slate-400 uppercase tracking-wide">New Checkout Date</label>
-                <input
-                  type="date"
-                  value={newCheckoutDate}
-                  min={(() => {
-                    const d = new Date(extendingBooking.plannedCheckoutTime);
-                    const p = new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Ho_Chi_Minh', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(d);
-                    return `${p.find(x => x.type === 'year')?.value}-${p.find(x => x.type === 'month')?.value}-${p.find(x => x.type === 'day')?.value}`;
-                  })()}
-                  onChange={(e) => setNewCheckoutDate(e.target.value)}
-                  className="w-full px-4 py-2.5 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 text-sm rounded-xl"
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="block text-xs font-bold text-slate-400 uppercase tracking-wide">New Checkout Time</label>
-                <input
-                  type="time"
-                  value={newCheckoutTime}
-                  onChange={(e) => setNewCheckoutTime(e.target.value)}
-                  className="w-full px-4 py-2.5 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 text-sm rounded-xl"
-                />
-              </div>
-              <div className="p-3 bg-amber-50 border border-amber-100 rounded-xl text-amber-800 text-xs flex gap-2">
-                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-amber-600" />
-                <span>Extending your stay may require additional payment. You will be redirected to VNPay to confirm.</span>
-              </div>
-            </div>
-            <div className="px-6 pb-6 flex gap-3">
-              <button
-                onClick={() => setShowExtendModal(false)}
-                disabled={isSavingExtend}
-                className="py-2.5 px-4 border border-slate-200 hover:bg-slate-50 text-slate-600 text-xs font-bold rounded-xl transition-all"
-              >
-                Cancel
-              </button>
-              {extendingBooking.bookingStatus === 'Pending' ? (
-                <>
+                <div className="px-6 pb-6 flex gap-3">
                   <button
-                    onClick={() => handleSaveExtend(true)}
-                    disabled={isSavingExtend}
-                    className="flex-1 py-2.5 bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 disabled:opacity-50"
+                    onClick={() => setShowExtendModal(false)}
+                    className="py-2.5 px-4 border border-slate-200 hover:bg-slate-50 text-slate-600 text-xs font-bold rounded-xl transition-all"
                   >
-                    Pay Later
+                    Cancel
                   </button>
                   <button
-                    onClick={() => handleSaveExtend(false)}
-                    disabled={isSavingExtend}
+                    onClick={handlePreviewExtend}
+                    disabled={isPreviewLoading}
                     className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 disabled:opacity-50"
                   >
-                    {isSavingExtend ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Saving...</> : 'Pay Now'}
+                    {isPreviewLoading ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Calculating...</> : 'Preview Fee →'}
                   </button>
-                </>
-              ) : (
-                <button
-                  onClick={() => handleSaveExtend(false)}
-                  disabled={isSavingExtend}
-                  className="flex-grow py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 disabled:opacity-50"
-                >
-                  {isSavingExtend ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Saving...</> : 'Confirm Extension'}
-                </button>
-              )}
-            </div>
+                </div>
+              </>
+            )}
+
+            {/* STEP 2: CONFIRM & VNPAY PAYMENT */}
+            {extendStep === 'confirm' && extendPreview && (
+              <>
+                <div className="p-6 space-y-4">
+                  {/* Fee Breakdown Card */}
+                  <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-2.5">
+                    <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Bill Breakdown</p>
+                    <div className="flex justify-between text-xs">
+                      <span className="text-slate-500">Base Parking Fee</span>
+                      <span className="font-semibold text-slate-700">
+                        {Math.round(extendPreview.originalFee).toLocaleString('vi-VN')} đ
+                      </span>
+                    </div>
+
+                    {extendPreview.penaltyFee && extendPreview.penaltyFee > 0 ? (
+                      <div className="flex justify-between text-xs">
+                        <span className="text-slate-500 font-semibold">Overstay Penalty Fee</span>
+                        <span className="font-bold text-red-600">
+                          +{Math.round(extendPreview.penaltyFee).toLocaleString('vi-VN')} đ
+                        </span>
+                      </div>
+                    ) : null}
+
+                    <div className="flex justify-between text-xs">
+                      <span className="text-slate-500">4-Hour Extension Fee</span>
+                      <span className="font-bold text-emerald-600">
+                        +{Math.round(extendPreview.additionalFee - (extendPreview.penaltyFee || 0)).toLocaleString('vi-VN')} đ
+                      </span>
+                    </div>
+
+                    <div className="flex justify-between text-xs border-t border-slate-200 pt-2 mt-1">
+                      <span className="font-bold text-slate-700">Total Additional Payment</span>
+                      <span className="font-extrabold text-blue-600 text-sm">
+                        {Math.round(extendPreview.additionalFee).toLocaleString('vi-VN')} đ
+                      </span>
+                    </div>
+                  </div>
+
+
+                  {/* New Checkout Summary */}
+                  <div className="p-3 bg-emerald-50/60 border border-emerald-200/60 rounded-xl flex items-center justify-between text-xs">
+                    <span className="font-semibold text-emerald-800">New Checkout Time:</span>
+                    <span className="font-mono font-bold text-emerald-900">
+                      {new Date(extendPreview.adjustedEndTime).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}
+                    </span>
+                  </div>
+
+                  {/* Buffer / Capped Alert */}
+                  {extendPreview.isCapped && (
+                    <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-xs flex gap-2">
+                      <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-amber-600" />
+                      <span>
+                        Requested time was capped to <strong>{new Date(extendPreview.adjustedEndTime).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}</strong> due to upcoming booking buffer rules.
+                      </span>
+                    </div>
+                  )}
+
+                  {/* VNPay-only notice */}
+                  <div className="p-3 bg-blue-50 border border-blue-100 rounded-xl text-blue-800 text-xs flex gap-2">
+                    <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-blue-600" />
+                    <span>Payment for stay extensions must be processed online via <strong>VNPay</strong>.</span>
+                  </div>
+                </div>
+
+                <div className="px-6 pb-6 flex gap-3">
+                  <button
+                    onClick={() => setExtendStep('picker')}
+                    disabled={isSavingExtend}
+                    className="py-2.5 px-4 border border-slate-200 hover:bg-slate-50 text-slate-600 text-xs font-bold rounded-xl transition-all"
+                  >
+                    ← Back
+                  </button>
+                  <button
+                    onClick={handleConfirmExtend}
+                    disabled={isSavingExtend}
+                    className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-2 disabled:opacity-50 shadow-sm"
+                  >
+                    {isSavingExtend ? (
+                      <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Redirecting...</>
+                    ) : (
+                      <>
+                        <span>Pay via VNPay ({Math.round(extendPreview.additionalFee).toLocaleString('vi-VN')} đ)</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>,
         document.body

@@ -31,7 +31,6 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/features/auth';
 import { api } from '@/lib/api/client';
 import { 
-  Upload, 
   CheckCircle, 
   Clock, 
   Phone, 
@@ -69,7 +68,6 @@ export default function DriverReports() {
   const [incidentTypes, setIncidentTypes] = useState<IncidentType[]>([]);
   const [selectedTypeId, setSelectedTypeId] = useState<number | ''>('');
   const [description, setDescription] = useState<string>('');
-  const [evidenceName, setEvidenceName] = useState<string>('');
   
   // Real DB data states
   const [reports, setReports] = useState<IncidentReport[]>([]);
@@ -145,13 +143,6 @@ export default function DriverReports() {
   }, [fetchReportData]);
 
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      setEvidenceName(e.target.files[0].name);
-      showToast(`File attached successfully: ${e.target.files[0].name}`, 'success');
-    }
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!description.trim()) {
@@ -181,7 +172,6 @@ export default function DriverReports() {
       if (res.success) {
         showToast('Your incident report has been submitted successfully!', 'success');
         setDescription('');
-        setEvidenceName('');
         // Reload data from DB
         fetchReportData();
       } else {
@@ -194,6 +184,7 @@ export default function DriverReports() {
       setIsSubmitting(false);
     }
   };
+
 
   return (
     <div className="p-8 max-w-[1200px] mx-auto space-y-6">
@@ -272,23 +263,6 @@ export default function DriverReports() {
                     className="w-full px-4 py-2.5 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 text-xs font-medium rounded-xl resize-none"
                     required
                   ></textarea>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-1.5">Evidence Upload (Optional)</label>
-                  <div className="relative border-2 border-dashed border-slate-200 rounded-xl p-6 bg-slate-50/50 hover:bg-slate-50 hover:border-emerald-500/50 transition-all flex flex-col items-center justify-center cursor-pointer group">
-                    <input 
-                      type="file"
-                      accept="image/*"
-                      onChange={handleFileChange}
-                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                    />
-                    <Upload className="w-8 h-8 text-slate-400 group-hover:text-emerald-600 transition-colors mb-2" />
-                    <p className="text-xs font-bold text-slate-600">
-                      {evidenceName ? `Attached: ${evidenceName}` : 'Click or drag photo evidence here'}
-                    </p>
-                    <p className="text-[10px] text-slate-400 mt-1">Accepts JPG, PNG up to 10MB</p>
-                  </div>
                 </div>
 
                 <div className="flex justify-end pt-2 border-t border-slate-100">

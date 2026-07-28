@@ -44,7 +44,8 @@ import {
   ChevronRight,
   History,
   TrendingUp,
-  BarChart2
+  BarChart2,
+  CreditCard
 } from 'lucide-react';
 
 interface ParkingSessionRecord {
@@ -137,6 +138,7 @@ export default function DriverParkingHistory() {
   ]);
   const [isLoading, setIsLoading] = useState(true);
   const [totalDurationHours, setTotalDurationHours] = useState(0);
+  const [totalFeePaid, setTotalFeePaid] = useState(0); // Mục 5: Tổng phí đã trả
   const [mostUsedZone, setMostUsedZone] = useState('—');
 
   const fetchHistory = useCallback(async () => {
@@ -209,6 +211,12 @@ export default function DriverParkingHistory() {
         }
       });
       setTotalDurationHours(totalHours);
+
+      // Mục 5: Tính tổng phí đã trả (chỉ các session có status completed)
+      const totalPaid = normalized
+        .filter(s => s.status === 'completed')
+        .reduce((acc, s) => acc + s.fee, 0);
+      setTotalFeePaid(totalPaid);
 
       const topZone = Object.entries(zoneCount).sort((a, b) => b[1] - a[1])[0];
       setMostUsedZone(topZone ? topZone[0] : '—');
@@ -395,6 +403,23 @@ export default function DriverParkingHistory() {
             </h3>
           </div>
         </div>
+
+        {/* Mục 5: Thêm stat card Total Fee Paid */}
+        <div className="bg-white border border-[#e2e8f0] p-5 rounded-2xl shadow-sm hover:shadow-md transition-all">
+          <div className="flex justify-between items-start">
+            <div className="p-2.5 rounded-xl bg-blue-50 text-blue-600">
+              <CreditCard className="w-5 h-5" />
+            </div>
+          </div>
+          <div className="mt-4">
+            <p className="text-slate-400 text-xs font-bold uppercase tracking-wider">Total Fee Paid</p>
+            <h3 className="text-xl font-extrabold text-blue-600 mt-1">
+              {isLoading ? '—' : `${Math.round(totalFeePaid).toLocaleString('vi-VN')} đ`}
+            </h3>
+            <p className="text-[10px] text-slate-400 mt-0.5">Completed sessions only</p>
+          </div>
+        </div>
+
       </section>
 
       {/* TABLE */}

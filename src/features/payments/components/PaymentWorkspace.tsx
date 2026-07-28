@@ -19,7 +19,7 @@ import {
   BarChart2
 } from 'lucide-react';
 
-// --- Sparkline Chart with hover tooltip (pure SVG) ---
+// --- Sparkline Chart with hover tooltip (pure SVG line + HTML crisp text) ---
 function RevenueSparkline({ data, formatCurrency }: {
   data: { label: string; value: number }[];
   formatCurrency: (n: number) => string;
@@ -32,7 +32,7 @@ function RevenueSparkline({ data, formatCurrency }: {
       </div>
     );
   }
-  const W = 900; const H = 160; const PAD = { t: 20, r: 24, b: 36, l: 16 };
+  const W = 900; const H = 160; const PAD = { t: 20, r: 24, b: 36, l: 24 };
   const innerW = W - PAD.l - PAD.r;
   const innerH = H - PAD.t - PAD.b;
   const vals = data.map(d => d.value);
@@ -48,7 +48,7 @@ function RevenueSparkline({ data, formatCurrency }: {
     ` L${toX(data.length - 1)},${PAD.t + innerH} L${toX(0)},${PAD.t + innerH} Z`;
   const labelStep = Math.ceil(data.length / 8);
 
-  const handleMouseMove = (e: React.MouseEvent<SVGSVGElement>) => {
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
     const relX = ((e.clientX - rect.left) / rect.width) * W;
     let nearest = 0; let minDist = Infinity;
@@ -59,67 +59,80 @@ function RevenueSparkline({ data, formatCurrency }: {
   const tip = tooltip !== null ? data[tooltip.idx] : null;
   const tipX = tooltip !== null ? toX(tooltip.idx) : 0;
   const tipY = tooltip !== null ? toY(data[tooltip.idx].value) : 0;
-  // clamp tooltip box so it doesn't overflow
-  const boxW = 160; const boxH = 36;
-  const boxX = Math.min(Math.max(tipX - boxW / 2, PAD.l), W - PAD.r - boxW);
-  const boxY = tipY - boxH - 10 < PAD.t ? tipY + 12 : tipY - boxH - 8;
+  const tipPctX = (tipX / W) * 100;
+  const tipPctY = (tipY / H) * 100;
 
   return (
-    <svg
-      viewBox={`0 0 ${W} ${H}`}
-      className="w-full h-full cursor-crosshair"
-      preserveAspectRatio="none"
+    <div 
+      className="relative w-full h-full cursor-crosshair select-none"
       onMouseMove={handleMouseMove}
       onMouseLeave={() => setTooltip(null)}
     >
-      <defs>
-        <linearGradient id="revGrad" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#006d43" stopOpacity="0.18" />
-          <stop offset="100%" stopColor="#006d43" stopOpacity="0" />
-        </linearGradient>
-      </defs>
-      {[0, 0.25, 0.5, 0.75, 1].map((r, i) => (
-        <line key={i} x1={PAD.l} y1={PAD.t + innerH * (1 - r)}
-          x2={PAD.l + innerW} y2={PAD.t + innerH * (1 - r)}
-          stroke="#f1f5f9" strokeWidth="1" />
-      ))}
-      <path d={areaPath} fill="url(#revGrad)" />
-      <polyline points={pts} fill="none" stroke="#006d43" strokeWidth="2"
-        strokeLinejoin="round" strokeLinecap="round" />
-      {data.map((d, i) => (
-        <circle key={i} cx={toX(i)} cy={toY(d.value)} r={tooltip?.idx === i ? 5 : 3}
-          fill={tooltip?.idx === i ? '#006d43' : 'white'}
-          stroke="#006d43" strokeWidth="1.5"
-          style={{ transition: 'r 0.1s, fill 0.1s' }}
-        />
-      ))}
-      {data.map((d, i) => {
-        if (i % labelStep !== 0 && i !== data.length - 1) return null;
-        return (
-          <text key={i} x={toX(i)} y={H - 6}
-            textAnchor="middle" fontSize="9" fill="#94a3b8" fontFamily="Inter, sans-serif">
-            {d.label}
-          </text>
-        );
-      })}
-      {/* Hover crosshair + tooltip */}
-      {tip && (
-        <g>
+      <svg
+        viewBox={`0 0 ${W} ${H}`}
+        className="w-full h-full"
+        preserveAspectRatio="none"
+      >
+        <defs>
+          <linearGradient id="revGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#006d43" stopOpacity="0.18" />
+            <stop offset="100%" stopColor="#006d43" stopOpacity="0" />
+          </linearGradient>
+        </defs>
+        {[0, 0.25, 0.5, 0.75, 1].map((r, i) => (
+          <line key={i} x1={PAD.l} y1={PAD.t + innerH * (1 - r)}
+            x2={PAD.l + innerW} y2={PAD.t + innerH * (1 - r)}
+            stroke="#f1f5f9" strokeWidth="1" />
+        ))}
+        <path d={areaPath} fill="url(#revGrad)" />
+        <polyline points={pts} fill="none" stroke="#006d43" strokeWidth="2"
+          strokeLinejoin="round" strokeLinecap="round" />
+        {data.map((d, i) => (
+          <circle key={i} cx={toX(i)} cy={toY(d.value)} r={tooltip?.idx === i ? 5 : 3}
+            fill={tooltip?.idx === i ? '#006d43' : 'white'}
+            stroke="#006d43" strokeWidth="1.5"
+            style={{ transition: 'r 0.1s, fill 0.1s' }}
+          />
+        ))}
+        {tip && (
           <line x1={tipX} y1={PAD.t} x2={tipX} y2={PAD.t + innerH}
             stroke="#006d43" strokeWidth="1" strokeDasharray="4 3" opacity="0.5" />
-          <rect x={boxX} y={boxY} width={boxW} height={boxH} rx="6"
-            fill="#1e293b" opacity="0.92" />
-          <text x={boxX + boxW / 2} y={boxY + 13}
-            textAnchor="middle" fontSize="9" fill="#94a3b8" fontFamily="Inter, sans-serif">
-            {tip.label}
-          </text>
-          <text x={boxX + boxW / 2} y={boxY + 27}
-            textAnchor="middle" fontSize="11" fontWeight="700" fill="#ffffff" fontFamily="Inter, sans-serif">
-            {formatCurrency(tip.value)}
-          </text>
-        </g>
+        )}
+      </svg>
+
+      {/* HTML X-Axis Labels (Not stretched by SVG preserveAspectRatio) */}
+      <div className="absolute bottom-1 left-0 right-0 pointer-events-none">
+        {data.map((d, i) => {
+          if (i % labelStep !== 0 && i !== data.length - 1) return null;
+          const leftPct = (toX(i) / W) * 100;
+          return (
+            <span
+              key={i}
+              className="absolute text-[10px] text-slate-400 font-medium transform -translate-x-1/2"
+              style={{ left: `${leftPct}%` }}
+            >
+              {d.label}
+            </span>
+          );
+        })}
+      </div>
+
+      {/* HTML Hover Tooltip Box (Not stretched by SVG preserveAspectRatio) */}
+      {tip && (
+        <div
+          className="absolute z-20 pointer-events-none transform -translate-x-1/2 transition-all duration-75"
+          style={{
+            left: `${Math.min(Math.max(tipPctX, 10), 90)}%`,
+            top: tipPctY < 35 ? `${tipPctY + 12}%` : `${tipPctY - 45}%`
+          }}
+        >
+          <div className="bg-slate-800/95 text-white px-3.5 py-1.5 rounded-xl shadow-xl border border-slate-700/80 backdrop-blur-sm text-center min-w-[120px]">
+            <div className="text-[10px] text-slate-300 font-medium tracking-wide">{tip.label}</div>
+            <div className="text-xs font-extrabold text-emerald-400 mt-0.5 tracking-tight">{formatCurrency(tip.value)}</div>
+          </div>
+        </div>
       )}
-    </svg>
+    </div>
   );
 }
 

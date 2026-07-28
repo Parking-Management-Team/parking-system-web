@@ -7,7 +7,7 @@
  * - Quản lý danh sách phương tiện cá nhân của tài xế (Ô tô, Xe máy).
  * - Render thẻ xe trực quan: Biển số, loại xe, model/hãng xe, màu sơn (badge màu hex), trạng thái xe (Đang gửi trong bãi / Đã ra ngoài).
  * - Modal Thêm phương tiện mới (Add Vehicle Modal) với kiểm tra định dạng biển số Việt Nam.
- * - Modal Chỉnh sửa thông tin phương tiện (Edit Vehicle) & Modal Xóa phương tiện (Delete Vehicle).
+ * - Modal Xóa phương tiện (Delete Vehicle).
  * - Xem nhật ký lượt gửi xe liên quan tới từng xe cụ thể.
  * 
  * ⚙️ KẾT NỐI API BACKEND (ASP.NET Core Controllers):
@@ -61,6 +61,19 @@ interface Vehicle {
   registeredAt?: string;
 }
 
+// ─── Regex chuẩn biển số Việt Nam ────────────────────────────────────────────
+// Dạng: 2 chữ số + 1-2 chữ hoa + 4-5 chữ số (sau khi strip ký tự không phải A-Z0-9)
+// Ví dụ hợp lệ: 30A12345, 59AB1234, 29G1234, 51F12345
+const VN_PLATE_REGEX = /^\d{2}[A-Z]{1,2}\d{4,5}$/;
+
+function normalizePlateForValidation(raw: string): string {
+  return raw.toUpperCase().replace(/[^A-Z0-9]/g, '');
+}
+
+function isValidVnPlate(raw: string): boolean {
+  return VN_PLATE_REGEX.test(normalizePlateForValidation(raw));
+}
+
 export default function DriverVehicles() {
   const { user, showToast } = useAuth();
 
@@ -70,35 +83,14 @@ export default function DriverVehicles() {
   const [mounted, setMounted] = useState(false);
   useEffect(() => { setMounted(true); }, []);
 
-  // Default vehicle state (persisted in localStorage)
-  const [defaultVehicleId, setDefaultVehicleId] = useState<number | null>(null);
-
-  // Load default vehicle from localStorage after mount
-  useEffect(() => {
-    if (!user?.id) return;
-    const stored = localStorage.getItem(`default_vehicle_${user.id}`);
-    if (stored) setDefaultVehicleId(Number(stored));
-  }, [user]);
-
-  const handleSetDefault = (vehicleId: number) => {
-    if (!user?.id) return;
-    if (defaultVehicleId === vehicleId) {
-      // Toggle off
-      localStorage.removeItem(`default_vehicle_${user.id}`);
-      setDefaultVehicleId(null);
-      showToast('Default vehicle cleared.', 'info');
-    } else {
-      localStorage.setItem(`default_vehicle_${user.id}`, String(vehicleId));
-      setDefaultVehicleId(vehicleId);
-      showToast('Default vehicle updated!', 'success');
-    }
-  };
-
   // Add Vehicle Modal
   const [showAddModal, setShowAddModal] = useState(false);
   const [addPlate, setAddPlate] = useState('');
   const [addTypeId, setAddTypeId] = useState<number | ''>('');
   const [isSaving, setIsSaving] = useState(false);
+
+  // Real-time plate validation state
+  const [plateError, setPlateError] = useState<string>('');
 
   // Auto-detect vehicle type based on license plate input
   useEffect(() => {
@@ -120,6 +112,19 @@ export default function DriverVehicles() {
       setAddTypeId(matchedType.id);
     }
   }, [addPlate, vehicleTypes]);
+
+  // Real-time plate validation
+  useEffect(() => {
+    if (!addPlate.trim()) {
+      setPlateError('');
+      return;
+    }
+    if (!isValidVnPlate(addPlate)) {
+      setPlateError('Invalid format. Vietnamese plates: 2 digits + 1–2 letters + 4–5 digits (e.g. 30A-123.45 or 59AB-1234)');
+    } else {
+      setPlateError('');
+    }
+  }, [addPlate]);
 
   // Delete confirm modal
   const [deleteVehicleId, setDeleteVehicleId] = useState<number | null>(null);
@@ -181,10 +186,45 @@ export default function DriverVehicles() {
       return;
     }
 
+    // ── Mục 2: Validate format biển số trước khi gọi API ──────────────────
+    const normalized = normalizePlateForValidation(addPlate);
+    if (!VN_PLATE_REGEX.test(normalized)) {
+      showToast(
+        'Invalid Vietnamese plate format. Example: 30A-123.45 or 59AB-1234.',
+        'error'
+      );
+      return;
+    }
+
+    // ── Mục 2: Validate loại xe vs biển số (detect mismatch) ──────────────
+    const detected = detectVehicleTypeFromPlate(addPlate);
+    const selectedType = vehicleTypes.find(t => t.id === Number(addTypeId));
+    const selectedName = selectedType?.name?.toLowerCase() ?? '';
+    const isSelectedMotorcycle =
+      selectedName.includes('motor') ||
+      selectedName.includes('bike') ||
+      selectedName.includes('scoot') ||
+      selectedName.includes('máy');
+
+    if (detected === 'Motorcycle' && !isSelectedMotorcycle) {
+      showToast(
+        'This plate format is for a Motorcycle. Please select Motorcycle as the vehicle type.',
+        'error'
+      );
+      return;
+    }
+    if (detected === 'Car' && isSelectedMotorcycle) {
+      showToast(
+        'This plate format is for a Car/Truck. Please select Car as the vehicle type.',
+        'error'
+      );
+      return;
+    }
+
     setIsSaving(true);
     try {
       await api.post('/vehicles', {
-        licensePlate: addPlate.toUpperCase().replace(/[^A-Z0-9]/g, ''),
+        licensePlate: normalized,
         vehicleTypeId: Number(addTypeId),
         accountId: user?.id,
       });
@@ -192,9 +232,11 @@ export default function DriverVehicles() {
       setShowAddModal(false);
       setAddPlate('');
       setAddTypeId('');
+      setPlateError('');
       fetchData();
     } catch (err: any) {
       console.error('Error adding vehicle:', err);
+      // ── Mục 3: Surface BE error (e.g. LICENSE_PLATE_EXISTS) rõ ràng ────
       const msg = err?.data?.message || err?.message || 'Failed to register vehicle.';
       showToast(msg, 'error');
     } finally {
@@ -208,11 +250,6 @@ export default function DriverVehicles() {
     try {
       await api.delete(`/vehicles/${deleteVehicleId}`);
       showToast('Vehicle removed successfully.', 'info');
-      // Clear default if the deleted vehicle was the default
-      if (deleteVehicleId === defaultVehicleId && user?.id) {
-        localStorage.removeItem(`default_vehicle_${user.id}`);
-        setDefaultVehicleId(null);
-      }
       setDeleteVehicleId(null);
       fetchData();
     } catch (err: any) {
@@ -256,14 +293,8 @@ export default function DriverVehicles() {
             <RefreshCw className="w-4 h-4" />
             Refresh
           </button>
-          <button 
-            onClick={() => { setAddPlate(''); setAddTypeId(''); setShowAddModal(true); }}
-            className="flex items-center gap-1.5 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-sm transition-all"
-          >
-            <Plus className="w-4 h-4" />
-            Add Vehicle
-          </button>
         </div>
+
       </section>
 
       {/* INFO BANNER */}
@@ -298,87 +329,54 @@ export default function DriverVehicles() {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {vehicles.map((vehicle) => {
-            const isDefault = defaultVehicleId === vehicle.id;
-            return (
-              <div
-                key={vehicle.id}
-                className={`bg-white border rounded-2xl p-6 shadow-sm hover:shadow-md transition-all ${
-                  isDefault ? 'border-emerald-400 ring-1 ring-emerald-400/30' : 'border-[#e2e8f0]'
-                }`}
-              >
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex items-center gap-4">
-                    <div className="w-14 h-14 bg-slate-50 border border-[#e2e8f0] rounded-2xl flex items-center justify-center text-2xl shrink-0 relative">
-                      {getTypeIcon(vehicle.vehicleTypeName)}
-                      {isDefault && (
-                        <span className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-emerald-500 text-white rounded-full flex items-center justify-center text-[10px] font-bold leading-none">
-                          ✓
-                        </span>
-                      )}
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <h3 className="font-extrabold text-[#1B2A41] text-lg font-mono tracking-wide">
-                          {formatPlate(vehicle.licensePlate)}
-                        </h3>
-                        {isDefault && (
-                          <span className="text-[9px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded-full uppercase tracking-wide">
-                            Default
-                          </span>
-                        )}
-                      </div>
-                      <span className="inline-block mt-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200/50 px-2 py-0.5 rounded-full uppercase tracking-wide">
-                        {vehicle.vehicleTypeName || 'Vehicle'}
-                      </span>
-                    </div>
+          {vehicles.map((vehicle) => (
+            <div
+              key={vehicle.id}
+              className="bg-white border border-[#e2e8f0] rounded-2xl p-6 shadow-sm hover:shadow-md transition-all"
+            >
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex items-center gap-4">
+                  <div className="w-14 h-14 bg-slate-50 border border-[#e2e8f0] rounded-2xl flex items-center justify-center text-2xl shrink-0">
+                    {getTypeIcon(vehicle.vehicleTypeName)}
                   </div>
-                  <div className="flex items-center gap-1.5">
-                    {/* Set as Default button - replaces the star icon */}
-                    <button
-                      onClick={() => handleSetDefault(vehicle.id)}
-                      title={isDefault ? 'Clear default vehicle' : 'Set as default vehicle'}
-                      className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[10px] font-bold transition-all border ${
-                        isDefault
-                          ? 'text-emerald-700 bg-emerald-50 border-emerald-200 hover:bg-emerald-100'
-                          : 'text-slate-400 bg-white border-slate-200 hover:text-emerald-600 hover:border-emerald-300 hover:bg-emerald-50'
-                      }`}
-                    >
-                      {isDefault ? (
-                        <>
-                          <span className="text-emerald-500">&#10003;</span>
-                          Default
-                        </>
-                      ) : (
-                        'Set as Default'
-                      )}
-                    </button>
-                    <button
-                      onClick={() => setDeleteVehicleId(vehicle.id)}
-                      className="p-2 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-all"
-                      title="Remove vehicle"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-extrabold text-[#1B2A41] text-lg font-mono tracking-wide">
+                        {formatPlate(vehicle.licensePlate)}
+                      </h3>
+                    </div>
+                    <span className="inline-block mt-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200/50 px-2 py-0.5 rounded-full uppercase tracking-wide">
+                      {vehicle.vehicleTypeName || 'Vehicle'}
+                    </span>
                   </div>
                 </div>
-
-                <div className="mt-5 pt-4 border-t border-slate-100 flex items-center gap-2 text-xs text-slate-500">
-                  <CheckCircle className="w-4 h-4 text-emerald-500" />
-                  <span className="font-medium">Verified · Gate recognition active</span>
-                  {vehicle.registeredAt && (
-                    <span className="ml-auto text-slate-300 font-mono">
-                      Since {new Date(vehicle.registeredAt).toLocaleDateString()}
-                    </span>
-                  )}
+                <div className="flex items-center gap-1.5">
+                  {/* Mục 1: Nút "Set as Default" đã được xoá */}
+                  <button
+                    onClick={() => setDeleteVehicleId(vehicle.id)}
+                    className="p-2 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-all"
+                    title="Remove vehicle"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
                 </div>
               </div>
-            );
-          })}
+
+              <div className="mt-5 pt-4 border-t border-slate-100 flex items-center gap-2 text-xs text-slate-500">
+                <CheckCircle className="w-4 h-4 text-emerald-500" />
+                <span className="font-medium">Verified · Gate recognition active</span>
+                {vehicle.registeredAt && (
+                  <span className="ml-auto text-slate-300 font-mono">
+                    Since {new Date(vehicle.registeredAt).toLocaleDateString()}
+                  </span>
+                )}
+              </div>
+            </div>
+          ))}
 
           {/* Add new vehicle card */}
           <button
-            onClick={() => { setAddPlate(''); setAddTypeId(''); setShowAddModal(true); }}
+            onClick={() => { setAddPlate(''); setAddTypeId(''); setPlateError(''); setShowAddModal(true); }}
             className="bg-slate-50 border-2 border-dashed border-slate-200 rounded-2xl p-6 flex flex-col items-center justify-center gap-3 text-slate-400 hover:border-emerald-500/50 hover:text-emerald-600 hover:bg-emerald-50/20 transition-all group min-h-[140px]"
           >
             <div className="w-12 h-12 rounded-2xl border-2 border-dashed border-slate-300 group-hover:border-emerald-500/50 flex items-center justify-center transition-all">
@@ -407,7 +405,7 @@ export default function DriverVehicles() {
             </div>
 
             <form onSubmit={handleAddVehicle} className="p-6 space-y-5">
-              {/* License Plate */}
+              {/* License Plate — Mục 2: Thêm real-time validation hint */}
               <div className="space-y-1.5">
                 <label className="block text-xs font-bold text-slate-400 uppercase tracking-wide">
                   License Plate *
@@ -419,9 +417,30 @@ export default function DriverVehicles() {
                   placeholder="e.g. 30A-123.45"
                   maxLength={20}
                   required
-                  className="w-full px-4 py-3 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 text-sm font-mono font-bold rounded-xl uppercase tracking-wider"
+                  className={`w-full px-4 py-3 border focus:outline-none focus:ring-2 text-sm font-mono font-bold rounded-xl uppercase tracking-wider transition-colors ${
+                    plateError
+                      ? 'border-rose-400 focus:ring-rose-500/20 focus:border-rose-500 bg-rose-50/30'
+                      : addPlate && !plateError
+                        ? 'border-emerald-400 focus:ring-emerald-500/20 focus:border-emerald-600 bg-emerald-50/20'
+                        : 'border-slate-200 focus:ring-emerald-500/20 focus:border-emerald-600'
+                  }`}
                 />
-                <p className="text-[10px] text-slate-400">Enter exactly as shown on your physical plate.</p>
+                {/* Inline validation feedback */}
+                {plateError ? (
+                  <p className="text-[11px] text-rose-600 flex items-start gap-1.5 mt-1">
+                    <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                    {plateError}
+                  </p>
+                ) : addPlate && !plateError ? (
+                  <p className="text-[11px] text-emerald-600 flex items-center gap-1.5 mt-1">
+                    <CheckCircle className="w-3.5 h-3.5 shrink-0" />
+                    Valid Vietnamese plate format.
+                  </p>
+                ) : (
+                  <p className="text-[10px] text-slate-400">
+                    Format: 2 digits + 1–2 letters + 4–5 digits (e.g. <span className="font-mono font-semibold">30A-123.45</span> or <span className="font-mono font-semibold">59AB-1234</span>)
+                  </p>
+                )}
               </div>
 
               {/* Vehicle Type */}
@@ -470,7 +489,7 @@ export default function DriverVehicles() {
                 </button>
                 <button
                   type="submit"
-                  disabled={isSaving || !addPlate || !addTypeId}
+                  disabled={isSaving || !addPlate || !addTypeId || !!plateError}
                   className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 disabled:opacity-50"
                 >
                   {isSaving ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Registering...</> : 'Register Vehicle'}

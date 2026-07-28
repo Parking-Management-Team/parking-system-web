@@ -1091,32 +1091,33 @@ export default function DriverDashboard() {
                       )}
                     </div>
 
-                    {/* FIXED RIGHT COLUMN — Exit Gate 1 (top) + Exit Gate 2 (bottom) */}
-                    <div className="flex flex-col justify-between items-center ml-3 shrink-0 py-1" style={{ minHeight: isLargeMap ? 360 : 280 }}>
+                    {/* FIXED RIGHT COLUMN — Exit Gate 1 (top-right) + Exit Gate 2 (bottom-right) */}
+                    <div className="flex flex-col justify-between items-center ml-2 sm:ml-3 shrink-0 py-1" style={{ minHeight: isLargeMap ? 340 : 260 }}>
                       {/* Exit Gate 1 — Top-Right Corner */}
-                      <div className={`flex flex-col items-center justify-end shrink-0 select-none pb-1 border-l-2 border-r-2 border-slate-200 border-dashed bg-slate-50/40 ${isLargeMap ? 'w-[36px] h-[88px] px-1' : 'w-[56px] h-[112px] px-3'}`}>
-                        <div className={`bg-white border-2 border-slate-400 rounded-full flex flex-col items-center justify-around shadow-sm shrink-0 py-1 ${isLargeMap ? 'w-4 h-12' : 'w-5 h-16 py-1.5'}`}>
+                      <div className={`flex flex-col items-center justify-end shrink-0 select-none pb-1 border-l-2 border-r-2 border-slate-200 border-dashed bg-slate-50/40 ${isLargeMap ? 'w-[28px] sm:w-[32px] md:w-[36px] h-[70px] sm:h-[78px] md:h-[84px] px-1' : 'w-[40px] sm:w-[46px] md:w-[52px] h-[80px] sm:h-[92px] md:h-[104px] px-1.5'}`}>
+                        <div className={`bg-white border-2 border-slate-400 rounded-full flex flex-col items-center justify-around shadow-sm shrink-0 py-1 ${isLargeMap ? 'w-3.5 h-10' : 'w-4.5 h-14 py-1'}`}>
                           <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></span>
                           <span className="w-1.5 h-1.5 bg-slate-400 rounded-full"></span>
                         </div>
-                        <div className="text-[8px] font-black text-emerald-600 mt-1 flex flex-col items-center leading-none">
+                        <div className="text-[7px] sm:text-[8px] font-black text-emerald-600 mt-1 flex flex-col items-center leading-none">
                           <span>← EXIT</span>
-                          <span className="text-[6px] text-[#006d43] mt-0.5">GATE 1</span>
+                          <span className="text-[5px] sm:text-[6px] text-[#006d43] mt-0.5">GATE 1</span>
                         </div>
                       </div>
 
                       {/* Exit Gate 2 — Bottom-Right Corner */}
-                      <div className={`flex flex-col items-center justify-end shrink-0 select-none pb-1 border-l-2 border-r-2 border-slate-200 border-dashed bg-slate-50/40 ${isLargeMap ? 'w-[36px] h-[88px] px-1' : 'w-[56px] h-[112px] px-3'}`}>
-                        <div className={`bg-white border-2 border-slate-400 rounded-full flex flex-col items-center justify-around shadow-sm shrink-0 py-1 ${isLargeMap ? 'w-4 h-12' : 'w-5 h-16 py-1.5'}`}>
+                      <div className={`flex flex-col items-center justify-end shrink-0 select-none pb-1 border-l-2 border-r-2 border-slate-200 border-dashed bg-slate-50/40 ${isLargeMap ? 'w-[28px] sm:w-[32px] md:w-[36px] h-[70px] sm:h-[78px] md:h-[84px] px-1' : 'w-[40px] sm:w-[46px] md:w-[52px] h-[80px] sm:h-[92px] md:h-[104px] px-1.5'}`}>
+                        <div className={`bg-white border-2 border-slate-400 rounded-full flex flex-col items-center justify-around shadow-sm shrink-0 py-1 ${isLargeMap ? 'w-3.5 h-10' : 'w-4.5 h-14 py-1'}`}>
                           <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></span>
                           <span className="w-1.5 h-1.5 bg-slate-400 rounded-full"></span>
                         </div>
-                        <div className="text-[8px] font-black text-emerald-600 mt-1 flex flex-col items-center leading-none">
+                        <div className="text-[7px] sm:text-[8px] font-black text-emerald-600 mt-1 flex flex-col items-center leading-none">
                           <span>← EXIT</span>
-                          <span className="text-[6px] text-slate-400 mt-0.5">GATE 2</span>
+                          <span className="text-[5px] sm:text-[6px] text-slate-400 mt-0.5">GATE 2</span>
                         </div>
                       </div>
                     </div>
+
 
                   </div>
                 </div>

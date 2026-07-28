@@ -414,10 +414,7 @@ export default function DriverDashboard() {
     const zonePart = parts[0] || slot.code;
     const numberPart = parts[1] || '';
 
-    const slotSizeClass = isLargeMap 
-      ? 'w-[28px] sm:w-[32px] md:w-[36px] h-[70px] sm:h-[78px] md:h-[84px] p-0.5 text-[8px]' 
-      : 'w-[40px] sm:w-[46px] md:w-[52px] h-[80px] sm:h-[92px] md:h-[104px] p-1';
-
+    const slotSizeClass = isLargeMap ? 'w-[36px] h-[88px] p-1 text-[9px]' : 'w-[56px] h-[112px] p-1.5';
     const codeTextClass = isLargeMap ? 'text-[8px]' : 'text-[10px]';
     const bottomTextClass = isLargeMap ? 'text-[6px]' : 'text-[8px]';
     const carIconClass = isLargeMap ? 'w-4 h-4' : 'w-5 h-5';
@@ -906,13 +903,10 @@ export default function DriverDashboard() {
               <p className="text-xs text-slate-400">No slot data available. Please check back later.</p>
             </div>
           ) : (
-            /* Interactive Floor Plan Map for all Buildings - Auto scaled to fit container frame */
-            <div className="w-full max-w-full overflow-hidden flex flex-col items-center justify-center py-2">
-              <div className="w-full max-w-full flex justify-center">
-                <div className="w-full max-w-[1200px] mx-auto space-y-2 transform scale-[0.78] sm:scale-[0.86] md:scale-[0.93] lg:scale-100 origin-top transition-transform duration-300">
-
-
-
+            /* Interactive Floor Plan Map for all Buildings */
+            <div className="w-full overflow-x-auto overflow-y-auto pb-4 max-w-full" style={{ WebkitOverflowScrolling: 'touch' }}>
+              <div className="py-6 min-w-[1200px]">
+                <div className="w-[1200px] mx-auto space-y-2">
                 {/* Cams Top */}
                 <div className="flex justify-around px-20">
                   <div className="flex flex-col items-center text-slate-400 font-bold text-[9px]">
@@ -978,10 +972,11 @@ export default function DriverDashboard() {
                   </div>
 
                   {/* Right Parking Slot Layout Area + fixed Exit Gate column */}
-                  <div className="flex-1 flex gap-0 overflow-hidden pl-4">
+                  <div className="flex-1 flex gap-0 overflow-x-auto pl-4 items-stretch">
 
                     {/* SLOTS AREA — takes all remaining space */}
-                    <div className="flex-1 flex flex-col justify-between">
+                    <div className="flex-1 flex flex-col justify-between overflow-x-auto min-w-0 pr-2">
+
                       {!isLargeMap ? (
                         /* CASE A: 2-Row Layout (Floor 1 & Floor 3) */
                         <>
@@ -1092,28 +1087,28 @@ export default function DriverDashboard() {
                     </div>
 
                     {/* FIXED RIGHT COLUMN — Exit Gate 1 (top-right) + Exit Gate 2 (bottom-right) */}
-                    <div className="flex flex-col justify-between items-center ml-2 sm:ml-3 shrink-0 py-1" style={{ minHeight: isLargeMap ? 340 : 260 }}>
+                    <div className="flex flex-col justify-between items-center ml-3 shrink-0 py-1 sticky right-0 bg-white z-10 border-l border-slate-200/80 pl-3 shadow-[-4px_0_12px_-4px_rgba(0,0,0,0.05)]" style={{ minHeight: isLargeMap ? 360 : 280 }}>
                       {/* Exit Gate 1 — Top-Right Corner */}
-                      <div className={`flex flex-col items-center justify-end shrink-0 select-none pb-1 border-l-2 border-r-2 border-slate-200 border-dashed bg-slate-50/40 ${isLargeMap ? 'w-[28px] sm:w-[32px] md:w-[36px] h-[70px] sm:h-[78px] md:h-[84px] px-1' : 'w-[40px] sm:w-[46px] md:w-[52px] h-[80px] sm:h-[92px] md:h-[104px] px-1.5'}`}>
-                        <div className={`bg-white border-2 border-slate-400 rounded-full flex flex-col items-center justify-around shadow-sm shrink-0 py-1 ${isLargeMap ? 'w-3.5 h-10' : 'w-4.5 h-14 py-1'}`}>
-                          <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></span>
-                          <span className="w-1.5 h-1.5 bg-slate-400 rounded-full"></span>
+                      <div className={`flex flex-col items-center justify-end shrink-0 select-none pb-1 border-l-2 border-r-2 border-emerald-300 border-dashed bg-emerald-50/40 rounded-lg ${isLargeMap ? 'w-[44px] h-[92px] px-1' : 'w-[60px] h-[116px] px-2'}`}>
+                        <div className={`bg-white border-2 border-emerald-600 rounded-full flex flex-col items-center justify-around shadow-sm shrink-0 py-1 ${isLargeMap ? 'w-4 h-12' : 'w-5 h-16 py-1.5'}`}>
+                          <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse shadow-sm"></span>
+                          <span className="w-1.5 h-1.5 bg-slate-300 rounded-full"></span>
                         </div>
-                        <div className="text-[7px] sm:text-[8px] font-black text-emerald-600 mt-1 flex flex-col items-center leading-none">
+                        <div className="text-[9px] font-black text-emerald-700 mt-1 flex flex-col items-center leading-none">
                           <span>← EXIT</span>
-                          <span className="text-[5px] sm:text-[6px] text-[#006d43] mt-0.5">GATE 1</span>
+                          <span className="text-[7px] text-[#006d43] font-extrabold mt-0.5">GATE 1</span>
                         </div>
                       </div>
 
                       {/* Exit Gate 2 — Bottom-Right Corner */}
-                      <div className={`flex flex-col items-center justify-end shrink-0 select-none pb-1 border-l-2 border-r-2 border-slate-200 border-dashed bg-slate-50/40 ${isLargeMap ? 'w-[28px] sm:w-[32px] md:w-[36px] h-[70px] sm:h-[78px] md:h-[84px] px-1' : 'w-[40px] sm:w-[46px] md:w-[52px] h-[80px] sm:h-[92px] md:h-[104px] px-1.5'}`}>
-                        <div className={`bg-white border-2 border-slate-400 rounded-full flex flex-col items-center justify-around shadow-sm shrink-0 py-1 ${isLargeMap ? 'w-3.5 h-10' : 'w-4.5 h-14 py-1'}`}>
-                          <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></span>
-                          <span className="w-1.5 h-1.5 bg-slate-400 rounded-full"></span>
+                      <div className={`flex flex-col items-center justify-end shrink-0 select-none pb-1 border-l-2 border-r-2 border-emerald-300 border-dashed bg-emerald-50/40 rounded-lg ${isLargeMap ? 'w-[44px] h-[92px] px-1' : 'w-[60px] h-[116px] px-2'}`}>
+                        <div className={`bg-white border-2 border-emerald-600 rounded-full flex flex-col items-center justify-around shadow-sm shrink-0 py-1 ${isLargeMap ? 'w-4 h-12' : 'w-5 h-16 py-1.5'}`}>
+                          <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse shadow-sm"></span>
+                          <span className="w-1.5 h-1.5 bg-slate-300 rounded-full"></span>
                         </div>
-                        <div className="text-[7px] sm:text-[8px] font-black text-emerald-600 mt-1 flex flex-col items-center leading-none">
+                        <div className="text-[9px] font-black text-emerald-700 mt-1 flex flex-col items-center leading-none">
                           <span>← EXIT</span>
-                          <span className="text-[5px] sm:text-[6px] text-slate-400 mt-0.5">GATE 2</span>
+                          <span className="text-[7px] text-[#006d43] font-extrabold mt-0.5">GATE 2</span>
                         </div>
                       </div>
                     </div>

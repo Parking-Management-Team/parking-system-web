@@ -44,7 +44,7 @@ import { createPortal } from "react-dom";
 import { useAuth } from "@/features/auth/context/AuthContext";
 import type { ParkingCard } from "@/features/card/types/card";
 import { incidentService } from "@/features/incident/services/incident.service";
-import type { IncidentType } from "@/features/incident/types";
+import type { Incident, IncidentType } from "@/features/incident/types";
 import {
   createCheckoutPayment,
   fetchCheckoutSessionDetail,
@@ -205,6 +205,9 @@ export default function VehicleCheckout({
   const [showConfirmLostModal, setShowConfirmLostModal] = useState(false);
   const [showNoCardErrorModal, setShowNoCardErrorModal] = useState(false);
   const [showPlateMismatchModal, setShowPlateMismatchModal] = useState(false);
+  const [reportedIncidents, setReportedIncidents] = useState<
+    Record<number, { typeName: string; reportedAt: string; description: string }>
+  >({});
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   // Fee calculation state
@@ -306,12 +309,101 @@ export default function VehicleCheckout({
     setCameraActive(false);
   }, [stream]);
 
+  // Handle LPR Scan
+  const handleScanLicensePlate = async () => {
+    if (!videoRef.current) return;
+    setIsScanning(true);
+    setScanProgress("Capturing frame...");
+
+    try {
+      const canvas = document.createElement("canvas");
+      canvas.width = videoRef.current.videoWidth || 640;
+      canvas.height = videoRef.current.videoHeight || 480;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) throw new Error("Could not get canvas context");
+
+      ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
+      const dataUrl = canvas.toDataURL("image/jpeg");
+      setCapturedImage(dataUrl);
+
+      setScanProgress("Running LPR OCR...");
+      const text = await scanLicensePlate({ image: dataUrl }).then(res => res.licensePlate);
+      setOcrText(text);
+
+      if (text) {
+        setExitPlate(text);
+        showToast(`LPR Detected Plate: ${text}`, "success");
+      } else {
+        showToast("LPR could not detect a valid license plate.", "error");
+      }
+    } catch (err) {
+      console.error("LPR scan error:", err);
+      showToast("LPR scan failed.", "error");
+    } finally {
+      setIsScanning(false);
+      setScanProgress("");
+    }
+  };
+
+  const checkManagerApprovalStatus = async () => {
+    if (!selectedSession) return;
+    setIsReporting(true);
+    try {
+      const sessionIncidents = await incidentService.getBySessionId(selectedSession.id);
+      const openIncident = sessionIncidents.find(
+        (inc) => inc.status === "OPEN" || inc.status === "PROCESSING"
+      );
+
+      if (!openIncident) {
+        // Incident resolved or approved by Manager!
+        setReportedIncidents((prev) => {
+          const next = { ...prev };
+          delete next[selectedSession.id];
+          return next;
+        });
+
+        // Set exit plate to match if needed so checkout can proceed
+        if (!exitPlate) {
+          setExitPlate(selectedSession.licensePlate);
+        }
+
+        showToast(
+          `Manager HAS RESOLVED incident for vehicle ${selectedSession.licensePlate}! Gate unlocked for checkout.`,
+          "success"
+        );
+
+        // Recalculate fee for checkout
+        const checkoutTimeStr = new Date().toISOString();
+        const res = await startCheckout(selectedSession.id, {
+          checkOutTime: checkoutTimeStr,
+          licensePlateOut: normalizeText(selectedSession.licensePlate),
+          outStaffId: STAFF_ID,
+          imageOut: capturedImage || undefined,
+        });
+        setCalculatedFee(res);
+        setLockedCheckoutTime(checkoutTimeStr);
+      } else {
+        showToast(
+          `Incident is still ${openIncident.status || "OPEN"} in Manager Dashboard. Waiting for Manager to approve.`,
+          "info"
+        );
+      }
+    } catch (error) {
+      showToast(
+        error instanceof Error ? error.message : "Could not check Manager approval status.",
+        "error"
+      );
+    } finally {
+      setIsReporting(false);
+    }
+  };
+
   // Switch camera device
   useEffect(() => {
     if (cameraActive && selectedDeviceId) {
       void startCamera();
     }
-  }, [selectedDeviceId]);
+  }, [selectedDeviceId, cameraActive, startCamera]);
 
   // Clean up stream on unmount
   useEffect(() => {
@@ -848,6 +940,21 @@ export default function VehicleCheckout({
             : card,
         ),
       );
+      // Auto-resolve any open incidents for this session upon successful payment & checkout
+      try {
+        const sessionIncidents = await incidentService.getBySessionId(selectedSession.id);
+        for (const inc of sessionIncidents) {
+          if (inc.status === "OPEN" || inc.status === "PROCESSING") {
+            await incidentService.updateStatus(inc.id, {
+              status: "RESOLVED",
+              note: "Auto-resolved upon checkout payment completion.",
+            });
+          }
+        }
+      } catch (incErr) {
+        console.warn("Could not auto-resolve session incidents upon checkout:", incErr);
+      }
+
       resetForNextVehicle();
       onCheckoutSuccess?.();
       showToast("Check-out and payment completed successfully!", "success");
@@ -970,17 +1077,34 @@ export default function VehicleCheckout({
       const rawDesc = `Plate mismatch. Check-in: ${checkInPlate}, Exit: ${currentExit || "None"}`;
       const description = rawDesc.length > 95 ? rawDesc.substring(0, 95) : rawDesc;
 
-      await incidentService.create({
+      const createdInc = await incidentService.create({
         sessionId: selectedSession.id,
         incidentTypeId: mismatchType.id,
         description,
         penaltyFee: null,
       });
 
-      showToast(
-        `Suspected vehicle swap reported to Manager (Incident logged for ${checkInPlate}).`,
-        "info"
-      );
+      // Save reported incident state for UI display
+      setReportedIncidents((prev) => ({
+        ...prev,
+        [selectedSession.id]: {
+          typeName: mismatchType.incidentName || "Plate Mismatch",
+          reportedAt: new Date().toISOString(),
+          description,
+        },
+      }));
+
+      if (createdInc?.autoBlacklisted) {
+        showToast(
+          `🚨 AUTOMATED BLACKLIST TRIGGERED! Vehicle ${checkInPlate} accumulated 3+ violations and was AUTOMATICALLY BLACKLISTED!`,
+          "error"
+        );
+      } else {
+        showToast(
+          `Plate Mismatch incident reported to Manager for ${checkInPlate}. Gate locked pending resolution.`,
+          "info"
+        );
+      }
     } catch (error) {
       showToast(
         error instanceof Error ? error.message : "Could not report plate mismatch incident.",
@@ -1445,18 +1569,28 @@ export default function VehicleCheckout({
                         {selectedSession.cardId && (
                           <button
                             type="button"
-                            disabled={isSubmitting || isReporting}
+                            disabled={isSubmitting || isReporting || isCardMatched}
                             onClick={() => void handleMarkLost()}
-                            className="rounded-lg border border-red-200 bg-red-50 px-2 py-1 text-[10px] font-black text-red-700 hover:bg-red-100 transition disabled:opacity-60"
+                            className={`rounded-lg border px-2 py-1 text-[10px] font-black transition ${
+                              isCardMatched
+                                ? "border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed opacity-40 shadow-none"
+                                : "border-red-200 bg-red-50 text-red-700 hover:bg-red-100 shadow-sm"
+                            }`}
+                            title={isCardMatched ? "Card matched correctly — Lost Card is disabled" : "Report lost card"}
                           >
                             Lost card
                           </button>
                         )}
                         <button
                           type="button"
-                          disabled={isSubmitting || isReporting}
+                          disabled={isSubmitting || isReporting || isPlateMatched}
                           onClick={() => void handlePlateMismatch()}
-                          className="rounded-lg border border-amber-200 bg-amber-50 px-2 py-1 text-[10px] font-black text-amber-700 hover:bg-amber-100 transition disabled:opacity-60"
+                          className={`rounded-lg border px-2 py-1 text-[10px] font-black transition ${
+                            isPlateMatched
+                              ? "border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed opacity-40 shadow-none"
+                              : "border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100 shadow-sm"
+                          }`}
+                          title={isPlateMatched ? "Plate matched correctly — Plate Mismatch is disabled" : "Report plate mismatch"}
                         >
                           Plate Mismatch
                         </button>
@@ -1464,104 +1598,181 @@ export default function VehicleCheckout({
                     </div>
                   </div>
 
-                  {/* Fee calculation and billing */}
-                  {calculatedFee && (
-                    <div className="border-t border-slate-100 pt-3 space-y-3">
-                      <div className="bg-slate-50 rounded-xl p-2.5 border border-slate-100 flex justify-between items-center text-xs">
-                        <div>
-                          <span className="font-semibold text-slate-500 font-mono">
-                            Checkout:{" "}
+                  {/* Active Incident Banner if reported to Manager */}
+                  {reportedIncidents[selectedSession.id] ? (
+                    <div className="rounded-2xl border-2 border-rose-300 bg-rose-50/90 p-4 text-slate-900 space-y-3 shadow-md animate-in fade-in zoom-in-95">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2 text-rose-700 font-black text-xs uppercase tracking-wider">
+                          <span className="material-symbols-outlined text-xl text-rose-600">
+                            report_problem
                           </span>
-                          <span className="font-mono font-bold text-slate-800 mr-2">
-                            {formatDateTime(lockedCheckoutTime)}
-                          </span>
-                          <span className="font-semibold text-slate-500 font-mono">
-                            Fee:{" "}
-                          </span>
-                          <span className="font-bold text-slate-800">
-                            {formatCurrency(calculatedFee.totalFee)}
-                          </span>
-                          {calculatedFee.penaltyFee > 0 && (
-                            <span className="text-red-600 font-bold ml-2">
-                              {" "}
-                              (Penalty:{" "}
-                              {formatCurrency(calculatedFee.penaltyFee)})
-                            </span>
-                          )}
+                          <span>Barrier Locked · Incident Logged</span>
                         </div>
-                        <div>
-                          <span className="font-black text-slate-500">
-                            Due:{" "}
-                          </span>
-                          <span className="font-black text-[#006d43] text-sm">
-                            {formatCurrency(calculatedFee.amountDue)}
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Payment method selection */}
-                      <div className="grid grid-cols-2 gap-3">
-                        {(
-                          ["CASH", "ONLINE_BANKING"] as CheckoutPaymentMethod[]
-                        ).map((method) => (
-                          <button
-                            key={method}
-                            type="button"
-                            onClick={() => setPaymentMethod(method)}
-                            className={`rounded-xl border px-3 py-2 text-xs font-black transition ${
-                              paymentMethod === method
-                                ? "border-emerald-500 bg-emerald-50 text-emerald-700"
-                                : "border-slate-200 bg-white text-slate-500 hover:bg-slate-50"
-                            }`}
-                          >
-                            {method === "CASH" ? "Cash" : "Online banking"}
-                          </button>
-                        ))}
-                      </div>
-
-                      {/* Primary: Payment & Checkout */}
-                      <button
-                        type="button"
-                        disabled={isSubmitting}
-                        onClick={() => void handleCompleteCheckout()}
-                        className="flex w-full items-center justify-center gap-1.5 rounded-xl bg-emerald-600 py-2.5 text-xs font-black text-white shadow-md hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-300 transition"
-                      >
-                        <span className="material-symbols-outlined text-base">
-                          payments
+                        <span className="px-2 py-0.5 rounded-md bg-rose-200 text-rose-900 text-[10px] font-black uppercase">
+                          {reportedIncidents[selectedSession.id].typeName}
                         </span>
-                        {isSubmitting ? "Confirming..." : "Confirm Payment & Checkout"}
-                      </button>
+                      </div>
 
-                      {/* Danger Zone — Unpaid Exit */}
-                      <div className="relative mt-1">
-                        <div className="absolute inset-0 flex items-center" aria-hidden="true">
-                          <div className="w-full border-t border-red-100" />
+                      <p className="text-xs text-rose-800 font-medium leading-relaxed">
+                        Incident <strong>({reportedIncidents[selectedSession.id].typeName})</strong> reported to Manager Tracking Dashboard. Barrier remains <strong>LOCKED</strong>.
+                      </p>
+
+                      <div className="bg-white/90 rounded-xl p-3 border border-rose-200 text-xs font-mono space-y-1.5 shadow-inner">
+                        <div className="flex justify-between items-center">
+                          <span className="text-slate-400 font-semibold">Check-in Plate:</span>
+                          <span className="font-bold text-slate-900">{selectedSession.licensePlate}</span>
                         </div>
-                        <div className="relative flex justify-center">
-                          <span className="bg-white px-2 text-[9px] font-black uppercase tracking-widest text-red-400">
-                            danger zone
+                        <div className="flex justify-between items-center">
+                          <span className="text-slate-400 font-semibold">Checkout Plate:</span>
+                          <span className="font-bold text-rose-600">{exitPlate || "Not Matched"}</span>
+                        </div>
+                        <div className="flex justify-between items-center text-[10px]">
+                          <span className="text-slate-400 font-semibold">Reported At:</span>
+                          <span className="font-semibold text-slate-600">
+                            {formatDateTime(reportedIncidents[selectedSession.id].reportedAt)}
                           </span>
                         </div>
                       </div>
 
-                      <div className="rounded-xl border border-red-100 bg-red-50/60 p-2.5 space-y-2">
-                        <p className="text-[9px] font-bold text-red-500 leading-relaxed">
-                          <span className="font-black">Force-completes</span> session without payment and
-                          automatically adds vehicle to Blacklist.
-                        </p>
+                      <div className="grid grid-cols-3 gap-2 pt-1">
                         <button
                           type="button"
-                          disabled={isSubmitting || isReporting}
-                          onClick={() => void handleUnpaidCheckout()}
-                          className="flex w-full items-center justify-center gap-2 rounded-lg border border-red-300 bg-white py-2 text-xs font-black text-red-700 hover:bg-red-100 hover:border-red-400 transition disabled:opacity-40 disabled:cursor-not-allowed shadow-sm"
+                          onClick={() => {
+                            setSelectedSessionId(null);
+                            setCalculatedFee(null);
+                            setExitPlate("");
+                            setCheckoutCardCode("");
+                            showToast("Cleared session. Gate ready for next vehicle.", "info");
+                          }}
+                          className="py-2.5 px-2 rounded-xl bg-slate-800 text-white font-black text-[11px] hover:bg-slate-900 transition flex items-center justify-center gap-1 shadow-sm"
                         >
-                          <span className="material-symbols-outlined text-sm text-red-600">
-                            block
-                          </span>
-                          {isReporting ? "Processing..." : "Unpaid Exit & Blacklist"}
+                          <span className="material-symbols-outlined text-sm">refresh</span>
+                          Reset Gate
+                        </button>
+
+                        <button
+                          type="button"
+                          disabled={isReporting}
+                          onClick={() => void checkManagerApprovalStatus()}
+                          className="py-2.5 px-2 rounded-xl bg-amber-500 text-white font-black text-[11px] hover:bg-amber-600 transition flex items-center justify-center gap-1 shadow-sm disabled:opacity-60"
+                        >
+                          <span className="material-symbols-outlined text-sm">sync</span>
+                          {isReporting ? "Checking..." : "Check Status"}
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setExitPlate(selectedSession.licensePlate);
+                            showToast(`Plate corrected to ${selectedSession.licensePlate}.`, "success");
+                          }}
+                          className="py-2.5 px-2 rounded-xl bg-emerald-600 text-white font-black text-[11px] hover:bg-emerald-700 transition flex items-center justify-center gap-1 shadow-sm"
+                        >
+                          <span className="material-symbols-outlined text-sm">check_circle</span>
+                          Fix &amp; Match
                         </button>
                       </div>
                     </div>
+                  ) : (
+                    /* Fee calculation and billing */
+                    calculatedFee && (
+                      <div className="border-t border-slate-100 pt-3 space-y-3">
+                        <div className="bg-slate-50 rounded-xl p-2.5 border border-slate-100 flex justify-between items-center text-xs">
+                          <div>
+                            <span className="font-semibold text-slate-500 font-mono">
+                              Checkout:{" "}
+                            </span>
+                            <span className="font-mono font-bold text-slate-800 mr-2">
+                              {formatDateTime(lockedCheckoutTime)}
+                            </span>
+                            <span className="font-semibold text-slate-500 font-mono">
+                              Fee:{" "}
+                            </span>
+                            <span className="font-bold text-slate-800">
+                              {formatCurrency(calculatedFee.totalFee)}
+                            </span>
+                            {calculatedFee.penaltyFee > 0 && (
+                              <span className="text-red-600 font-bold ml-2">
+                                {" "}
+                                (Penalty:{" "}
+                                {formatCurrency(calculatedFee.penaltyFee)})
+                              </span>
+                            )}
+                          </div>
+                          <div>
+                            <span className="font-black text-slate-500">
+                              Due:{" "}
+                            </span>
+                            <span className="font-black text-[#006d43] text-sm">
+                              {formatCurrency(calculatedFee.amountDue)}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Payment method selection */}
+                        <div className="grid grid-cols-2 gap-3">
+                          {(
+                            ["CASH", "ONLINE_BANKING"] as CheckoutPaymentMethod[]
+                          ).map((method) => (
+                            <button
+                              key={method}
+                              type="button"
+                              onClick={() => setPaymentMethod(method)}
+                              className={`rounded-xl border px-3 py-2 text-xs font-black transition ${
+                                paymentMethod === method
+                                  ? "border-emerald-500 bg-emerald-50 text-emerald-700"
+                                  : "border-slate-200 bg-white text-slate-500 hover:bg-slate-50"
+                              }`}
+                            >
+                              {method === "CASH" ? "Cash" : "Online banking"}
+                            </button>
+                          ))}
+                        </div>
+
+                        {/* Primary: Payment & Checkout */}
+                        <button
+                          type="button"
+                          disabled={isSubmitting}
+                          onClick={() => void handleCompleteCheckout()}
+                          className="flex w-full items-center justify-center gap-1.5 rounded-xl bg-emerald-600 py-2.5 text-xs font-black text-white shadow-md hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-300 transition"
+                        >
+                          <span className="material-symbols-outlined text-base">
+                            payments
+                          </span>
+                          {isSubmitting ? "Confirming..." : "Confirm Payment & Checkout"}
+                        </button>
+
+                        {/* Danger Zone — Unpaid Exit */}
+                        <div className="relative mt-1">
+                          <div className="absolute inset-0 flex items-center" aria-hidden="true">
+                            <div className="w-full border-t border-red-100" />
+                          </div>
+                          <div className="relative flex justify-center">
+                            <span className="bg-white px-2 text-[9px] font-black uppercase tracking-widest text-red-400">
+                              danger zone
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="rounded-xl border border-red-100 bg-red-50/60 p-2.5 space-y-2">
+                          <p className="text-[9px] font-bold text-red-500 leading-relaxed">
+                            <span className="font-black">Force-completes</span> session without payment and
+                            automatically adds vehicle to Blacklist.
+                          </p>
+                          <button
+                            type="button"
+                            disabled={isSubmitting || isReporting}
+                            onClick={() => void handleUnpaidCheckout()}
+                            className="flex w-full items-center justify-center gap-2 rounded-lg border border-red-300 bg-white py-2 text-xs font-black text-red-700 hover:bg-red-100 hover:border-red-400 transition disabled:opacity-40 disabled:cursor-not-allowed shadow-sm"
+                          >
+                            <span className="material-symbols-outlined text-sm text-red-600">
+                              block
+                            </span>
+                            {isReporting ? "Processing..." : "Unpaid Exit & Blacklist"}
+                          </button>
+                        </div>
+                      </div>
+                    )
                   )}
                 </div>
               ) : (

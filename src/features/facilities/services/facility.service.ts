@@ -62,6 +62,14 @@ export const facilityService = {
     },
 
     /**
+     * Lấy thông tin chi tiết Tòa nhà theo ID
+     * @endpoint GET /Buildings/{id}
+     */
+    getById: async (id: number): Promise<BaseResponse<Building>> => {
+      return await api.get<BaseResponse<Building>>(`/Buildings/${id}`);
+    },
+
+    /**
      * Tạo mới Tòa nhà bãi xe
      * @endpoint POST /Buildings
      */

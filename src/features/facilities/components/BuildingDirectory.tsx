@@ -64,10 +64,11 @@ export default function BuildingDirectory() {
   } = useFacilities();
 
   // Quyền chỉnh sửa: Chỉ Manager hoặc Admin mới được phép thao tác thay đổi dữ liệu cơ sở vật chất
-  const canEdit = user?.role === 'MANAGER' || user?.role === 'ADMIN';
+  const userRoleUpper = user?.role ? user.role.toUpperCase() : '';
+  const canEdit = userRoleUpper === 'MANAGER' || userRoleUpper === 'ADMIN';
 
   // Base path dựa trên Role người dùng
-  const basePath = user?.role === 'ADMIN' ? '/dashboard/admin/facilities' : '/dashboard/manager/facilities';
+  const basePath = userRoleUpper === 'ADMIN' ? '/dashboard/admin/facilities' : '/dashboard/manager/facilities';
 
   const [statusFilter, setStatusFilter] = React.useState<string>('ALL');
 

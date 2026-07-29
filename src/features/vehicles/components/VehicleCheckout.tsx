@@ -170,7 +170,8 @@ export default function VehicleCheckout({
   refreshTrigger?: number;
   onCheckoutSuccess?: () => void;
 } = {}) {
-  const { showToast } = useAuth();
+  const { showToast, user } = useAuth();
+  const STAFF_ID = user?.id ?? 3; // Dynamically from logged-in Staff account (default 3)
   const {
     checkoutSessions: cachedCheckoutSessions,
     cards: cachedCards,
@@ -248,7 +249,7 @@ export default function VehicleCheckout({
   // Enumerate cameras
   const enumerateCameras = useCallback(async () => {
     if (typeof window === "undefined" || !navigator.mediaDevices) {
-      console.warn("Camera API is not available.");
+      console.warn("Camera API (navigator.mediaDevices) is not available.");
       return;
     }
     try {
@@ -265,11 +266,11 @@ export default function VehicleCheckout({
     }
   }, [selectedDeviceId]);
 
-  // Start camera stream
+  // Start webcam stream
   const startCamera = useCallback(async () => {
     if (typeof window === "undefined" || !navigator.mediaDevices) {
       showToast(
-        "Unable to open the camera: the browser is unsupported or the connection is insecure. Use localhost or HTTPS.",
+        "Unable to open the camera: the browser is unsupported or the connection is insecure (HTTP). Use localhost or configure HTTPS.",
         "error",
       );
       return;
@@ -290,7 +291,7 @@ export default function VehicleCheckout({
         videoRef.current.srcObject = mediaStream;
       }
       setCameraActive(true);
-      showToast("Exit camera started successfully!", "success");
+      showToast("Camera started successfully!", "success");
     } catch (err) {
       console.error("Unable to open the camera:", err);
       showToast(
@@ -300,7 +301,7 @@ export default function VehicleCheckout({
     }
   }, [selectedDeviceId, stream, showToast]);
 
-  // Stop camera stream
+  // Stop webcam stream
   const stopCamera = useCallback(() => {
     if (stream) {
       stream.getTracks().forEach((track) => track.stop());
@@ -397,13 +398,6 @@ export default function VehicleCheckout({
       setIsReporting(false);
     }
   };
-
-  // Switch camera device
-  useEffect(() => {
-    if (cameraActive && selectedDeviceId) {
-      void startCamera();
-    }
-  }, [selectedDeviceId, cameraActive, startCamera]);
 
   // Clean up stream on unmount
   useEffect(() => {
@@ -533,7 +527,7 @@ export default function VehicleCheckout({
   const isPlateMatched =
     Boolean(selectedSession) &&
     normalizeComparable(exitPlate) ===
-      normalizeComparable(selectedSession?.licensePlate);
+    normalizeComparable(selectedSession?.licensePlate);
 
   const isCardMatched = useMemo(() => {
     if (!selectedSession) return false;
@@ -1148,10 +1142,28 @@ export default function VehicleCheckout({
         onCheckoutSuccess();
       }
     } catch (error) {
-      showToast(
-        error instanceof Error ? error.message : "Could not process unpaid checkout.",
-        "error"
-      );
+      console.warn("Primary unpaidCheckout API call encountered issue, running Frontend fallback:", error);
+      try {
+        await incidentService.createBlacklistRecord({
+          vehicleId: selectedSession.vehicleId ?? undefined,
+          cardId: selectedSession.cardId ?? undefined,
+          reason: `Unpaid exit for plate ${selectedSession.licensePlate} (Session #${selectedSession.id}). Fee: ${feeLabel}`,
+        });
+        showToast(
+          `Unpaid exit logged for ${selectedSession.licensePlate}. Vehicle added to Blacklist.`,
+          "info"
+        );
+        resetForNextVehicle();
+        void loadActiveSessions();
+        if (onCheckoutSuccess) {
+          onCheckoutSuccess();
+        }
+      } catch (fallbackErr) {
+        showToast(
+          error instanceof Error ? error.message : "Could not process unpaid checkout.",
+          "error"
+        );
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -1283,11 +1295,10 @@ export default function VehicleCheckout({
                     <button
                       type="button"
                       onClick={cameraActive ? stopCamera : startCamera}
-                      className={`flex-1 rounded-xl py-1.5 text-xs font-bold transition flex items-center justify-center gap-1.5 border ${
-                        cameraActive
-                          ? "bg-red-50 border-red-200 text-red-700 hover:bg-red-100"
-                          : "bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100"
-                      }`}
+                      className={`flex-1 rounded-xl py-1.5 text-xs font-bold transition flex items-center justify-center gap-1.5 border ${cameraActive
+                        ? "bg-red-50 border-red-200 text-red-700 hover:bg-red-100"
+                        : "bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100"
+                        }`}
                     >
                       {cameraActive ? "Stop Cam" : "Start Cam"}
                     </button>
@@ -1334,32 +1345,75 @@ export default function VehicleCheckout({
           {/* RIGHT COLUMN: SEARCH, VERIFICATION, AND PAYMENT */}
           <div className="space-y-3 flex flex-col min-h-0">
             <section className="min-h-0 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm space-y-3 flex flex-col">
-              {/* Compact session search bar */}
-              <form
-                onSubmit={handleSearch}
-                className="flex gap-2 items-center border-b border-slate-100 pb-3"
-              >
-                <div className="relative flex-1">
-                  <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-base">
-                    search
-                  </span>
-                  <input
-                    ref={searchInputRef}
-                    value={searchQuery}
-                    onChange={(event) =>
-                      setSearchQuery(event.target.value.toUpperCase())
-                    }
-                    placeholder="Scan or enter card/plate..."
-                    className="h-10 w-full rounded-xl border border-slate-200 bg-slate-50 pl-9 pr-3 font-mono text-xs font-bold uppercase outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
-                  />
+              {/* Quick Select Active Vehicles Dropdown & Search Bar */}
+              <div className="space-y-2 border-b border-slate-100 pb-3">
+                <div className="flex items-center justify-between">
+                  <label className="text-[10px] font-black uppercase tracking-wider text-slate-500">
+                    Vehicles in Park ({filteredSessions.length})
+                  </label>
+                  {selectedSession && (
+                    <button
+                      type="button"
+                      onClick={resetForNextVehicle}
+                      className="text-[10px] font-bold text-red-600 hover:underline"
+                    >
+                      Clear Selection
+                    </button>
+                  )}
                 </div>
-                <button
-                  type="submit"
-                  className="h-10 rounded-xl bg-emerald-600 px-4 text-xs font-black text-white shadow-sm hover:bg-emerald-700 whitespace-nowrap transition"
+                <select
+                  value={selectedSessionId ?? ""}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (!val) {
+                      resetForNextVehicle();
+                      return;
+                    }
+                    const session = sessions.find((s) => s.id === Number(val));
+                    if (session) selectSession(session);
+                  }}
+                  className="w-full h-10 rounded-xl border border-slate-200 bg-slate-50 px-3 font-mono text-xs font-bold text-slate-800 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
                 >
-                  Load Session
-                </button>
-              </form>
+                  <option value="">
+                    {isLoading
+                      ? "Loading active sessions..."
+                      : filteredSessions.length === 0
+                      ? "-- No active vehicles in park --"
+                      : `-- Select vehicle in park (${filteredSessions.length}) --`}
+                  </option>
+                  {filteredSessions.map((session) => (
+                    <option key={session.id} value={session.id}>
+                      🚗 {formatPlate(session.licensePlate)} | Card: {session.cardCode || "None"} | {session.vehicleType}
+                    </option>
+                  ))}
+                </select>
+
+                <form
+                  onSubmit={handleSearch}
+                  className="flex gap-2 items-center pt-1"
+                >
+                  <div className="relative flex-1">
+                    <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-base">
+                      search
+                    </span>
+                    <input
+                      ref={searchInputRef}
+                      value={searchQuery}
+                      onChange={(event) =>
+                        setSearchQuery(event.target.value.toUpperCase())
+                      }
+                      placeholder="Or search card code / plate..."
+                      className="h-9 w-full rounded-xl border border-slate-200 bg-slate-50 pl-9 pr-3 font-mono text-xs font-bold uppercase outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    className="h-9 rounded-xl bg-emerald-600 px-4 text-xs font-black text-white shadow-sm hover:bg-emerald-700 whitespace-nowrap transition"
+                  >
+                    Find
+                  </button>
+                </form>
+              </div>
 
               {selectedSession ? (
                 <div className="space-y-3">
@@ -1492,13 +1546,12 @@ export default function VehicleCheckout({
                   <div className="grid grid-cols-2 gap-3">
                     {/* Plate Match status */}
                     <div
-                      className={`rounded-xl border px-3 py-2 flex items-center gap-1.5 text-xs font-bold ${
-                        !exitPlate
-                          ? "border-amber-200 bg-amber-50 text-amber-700"
-                          : isPlateMatched
-                            ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                            : "border-red-200 bg-red-50 text-red-700"
-                      }`}
+                      className={`rounded-xl border px-3 py-2 flex items-center gap-1.5 text-xs font-bold ${!exitPlate
+                        ? "border-amber-200 bg-amber-50 text-amber-700"
+                        : isPlateMatched
+                          ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                          : "border-red-200 bg-red-50 text-red-700"
+                        }`}
                     >
                       <span className="material-symbols-outlined text-base">
                         {!exitPlate
@@ -1518,13 +1571,12 @@ export default function VehicleCheckout({
 
                     {/* Card Match status */}
                     <div
-                      className={`rounded-xl border px-3 py-2 flex items-center gap-1.5 text-xs font-bold ${
-                        !checkoutCardCode
-                          ? "border-amber-200 bg-amber-50/70 text-amber-700"
-                          : isCardMatched
-                            ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                            : "border-red-200 bg-red-50 text-red-700"
-                      }`}
+                      className={`rounded-xl border px-3 py-2 flex items-center gap-1.5 text-xs font-bold ${!checkoutCardCode
+                        ? "border-amber-200 bg-amber-50/70 text-amber-700"
+                        : isCardMatched
+                          ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                          : "border-red-200 bg-red-50 text-red-700"
+                        }`}
                     >
                       <span className="material-symbols-outlined text-base">
                         {!checkoutCardCode
@@ -1571,11 +1623,10 @@ export default function VehicleCheckout({
                             type="button"
                             disabled={isSubmitting || isReporting || isCardMatched}
                             onClick={() => void handleMarkLost()}
-                            className={`rounded-lg border px-2 py-1 text-[10px] font-black transition ${
-                              isCardMatched
-                                ? "border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed opacity-40 shadow-none"
-                                : "border-red-200 bg-red-50 text-red-700 hover:bg-red-100 shadow-sm"
-                            }`}
+                            className={`rounded-lg border px-2 py-1 text-[10px] font-black transition ${isCardMatched
+                              ? "border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed opacity-40 shadow-none"
+                              : "border-red-200 bg-red-50 text-red-700 hover:bg-red-100 shadow-sm"
+                              }`}
                             title={isCardMatched ? "Card matched correctly — Lost Card is disabled" : "Report lost card"}
                           >
                             Lost card
@@ -1585,11 +1636,10 @@ export default function VehicleCheckout({
                           type="button"
                           disabled={isSubmitting || isReporting || isPlateMatched}
                           onClick={() => void handlePlateMismatch()}
-                          className={`rounded-lg border px-2 py-1 text-[10px] font-black transition ${
-                            isPlateMatched
-                              ? "border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed opacity-40 shadow-none"
-                              : "border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100 shadow-sm"
-                          }`}
+                          className={`rounded-lg border px-2 py-1 text-[10px] font-black transition ${isPlateMatched
+                            ? "border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed opacity-40 shadow-none"
+                            : "border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100 shadow-sm"
+                            }`}
                           title={isPlateMatched ? "Plate matched correctly — Plate Mismatch is disabled" : "Report plate mismatch"}
                         >
                           Plate Mismatch
@@ -1718,11 +1768,10 @@ export default function VehicleCheckout({
                               key={method}
                               type="button"
                               onClick={() => setPaymentMethod(method)}
-                              className={`rounded-xl border px-3 py-2 text-xs font-black transition ${
-                                paymentMethod === method
-                                  ? "border-emerald-500 bg-emerald-50 text-emerald-700"
-                                  : "border-slate-200 bg-white text-slate-500 hover:bg-slate-50"
-                              }`}
+                              className={`rounded-xl border px-3 py-2 text-xs font-black transition ${paymentMethod === method
+                                ? "border-emerald-500 bg-emerald-50 text-emerald-700"
+                                : "border-slate-200 bg-white text-slate-500 hover:bg-slate-50"
+                                }`}
                             >
                               {method === "CASH" ? "Cash" : "Online banking"}
                             </button>
@@ -1908,33 +1957,33 @@ export default function VehicleCheckout({
               <div className="mt-6 flex flex-col justify-center gap-3 sm:flex-row">
                 {String(overlay.payment.paymentStatus).toUpperCase() !==
                   "PAID" && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSessions((current) =>
-                        current.some(
-                          (session) => session.id === overlay.session.id,
-                        )
-                          ? current
-                          : [overlay.session, ...current],
-                      );
-                      setSelectedSessionId(overlay.session.id);
-                      setExitPlate(overlay.exitPlate);
-                      setSearchQuery(
-                        overlay.session.cardCode ||
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSessions((current) =>
+                          current.some(
+                            (session) => session.id === overlay.session.id,
+                          )
+                            ? current
+                            : [overlay.session, ...current],
+                        );
+                        setSelectedSessionId(overlay.session.id);
+                        setExitPlate(overlay.exitPlate);
+                        setSearchQuery(
+                          overlay.session.cardCode ||
                           overlay.session.licensePlate,
-                      );
-                      setOverlay(null);
-                      showToast(
-                        "Returned to checkout screen. Current pending payment is still open until Backend supports cancel/change payment.",
-                        "info",
-                      );
-                    }}
-                    className="rounded-2xl border border-white/40 px-5 py-3 text-sm font-black text-white hover:bg-white/10"
-                  >
-                    Back to checkout
-                  </button>
-                )}
+                        );
+                        setOverlay(null);
+                        showToast(
+                          "Returned to checkout screen. Current pending payment is still open until Backend supports cancel/change payment.",
+                          "info",
+                        );
+                      }}
+                      className="rounded-2xl border border-white/40 px-5 py-3 text-sm font-black text-white hover:bg-white/10"
+                    >
+                      Back to checkout
+                    </button>
+                  )}
                 <button
                   type="button"
                   disabled={isReporting}
@@ -2252,9 +2301,8 @@ function InfoBox({
         {label}
       </p>
       <p
-        className={`mt-1 truncate text-sm font-black text-slate-800 ${
-          mono ? "font-mono" : ""
-        }`}
+        className={`mt-1 truncate text-sm font-black text-slate-800 ${mono ? "font-mono" : ""
+          }`}
         title={value}
       >
         {value}

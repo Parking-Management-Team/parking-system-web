@@ -110,8 +110,8 @@ const getApiErrorMessage = (error: unknown): string => {
 
     const validationMessages = body.errors
       ? Object.values(body.errors)
-          .flatMap((value) => (Array.isArray(value) ? value : [value]))
-          .filter((value): value is string => typeof value === 'string')
+        .flatMap((value) => (Array.isArray(value) ? value : [value]))
+        .filter((value): value is string => typeof value === 'string')
       : [];
 
     if (typeof body.message === 'string' && body.message.trim()) {

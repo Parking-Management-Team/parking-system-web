@@ -24,6 +24,7 @@ export { AuthDrawer } from './components/AuthDrawer';
 
 // Context & Hooks
 export { AuthProvider, useAuth } from './context/AuthContext';
+export { useOtpCooldown } from './hooks/useOtpCooldown';
 
 // Types
 export type { User } from './context/AuthContext';

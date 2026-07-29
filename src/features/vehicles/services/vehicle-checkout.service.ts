@@ -126,6 +126,24 @@ const mapCustomerType = (session: ActiveSessionDto): CheckoutSession['customerTy
   return 'WALK_IN';
 };
 
+const normalizeImageSource = (value: string | null | undefined): string | null => {
+  const image = value?.trim();
+  if (!image) return null;
+
+  if (
+    image.startsWith('data:image/') ||
+    image.startsWith('blob:') ||
+    image.startsWith('/') ||
+    /^https?:\/\//i.test(image)
+  ) {
+    return image;
+  }
+
+  // Older/session-imported records may contain only the raw base64 payload.
+  // The browser needs a Data URL prefix before it can render that payload.
+  return `data:image/jpeg;base64,${image}`;
+};
+
 export const mapCheckoutSession = (
   session: ActiveSessionDto
 ): CheckoutSession => {
@@ -153,8 +171,8 @@ export const mapCheckoutSession = (
     monthlyValidTo: session.monthlyValidTo ?? null,
     checkInTime: session.checkInTime ?? null,
     status: String(session.sessionStatus ?? 'ACTIVE'),
-    imageIn: session.imageIn ?? null,
-    imageOut: session.imageOut ?? null,
+    imageIn: normalizeImageSource(session.imageIn),
+    imageOut: normalizeImageSource(session.imageOut),
   };
 };
 

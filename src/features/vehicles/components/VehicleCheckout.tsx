@@ -161,6 +161,24 @@ const writeHistory = (items: CheckoutHistoryItem[]) => {
   );
 };
 
+const mergeSessionSummaries = (
+  current: CheckoutSession[],
+  summaries: CheckoutSession[],
+): CheckoutSession[] => {
+  const currentById = new Map(
+    current.map((session) => [session.id, session]),
+  );
+
+  return summaries.map((session) => {
+    const existing = currentById.get(session.id);
+    return {
+      ...session,
+      imageIn: existing?.imageIn ?? session.imageIn,
+      imageOut: existing?.imageOut ?? session.imageOut,
+    };
+  });
+};
+
 export default function VehicleCheckout({
   compact = false,
   refreshTrigger,
@@ -229,10 +247,59 @@ export default function VehicleCheckout({
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [loadingImageSessionId, setLoadingImageSessionId] = useState<number | null>(null);
   const activeSessionsRequestRef = useRef<Promise<void> | null>(null);
+  const sessionDetailRequestsRef = useRef<Map<number, Promise<void>>>(new Map());
   const checkoutStartSessionRef = useRef<number | null>(null);
 
   const selectedSession =
     sessions.find((session) => session.id === selectedSessionId) ?? null;
+
+  const loadSessionImages = useCallback(
+    (sessionId: number): Promise<void> => {
+      const existingRequest = sessionDetailRequestsRef.current.get(sessionId);
+      if (existingRequest) return existingRequest;
+
+      setLoadingImageSessionId(sessionId);
+
+      const request = fetchCheckoutSessionDetail(sessionId)
+        .then((detail) => {
+          setSessions((current) =>
+            current.map((item) =>
+              item.id === sessionId
+                ? {
+                    ...item,
+                    imageIn: detail.imageIn,
+                    imageOut: detail.imageOut,
+                  }
+                : item,
+            ),
+          );
+        })
+        .catch((error) => {
+          showToast(
+            error instanceof Error
+              ? error.message
+              : "Could not load the check-in image.",
+            "error",
+          );
+        })
+        .finally(() => {
+          sessionDetailRequestsRef.current.delete(sessionId);
+          setLoadingImageSessionId((current) =>
+            current === sessionId ? null : current,
+          );
+        });
+
+      sessionDetailRequestsRef.current.set(sessionId, request);
+      return request;
+    },
+    [showToast],
+  );
+
+  useEffect(() => {
+    if (selectedSessionId != null) {
+      void loadSessionImages(selectedSessionId);
+    }
+  }, [loadSessionImages, selectedSessionId]);
 
   const sortedCards = useMemo(() => {
     return [...allCards].sort((a, b) => {
@@ -560,7 +627,9 @@ export default function VehicleCheckout({
     const request = (async () => {
       try {
         const gateData = await refreshGateData();
-        setSessions(gateData.checkoutSessions);
+        setSessions((current) =>
+          mergeSessionSummaries(current, gateData.checkoutSessions),
+        );
         setAllCards(gateData.cards);
       } catch (error) {
         showToast(
@@ -585,7 +654,9 @@ export default function VehicleCheckout({
   const refreshAfterMutation = useCallback(async () => {
     try {
       const gateData = await invalidateOperationalData();
-      setSessions(gateData.checkoutSessions);
+      setSessions((current) =>
+        mergeSessionSummaries(current, gateData.checkoutSessions),
+      );
       setAllCards(gateData.cards);
     } catch (error) {
       showToast(
@@ -612,7 +683,9 @@ export default function VehicleCheckout({
   }, [loadActiveSessions, enumerateCameras]);
 
   useEffect(() => {
-    setSessions(cachedCheckoutSessions);
+    setSessions((current) =>
+      mergeSessionSummaries(current, cachedCheckoutSessions),
+    );
     setAllCards(cachedCards);
   }, [cachedCheckoutSessions, cachedCards]);
 
@@ -634,35 +707,6 @@ export default function VehicleCheckout({
     setLockedCheckoutTime(null);
     setCapturedImage(null);
     setOcrText("");
-
-    setLoadingImageSessionId(session.id);
-    void fetchCheckoutSessionDetail(session.id)
-      .then((detail) => {
-        setSessions((current) =>
-          current.map((item) =>
-            item.id === session.id
-              ? {
-                  ...item,
-                  imageIn: detail.imageIn,
-                  imageOut: detail.imageOut,
-                }
-              : item,
-          ),
-        );
-      })
-      .catch((error) => {
-        showToast(
-          error instanceof Error
-            ? error.message
-            : "Could not load the check-in image.",
-          "error",
-        );
-      })
-      .finally(() => {
-        setLoadingImageSessionId((current) =>
-          current === session.id ? null : current,
-        );
-      });
   };
 
   const resetForNextVehicle = () => {

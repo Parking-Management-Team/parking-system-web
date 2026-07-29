@@ -1345,75 +1345,32 @@ export default function VehicleCheckout({
           {/* RIGHT COLUMN: SEARCH, VERIFICATION, AND PAYMENT */}
           <div className="space-y-3 flex flex-col min-h-0">
             <section className="min-h-0 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm space-y-3 flex flex-col">
-              {/* Quick Select Active Vehicles Dropdown & Search Bar */}
-              <div className="space-y-2 border-b border-slate-100 pb-3">
-                <div className="flex items-center justify-between">
-                  <label className="text-[10px] font-black uppercase tracking-wider text-slate-500">
-                    Vehicles in Park ({filteredSessions.length})
-                  </label>
-                  {selectedSession && (
-                    <button
-                      type="button"
-                      onClick={resetForNextVehicle}
-                      className="text-[10px] font-bold text-red-600 hover:underline"
-                    >
-                      Clear Selection
-                    </button>
-                  )}
-                </div>
-                <select
-                  value={selectedSessionId ?? ""}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    if (!val) {
-                      resetForNextVehicle();
-                      return;
+              {/* Compact session search bar */}
+              <form
+                onSubmit={handleSearch}
+                className="flex gap-2 items-center border-b border-slate-100 pb-3"
+              >
+                <div className="relative flex-1">
+                  <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-base">
+                    search
+                  </span>
+                  <input
+                    ref={searchInputRef}
+                    value={searchQuery}
+                    onChange={(event) =>
+                      setSearchQuery(event.target.value.toUpperCase())
                     }
-                    const session = sessions.find((s) => s.id === Number(val));
-                    if (session) selectSession(session);
-                  }}
-                  className="w-full h-10 rounded-xl border border-slate-200 bg-slate-50 px-3 font-mono text-xs font-bold text-slate-800 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+                    placeholder="Scan or enter card/plate..."
+                    className="h-10 w-full rounded-xl border border-slate-200 bg-slate-50 pl-9 pr-3 font-mono text-xs font-bold uppercase outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+                  />
+                </div>
+                <button
+                  type="submit"
+                  className="h-10 rounded-xl bg-emerald-600 px-4 text-xs font-black text-white shadow-sm hover:bg-emerald-700 whitespace-nowrap transition"
                 >
-                  <option value="">
-                    {isLoading
-                      ? "Loading active sessions..."
-                      : filteredSessions.length === 0
-                      ? "-- No active vehicles in park --"
-                      : `-- Select vehicle in park (${filteredSessions.length}) --`}
-                  </option>
-                  {filteredSessions.map((session) => (
-                    <option key={session.id} value={session.id}>
-                      🚗 {formatPlate(session.licensePlate)} | Card: {session.cardCode || "None"} | {session.vehicleType}
-                    </option>
-                  ))}
-                </select>
-
-                <form
-                  onSubmit={handleSearch}
-                  className="flex gap-2 items-center pt-1"
-                >
-                  <div className="relative flex-1">
-                    <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-base">
-                      search
-                    </span>
-                    <input
-                      ref={searchInputRef}
-                      value={searchQuery}
-                      onChange={(event) =>
-                        setSearchQuery(event.target.value.toUpperCase())
-                      }
-                      placeholder="Or search card code / plate..."
-                      className="h-9 w-full rounded-xl border border-slate-200 bg-slate-50 pl-9 pr-3 font-mono text-xs font-bold uppercase outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
-                    />
-                  </div>
-                  <button
-                    type="submit"
-                    className="h-9 rounded-xl bg-emerald-600 px-4 text-xs font-black text-white shadow-sm hover:bg-emerald-700 whitespace-nowrap transition"
-                  >
-                    Find
-                  </button>
-                </form>
-              </div>
+                  Load Session
+                </button>
+              </form>
 
               {selectedSession ? (
                 <div className="space-y-3">

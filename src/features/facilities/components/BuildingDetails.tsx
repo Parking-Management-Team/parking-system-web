@@ -29,6 +29,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useFacilitiesContext } from '../context/FacilitiesContext';
 import { Building, BuildingStatus } from '@/lib/types/building.types';
+import { facilityService } from '../services/facility.service';
 
 export default function BuildingDetails() {
   const params = useParams();
@@ -69,20 +70,38 @@ export default function BuildingDetails() {
   // Trạng thái cục bộ lưu trữ tòa nhà gốc để so sánh thay đổi
   const [originalBld, setOriginalBld] = useState<Building | null>(null);
 
-  // Tìm kiếm tòa nhà và điền dữ liệu ban đầu vào form
+  // Tìm kiếm tòa nhà và điền dữ liệu ban đầu vào form (nếu chưa có trong context thì gọi API getById)
   useEffect(() => {
-    if (bldId && buildings.length > 0) {
-      const bld = buildings.find(b => b.id === bldId);
-      if (bld) {
-        setEditingBld(bld);
-        setOriginalBld(bld);
-        setFormBldCode(bld.code);
-        setFormBldName(bld.name);
-        setFormBldAddress(bld.address || '');
-        setFormBldTotalFloor(bld.totalFloor);
-        setFormBldStatus(bld.status);
-      }
+    let isMounted = true;
+    if (!bldId) return;
+
+    const bld = buildings.find(b => b.id === bldId);
+    if (bld) {
+      setEditingBld(bld);
+      setOriginalBld(bld);
+      setFormBldCode(bld.code);
+      setFormBldName(bld.name);
+      setFormBldAddress(bld.address || '');
+      setFormBldTotalFloor(bld.totalFloor);
+      setFormBldStatus(bld.status);
+    } else {
+      facilityService.buildings.getById(bldId).then(res => {
+        if (res.success && res.data && isMounted) {
+          const item = res.data;
+          setEditingBld(item);
+          setOriginalBld(item);
+          setFormBldCode(item.code);
+          setFormBldName(item.name);
+          setFormBldAddress(item.address || '');
+          setFormBldTotalFloor(item.totalFloor);
+          setFormBldStatus(item.status);
+        }
+      }).catch(err => {
+        console.error('Lỗi khi tải thông tin tòa nhà:', err);
+      });
     }
+
+    return () => { isMounted = false; };
   }, [bldId, buildings, setEditingBld, setFormBldCode, setFormBldName, setFormBldAddress, setFormBldTotalFloor, setFormBldStatus]);
 
   if (!editingBld) {

@@ -1,18 +1,17 @@
-import { useState, useCallback } from 'react';
-import { api, ApiError } from '@/lib/api/client';
+/**
+ * ═══════════════════════════════════════════════════════════════════════════════
+ * 📌 FILE: usePayments.ts - HOOK QUẢN LÝ VÀ TRA CỨU THANH TOÁN
+ * ═══════════════════════════════════════════════════════════════════════════════
+ * 
+ * 🎯 MỤC ĐÍCH FILE:
+ * Quản lý React State cho danh sách giao dịch thanh toán và hỗ trợ tra cứu theo phiên/tài khoản.
+ * Gọi API thông qua Tầng Service: `managerService.payments.*`
+ * ═══════════════════════════════════════════════════════════════════════════════
+ */
 
-type Payment = {
-  id: number;
-  bookingId?: number;
-  sessionId?: number;
-  monthlySubscriptionId?: number;
-  amount: number;
-  paymentMethod: string;
-  paymentStatus: string;
-  orderCode?: number;
-  paymentTime?: string;
-  createdAt?: string;
-};
+import { useState, useCallback } from 'react';
+import { ApiError } from '@/lib/api/client';
+import { managerService, PaymentDto as Payment } from '../services/manager.service';
 
 type PaymentFilter = {
   pageIndex?: number;
@@ -25,7 +24,7 @@ const getApiErrorMessage = (error: unknown): string => {
     if (typeof body.message === 'string' && body.message.trim()) return body.message;
     if (typeof body.title === 'string' && body.title.trim()) return body.title;
   }
-  return error instanceof Error ? error.message : 'Request failed.';
+  return error instanceof Error ? error.message : 'Yêu cầu thất bại.';
 };
 
 export function usePayments() {
@@ -34,25 +33,16 @@ export function usePayments() {
   const [error, setError] = useState<string | null>(null);
   const [totalCount, setTotalCount] = useState(0);
 
+  /**
+   * Gọi Service lấy danh sách thanh toán có phân trang
+   */
   const fetchPayments = useCallback(async (filter?: PaymentFilter) => {
     setIsLoading(true);
     setError(null);
     try {
-      const params = new URLSearchParams();
-      if (filter?.pageIndex) params.append('pageIndex', filter.pageIndex.toString());
-      if (filter?.pageSize) params.append('pageSize', filter.pageSize.toString());
-      const queryString = params.toString();
-      const url = `/payments${queryString ? `?${queryString}` : ''}`;
-
-      const res = await api.get<{ data: { items: Payment[]; totalCount: number } } | Payment[]>(url);
-      if (Array.isArray(res)) {
-        setPayments(res);
-        setTotalCount(res.length);
-      } else if (res && typeof res === 'object' && 'data' in res) {
-        const data = res.data as { items: Payment[]; totalCount: number };
-        setPayments(data.items ?? []);
-        setTotalCount(data.totalCount ?? 0);
-      }
+      const res = await managerService.payments.getAll(filter?.pageIndex, filter?.pageSize);
+      setPayments(res.items);
+      setTotalCount(res.totalCount);
     } catch (err) {
       setError(getApiErrorMessage(err));
     } finally {
@@ -60,17 +50,14 @@ export function usePayments() {
     }
   }, []);
 
+  /**
+   * Gọi Service tra cứu thanh toán theo Mã phiên gửi xe
+   */
   const fetchPaymentsBySession = useCallback(async (sessionId: number) => {
     setIsLoading(true);
     setError(null);
     try {
-      const res = await api.get<{ data: Payment[] } | Payment[]>(`/payments/by-session/${sessionId}`);
-      if (Array.isArray(res)) {
-        return res;
-      } else if (res && typeof res === 'object' && 'data' in res) {
-        return res.data as Payment[];
-      }
-      return [];
+      return await managerService.payments.getBySession(sessionId);
     } catch (err) {
       setError(getApiErrorMessage(err));
       return [];
@@ -79,17 +66,14 @@ export function usePayments() {
     }
   }, []);
 
+  /**
+   * Gọi Service tra cứu thanh toán theo Mã tài khoản
+   */
   const fetchPaymentsByAccount = useCallback(async (accountId: number) => {
     setIsLoading(true);
     setError(null);
     try {
-      const res = await api.get<{ data: Payment[] } | Payment[]>(`/payments/by-account/${accountId}`);
-      if (Array.isArray(res)) {
-        return res;
-      } else if (res && typeof res === 'object' && 'data' in res) {
-        return res.data as Payment[];
-      }
-      return [];
+      return await managerService.payments.getByAccount(accountId);
     } catch (err) {
       setError(getApiErrorMessage(err));
       return [];

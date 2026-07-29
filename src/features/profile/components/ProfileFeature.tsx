@@ -25,257 +25,35 @@
 
 'use client';
 import * as React from 'react';
-import { useAuth } from '@/features/auth';
-import { api, ApiError } from '@/lib/api/client';
-
-// 1. Định nghĩa kiểu dữ liệu tài khoản trả về từ API
-interface AccountProfile {
-  id: number;
-  username: string;
-  email: string;
-  roleId: number;
-  roleName: string;
-  accountStatus: string;
-  createdAt: string;
-  fullName: string;
-  phone: string;
-}
-
-// 2. Cấu trúc phản hồi chuẩn từ backend
-interface BaseResponse<T> {
-  success: boolean;
-  data: T;
-  message?: string;
-  errorCode?: string;
-  errors?: Record<string, string[]>;
-}
+import { useProfile } from '../hooks/useProfile';
 
 export default function ProfileFeature() {
-  const { user, token, showToast, logout } = useAuth();
-
-  // Trạng thái tải và thông tin profile
-  const [profile, setProfile] = React.useState<AccountProfile | null>(null);
-  const [loading, setLoading] = React.useState<boolean>(true);
-
-  // State cho form thông tin cá nhân
-  const [fullName, setFullName] = React.useState<string>('');
-  const [phone, setPhone] = React.useState<string>('');
-  const [savingProfile, setSavingProfile] = React.useState<boolean>(false);
-  const [profileErrors, setProfileErrors] = React.useState<{ fullName?: string; phone?: string }>({});
-
-  // State cho form đổi mật khẩu
-  const [oldPassword, setOldPassword] = React.useState<string>('');
-  const [newPassword, setNewPassword] = React.useState<string>('');
-  const [confirmPassword, setConfirmPassword] = React.useState<string>('');
-  const [updatingPassword, setUpdatingPassword] = React.useState<boolean>(false);
-  const [passwordErrors, setPasswordErrors] = React.useState<{
-    oldPassword?: string;
-    newPassword?: string;
-    confirmPassword?: string;
-  }>({});
-
-  // State cho Deactivate Account Modal
-  const [showDeactivateModal, setShowDeactivateModal] = React.useState<boolean>(false);
-  const [deactivating, setDeactivating] = React.useState<boolean>(false);
-
-  // Hàm giải mã JWT token ở frontend để lấy accountId (dự phòng)
-  const decodeUserIdFromToken = (jwtToken: string): number | null => {
-    try {
-      const base64Url = jwtToken.split('.')[1];
-      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-      const jsonPayload = decodeURIComponent(
-        window
-          .atob(base64)
-          .split('')
-          .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
-          .join('')
-      );
-      const decoded = JSON.parse(jsonPayload);
-      const id = decoded.accountId || decoded.sub || decoded.nameid || decoded.id;
-      return id ? Number(id) : null;
-    } catch (e) {
-      console.error('Error decoding JWT token:', e);
-      return null;
-    }
-  };
-
-  // Lấy userId an toàn từ context hoặc giải mã token
-  const userId = React.useMemo(() => {
-    if (user?.id) return user.id;
-    if (token) return decodeUserIdFromToken(token);
-    return null;
-  }, [user, token]);
-
-  // Gọi API lấy thông tin profile (GET /api/Accounts/{id})
-  const fetchProfile = React.useCallback(async () => {
-    if (!userId) {
-      setLoading(false);
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const res = await api.get<BaseResponse<AccountProfile>>(`/Accounts/${userId}`);
-      if (res.success && res.data) {
-        setProfile(res.data);
-        setFullName(res.data.fullName || '');
-        setPhone(res.data.phone || '');
-      } else {
-        showToast(res.message || 'Failed to load profile details.', 'error');
-      }
-    } catch (err) {
-      console.error(err);
-      showToast('Connection error while loading profile details.', 'error');
-    } finally {
-      setLoading(false);
-    }
-  }, [userId, showToast]);
-
-  // Gọi fetchProfile khi userId khả dụng
-  React.useEffect(() => {
-    fetchProfile();
-  }, [fetchProfile]);
-
-  // 1. Xử lý cập nhật thông tin cá nhân (PUT /api/Accounts/{id})
-  const handleUpdateProfile = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!userId) return;
-
-    // Kiểm tra dữ liệu đầu vào phía frontend
-    const errors: { fullName?: string; phone?: string } = {};
-    if (!fullName.trim()) {
-      errors.fullName = 'Full name is required';
-    }
-    if (!phone.trim()) {
-      errors.phone = 'Phone number is required';
-    } else if (!/^[0-9+()-\s]{8,15}$/.test(phone.trim())) {
-      errors.phone = 'Invalid phone number format (8-15 digits)';
-    }
-
-    if (Object.keys(errors).length > 0) {
-      setProfileErrors(errors);
-      return;
-    }
-    setProfileErrors({});
-
-    setSavingProfile(true);
-    try {
-      const payload = { fullName: fullName.trim(), phone: phone.trim() };
-      const res = await api.put<BaseResponse<string>>(`/Accounts/${userId}`, payload);
-
-      if (res.success) {
-        showToast(res.message || 'Profile updated successfully.', 'success');
-        if (profile) {
-          setProfile({ ...profile, fullName: fullName.trim(), phone: phone.trim() });
-        }
-
-        // Cập nhật lại localStorage để sidebar/header đồng bộ ngay lập tức
-        try {
-          const storedUser = localStorage.getItem('nexpark_user');
-          if (storedUser) {
-            const parsed = JSON.parse(storedUser);
-            parsed.fullName = fullName.trim();
-            localStorage.setItem('nexpark_user', JSON.stringify(parsed));
-          }
-        } catch (e) {
-          console.error('Failed to sync updated user in localStorage:', e);
-        }
-      } else {
-        showToast(res.message || 'Failed to update profile.', 'error');
-      }
-    } catch (err) {
-      console.error(err);
-      if (err instanceof ApiError && err.data) {
-        const errorData = err.data as BaseResponse<unknown>;
-        showToast(errorData.message || 'Error updating profile.', 'error');
-      } else {
-        showToast('Connection error during profile update.', 'error');
-      }
-    } finally {
-      setSavingProfile(false);
-    }
-  };
-
-  // 2. Xử lý đổi mật khẩu (POST /api/Accounts/change-password)
-  const handleUpdatePassword = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    // Kiểm tra dữ liệu các ô mật khẩu
-    const errors: typeof passwordErrors = {};
-    if (!oldPassword) {
-      errors.oldPassword = 'Current password is required';
-    }
-    if (!newPassword) {
-      errors.newPassword = 'New password is required';
-    } else if (newPassword.length < 6) {
-      errors.newPassword = 'Password must be at least 6 characters';
-    }
-    if (newPassword !== confirmPassword) {
-      errors.confirmPassword = 'Passwords do not match';
-    }
-
-    if (Object.keys(errors).length > 0) {
-      setPasswordErrors(errors);
-      return;
-    }
-    setPasswordErrors({});
-
-    setUpdatingPassword(true);
-    try {
-      const payload = { oldPassword, newPassword };
-      const res = await api.post<BaseResponse<string>>('/Accounts/change-password', payload);
-
-      if (res.success) {
-        showToast(res.message || 'Password changed successfully.', 'success');
-        setOldPassword('');
-        setNewPassword('');
-        setConfirmPassword('');
-      } else {
-        showToast(res.message || 'Failed to change password.', 'error');
-      }
-    } catch (err) {
-      console.error(err);
-      if (err instanceof ApiError && err.data) {
-        const errorData = err.data as BaseResponse<unknown>;
-        showToast(errorData.message || 'Incorrect old password or system error.', 'error');
-      } else {
-        showToast('Connection error during password change.', 'error');
-      }
-    } finally {
-      setUpdatingPassword(false);
-    }
-  };
-
-  // 3. Xử lý Deactivate Account (POST /api/Accounts/{id}/deactivate)
-  const handleDeactivateAccount = async () => {
-    if (!userId || isAdmin) return;
-    setDeactivating(true);
-    try {
-      const res = await api.post<BaseResponse<string>>(`/Accounts/${userId}/deactivate`, {});
-      if (res.success) {
-        showToast(res.message || 'Account deactivated successfully. You will be logged out.', 'success');
-        setTimeout(() => {
-          logout();
-        }, 2000);
-      } else {
-        showToast(res.message || 'Failed to deactivate account.', 'error');
-      }
-    } catch (err) {
-      console.error(err);
-      if (err instanceof ApiError && err.data) {
-        const errorData = err.data as BaseResponse<unknown>;
-        showToast(errorData.message || 'Error deactivating account.', 'error');
-      } else {
-        showToast('Account deactivated successfully. Logging out...', 'success');
-        setTimeout(() => {
-          logout();
-        }, 2000);
-      }
-    } finally {
-      setDeactivating(false);
-      setShowDeactivateModal(false);
-    }
-  };
+  const {
+    user,
+    profile,
+    loading,
+    fullName,
+    setFullName,
+    phone,
+    setPhone,
+    savingProfile,
+    profileErrors,
+    oldPassword,
+    setOldPassword,
+    newPassword,
+    setNewPassword,
+    confirmPassword,
+    setConfirmPassword,
+    updatingPassword,
+    passwordErrors,
+    showDeactivateModal,
+    setShowDeactivateModal,
+    deactivating,
+    isAdmin,
+    handleUpdateProfile,
+    handleUpdatePassword,
+    handleDeactivateAccount,
+  } = useProfile();
 
   // Hàm tạo chữ cái viết tắt đại diện cho avatar
   const initials = React.useMemo(() => {
@@ -299,11 +77,7 @@ export default function ProfileFeature() {
     }
   }, [profile]);
 
-  // Kiểm tra vai trò Admin để áp dụng chính sách bảo vệ tài khoản
-  const isAdmin = React.useMemo(() => {
-    const roleStr = user?.role?.toLowerCase() || profile?.roleName?.toLowerCase() || '';
-    return roleStr === 'admin' || profile?.roleId === 1;
-  }, [user?.role, profile?.roleName, profile?.roleId]);
+
 
   // Hiển thị màn hình tải dữ liệu khi đang tải profile ban đầu
   if (loading) {

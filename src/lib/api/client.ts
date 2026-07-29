@@ -56,7 +56,9 @@ function handleUnauthorized(): void {
   if (typeof window === 'undefined') return;
   localStorage.removeItem('nexpark_token');
   localStorage.removeItem('nexpark_user');
-  window.location.href = '/login';
+  if (window.location.pathname !== '/login') {
+    window.location.href = '/login';
+  }
 }
 
 // ─── Base fetch wrapper ────────────────────────────────────────────
@@ -87,8 +89,9 @@ export async function apiClient<T>(
     if (!res.ok) {
       const data = await res.json().catch(() => null);
 
-      // Xử lý 401 - token hết hạn hoặc không hợp lệ
-      if (res.status === 401) {
+      // Xử lý 401 - token hết hạn hoặc không hợp lệ (Bỏ qua nếu là endpoint đăng nhập /auth)
+      const isAuthEndpoint = endpoint.toLowerCase().includes('/auth');
+      if (res.status === 401 && !isAuthEndpoint) {
         handleUnauthorized();
       }
 

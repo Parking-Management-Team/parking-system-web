@@ -44,7 +44,7 @@ import {
 import { Input } from '@/components/ui/Input';
 import { useAuth } from '@/features/auth';
 import { OtpInput } from './OtpInput';
-import { useOtpCooldown } from '@/hooks/useOtpCooldown';
+import { useOtpCooldown } from '../hooks/useOtpCooldown';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface GoogleCredentialResponse {

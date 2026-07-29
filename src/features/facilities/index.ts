@@ -22,5 +22,8 @@ export { useFacilities } from './hooks/useFacilities';
 // Context
 export { FacilitiesProvider, useFacilitiesContext } from './context/FacilitiesContext';
 
+// Services
+export { facilityService } from './services/facility.service';
+
 // Types
 export * from './types';

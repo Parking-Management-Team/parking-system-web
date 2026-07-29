@@ -28,3 +28,7 @@ export { usePricingEngine } from './hooks/usePricingEngine';
 export { useManagerDashboard } from './hooks/useManagerDashboard';
 export { usePayments } from './hooks/usePayments';
 export { useVehicleTypes } from './hooks/useVehicleTypes';
+
+// ── 4. Service gọi API ──
+export { managerService } from './services/manager.service';
+

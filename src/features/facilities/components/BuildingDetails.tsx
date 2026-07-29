@@ -107,13 +107,6 @@ export default function BuildingDetails() {
     router.push(basePath);
   };
 
-  // Ánh xạ trạng thái hoạt động toggle (Active / Inactive)
-  // Active -> BuildingStatus.Available (0)
-  // Inactive -> BuildingStatus.OutOfService (3)
-  const isActive = formBldStatus === BuildingStatus.Available;
-  const handleToggleActive = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormBldStatus(e.target.checked ? BuildingStatus.Available : BuildingStatus.OutOfService);
-  };
 
   return (
     <div className="w-full animate-in fade-in duration-300">
@@ -137,94 +130,66 @@ export default function BuildingDetails() {
       {/* 📝 FORM CẬP NHẬT THÔNG TIN TÒA NHÀ                                    */}
       {/* ─────────────────────────────────────────────────────────────────── */}
       <form onSubmit={handleEditBldPreSubmit} className="flex flex-col gap-6">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Cột trái: Thông tin cốt lõi (Core Information) */}
-          <div className="lg:col-span-2 flex flex-col gap-6">
-            <div className="bg-[#F4FBF3] border border-[#006d43]/10 rounded-2xl p-6 hover:shadow-[0_4px_12px_rgba(12,28,50,0.04)] transition-all">
-              <h2 className="text-base font-bold text-[#111c2d] mb-6 flex items-center gap-2">
-                <span className="material-symbols-outlined text-[#006d43]">domain</span>
-                Core Information
-              </h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Mã Tòa nhà (Building Code) */}
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-semibold text-[#3d4a41]">Building Code *</label>
-                  <input 
-                    type="text"
-                    required
-                    maxLength={20}
-                    value={formBldCode}
-                    onChange={(e) => setFormBldCode(e.target.value.toUpperCase())}
-                    disabled={isViewMode}
-                    className="px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-[#111c2d] focus:outline-none focus:border-[#006d43] transition-all disabled:bg-slate-50 disabled:text-slate-500"
-                  />
-                </div>
-
-                {/* Tên Tòa nhà (Building Name) */}
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-semibold text-[#3d4a41]">Building Name *</label>
-                  <input 
-                    type="text"
-                    required
-                    value={formBldName}
-                    onChange={(e) => setFormBldName(e.target.value)}
-                    disabled={isViewMode}
-                    className="px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-[#111c2d] focus:outline-none focus:border-[#006d43] transition-all disabled:bg-slate-50 disabled:text-slate-500"
-                  />
-                </div>
-
-                {/* Tổng số tầng (Total Floors) */}
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-semibold text-[#3d4a41]">Total Floors *</label>
-                  <input 
-                    type="number"
-                    required
-                    min={1}
-                    value={formBldTotalFloor}
-                    onChange={(e) => setFormBldTotalFloor(parseInt(e.target.value, 10) || 1)}
-                    disabled={isViewMode}
-                    className="px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-[#111c2d] focus:outline-none focus:border-[#006d43] transition-all disabled:bg-slate-50 disabled:text-slate-500"
-                  />
-                </div>
-
-                {/* Địa chỉ (Physical Address) */}
-                <div className="flex flex-col gap-1.5 md:col-span-2">
-                  <label className="text-xs font-semibold text-[#3d4a41]">Physical Address</label>
-                  <input 
-                    type="text"
-                    value={formBldAddress}
-                    onChange={(e) => setFormBldAddress(e.target.value)}
-                    placeholder="Enter physical address..."
-                    disabled={isViewMode}
-                    className="px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-[#111c2d] focus:outline-none focus:border-[#006d43] transition-all disabled:bg-slate-50 disabled:text-slate-500"
-                  />
-                </div>
+        <div className="w-full">
+          {/* Thông tin cốt lõi (Core Information) */}
+          <div className="bg-[#F4FBF3] border border-[#006d43]/10 rounded-2xl p-6 hover:shadow-[0_4px_12px_rgba(12,28,50,0.04)] transition-all">
+            <h2 className="text-base font-bold text-[#111c2d] mb-6 flex items-center gap-2">
+              <span className="material-symbols-outlined text-[#006d43]">domain</span>
+              Core Information
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Mã Tòa nhà (Building Code) */}
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold text-[#3d4a41]">Building Code *</label>
+                <input 
+                  type="text"
+                  required
+                  maxLength={20}
+                  value={formBldCode}
+                  onChange={(e) => setFormBldCode(e.target.value.toUpperCase())}
+                  disabled={isViewMode}
+                  className="px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-[#111c2d] focus:outline-none focus:border-[#006d43] transition-all disabled:bg-slate-50 disabled:text-slate-500"
+                />
               </div>
-            </div>
-          </div>
 
-          {/* Cột phải: Công tắc Trạng thái Hoạt động (Building Status Toggle) */}
-          <div className="flex flex-col gap-6">
-            <div className="bg-[#F4FBF3] border border-[#006d43]/10 rounded-2xl p-6 hover:shadow-[0_4px_12px_rgba(12,28,50,0.04)] transition-all">
-              <h2 className="text-base font-bold text-[#111c2d] mb-4 flex items-center gap-2">
-                <span className="material-symbols-outlined text-[#006d43]">toggle_on</span>
-                Building Status
-              </h2>
-              <div className="flex items-center justify-between p-4 bg-white rounded-xl border border-slate-100">
-                <div>
-                  <div className="text-sm font-bold text-[#111c2d]">Active Operation</div>
-                  <div className="text-xs text-[#54637d]">Visible to parking users</div>
-                </div>
-                <label className={`relative inline-flex items-center ${isViewMode ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'}`}>
-                  <input 
-                    type="checkbox" 
-                    checked={isActive}
-                    onChange={handleToggleActive}
-                    disabled={isViewMode}
-                    className="sr-only peer" 
-                  />
-                  <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#006d43]"></div>
-                </label>
+              {/* Tên Tòa nhà (Building Name) */}
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold text-[#3d4a41]">Building Name *</label>
+                <input 
+                  type="text"
+                  required
+                  value={formBldName}
+                  onChange={(e) => setFormBldName(e.target.value)}
+                  disabled={isViewMode}
+                  className="px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-[#111c2d] focus:outline-none focus:border-[#006d43] transition-all disabled:bg-slate-50 disabled:text-slate-500"
+                />
+              </div>
+
+              {/* Tổng số tầng (Total Floors) */}
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold text-[#3d4a41]">Total Floors *</label>
+                <input 
+                  type="number"
+                  required
+                  min={1}
+                  value={formBldTotalFloor}
+                  onChange={(e) => setFormBldTotalFloor(parseInt(e.target.value, 10) || 1)}
+                  disabled={isViewMode}
+                  className="px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-[#111c2d] focus:outline-none focus:border-[#006d43] transition-all disabled:bg-slate-50 disabled:text-slate-500"
+                />
+              </div>
+
+              {/* Địa chỉ (Physical Address) */}
+              <div className="flex flex-col gap-1.5 md:col-span-2">
+                <label className="text-xs font-semibold text-[#3d4a41]">Physical Address</label>
+                <input 
+                  type="text"
+                  value={formBldAddress}
+                  onChange={(e) => setFormBldAddress(e.target.value)}
+                  placeholder="Enter physical address..."
+                  disabled={isViewMode}
+                  className="px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-[#111c2d] focus:outline-none focus:border-[#006d43] transition-all disabled:bg-slate-50 disabled:text-slate-500"
+                />
               </div>
             </div>
           </div>

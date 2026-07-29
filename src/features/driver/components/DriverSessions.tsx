@@ -32,6 +32,7 @@ import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/features/auth';
 import { api } from '@/lib/api/client';
+import { usePricingEngine } from '@/features/manager/hooks/usePricingEngine';
 import {
   Calendar,
   Clock,
@@ -69,6 +70,7 @@ interface ParkingSessionRecord {
   slotCode?: string;
   zoneCode?: string;
   sessionStatus: string;
+  bookingId?: number;
 }
 
 export default function DriverSessions() {
@@ -81,6 +83,25 @@ export default function DriverSessions() {
   const [activeSession, setActiveSession] = useState<ParkingSessionRecord | null>(null);
   const [vehicles, setVehicles] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+
+  const { calculatePrice } = usePricingEngine();
+
+  const formatLocalVNTime = (date: Date): string => {
+    const parts = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'Asia/Ho_Chi_Minh',
+      year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit', second: '2-digit',
+      hour12: false,
+    }).formatToParts(date);
+    const y = parts.find(p => p.type === 'year')?.value;
+    const m = parts.find(p => p.type === 'month')?.value;
+    const d = parts.find(p => p.type === 'day')?.value;
+    let hr = parts.find(p => p.type === 'hour')?.value ?? '00';
+    const min = parts.find(p => p.type === 'minute')?.value ?? '00';
+    const sec = parts.find(p => p.type === 'second')?.value ?? '00';
+    if (hr === '24') hr = '00';
+    return `${y}-${m}-${d}T${hr}:${min}:${sec}+07:00`;
+  };
 
   // Mounting for portal
   const [mounted, setMounted] = useState(false);
@@ -177,23 +198,48 @@ export default function DriverSessions() {
     fetchSessionsData();
   }, [fetchSessionsData]);
 
-  // Live timer tick
+  // Live timer tick with Pricing Engine integration
   useEffect(() => {
     let timer: NodeJS.Timeout;
-    if (activeTab === 'walkin' && activeSession) {
+    if (activeSession && activeSession.checkInTime) {
+      const checkInDate = new Date(activeSession.checkInTime);
       const matchedVehicle = vehicles.find(v => v.licensePlate === activeSession.licensePlateIn);
-      const isMotor = matchedVehicle?.vehicleTypeId === 1 || activeSession.slotCode?.startsWith('M');
-      const rate = isMotor ? 5000 : 20000;
+      const vehicleTypeId = matchedVehicle?.vehicleTypeId || (activeSession.slotCode?.startsWith('M') ? 1 : 2);
+
+      const updatePriceFromPolicy = async () => {
+        const now = new Date();
+        const diffSecs = Math.max(0, Math.floor((now.getTime() - checkInDate.getTime()) / 1000));
+        setDuration(diffSecs);
+
+        try {
+          const res = await calculatePrice({
+            vehicleTypeId,
+            checkInTime: formatLocalVNTime(checkInDate),
+            checkOutTime: formatLocalVNTime(now),
+          });
+          if (res && res.totalAmount !== undefined) {
+            setCost(res.totalAmount);
+          }
+        } catch {
+          const isMotor = vehicleTypeId === 1;
+          const rate = isMotor ? 5000 : 20000;
+          setCost((diffSecs / 3600) * rate);
+        }
+      };
+
+      updatePriceFromPolicy();
+
       timer = setInterval(() => {
-        setDuration(prev => {
-          const next = prev + 1;
-          setCost((next / 3600) * rate);
-          return next;
-        });
+        const now = new Date();
+        const diffSecs = Math.max(0, Math.floor((now.getTime() - checkInDate.getTime()) / 1000));
+        setDuration(diffSecs);
+        if (diffSecs % 5 === 0) {
+          updatePriceFromPolicy();
+        }
       }, 1000);
     }
     return () => clearInterval(timer);
-  }, [activeTab, activeSession, vehicles]);
+  }, [activeSession, vehicles, calculatePrice]);
 
   const formatDuration = (totalSeconds: number) => {
     const hours = Math.floor(totalSeconds / 3600);
@@ -256,30 +302,6 @@ export default function DriverSessions() {
     }
     setIsSavingModify(true);
     try {
-      const formatLocalVNTime = (date: Date): string => {
-        const parts = new Intl.DateTimeFormat('en-US', {
-          timeZone: 'Asia/Ho_Chi_Minh',
-          year: 'numeric',
-          month: '2-digit',
-          day: '2-digit',
-          hour: '2-digit',
-          minute: '2-digit',
-          second: '2-digit',
-          hour12: false,
-        }).formatToParts(date);
-
-        const y = parts.find(p => p.type === 'year')?.value;
-        const m = parts.find(p => p.type === 'month')?.value;
-        const d = parts.find(p => p.type === 'day')?.value;
-        let hr = parts.find(p => p.type === 'hour')?.value ?? '00';
-        const min = parts.find(p => p.type === 'minute')?.value ?? '00';
-        const sec = parts.find(p => p.type === 'second')?.value ?? '00';
-
-        if (hr === '24') hr = '00';
-
-        return `${y}-${m}-${d}T${hr}:${min}:${sec}+07:00`;
-      };
-
       const checkinDate = new Date(`${newCheckinDate}T${newCheckinTime}:00+07:00`);
       
       // Tính toán khoảng thời gian đỗ xe ban đầu, tối thiểu là 4 tiếng
@@ -378,29 +400,7 @@ export default function DriverSessions() {
   };
 
 
-  const formatLocalVNTime = (date: Date): string => {
-    const parts = new Intl.DateTimeFormat('en-US', {
-      timeZone: 'Asia/Ho_Chi_Minh',
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-      hour12: false,
-    }).formatToParts(date);
 
-    const y = parts.find(p => p.type === 'year')?.value;
-    const m = parts.find(p => p.type === 'month')?.value;
-    const d = parts.find(p => p.type === 'day')?.value;
-    let hr = parts.find(p => p.type === 'hour')?.value ?? '00';
-    const min = parts.find(p => p.type === 'minute')?.value ?? '00';
-    const sec = parts.find(p => p.type === 'second')?.value ?? '00';
-
-    if (hr === '24') hr = '00';
-
-    return `${y}-${m}-${d}T${hr}:${min}:${sec}+07:00`;
-  };
 
   const handlePreviewExtend = async () => {
     if (!extendingBooking) return;

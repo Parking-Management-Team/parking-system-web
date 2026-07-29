@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useAuth } from '@/features/auth';
-import { api } from '@/lib/api/client';
+import { pricingService } from '../services/pricing.service';
 
 interface ApiErrorLike {
   status?: number;
@@ -107,7 +107,7 @@ export function usePricing() {
   // Fetch vehicle types from API, fallback to mock data on error
   const fetchVehicleTypes = useCallback(async () => {
     try {
-      const response = await api.get<{ data?: RawVehicleType[], success?: boolean }>('/vehicle-types');
+      const response = await pricingService.vehicleTypes.getAll();
       if (response && response.success && Array.isArray(response.data)) {
         const mapped: VehicleType[] = response.data
           .filter((item: RawVehicleType) => (item.id ?? item.Id) !== undefined && (item.name ?? item.TypeName ?? item.typeName ?? item.Name) !== undefined)
@@ -157,7 +157,7 @@ interface PolicyApiResponse {
   // Fetch pricing policies on component mount
   const fetchPolicies = useCallback(async () => {
     try {
-      const response = await api.get<{ data: PolicyApiResponse[]; success: boolean }>('/pricing-policies');
+      const response = await pricingService.policies.getAll();
       if (response && Array.isArray(response.data)) {
         if (response.data.length > 0) {
           const mappedPolicies: StandardTariff[] = response.data.map((policy: PolicyApiResponse) => {
@@ -169,26 +169,28 @@ interface PolicyApiResponse {
             return {
               pricingPolicyId: policy.pricingPolicyId ?? policy.id ?? 0,
               vehicleTypeId: policy.vehicleTypeId,
-              vehicleTypeName: policy.vehicleTypeName,
+              vehicleTypeName: policy.vehicleTypeName || `Vehicle Type ${policy.vehicleTypeId}`,
               policyName: policy.policyName,
               priority: policy.priority ?? 0,
               effectiveStart: policy.effectiveStart,
               effectiveEnd: policy.effectiveEnd,
               pricingPolicyStatus: normStatus,
-              pricingWindows: (policy.pricingWindows || []).map((win: WindowApiResponse) => ({
-                pricingWindowId: win.pricingWindowId ?? win.id ?? 0,
-                pricingPolicyId: win.pricingPolicyId ?? policy.id ?? policy.pricingPolicyId ?? 0,
-                windowName: win.windowName,
-                startTime: win.startTime,
-                endTime: win.endTime,
-                baseDurationMinutes: win.baseDurationMinutes,
-                basePrice: win.basePrice,
-                incrementBlockMinutes: win.incrementBlockMinutes,
-                incrementPrice: win.incrementPrice,
-                windowCap: win.windowCap,
-                gracePeriodMinutes: win.gracePeriodMinutes,
-                createdAt: win.createdAt || ''
-              })),
+              pricingWindows: Array.isArray(policy.pricingWindows)
+                ? policy.pricingWindows.map((w: WindowApiResponse) => ({
+                    pricingWindowId: w.pricingWindowId ?? w.id ?? 0,
+                    pricingPolicyId: w.pricingPolicyId ?? policy.pricingPolicyId ?? policy.id ?? 0,
+                    windowName: w.windowName,
+                    startTime: w.startTime,
+                    endTime: w.endTime,
+                    baseDurationMinutes: w.baseDurationMinutes,
+                    basePrice: w.basePrice,
+                    incrementBlockMinutes: w.incrementBlockMinutes,
+                    incrementPrice: w.incrementPrice,
+                    windowCap: w.windowCap,
+                    gracePeriodMinutes: w.gracePeriodMinutes,
+                    createdAt: w.createdAt || ''
+                  }))
+                : [],
               createdAt: policy.createdAt || ''
             };
           });
@@ -217,7 +219,7 @@ interface PolicyApiResponse {
 
     // Step 1: Load vehicle types
     try {
-      const vtRes = await api.get<{ data?: RawVehicleType[], success?: boolean }>('/vehicle-types');
+      const vtRes = await pricingService.vehicleTypes.getAll();
       if (vtRes && vtRes.success && Array.isArray(vtRes.data)) {
         loadedVehicleTypes = vtRes.data
           .filter((item: RawVehicleType) => (item.id ?? item.Id) !== undefined && (item.name ?? item.TypeName ?? item.typeName ?? item.Name) !== undefined)
@@ -235,7 +237,7 @@ interface PolicyApiResponse {
 
     // Step 2: Load penalty configs
     try {
-      const penRes = await api.get<{ data?: PenaltyConfig[]; success?: boolean }>('/penalty-configs?onlyActive=true');
+      const penRes = await pricingService.penaltyConfigs.getAll(true);
       if (penRes && Array.isArray(penRes.data)) {
         loadedPenaltyConfigs = penRes.data;
       }
@@ -245,7 +247,7 @@ interface PolicyApiResponse {
 
     // Step 3: Load incident types and merge penalty fee
     try {
-      const itRes = await api.get<{ data?: IncidentType[]; success?: boolean }>('/IncidentType');
+      const itRes = await pricingService.incidentTypes.getAll();
       if (itRes && Array.isArray(itRes.data)) {
         loadedIncidentTypes = itRes.data.map((it) => {
           const activeConfig = loadedPenaltyConfigs.find((c) => c.incidentTypeId === it.id && c.isActive);
@@ -383,7 +385,7 @@ interface PolicyApiResponse {
 
   const fetchSegmentedConfig = useCallback(async () => {
     try {
-      const res = await api.get<{ data?: { key: string; value: string } } | { key: string; value: string }>('/parkingsystemconfig/APPLY_SEGMENTED_PRICING');
+      const res = await pricingService.systemConfig.getSegmentedPricingConfig();
       const data = (res && typeof res === 'object' && 'data' in res && res.data) ? res.data : res;
       if (data && typeof data === 'object' && 'value' in data) {
         setIsSegmentedPricing(String(data.value).toLowerCase() === 'true');
@@ -401,7 +403,7 @@ interface PolicyApiResponse {
     setIsTogglingSegmented(true);
     const nextVal = !isSegmentedPricing;
     try {
-      await api.put('/parkingsystemconfig', {
+      await pricingService.systemConfig.update({
         key: 'APPLY_SEGMENTED_PRICING',
         value: nextVal.toString(),
         description: 'Toggle segmented billing mode for multi-period sessions'
@@ -456,9 +458,6 @@ interface PolicyApiResponse {
   const [formAddWindowEnableCap, setFormAddWindowEnableCap] = useState(false);
   const [formAddWindowMaxCap, setFormAddWindowMaxCap] = useState(0);
   const [formAddWindowGraceVal, setFormAddWindowGraceVal] = useState('15');
-
-
-
 
   // Form Inputs for Service Fees & Penalties
   const [formFeeIncidentTypeId, setFormFeeIncidentTypeId] = useState<number>(1);
@@ -535,7 +534,7 @@ interface PolicyApiResponse {
     };
 
     try {
-      const res = await api.put<{ success: boolean }>(`/pricing-policies/windows/${windowId}`, requestBody);
+      const res = await pricingService.policies.updateWindow(windowId, requestBody);
       if (res) {
         await fetchPolicies();
         triggerToast('Pricing Policy updated successfully!', 'success');
@@ -552,14 +551,10 @@ interface PolicyApiResponse {
     }
   };
 
-
-
-
-
   const handleCleanupExpiredPolicies = async () => {
     setIsCleaningUp(true);
     try {
-      const res = await api.post<{ success: boolean; message?: string }>('/pricing-policies/cleanup', {});
+      const res = await pricingService.policies.cleanup();
       if (res && res.success) {
         await fetchPolicies();
         triggerToast('Expired pricing policies cleaned up successfully!', 'success');
@@ -587,7 +582,7 @@ interface PolicyApiResponse {
     }
 
     try {
-      const res = await api.post<{ success: boolean }>(`/pricing-policies/${policyId}/activate`, {});
+      const res = await pricingService.policies.activate(policyId);
       if (res) {
         await fetchPolicies();
         triggerToast(`Policy activated successfully!`, 'success');
@@ -605,7 +600,7 @@ interface PolicyApiResponse {
     const windowId = parseInt(windowIdStr);
 
     try {
-      const res = await api.delete<{ success: boolean }>(`/pricing-policies/windows/${windowId}`);
+      const res = await pricingService.policies.deleteWindow(windowId);
       if (res) {
         await fetchPolicies();
         triggerToast('Policy window deleted successfully!', 'success');
@@ -665,7 +660,7 @@ interface PolicyApiResponse {
         penaltyFee: formFeeAmount
       };
 
-      const res = await api.post<{ success: boolean }>('/penalty-configs', requestBody);
+      const res = await pricingService.penaltyConfigs.create(requestBody);
       if (res) {
         await loadAllData();
         triggerToast('Penalty configuration updated successfully!', 'success');
@@ -687,7 +682,7 @@ interface PolicyApiResponse {
         triggerToast('Invalid penalty config ID.', 'error');
         return;
       }
-      const res = await api.put<{ success: boolean }>(`/penalty-configs/${configId}/deactivate`, {});
+      const res = await pricingService.penaltyConfigs.deactivate(configId);
       if (res) {
         await loadAllData();
         triggerToast('Penalty configuration deactivated successfully!', 'success');
@@ -741,13 +736,13 @@ interface PolicyApiResponse {
 
     try {
       if (editingIncidentType) {
-        const res = await api.put<{ success: boolean; data?: IncidentType }>(`/IncidentType/${editingIncidentType.id}`, {
+        const res = await pricingService.incidentTypes.update(editingIncidentType.id, {
           incidentName: formIncidentName,
           description: formIncidentDescription
         });
         if (res) {
           if (formIncidentDefaultFee !== (editingIncidentType.defaultPenaltyFee ?? 0)) {
-            await api.post('/penalty-configs', {
+            await pricingService.penaltyConfigs.create({
               incidentTypeId: editingIncidentType.id,
               penaltyFee: formIncidentDefaultFee
             });
@@ -758,7 +753,7 @@ interface PolicyApiResponse {
           triggerToast('Failed to update incident type.', 'error');
         }
       } else {
-        const res = await api.post<{ success: boolean; data?: IncidentType }>('/IncidentType', {
+        const res = await pricingService.incidentTypes.create({
           incidentCode: formIncidentCode,
           incidentName: formIncidentName,
           description: formIncidentDescription
@@ -766,7 +761,7 @@ interface PolicyApiResponse {
         if (res) {
           const newIncidentType = res.data;
           if (newIncidentType && formIncidentDefaultFee > 0) {
-            await api.post('/penalty-configs', {
+            await pricingService.penaltyConfigs.create({
               incidentTypeId: newIncidentType.id,
               penaltyFee: formIncidentDefaultFee
             });
@@ -787,7 +782,7 @@ interface PolicyApiResponse {
 
   const handleDeleteIncidentType = async (id: number) => {
     try {
-      const res = await api.delete<{ success: boolean }>(`/IncidentType/${id}`);
+      const res = await pricingService.incidentTypes.delete(id);
       if (res) {
         await loadAllData();
         triggerToast('Incident type deleted.', 'success');
@@ -930,7 +925,7 @@ interface PolicyApiResponse {
     };
 
     try {
-      const res = await api.post<{ success: boolean }>('/pricing-policies', requestBody);
+      const res = await pricingService.policies.create(requestBody);
       if (res) {
         await fetchPolicies();
         triggerToast('New pricing policy created successfully!', 'success');
@@ -970,7 +965,7 @@ interface PolicyApiResponse {
     const targetPolicyId = activatingPolicy.pricingPolicyId;
 
     try {
-      const res = await api.post<{ success: boolean }>(`/pricing-policies/${targetPolicyId}/activate`, {});
+      const res = await pricingService.policies.activate(targetPolicyId);
       if (res) {
         await fetchPolicies();
         triggerToast(`Pricing policy "${activatingPolicy.policyName}" activated successfully!`, 'success');
@@ -1000,9 +995,9 @@ interface PolicyApiResponse {
     setActivationError(null);
     setIsOverlapError(false);
     try {
-      await api.post('/pricing-policies/cleanup', {});
+      await pricingService.policies.cleanup();
       const targetPolicyId = activatingPolicy.pricingPolicyId;
-      const res = await api.post<{ success: boolean }>(`/pricing-policies/${targetPolicyId}/activate`, {});
+      const res = await pricingService.policies.activate(targetPolicyId);
       if (res) {
         await fetchPolicies();
         triggerToast(`Expired policies cleaned up and "${activatingPolicy.policyName}" activated!`, 'success');
@@ -1084,7 +1079,7 @@ interface PolicyApiResponse {
         requestBody.effectiveEnd = null;
       }
 
-      const res = await api.put<{ success: boolean }>(`/pricing-policies/${editPolicyTarget.pricingPolicyId}`, requestBody);
+      const res = await pricingService.policies.update(editPolicyTarget.pricingPolicyId, requestBody);
       if (res) {
         await fetchPolicies();
         triggerToast('Pricing policy updated successfully!', 'success');
@@ -1186,7 +1181,7 @@ interface PolicyApiResponse {
     }
 
     try {
-      const res = await api.post<{ success: boolean }>(`/pricing-policies/${addWindowTargetPolicyId}/windows`, newWinReq);
+      const res = await pricingService.policies.addWindow(addWindowTargetPolicyId, newWinReq);
       if (res) {
         await fetchPolicies();
         triggerToast('New pricing window added successfully!', 'success');

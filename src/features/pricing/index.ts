@@ -14,5 +14,8 @@ export { default as PricingWorkspace } from './components/PricingWorkspace';
 // Hooks
 export { usePricing } from './hooks/usePricing';
 
+// Services
+export { pricingService } from './services/pricing.service';
+
 // Types
 export * from './types';

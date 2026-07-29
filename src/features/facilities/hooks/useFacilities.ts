@@ -1,30 +1,8 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/features/auth';
-import { api } from '@/lib/api/client';
+import { facilityService, FloorResponseDto as FloorResponse, ZoneResponseDto as ZoneResponse } from '../services/facility.service';
 import { Building, BuildingStatus, BaseResponse, PagedResult } from '@/lib/types/building.types';
 import { Floor, Zone, VehicleType } from '../types';
-
-interface FloorResponse {
-  id: number;
-  buildingId: number;
-  floorNumber: number;
-  name?: string;
-  type?: string;
-  floorType?: string;
-  status: number | string;
-}
-
-interface ZoneResponse {
-  id: number;
-  floorId: number;
-  name: string;
-  code?: string;
-  vehicleTypeId: number;
-  accessType?: number;  // Backend: 0 = GENERAL, 1 = MONTHLY
-  capacity?: number;
-  status: number | string;
-  bookingLimitRate?: number;
-}
 
 // Map accessType number to string (Backend: 0 = GENERAL, 1 = MONTHLY)
 const mapAccessTypeToBackend = (type: 'GENERAL' | 'MONTHLY'): number => {
@@ -189,10 +167,10 @@ export function useFacilities() {
     return () => clearInterval(intervalId);
   }, []);
 
-  // Fetch danh sách tầng từ API
+  // Fetch danh sách tầng từ API thông qua Service
   const fetchFloors = async () => {
     try {
-      const res = await api.get<BaseResponse<FloorResponse[]>>('/Floors');
+      const res = await facilityService.floors.getAll();
       if (res.success && res.data) {
         const mappedFloors: Floor[] = res.data.map((item: FloorResponse) => ({
           id: item.id,
@@ -200,21 +178,20 @@ export function useFacilities() {
           floorNumber: item.floorNumber,
           name: item.name || `Floor ${item.floorNumber}`,
           floorType: item.type || item.floorType || 'Standard',
-          totalSlots: 0, // Sẽ được tự động gán động bằng tổng capacity của các Zone bên trong
+          totalSlots: 0,
           status: mapStatusToFrontend(item.status)
         }));
         setRawFloors(mappedFloors);
-
       }
     } catch (error) {
       console.error('Không thể kết nối API Floors.', error);
     }
   };
 
-  // Fetch danh sách Loại xe từ API (Vehicle Types)
+  // Fetch danh sách Loại xe từ API thông qua Service
   const fetchVehicleTypes = async () => {
     try {
-      const res = await api.get<BaseResponse<VehicleType[]>>('/vehicle-types');
+      const res = await facilityService.vehicleTypes.getAll();
       if (res.success && res.data) {
         setVehicleTypes(res.data);
         return res.data;
@@ -232,7 +209,7 @@ export function useFacilities() {
         currentVehicleTypes = await fetchVehicleTypes() || [];
       }
 
-      const res = await api.get<BaseResponse<ZoneResponse[]>>('/Zones');
+      const res = await facilityService.zones.getAll();
       if (res.success && Array.isArray(res.data)) {
         const safeVehicleTypes = Array.isArray(currentVehicleTypes) ? currentVehicleTypes : [];
         const mappedZones: Zone[] = res.data.map((item: ZoneResponse) => {
@@ -257,15 +234,11 @@ export function useFacilities() {
     }
   };
 
-  // Fetch dữ liệu Tòa nhà từ API
+  // Fetch dữ liệu Tòa nhà từ API thông qua Service
   const fetchBuildings = async (index: number) => {
     try {
-      // Gọi API lấy danh sách tòa nhà theo trang
-      const res = await api.get<BaseResponse<PagedResult<Building>>>(
-        `/Buildings/paged?pageIndex=${index}&pageSize=${pageSize}`
-      );
+      const res = await facilityService.buildings.getPaged(index, pageSize);
       if (res.success && res.data && res.data.items) {
-        // Cập nhật dữ liệu từ API vào state
         setBuildings(res.data.items);
         setTotalCount(res.data.totalCount);
         setTotalPages(res.data.totalPages);
@@ -359,8 +332,8 @@ export function useFacilities() {
 
     setIsSaving(true);
     try {
-      // Gửi request tạo tòa nhà mới lên API server
-      const res = await api.post<BaseResponse<Building>>('/Buildings', {
+      // Gửi request tạo tòa nhà mới lên API server thông qua Service
+      const res = await facilityService.buildings.create({
         code: formBldCode,
         name: formBldName,
         address: formBldAddress || undefined,
@@ -422,8 +395,8 @@ export function useFacilities() {
     setIsWarningBldOpen(false);
 
     try {
-      // Gửi yêu cầu cập nhật thông tin tòa nhà lên API
-      const res = await api.put<BaseResponse<Building>>(`/Buildings/${editingBld.id}`, {
+      // Gửi yêu cầu cập nhật thông tin tòa nhà lên API thông qua Service
+      const res = await facilityService.buildings.update(editingBld.id, {
         code: formBldCode,
         name: formBldName,
         address: formBldAddress || undefined,
@@ -452,8 +425,8 @@ export function useFacilities() {
     setIsSaving(true);
 
     try {
-      // Gửi yêu cầu xóa tòa nhà lên API server
-      const res = await api.delete<BaseResponse<unknown>>(`/Buildings/${deletingBld.id}`);
+      // Gửi yêu cầu xóa tòa nhà lên API server thông qua Service
+      const res = await facilityService.buildings.delete(deletingBld.id);
       if (res.success) {
         setIsDelBldOpen(false);
         setDeletingBld(null);
@@ -530,7 +503,7 @@ export function useFacilities() {
 
     setIsSaving(true);
     try {
-      const res = await api.post<BaseResponse<unknown>>('/Floors', {
+      const res = await facilityService.floors.create({
         buildingId: selectedBuilding.id,
         floorNumber: formFloorNumber,
         name: formFloorName
@@ -563,7 +536,7 @@ export function useFacilities() {
 
     setIsSaving(true);
     try {
-      const res = await api.put<BaseResponse<unknown>>(`/Floors/${editingFloor.id}`, {
+      const res = await facilityService.floors.update(editingFloor.id, {
         floorNumber: formFloorNumber,
         name: formFloorName,
         status: mapStatusToBackend(formFloorStatus)
@@ -588,7 +561,7 @@ export function useFacilities() {
     if (!deletingFloor) return;
     setIsSaving(true);
     try {
-      const res = await api.delete<BaseResponse<unknown>>(`/Floors/${deletingFloor.id}`);
+      const res = await facilityService.floors.delete(deletingFloor.id);
       if (res.success) {
         setIsDelFloorOpen(false);
         setDeletingFloor(null);
@@ -663,7 +636,7 @@ export function useFacilities() {
 
     setIsSaving(true);
     try {
-      const res = await api.post<BaseResponse<unknown>>('/Zones', {
+      const res = await facilityService.zones.create({
         floorId: selectedFloor.id,
         code: formZoneCode,
         name: formZoneName,
@@ -705,7 +678,7 @@ export function useFacilities() {
 
     setIsSaving(true);
     try {
-      const res = await api.put<BaseResponse<unknown>>(`/Zones/${editingZone.id}`, {
+      const res = await facilityService.zones.update(editingZone.id, {
         code: formZoneCode,
         name: formZoneName,
         vehicleTypeId: Number(formZoneVehicleTypeId),
@@ -733,7 +706,7 @@ export function useFacilities() {
     if (!deletingZone) return;
     setIsSaving(true);
     try {
-      const res = await api.delete<BaseResponse<unknown>>(`/Zones/${deletingZone.id}`);
+      const res = await facilityService.zones.delete(deletingZone.id);
       if (res.success) {
         setIsDelZoneOpen(false);
         setDeletingZone(null);

@@ -1,4 +1,8 @@
 import { api, ApiError } from '@/lib/api/client';
+import {
+  fetchActiveParkingSessionDtos,
+  type ActiveParkingSessionDto,
+} from './active-parking-session.service';
 
 type BaseResponse<T> = {
   success: boolean;
@@ -7,25 +11,7 @@ type BaseResponse<T> = {
   errors?: Record<string, string[]> | null;
 };
 
-type ParkingSessionDto = {
-  id?: number | null;
-  vehicleId?: number | null;
-  buildingId?: number | null;
-  cardId?: number | null;
-  zoneId?: number | null;
-  slotId?: number | null;
-  bookingId?: number | null;
-  monthlySubscriptionId?: number | null;
-  checkInTime?: string | null;
-  licensePlateIn?: string | null;
-  sessionStatus?: string | null;
-  cardCode?: string | null;
-  zoneCode?: string | null;
-  slotCode?: string | null;
-  imageIn?: string | null;
-  imageOut?: string | null;
-  vehicleType?: string | null;
-};
+type ParkingSessionDto = ActiveParkingSessionDto;
 
 type BookingDto = {
   id?: number | null;
@@ -210,12 +196,7 @@ const mapBooking = (booking: BookingDto): VehicleCheckinBooking => {
 
 export const fetchActiveParkingSessions = async (): Promise<VehicleCheckinSession[]> => {
   try {
-    const response = await api.get<BaseResponse<ParkingSessionDto[]>>(
-      '/parking-sessions/active'
-    );
-    return unwrap(response, 'Could not load active parking sessions.').map(
-      mapActiveParkingSession
-    );
+    return (await fetchActiveParkingSessionDtos()).map(mapActiveParkingSession);
   } catch (error) {
     throw new Error(getApiErrorMessage(error));
   }

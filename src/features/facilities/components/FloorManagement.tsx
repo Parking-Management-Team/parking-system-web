@@ -320,7 +320,9 @@ export default function FloorManagement() {
                   </div>
                   <div>
                     <div className="text-[10px] uppercase tracking-wider font-semibold text-slate-400">Zones Layout</div>
-                    <div className="text-lg font-bold text-[#111c2d] mt-0.5">{activeZones.length} <span className="text-xs font-normal text-slate-500">active zones</span></div>
+                    <div className="text-lg font-bold text-[#111c2d] mt-0.5">
+                      {activeZones.filter(z => z.status === 'Active').length} <span className="text-xs font-normal text-slate-500">active {activeZones.filter(z => z.status === 'Active').length === 1 ? 'zone' : 'zones'}</span>
+                    </div>
                   </div>
                 </div>
               </div>

@@ -76,8 +76,8 @@ type GateOverlay =
     message: string;
   };
 
-const BUILDING_ID = 3;
-const STAFF_ID = 2;
+const BUILDING_ID = 1;
+const STAFF_ID = 3;
 
 const normalizeText = (value: string) => value.trim().toUpperCase();
 const normalizeComparable = (value: string) =>
@@ -120,9 +120,10 @@ export default function VehicleCheckin({
   refreshTrigger?: number;
   onCheckinSuccess?: () => void;
 } = {}) {
-  const { showToast } = useAuth();
+  const { showToast, user } = useAuth();
+  const STAFF_ID = user?.id ?? 3; // Dynamically from logged-in Staff account (default 3)
 
-  const [buildingId, setBuildingId] = useState<number>(3);
+  const [buildingId, setBuildingId] = useState<number>(1);
   const [buildings, setBuildings] = useState<{ id: number; name: string }[]>(
     [],
   );
@@ -432,23 +433,24 @@ export default function VehicleCheckin({
       const buildingsRes = await api.get<any>(
         "/Buildings/paged?pageIndex=1&pageSize=100",
       );
-      if (
-        buildingsRes.success &&
-        buildingsRes.data?.items &&
-        Array.isArray(buildingsRes.data.items)
-      ) {
-        const mapped = buildingsRes.data.items.map((b: any) => ({
+      const rawData = buildingsRes?.data ?? buildingsRes;
+      const rawList = Array.isArray(rawData)
+        ? rawData
+        : Array.isArray(rawData?.items)
+        ? rawData.items
+        : [];
+
+      if (rawList.length > 0) {
+        const mapped = rawList.map((b: any) => ({
           id: b.id,
-          name: b.name,
+          name: b.name || b.code || `Building #${b.id}`,
         }));
         setBuildings(mapped);
 
-        if (mapped.length > 0) {
-          const hasCurrent = mapped.some((b: any) => b.id === buildingId);
-          if (!hasCurrent) {
-            currentBuildingId = mapped[0].id;
-            setBuildingId(currentBuildingId);
-          }
+        const hasCurrent = mapped.some((b: any) => b.id === buildingId);
+        if (!hasCurrent) {
+          currentBuildingId = mapped[0].id;
+          setBuildingId(currentBuildingId);
         }
       }
     } catch (err) {
@@ -939,8 +941,8 @@ export default function VehicleCheckin({
                       type="button"
                       onClick={cameraActive ? stopCamera : startCamera}
                       className={`flex-1 rounded-xl py-1.5 text-xs font-bold transition flex items-center justify-center gap-1.5 border ${cameraActive
-                          ? "bg-red-50 border-red-200 text-red-700 hover:bg-red-100"
-                          : "bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100"
+                        ? "bg-red-50 border-red-200 text-red-700 hover:bg-red-100"
+                        : "bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100"
                         }`}
                     >
                       {cameraActive ? "Stop Cam" : "Start Cam"}
@@ -1081,8 +1083,8 @@ export default function VehicleCheckin({
                         type="button"
                         onClick={() => setVehicleTypeId(id)}
                         className={`rounded-xl border px-3 py-2 text-xs font-black transition ${isSelected
-                            ? "border-emerald-500 bg-emerald-50 text-emerald-700"
-                            : "border-slate-200 bg-white text-slate-500 hover:bg-slate-50"
+                          ? "border-emerald-500 bg-emerald-50 text-emerald-700"
+                          : "border-slate-200 bg-white text-slate-500 hover:bg-slate-50"
                           }`}
                       >
                         <span className="material-symbols-outlined mr-1.5 align-middle text-base">
@@ -1351,8 +1353,8 @@ export default function VehicleCheckin({
                         type="button"
                         onClick={() => setSelectedSlotId(slot.id)}
                         className={`flex flex-col items-start rounded-2xl border p-3 text-left transition ${selectedSlotId === slot.id
-                            ? "border-emerald-500 bg-emerald-50 text-emerald-950 ring-2 ring-emerald-500"
-                            : "border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700"
+                          ? "border-emerald-500 bg-emerald-50 text-emerald-950 ring-2 ring-emerald-500"
+                          : "border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700"
                           }`}
                       >
                         <span className="font-mono text-sm font-black">

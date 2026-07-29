@@ -2,7 +2,12 @@ export type IncidentStatus = 'OPEN' | 'PROCESSING' | 'RESOLVED' | 'CANCELLED';
 
 export type IncidentCode =
   | 'LOST_TICKET'
+  | 'LOST_CARD'
+  | 'PLATE_MISMATCH'
   | 'WRONG_LICENSE_PLATE'
+  | 'VEHICLE_CRASH'
+  | 'WRONG_LANE'
+  | 'LATE_CHECKOUT'
   | 'OVERTIME_PARKING'
   | 'WRONG_AREA'
   | 'UNPAID_VEHICLE'

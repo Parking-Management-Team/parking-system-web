@@ -128,8 +128,8 @@ const getApiErrorMessage = (error: unknown): string => {
       };
       const validationMessages = body.errors
         ? Object.values(body.errors)
-            .flatMap((value) => (Array.isArray(value) ? value : [value]))
-            .filter((value): value is string => typeof value === 'string')
+          .flatMap((value) => (Array.isArray(value) ? value : [value]))
+          .filter((value): value is string => typeof value === 'string')
         : [];
 
       if (typeof body.message === 'string' && body.message.trim()) return body.message;
@@ -182,7 +182,7 @@ export const mapActiveParkingSession = (
     checkInTime: String(session.checkInTime ?? ''),
     status:
       String(session.sessionStatus ?? 'ACTIVE').trim().toUpperCase() ===
-      'LOST_CARD_REPORTED'
+        'LOST_CARD_REPORTED'
         ? 'LOST_CARD_REPORTED'
         : 'ACTIVE',
     imageIn: session.imageIn ?? null,

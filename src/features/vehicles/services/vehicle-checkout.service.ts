@@ -135,11 +135,11 @@ const unwrap = <T>(response: BaseResponse<T> | T, fallback: string): T => {
       throw new Error(baseResponse.message || fallback);
     }
 
-    if (baseResponse.data == null) {
+    if (baseResponse.data === undefined) {
       throw new Error(baseResponse.message || fallback);
     }
 
-    return baseResponse.data;
+    return (baseResponse.data ?? null) as T;
   }
 
   return response as T;

@@ -726,6 +726,18 @@ export default function FacilitiesModals({
                 </p>
               </div>
 
+              <div>
+                <label className="block text-xs font-semibold text-[#3d4a41] mb-1">Zone Status *</label>
+                <select
+                  value={formZoneStatus}
+                  onChange={(e) => setFormZoneStatus(e.target.value as 'Active' | 'Inactive')}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm text-[#111c2d] focus:outline-none focus:border-[#006d43] cursor-pointer"
+                >
+                  <option value="Active">Active (Available)</option>
+                  <option value="Inactive">Inactive (Out of Service)</option>
+                </select>
+              </div>
+
               <div className="flex justify-end gap-2 pt-2">
                 <button 
                   type="button"
@@ -818,6 +830,18 @@ export default function FacilitiesModals({
                 <p className="text-[10px] text-slate-400 mt-1">
                   Percentage of capacity available for booking.
                 </p>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-[#3d4a41] mb-1">Zone Status *</label>
+                <select
+                  value={formZoneStatus}
+                  onChange={(e) => setFormZoneStatus(e.target.value as 'Active' | 'Inactive')}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm text-[#111c2d] focus:outline-none focus:border-[#006d43] cursor-pointer"
+                >
+                  <option value="Active">Active (Available)</option>
+                  <option value="Inactive">Inactive (Out of Service)</option>
+                </select>
               </div>
 
               <div className="flex justify-end gap-2 pt-2">

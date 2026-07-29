@@ -1,3 +1,31 @@
+/**
+ * ===================================================================================
+ * 📜 FE COMPONENT: DriverParkingHistory.tsx (Lịch Sử Gửi Xe / Parking History)
+ * ===================================================================================
+ * 
+ * 📌 VAI TRÒ & CHỨC NĂNG CHÍNH TRÊN UI:
+ * - Hiển thị toàn bộ lịch sử các lượt gửi xe và đặt chỗ hoàn tất của tài xế dưới dạng bảng dữ liệu / danh sách thẻ.
+ * - Bộ lọc nâng cao: Lọc theo khoảng thời gian (Từ ngày - Đến ngày), Theo phương tiện (Biển số), Theo bãi đỗ (Tòa nhà).
+ * - Xem chi tiết hóa đơn của lượt gửi: Phí đỗ xe, thời gian gửi thực tế, phương thức đã thanh toán (VNPAY / Tiền mặt).
+ * - Xuất lịch sử hoặc in hóa đơn xác nhận.
+ * 
+ * ⚙️ KẾT NỐI API BACKEND (ASP.NET Core Controllers):
+ * - GET /parking-sessions?accountId={accountId}   --> Lấy danh sách lượt đỗ đã hoàn tất (ParkingSessionsController.cs)
+ * - GET /bookings/by-account/{accountId}         --> Lấy danh sách lịch đặt chỗ đã hoàn tất (BookingsController.cs)
+ * - GET /Buildings                               --> Lấy danh mục bãi đỗ để lọc (BuildingsController.cs)
+ * 
+ * 🗄️ BẢNG DATABASE LIÊN QUAN (PostgreSQL):
+ * - ParkingSessions (Id, LicensePlateIn, CheckInTime, CheckOutTime, SessionStatus, Amount)
+ * - Bookings        (Id, Code, AccountId, DepositAmount, BookingStatus)
+ * - Payments        (Id, Amount, PaymentMethod, PaymentStatus)
+ * 
+ * 🔄 LUỒNG CẬP NHẬT DỮ LIỆU & RENDER UI:
+ * 1. Mounting: Gọi API nạp danh sách lịch sử.
+ * 2. Lọc dữ liệu: Chạy hàm `useMemo` lọc danh sách theo từ khóa tìm kiếm và khoảng thời gian do người dùng chọn trên UI.
+ * 3. Render UI: Render mảng dữ liệu đã lọc thành bảng responsive kèm phân trang.
+ * ===================================================================================
+ */
+
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -16,7 +44,8 @@ import {
   ChevronRight,
   History,
   TrendingUp,
-  BarChart2
+  BarChart2,
+  CreditCard
 } from 'lucide-react';
 
 interface ParkingSessionRecord {
@@ -109,6 +138,7 @@ export default function DriverParkingHistory() {
   ]);
   const [isLoading, setIsLoading] = useState(true);
   const [totalDurationHours, setTotalDurationHours] = useState(0);
+  const [totalFeePaid, setTotalFeePaid] = useState(0); // Mục 5: Tổng phí đã trả
   const [mostUsedZone, setMostUsedZone] = useState('—');
 
   const fetchHistory = useCallback(async () => {
@@ -181,6 +211,12 @@ export default function DriverParkingHistory() {
         }
       });
       setTotalDurationHours(totalHours);
+
+      // Mục 5: Tính tổng phí đã trả (chỉ các session có status completed)
+      const totalPaid = normalized
+        .filter(s => s.status === 'completed')
+        .reduce((acc, s) => acc + s.fee, 0);
+      setTotalFeePaid(totalPaid);
 
       const topZone = Object.entries(zoneCount).sort((a, b) => b[1] - a[1])[0];
       setMostUsedZone(topZone ? topZone[0] : '—');
@@ -367,6 +403,23 @@ export default function DriverParkingHistory() {
             </h3>
           </div>
         </div>
+
+        {/* Mục 5: Thêm stat card Total Fee Paid */}
+        <div className="bg-white border border-[#e2e8f0] p-5 rounded-2xl shadow-sm hover:shadow-md transition-all">
+          <div className="flex justify-between items-start">
+            <div className="p-2.5 rounded-xl bg-blue-50 text-blue-600">
+              <CreditCard className="w-5 h-5" />
+            </div>
+          </div>
+          <div className="mt-4">
+            <p className="text-slate-400 text-xs font-bold uppercase tracking-wider">Total Fee Paid</p>
+            <h3 className="text-xl font-extrabold text-blue-600 mt-1">
+              {isLoading ? '—' : `${Math.round(totalFeePaid).toLocaleString('vi-VN')} đ`}
+            </h3>
+            <p className="text-[10px] text-slate-400 mt-0.5">Completed sessions only</p>
+          </div>
+        </div>
+
       </section>
 
       {/* TABLE */}

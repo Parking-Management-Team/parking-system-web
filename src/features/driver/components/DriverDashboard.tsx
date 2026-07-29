@@ -1,3 +1,31 @@
+/**
+ * ===================================================================================
+ * 📊 FE COMPONENT: DriverDashboard.tsx (Tổng Quan Tài Xế / Driver Overview Dashboard)
+ * ===================================================================================
+ * 
+ * 📌 VAI TRÒ & CHỨC NĂNG CHÍNH TRÊN UI:
+ * - Thẻ Phiên gửi xe đang hoạt động (Active Session Card): Hiển thị xe đang đỗ, vị trí ô đỗ, giờ check-in, đồng hồ đếm thời gian đỗ theo thời gian thực và chi phí đỗ tạm tính.
+ * - Thẻ Lịch đặt chỗ sắp tới (Upcoming Booking Card): Mã đỗ, bãi đỗ, giờ check-in dự kiến, đồng hồ đếm ngược giữ chỗ.
+ * - Thống kê nhanh (Quick Metrics): Số lượng xe đã đăng ký, Số hóa đơn đang chờ nộp cọc.
+ * - Nút truy cập nhanh (Quick Actions): Đặt chỗ mới, Thêm xe, Thanh toán cọc, Báo cáo sự cố.
+ * 
+ * ⚙️ KẾT NỐI API BACKEND (ASP.NET Core Controllers):
+ * - GET /parking-sessions/active            --> Lấy phiên gửi xe đang hoạt động (ParkingSessionsController.cs)
+ * - GET /bookings/by-account/{accountId}    --> Lấy danh sách lịch đặt chỗ của tài xế (BookingsController.cs)
+ * - GET /vehicles?accountId={accountId}     --> Lấy danh sách phương tiện sở hữu (VehiclesController.cs)
+ * 
+ * 🗄️ BẢNG DATABASE LIÊN QUAN (PostgreSQL):
+ * - ParkingSessions (Id, LicensePlateIn, CheckInTime, SessionStatus, SlotId)
+ * - Bookings        (Id, Code, AccountId, PlannedCheckinTime, BookingStatus, PaymentDeadline)
+ * - Vehicles        (Id, LicensePlate, AccountId)
+ * 
+ * 🔄 LUỒNG CẬP NHẬT DỮ LIỆU & RENDER UI:
+ * 1. Rendering & Loading: Gọi 3 API trên qua `Promise.all` trong `fetchDashboardData()`.
+ * 2. Đếm thời gian Realtime: Dùng `setInterval(..., 1000)` đếm số giây đỗ (`secondsElapsed`) dựa trên `checkInTime` để render đồng hồ và tính giá tiền tự động.
+ * 3. Nạp lại dữ liệu: Tự động polling định kỳ để giữ giao diện đồng bộ với trạng thái bãi đỗ thực tế.
+ * ===================================================================================
+ */
+
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
@@ -304,18 +332,11 @@ export default function DriverDashboard() {
         const allVehicles: any[] = vehRes.data;
         setVehicles(allVehicles);
 
-        // Check localStorage for a default vehicle preference
-        const storedDefaultId = localStorage.getItem(`default_vehicle_${user.id}`);
-        const defaultVehicle = storedDefaultId
-          ? allVehicles.find((v: any) => v.id === Number(storedDefaultId))
-          : null;
-
-        // Use default vehicle's license plate if set, otherwise fall back to first vehicle
-        const targetPlate = defaultVehicle?.licensePlate ?? allVehicles[0].licensePlate;
+        // Mục 1: Luôn dùng xe đầu tiên trong danh sách (đã xóa logic default vehicle)
+        const targetPlate = allVehicles[0].licensePlate;
         setActiveVehiclePlate(targetPlate);
 
-        // Use default vehicle's type if set, otherwise fall back to first vehicle's type
-        const targetTypeId = defaultVehicle?.vehicleTypeId ?? allVehicles[0].vehicleTypeId;
+        const targetTypeId = allVehicles[0].vehicleTypeId;
         if (targetTypeId) {
           setSelectedVehicleTypeId(targetTypeId);
         }
@@ -578,6 +599,9 @@ export default function DriverDashboard() {
                       .filter(p => p.vehicleTypeId === selectedVehicleTypeId)
                       .sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0));
 
+                    // Mục 7: Xác định policy có priority cao nhất (policy đang được áp dụng)
+                    const maxPriority = filtered.length > 0 ? Math.max(...filtered.map(p => p.priority ?? 0)) : 0;
+
                     return filtered.map(policy => (
                       <div
                         key={policy.id}
@@ -593,9 +617,15 @@ export default function DriverDashboard() {
                               {vtName}
                             </span>
                           </div>
-                          {policy.priority > 0 && (
-                            <span className="text-[9px] font-bold bg-amber-400 text-white px-1.5 py-0.5 rounded-full leading-none">P{policy.priority}</span>
-                          )}
+                          <div className="flex items-center gap-1">
+                            {/* Mục 7: Hiển thị ★ Applied cho policy priority cao nhất */}
+                            {(policy.priority ?? 0) === maxPriority && maxPriority > 0 && (
+                              <span className="text-[9px] font-bold text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded-full leading-none">★ Applied</span>
+                            )}
+                            {policy.priority > 0 && (
+                              <span className="text-[9px] font-bold bg-amber-400 text-white px-1.5 py-0.5 rounded-full leading-none">P{policy.priority}</span>
+                            )}
+                          </div>
                         </div>
 
                         {/* Policy name */}
@@ -668,7 +698,7 @@ export default function DriverDashboard() {
             )}
           </div>
 
-          {hasActiveSession && activeSession ? (() => {
+          {hasActiveSession && activeSession && activeSession.licensePlateIn === activeVehiclePlate ? (() => {
             const isOverdue = activeBookingDetails && new Date(activeBookingDetails.plannedCheckoutTime) < new Date();
             return (
               <div className="space-y-2">
@@ -707,16 +737,10 @@ export default function DriverDashboard() {
 
                 <div className="flex items-center gap-2 pt-1">
                   <button
-                    onClick={() => router.push('/dashboard/driver/parking-utils')}
+                    onClick={() => router.push('/dashboard/driver/sessions')}
                     className="flex-1 py-2 rounded-xl bg-[#00a86b] text-white font-bold text-xs shadow-sm hover:bg-[#00905b] active:scale-[0.98] transition-all text-center"
                   >
                     View Session Details
-                  </button>
-                  <button
-                    onClick={() => router.push('/dashboard/driver/parking-utils')}
-                    className="px-3 py-2 rounded-xl border border-slate-200 text-slate-600 font-bold text-xs hover:bg-slate-50 transition-all"
-                  >
-                    QR Check-out
                   </button>
                 </div>
               </div>
@@ -863,7 +887,9 @@ export default function DriverDashboard() {
               </div>
               <p className="text-sm font-bold text-slate-700">Hourly Motorbike Parking Registration</p>
               <p className="text-xs text-slate-500 max-w-md mx-auto leading-relaxed">
-                Motorcycles are parked in the general Motorbike Zone on Floor 1. The system does not require selecting a specific parking slot. You only need to choose your planned parking duration in the Reservation Summary section.
+                Motorcycles are parked in the general Motorbike Zone
+                {visibleFloors.length > 0 ? ` on ${visibleFloors[0].name || `Floor ${visibleFloors[0].floorNumber}`}` : ''}.
+                The system does not require selecting a specific parking slot. You only need to choose your planned parking duration in the Reservation Summary section.
               </p>
             </div>
           ) : isLoadingMap ? (
@@ -878,9 +904,9 @@ export default function DriverDashboard() {
             </div>
           ) : (
             /* Interactive Floor Plan Map for all Buildings */
-            <div className="w-full overflow-x-auto overscroll-x-contain" style={{ WebkitOverflowScrolling: 'touch' }}>
-              <div className="py-8 min-w-[900px]">
-                <div className="w-full max-w-[1250px] mx-auto space-y-2">
+            <div className="w-full overflow-x-auto overflow-y-auto pb-4 max-w-full" style={{ WebkitOverflowScrolling: 'touch' }}>
+              <div className="py-6 min-w-[1200px]">
+                <div className="w-[1200px] mx-auto space-y-2">
                 {/* Cams Top */}
                 <div className="flex justify-around px-20">
                   <div className="flex flex-col items-center text-slate-400 font-bold text-[9px]">
@@ -946,15 +972,16 @@ export default function DriverDashboard() {
                   </div>
 
                   {/* Right Parking Slot Layout Area + fixed Exit Gate column */}
-                  <div className="flex-1 flex gap-0 overflow-hidden pl-4">
+                  <div className="flex-1 flex gap-0 overflow-x-auto pl-4 items-stretch">
 
                     {/* SLOTS AREA — takes all remaining space */}
-                    <div className="flex-1 flex flex-col justify-between">
+                    <div className="flex-1 flex flex-col justify-between overflow-x-auto min-w-0 pr-2">
+
                       {!isLargeMap ? (
                         /* CASE A: 2-Row Layout (Floor 1 & Floor 3) */
                         <>
                           {/* Row 1 Slots (Top Row) */}
-                          <div className="flex gap-2 items-start flex-wrap pb-2">
+                          <div className="flex gap-2 items-start flex-nowrap pb-2">
                             {topRowSlots.map(slot => renderMapSlot(slot))}
                           </div>
 
@@ -964,7 +991,7 @@ export default function DriverDashboard() {
                           </div>
 
                           {/* Row 2 Slots (Bottom Row) */}
-                          <div className="flex gap-2 items-end flex-wrap pt-2">
+                          <div className="flex gap-2 items-end flex-nowrap pt-2">
                             {(() => {
                               const mainSlots = bottomRowSlots.slice(0, -4);
                               const wheelchairGroup1 = bottomRowSlots.slice(-4, -2);
@@ -992,7 +1019,7 @@ export default function DriverDashboard() {
                         /* CASE B: 4-Row Layout (Floor 2 / Many Slots) */
                         <>
                           {/* Row 1 Slots */}
-                          <div className="flex gap-2 items-start flex-wrap pb-2">
+                          <div className="flex gap-2 items-start flex-nowrap pb-2">
                             {mapSlots.slice(0, Math.ceil(mapSlots.length / 4)).map(slot => renderMapSlot(slot))}
                           </div>
 
@@ -1002,7 +1029,7 @@ export default function DriverDashboard() {
                           </div>
 
                           {/* Row 2 Slots */}
-                          <div className="flex gap-2 items-start flex-wrap pb-2">
+                          <div className="flex gap-2 items-start flex-nowrap pb-2">
                             {mapSlots.slice(Math.ceil(mapSlots.length / 4), 2 * Math.ceil(mapSlots.length / 4)).map(slot => renderMapSlot(slot))}
                             <div className="border border-slate-300 flex items-center justify-center opacity-60 select-none font-bold text-slate-400 rounded-none shrink-0 w-[36px] h-[88px] text-[7px]" style={{ backgroundImage: 'repeating-linear-gradient(45deg, #e2e8f0, #e2e8f0 4px, #f8fafc 4px, #f8fafc 8px)' }}>
                               COL
@@ -1015,7 +1042,7 @@ export default function DriverDashboard() {
                           </div>
 
                           {/* Row 3 Slots */}
-                          <div className="flex gap-2 items-end flex-wrap pt-2">
+                          <div className="flex gap-2 items-end flex-nowrap pt-2">
                             {mapSlots.slice(2 * Math.ceil(mapSlots.length / 4), 3 * Math.ceil(mapSlots.length / 4)).map(slot => renderMapSlot(slot))}
                             <div className="border border-slate-300 flex items-center justify-center opacity-60 select-none font-bold text-slate-400 rounded-none shrink-0 w-[36px] h-[88px] text-[7px]" style={{ backgroundImage: 'repeating-linear-gradient(45deg, #e2e8f0, #e2e8f0 4px, #f8fafc 4px, #f8fafc 8px)' }}>
                               COL
@@ -1028,7 +1055,7 @@ export default function DriverDashboard() {
                           </div>
 
                           {/* Row 4 Slots */}
-                          <div className="flex gap-2 items-end flex-wrap pt-2">
+                          <div className="flex gap-2 items-end flex-nowrap pt-2">
                             {(() => {
                               const row4All = mapSlots.slice(3 * Math.ceil(mapSlots.length / 4));
                               if (row4All.length < 4) {
@@ -1059,32 +1086,33 @@ export default function DriverDashboard() {
                       )}
                     </div>
 
-                    {/* FIXED RIGHT COLUMN — Exit Gate 1 (top) + Exit Gate 2 (bottom) */}
-                    <div className="flex flex-col justify-between items-center ml-3 shrink-0 py-1" style={{ minHeight: isLargeMap ? 360 : 280 }}>
+                    {/* FIXED RIGHT COLUMN — Exit Gate 1 (top-right) + Exit Gate 2 (bottom-right) */}
+                    <div className="flex flex-col justify-between items-center ml-3 shrink-0 py-1 sticky right-0 bg-white z-10 border-l border-slate-200/80 pl-3 shadow-[-4px_0_12px_-4px_rgba(0,0,0,0.05)]" style={{ minHeight: isLargeMap ? 360 : 280 }}>
                       {/* Exit Gate 1 — Top-Right Corner */}
-                      <div className={`flex flex-col items-center justify-end shrink-0 select-none pb-1 border-l-2 border-r-2 border-slate-200 border-dashed bg-slate-50/40 ${isLargeMap ? 'w-[36px] h-[88px] px-1' : 'w-[56px] h-[112px] px-3'}`}>
-                        <div className={`bg-white border-2 border-slate-400 rounded-full flex flex-col items-center justify-around shadow-sm shrink-0 py-1 ${isLargeMap ? 'w-4 h-12' : 'w-5 h-16 py-1.5'}`}>
-                          <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></span>
-                          <span className="w-1.5 h-1.5 bg-slate-400 rounded-full"></span>
+                      <div className={`flex flex-col items-center justify-end shrink-0 select-none pb-1 border-l-2 border-r-2 border-emerald-300 border-dashed bg-emerald-50/40 rounded-lg ${isLargeMap ? 'w-[44px] h-[92px] px-1' : 'w-[60px] h-[116px] px-2'}`}>
+                        <div className={`bg-white border-2 border-emerald-600 rounded-full flex flex-col items-center justify-around shadow-sm shrink-0 py-1 ${isLargeMap ? 'w-4 h-12' : 'w-5 h-16 py-1.5'}`}>
+                          <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse shadow-sm"></span>
+                          <span className="w-1.5 h-1.5 bg-slate-300 rounded-full"></span>
                         </div>
-                        <div className="text-[8px] font-black text-emerald-600 mt-1 flex flex-col items-center leading-none">
+                        <div className="text-[9px] font-black text-emerald-700 mt-1 flex flex-col items-center leading-none">
                           <span>← EXIT</span>
-                          <span className="text-[6px] text-[#006d43] mt-0.5">GATE 1</span>
+                          <span className="text-[7px] text-[#006d43] font-extrabold mt-0.5">GATE 1</span>
                         </div>
                       </div>
 
                       {/* Exit Gate 2 — Bottom-Right Corner */}
-                      <div className={`flex flex-col items-center justify-end shrink-0 select-none pb-1 border-l-2 border-r-2 border-slate-200 border-dashed bg-slate-50/40 ${isLargeMap ? 'w-[36px] h-[88px] px-1' : 'w-[56px] h-[112px] px-3'}`}>
-                        <div className={`bg-white border-2 border-slate-400 rounded-full flex flex-col items-center justify-around shadow-sm shrink-0 py-1 ${isLargeMap ? 'w-4 h-12' : 'w-5 h-16 py-1.5'}`}>
-                          <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></span>
-                          <span className="w-1.5 h-1.5 bg-slate-400 rounded-full"></span>
+                      <div className={`flex flex-col items-center justify-end shrink-0 select-none pb-1 border-l-2 border-r-2 border-emerald-300 border-dashed bg-emerald-50/40 rounded-lg ${isLargeMap ? 'w-[44px] h-[92px] px-1' : 'w-[60px] h-[116px] px-2'}`}>
+                        <div className={`bg-white border-2 border-emerald-600 rounded-full flex flex-col items-center justify-around shadow-sm shrink-0 py-1 ${isLargeMap ? 'w-4 h-12' : 'w-5 h-16 py-1.5'}`}>
+                          <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse shadow-sm"></span>
+                          <span className="w-1.5 h-1.5 bg-slate-300 rounded-full"></span>
                         </div>
-                        <div className="text-[8px] font-black text-emerald-600 mt-1 flex flex-col items-center leading-none">
+                        <div className="text-[9px] font-black text-emerald-700 mt-1 flex flex-col items-center leading-none">
                           <span>← EXIT</span>
-                          <span className="text-[6px] text-slate-400 mt-0.5">GATE 2</span>
+                          <span className="text-[7px] text-[#006d43] font-extrabold mt-0.5">GATE 2</span>
                         </div>
                       </div>
                     </div>
+
 
                   </div>
                 </div>
@@ -1113,7 +1141,8 @@ export default function DriverDashboard() {
         {selectedSlotCode && (
           <div className="mt-4 p-4 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center justify-between shadow-sm animate-fadeIn">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-[#00a86b] text-white rounded-xl flex items-center justify-center font-bold text-sm shadow-md shadow-emerald-500/20">
+              {/* Mục 6: Thay badge cố định w-10 h-10 thành pill min-w-max để hiện đủ slot code */}
+              <div className="px-3 py-2 bg-[#00a86b] text-white rounded-xl flex items-center justify-center font-bold text-sm shadow-md shadow-emerald-500/20 min-w-max whitespace-nowrap">
                 {selectedSlotCode}
               </div>
               <div>

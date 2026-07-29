@@ -1,21 +1,26 @@
 /**
- * ═══════════════════════════════════════════════════════════════════════════════
- * 📌 FILE: ProfileFeature.tsx (MÀN HÌNH THÔNG TIN CÁ NHÂN & QUẢN LÝ TÀI KHOẢN - MY PROFILE)
- * ═══════════════════════════════════════════════════════════════════════════════
- *
- * 🎯 MỤC ĐÍCH FILE:
- * Quản lý thông tin hồ sơ cá nhân của người dùng hiện tại (My Profile), bao gồm Admin, Manager, Staff và Driver.
- *
- * 🛠️ CÁC PHẦN CHÍNH TRONG GIAO DIỆN (LAYOUT & SECTIONS):
- * 1. 👤 Header Hồ sơ (Profile Banner): Hiển thị Avatar viết tắt (Initials), Họ tên & Vai trò hệ thống (Role).
- * 2. 📝 Thông tin cá nhân (Personal Information Form): Cho phép chỉnh sửa Họ tên (fullName), Số điện thoại (phone), 
- *    đồng thời hiển thị dạng chỉ đọc các thông tin Username, Email và Ngày tham gia (Join Date).
- * 3. 🔑 Đổi Mật khẩu (Change Password Form): Cho phép đổi mật khẩu bằng cách xác nhận Mật khẩu hiện tại & Mật khẩu mới.
- *    (Cung cấp đường dẫn sang /forgot-password nếu tài khoản đăng nhập bằng Google OAuth chưa có mật khẩu).
- * 4. 🛡️ Vùng an toàn / Tự vô hiệu hoá (Danger Zone / Account Deactivation):
- *    - Với Driver/Staff: Cho phép yêu cầu tạm vô hiệu hoá tài khoản (Deactivate) với Modal xác nhận cảnh báo.
- *    - Với Admin: Áp dụng cơ chế bảo vệ tài khoản (Protected Action) - Ngăn không cho Admin tự vô hiệu hoá chính mình.
- * ═══════════════════════════════════════════════════════════════════════════════
+ * ===================================================================================
+ * 👤 FE COMPONENT: ProfileFeature.tsx (Hồ Sơ Cá Nhân & Cài Đặt / User Profile)
+ * ===================================================================================
+ * 
+ * 📌 VAI TRÒ & CHỨC NĂNG CHÍNH TRÊN UI:
+ * - Quản lý và cập nhật thông tin tài khoản cá nhân của tài xế / người dùng.
+ * - Chỉnh sửa thông tin liên hệ: Họ và tên, số điện thoại, địa chỉ email.
+ * - Form Đổi mật khẩu bảo mật (Change Password Form) có kiểm tra mật khẩu hiện tại và xác nhận mật khẩu mới.
+ * - Hiển thị vai trò hệ thống (`DRIVER`), ngày tham gia và ảnh đại diện/avatar.
+ * 
+ * ⚙️ KẾT NỐI API BACKEND (ASP.NET Core Controllers):
+ * - GET  /Accounts/profile               --> Lấy dữ liệu hồ sơ cá nhân chi tiết (AccountsController.cs)
+ * - PUT  /Accounts/profile               --> Cập nhật thông tin hồ sơ (AccountsController.cs)
+ * - POST /Auth/change-password           --> Thực hiện đổi mật khẩu tài khoản (AuthController.cs)
+ * 
+ * 🗄️ BẢNG DATABASE LIÊN QUAN (PostgreSQL):
+ * - Accounts (Id, Username, Email, Phone, FullName, RoleId, PasswordHash, CreatedAt)
+ * 
+ * 🔄 LUỒNG CẬP NHẬT DỮ LIỆU & RENDER UI:
+ * 1. Rendering: Lấy thông tin người dùng hiện tại từ `AuthContext` hoặc nạp trực tiếp từ API `/Accounts/profile`.
+ * 2. Cập nhật: Submit form -> Gọi `PUT /Accounts/profile` -> Cập nhật lại State toàn cục -> Render Toast notification.
+ * ===================================================================================
  */
 
 'use client';

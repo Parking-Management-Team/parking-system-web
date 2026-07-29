@@ -1,3 +1,22 @@
+/**
+ * ===================================================================================
+ * 🎣 FE CUSTOM HOOK: useBookings.ts (Quản Lý State & Logic API Đặt Chỗ / Booking Logic)
+ * ===================================================================================
+ * 
+ * 📌 VAI TRÒ & NHIỆM VỤ:
+ * - Chứa toàn bộ logic state (`bookings`, `isLoading`, `error`) và hàm gọi API quản lý Đặt chỗ cho tài xế.
+ * - Chuẩn hóa dữ liệu thô (Raw JSON) trả về từ Backend sang kiểu `Booking` chuẩn của Frontend.
+ * 
+ * ⚙️ KẾT NỐI API BACKEND (ASP.NET Core Controllers):
+ * - GET /bookings                           --> Lấy tất cả danh sách đặt chỗ (BookingsController.cs)
+ * - GET /bookings?status={status}           --> Lọc đơn đặt chỗ theo trạng thái (BookingsController.cs)
+ * - GET /bookings/by-building/{buildingId}  --> Lấy danh sách đặt chỗ theo bãi đỗ (BookingsController.cs)
+ * 
+ * 🗄️ BẢNG DATABASE LIÊN QUAN (PostgreSQL):
+ * - Bookings (Id, Code, AccountId, VehicleId, BuildingId, SlotId, PlannedCheckinTime, PlannedCheckoutTime, DepositAmount, BookingStatus)
+ * ===================================================================================
+ */
+
 'use client';
 
 import { useState, useCallback } from 'react';

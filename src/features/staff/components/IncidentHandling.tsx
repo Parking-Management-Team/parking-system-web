@@ -1,3 +1,35 @@
+/**
+ * ===================================================================================
+ * 🚨 FE COMPONENT: IncidentHandling.tsx (Xử Lý Sự Cố Bãi Đỗ / Incident Handling Workspace)
+ * ===================================================================================
+ * 
+ * 📌 VAI TRÒ & CHỨC NĂNG CHÍNH TRÊN UI:
+ * - Xử lý & tiếp nhận các sự cố phát sinh tại bãi đỗ xe dành cho Nhân viên bảo vệ (Staff).
+ * - Khởi tạo báo cáo sự cố mới ngay tại lối ra/vào hoặc tại ô đỗ xe:
+ *   + Chọn danh mục sự cố (Mất thẻ từ, đỗ sai vị trí, làm hỏng barie, nợ phí quá hạn,...).
+ *   + Chọn phiên đỗ xe liên quan (Session ID) & tự động tính phí phạt sự cố (Penalty Fee).
+ *   + Đưa xe vi phạm vào Danh sách đen (Blacklist) nếu cần thiết.
+ * - Danh sách tiếp nhận vé sự cố (Incident Queue Table): Xem chi tiết, chuyển trạng thái (OPEN -> PROCESSING -> RESOLVED/CANCELLED).
+ * - Cập nhật ghi chú xử lý & thu tiền phí phạt sự cố.
+ * 
+ * ⚙️ KẾT NỐI API BACKEND (ASP.NET Core Controllers):
+ * - GET  /incidents                   --> Lấy danh sách sự cố toàn bãi đỗ (IncidentController.cs)
+ * - POST /incidents                   --> Nhân viên tạo vé sự cố mới (IncidentController.cs)
+ * - PUT  /incidents/{id}/status       --> Cập nhật tiến độ xử lý sự cố (IncidentController.cs)
+ * - GET  /penalty-configs             --> Lấy cấu hình mức phí phạt sự cố (IncidentTypeController.cs)
+ * 
+ * 🗄️ BẢNG DATABASE LIÊN QUAN (PostgreSQL):
+ * - Incidents     (Id, SessionId, IncidentTypeId, Title, Description, PenaltyFee, Status, ReportedByAccountId)
+ * - IncidentTypes (Id, IncidentCode, IncidentName, DefaultPenaltyFee)
+ * - Blacklists    (Id, LicensePlate, Reason, CreatedByAccountId)
+ * 
+ * 🔄 LUỒNG CẬP NHẬT DỮ LIỆU & RENDER UI:
+ * 1. Nạp Danh Sách: Gọi API `GET /incidents` -> Phân loại vé sự cố theo trạng thái màu sắc.
+ * 2. Tạo Báo Cáo Sự Cố: Chọn loại sự cố & phiên đỗ -> Tự động nạp mức phí phạt mặc định -> Gửi API `POST /incidents`.
+ * 3. Cập Nhật Xử Lý: Click Review vé sự cố -> Cập nhật ghi chú & chuyển trạng thái sang RESOLVED.
+ * ===================================================================================
+ */
+
 'use client';
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';

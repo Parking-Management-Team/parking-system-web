@@ -1,4 +1,8 @@
 import { api, ApiError } from '@/lib/api/client';
+import {
+  fetchActiveParkingSessionDtos,
+  type ActiveParkingSessionDto,
+} from './active-parking-session.service';
 
 type BaseResponse<T> = {
   success?: boolean;
@@ -8,31 +12,7 @@ type BaseResponse<T> = {
   errors?: Record<string, string[]> | null;
 };
 
-type ActiveSessionDto = {
-  id?: number | null;
-  vehicleId?: number | null;
-  buildingId?: number | null;
-  cardId?: number | null;
-  zoneId?: number | null;
-  slotId?: number | null;
-  bookingId?: number | null;
-  monthlySubscriptionId?: number | null;
-  checkInTime?: string | null;
-  checkOutTime?: string | null;
-  licensePlateIn?: string | null;
-  licensePlateOut?: string | null;
-  sessionStatus?: string | null;
-  cardCode?: string | null;
-  zoneCode?: string | null;
-  slotCode?: string | null;
-  vehicleType?: string | null;
-  customerType?: string | null;
-  bookingCode?: string | null;
-  subscriptionCode?: string | null;
-  monthlyValidTo?: string | null;
-  imageIn?: string | null;
-  imageOut?: string | null;
-};
+type ActiveSessionDto = ActiveParkingSessionDto;
 
 type PaymentDto = {
   id?: number | null;
@@ -46,11 +26,6 @@ type PaymentDto = {
   orderCode?: number | null;
   paymentUrl?: string | null;
   qrCodeUrl?: string | null;
-};
-
-type CardDto = {
-  id?: number | null;
-  cardCode?: string | null;
 };
 
 export type CheckoutPaymentMethod = 'CASH' | 'ONLINE_BANKING';
@@ -151,13 +126,11 @@ const mapCustomerType = (session: ActiveSessionDto): CheckoutSession['customerTy
   return 'WALK_IN';
 };
 
-const mapSession = (
-  session: ActiveSessionDto,
-  cardCodeById: Map<number, string> = new Map()
+export const mapCheckoutSession = (
+  session: ActiveSessionDto
 ): CheckoutSession => {
   const id = Number(session.id ?? 0);
   const cardId = session.cardId ?? null;
-  const cardCodeFromCardApi = cardId ? cardCodeById.get(cardId) : undefined;
 
   return {
     id,
@@ -166,7 +139,7 @@ const mapSession = (
     vehicleType: String(session.vehicleType ?? 'Not returned by BE'),
     customerType: mapCustomerType(session),
     cardId,
-    cardCode: session.cardCode ?? cardCodeFromCardApi ?? (cardId ? `#${cardId}` : null),
+    cardCode: session.cardCode ?? (cardId ? `#${cardId}` : null),
     vehicleId: session.vehicleId ?? null,
     buildingId: session.buildingId ?? null,
     zoneId: session.zoneId ?? null,
@@ -203,37 +176,25 @@ const mapPayment = (payment: PaymentDto): CheckoutPayment => ({
   orderCode: payment.orderCode ?? null,
 });
 
-const fetchCardCodeMap = async (): Promise<Map<number, string>> => {
-  const response = await api.get<BaseResponse<CardDto[]> | CardDto[]>('/cards');
-  const cards = Array.isArray(response)
-    ? response
-    : unwrap(response, 'Could not load cards for checkout card-code matching.');
-
-  const cardCodeById = new Map<number, string>();
-
-  cards.forEach((card) => {
-    const id = Number(card.id ?? 0);
-    const code = String(card.cardCode ?? '').trim();
-    if (id > 0 && code) {
-      cardCodeById.set(id, code);
-    }
-  });
-
-  return cardCodeById;
+export const fetchCheckoutActiveSessions = async (
+  source?: ActiveParkingSessionDto[]
+): Promise<CheckoutSession[]> => {
+  try {
+    const data = source ?? await fetchActiveParkingSessionDtos();
+    return data.map(mapCheckoutSession);
+  } catch (error) {
+    throw new Error(getApiErrorMessage(error));
+  }
 };
 
-export const fetchCheckoutActiveSessions = async (): Promise<CheckoutSession[]> => {
+export const fetchCheckoutSessionDetail = async (
+  sessionId: number
+): Promise<CheckoutSession> => {
   try {
-    const [response, cardCodeById] = await Promise.all([
-      api.get<BaseResponse<ActiveSessionDto[]> | ActiveSessionDto[]>(
-        '/parking-sessions/active'
-      ),
-      fetchCardCodeMap(),
-    ]);
-    const data = Array.isArray(response)
-      ? response
-      : unwrap(response, 'Could not load active parking sessions.');
-    return data.map((session) => mapSession(session, cardCodeById));
+    const response = await api.get<BaseResponse<ActiveSessionDto> | ActiveSessionDto>(
+      `/parking-sessions/${sessionId}`
+    );
+    return mapCheckoutSession(unwrap(response, 'Could not load parking session details.'));
   } catch (error) {
     throw new Error(getApiErrorMessage(error));
   }
@@ -308,6 +269,27 @@ export const reportLostCard = async (
       input
     );
     return unwrap(response, 'Could not report lost card.');
+  } catch (error) {
+    throw new Error(getApiErrorMessage(error));
+  }
+};
+
+export const unpaidCheckout = async (
+  sessionId: number,
+  input?: {
+    staffId?: number;
+    reason?: string;
+  }
+): Promise<any> => {
+  try {
+    const response = await api.post<BaseResponse<any>>(
+      `/parking-sessions/${sessionId}/unpaid-checkout`,
+      {
+        staffId: input?.staffId ?? 2,
+        reason: input?.reason ?? 'Vehicle exited without completing parking fee payment.',
+      }
+    );
+    return unwrap(response, 'Could not complete unpaid checkout.');
   } catch (error) {
     throw new Error(getApiErrorMessage(error));
   }

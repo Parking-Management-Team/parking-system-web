@@ -271,7 +271,7 @@ export const incidentService = {
     }
   },
 
-  create: async (data: CreateIncidentRequest): Promise<Incident | null> => {
+  create: async (data: CreateIncidentRequest): Promise<(Incident & { autoBlacklisted?: boolean }) | null> => {
     try {
       const response = await api.post<IncidentApiResponse<IncidentDto>>('/Incident', {
         sessionId: data.sessionId,
@@ -280,7 +280,37 @@ export const incidentService = {
         penaltyFee: data.penaltyFee ?? null,
       });
 
-      return mapIncident(unwrap(response, 'Could not create incident.'));
+      const createdIncident = mapIncident(unwrap(response, 'Could not create incident.'));
+      let autoBlacklisted = false;
+
+      // Auto-Blacklist Rule (BR-BLK-001): If vehicle reaches >= 3 accumulated incident violations
+      try {
+        const allIncidents = await incidentService.getAll();
+        const vehicleIncidents = allIncidents.filter((inc) => {
+          const sameSession = inc.sessionId === createdIncident.sessionId;
+          const samePlate = createdIncident.licensePlate && inc.licensePlate &&
+            inc.licensePlate.trim().toUpperCase() === createdIncident.licensePlate.trim().toUpperCase();
+          const sameVehicleId = createdIncident.vehicleId && inc.vehicleId === createdIncident.vehicleId;
+          return (sameSession || samePlate || sameVehicleId) && inc.status !== 'CANCELLED';
+        });
+
+        if (vehicleIncidents.length >= 3) {
+          autoBlacklisted = true;
+          await incidentService.createBlacklistRecord({
+            vehicleId: createdIncident.vehicleId ?? null,
+            cardId: createdIncident.cardId ?? null,
+            incidentId: createdIncident.id,
+            reason: `Auto-Blacklist Rule BR-BLK-001: Vehicle accumulated ${vehicleIncidents.length} incident violations (${createdIncident.licensePlate || 'N/A'}).`,
+          });
+        }
+      } catch (autoErr) {
+        console.warn('Auto-Blacklist rule check failed or record already exists:', autoErr);
+      }
+
+      return {
+        ...createdIncident,
+        autoBlacklisted,
+      };
     } catch (error) {
       throw new Error(getApiErrorMessage(error));
     }

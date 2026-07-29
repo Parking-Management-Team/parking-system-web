@@ -12,6 +12,7 @@
 export { default as VehicleDetailsWorkspace } from './components/VehicleDetailsWorkspace';
 export { default as VehicleCheckin } from './components/VehicleCheckin';
 export { default as VehicleCheckout } from './components/VehicleCheckout';
+export { default as CombinedGate } from './components/CombinedGate';
 
 // Hooks (nếu cần dùng ngoài module)
 export { useVehicles } from './hooks/useVehicles';

@@ -482,20 +482,6 @@ export default function FacilitiesModals({
                   className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm text-[#111c2d] focus:outline-none focus:border-[#006d43]"
                 />
               </div>
-              <div>
-                <label className="block text-xs font-semibold text-[#3d4a41] mb-1">Floor Type *</label>
-                <select
-                  value={formFloorType}
-                  onChange={(e) => setFormFloorType(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm text-[#111c2d] focus:outline-none focus:border-[#006d43] cursor-pointer"
-                >
-                  <option value="Standard">Standard Floor</option>
-                  <option value="Ground">Ground Floor</option>
-                  <option value="Basement">Basement</option>
-                  <option value="Roof">Roof</option>
-                  <option value="EV Dedicated">EV Dedicated Floor</option>
-                </select>
-              </div>
 
               <div>
                 <label className="block text-xs font-semibold text-[#3d4a41] mb-1">Status</label>
@@ -557,20 +543,6 @@ export default function FacilitiesModals({
                   onChange={(e) => setFormFloorName(e.target.value)}
                   className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm text-[#111c2d] focus:outline-none focus:border-[#006d43]"
                 />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-[#3d4a41] mb-1">Floor Type *</label>
-                <select
-                  value={formFloorType}
-                  onChange={(e) => setFormFloorType(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm text-[#111c2d] focus:outline-none focus:border-[#006d43] cursor-pointer"
-                >
-                  <option value="Standard">Standard Floor</option>
-                  <option value="Ground">Ground Floor</option>
-                  <option value="Basement">Basement</option>
-                  <option value="Roof">Roof</option>
-                  <option value="EV Dedicated">EV Dedicated Floor</option>
-                </select>
               </div>
 
               <div>

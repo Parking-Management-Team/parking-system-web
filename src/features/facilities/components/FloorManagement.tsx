@@ -185,7 +185,6 @@ export default function FloorManagement() {
                 <tr className="bg-slate-50/70 border-b border-slate-100 text-xs font-semibold text-slate-500">
                   <th className="py-4 px-6">Floor Level</th>
                   <th className="py-4 px-6">Floor Name</th>
-                  <th className="py-4 px-6">Floor Type</th>
                   <th className="py-4 px-6">Zones Allocation</th>
                   <th className="py-4 px-6">Total Slots Capacity</th>
                   <th className="py-4 px-6">Status</th>
@@ -206,11 +205,6 @@ export default function FloorManagement() {
                       </td>
                       <td className="py-4 px-6 font-semibold text-[#111c2d]">
                         {floor.name}
-                      </td>
-                      <td className="py-4 px-6">
-                        <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-100 text-slate-700 border border-slate-200">
-                          {floor.floorType || 'Standard'}
-                        </span>
                       </td>
                       <td className="py-4 px-6">
                         <div className="flex flex-col gap-1.5 max-w-[150px]">

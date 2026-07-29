@@ -10,13 +10,16 @@
  * 3. 🔄 Luồng Phục hồi phiên làm việc (Session Hydration): Giữ trạng thái khi F5 reload trang.
  * 4. 🔑 Luồng Đổi / Đặt lại mật khẩu (Forgot & Reset Password Flow): Quy trình 3 bước OTP.
  * 5. 🛡️ Luồng Bảo vệ tuyến đường (ProtectedRoute Integration).
+ * 
+ * 🛠️ GỌI API THÔNG QUA TẦNG SERVICE:
+ * Tất cả các yêu cầu gửi tin qua mạng đều thông qua `authService` (`@/features/auth/services/auth.service`).
  * ═══════════════════════════════════════════════════════════════════════════════
  */
 
 'use client';
 
 import * as React from 'react';
-import { api } from '@/lib/api/client';
+import { authService, BaseResponse, LoginResponseDto, OtpResponse } from '../services/auth.service';
 
 /** Kiểu dữ liệu Thông tin người dùng hiển thị trên Frontend */
 export interface User {
@@ -25,37 +28,6 @@ export interface User {
   email: string;
   phone?: string;
   role?: string;
-}
-
-/** Dữ liệu nhận về từ API Backend khi Đăng nhập thành công */
-interface LoginResponseDto {
-  token: string;
-  expiration: string;
-  accountId: number;
-  username: string;
-  email: string;
-  fullName: string;
-  roleName: string;
-}
-
-/** Cấu trúc Phản hồi API chuẩn */
-interface BaseResponse<T> {
-  success?: boolean;
-  isSuccess?: boolean;
-  code?: string;
-  errorCode?: string;
-  data: T;
-  message?: string;
-  errors?: Record<string, string[]>;
-}
-
-/** Cấu trúc Phản hồi API OTP */
-interface OtpResponse<T = null> {
-  success?: boolean;
-  isSuccess?: boolean;
-  code?: string;
-  message?: string;
-  data?: T;
 }
 
 /**
@@ -151,23 +123,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   /**
    * 🔑 LUỒNG ĐĂNG NHẬP THƯỜNG (EMAIL + PASSWORD LOGIN FLOW)
-   *
-   * Bước 1: Người dùng nhập Email + Mật khẩu ở LoginForm.
-   * Bước 2: Gọi `login(identifier, password)` -> Gửi POST `/auth/login`.
-   * Bước 3: Backend kiểm tra thông tin -> Trả về JWT Token + Thông tin Tài khoản (Role, ID, FullName).
-   * Bước 4: Lưu `nexpark_token` và `nexpark_user` vào `localStorage`.
-   * Bước 5: Cập nhật State `token` & `user` -> Đăng nhập thành công.
+   * Gọi Service: `authService.login(identifier, password)`
    */
   const recentToastsRef = React.useRef<Map<string, number>>(new Map());
 
   const login = React.useCallback(async (identifier: string, password: string): Promise<User> => {
     setIsLoading(true);
     try {
-      const res = await api.post<BaseResponse<LoginResponseDto>>('/auth/login', {
-        email: identifier,
-        password: password
-      });
-
+      const res = await authService.login(identifier, password);
       const isSuccess = res.success ?? res.isSuccess;
 
       if (!isSuccess || !res.data) {
@@ -198,11 +161,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   /**
    * 📧 LUỒNG GỬI MÃ OTP ĐĂNG KÝ / XÁC THỰC EMAIL
+   * Gọi Service: `authService.sendOtp(email)`
    */
   const sendOtp = React.useCallback(async (email: string): Promise<void> => {
     setIsLoading(true);
     try {
-      const res = await api.post<OtpResponse>('/auth/send-otp', { email });
+      const res = await authService.sendOtp(email);
       const isSuccess = res.success ?? res.isSuccess ?? true;
       if (!isSuccess) {
         throw new Error(res.message || 'Failed to send OTP code.');
@@ -216,12 +180,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   /**
-   * 🔐 LUỒNG XÁC THỰC MÃ OTP
+   * 🔐 LUỒNG XÁC THỰC MÃ OTP ĐĂNG KÝ
+   * Gọi Service: `authService.verifyOtp(email, otp)`
    */
   const verifyOtp = React.useCallback(async (email: string, otp: string): Promise<string> => {
     setIsLoading(true);
     try {
-      const res = await api.post<OtpResponse<string>>('/auth/verify-otp', { email, otp });
+      const res = await authService.verifyOtp(email, otp);
       const isSuccess = res.success ?? res.isSuccess ?? true;
       if (!isSuccess || !res.data) {
         throw new Error(res.message || 'OTP verification failed.');
@@ -237,6 +202,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   /**
    * 📝 LUỒNG ĐĂNG KÝ TÀI KHOẢN MỚI
+   * Gọi Service: `authService.registerVerified(...)`
    */
   const register = React.useCallback(async (
     fullName: string,
@@ -247,13 +213,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   ): Promise<void> => {
     setIsLoading(true);
     try {
-      const res = await api.post<OtpResponse>('/auth/register-verified', {
-        fullName,
-        email,
-        phone,
-        password,
-        verificationToken
-      });
+      const res = await authService.registerVerified(fullName, email, phone, password, verificationToken);
       const isSuccess = res.success ?? res.isSuccess ?? true;
       if (!isSuccess) {
         throw new Error(res.message || 'Account registration failed.');
@@ -268,6 +228,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   /**
    * 🌐 LUỒNG ĐĂNG NHẬP BẰNG GOOGLE (GOOGLE OAUTH 2.0 FLOW)
+   * Gọi Service: `authService.loginWithGoogle(idToken)`
    */
   const loginWithGoogle = React.useCallback(async (idToken?: string): Promise<User> => {
     setIsLoading(true);
@@ -278,9 +239,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         throw new Error('Google ID Token is missing.');
       }
 
-      const res = await api.post<BaseResponse<LoginResponseDto>>('/auth/google', {
-        idToken: tokenToSend
-      });
+      const res = await authService.loginWithGoogle(tokenToSend);
 
       const resCode = res?.errorCode ?? res?.code ?? (res?.data as any)?.code ?? (res?.data as any)?.errorCode;
       if (resCode === 'REQUIRE_OTP_VERIFICATION') {
@@ -340,14 +299,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   /**
    * 🌐 LUỒNG XÁC THỰC OTP GOOGLE VÀ KHỞI TẠO TÀI KHOẢN
+   * Gọi Service: `authService.verifyGoogleOtp(idToken, otp)`
    */
   const verifyGoogleOtp = React.useCallback(async (idToken: string, otp: string): Promise<User> => {
     setIsLoading(true);
     try {
-      const res = await api.post<BaseResponse<LoginResponseDto>>('/auth/google-verify-otp', {
-        idToken,
-        otp
-      });
+      const res = await authService.verifyGoogleOtp(idToken, otp);
 
       const isSuccess = res.success ?? res.isSuccess ?? true;
 
@@ -379,15 +336,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   /**
    * 🔐 LUỒNG XÁC THỰC OTP ĐĂNG NHẬP THƯỜNG
+   * Gọi Service: `authService.verifyLoginOtp(email, password, otp)`
    */
   const verifyLoginOtp = React.useCallback(async (email: string, password: string, otp: string): Promise<User> => {
     setIsLoading(true);
     try {
-      const res = await api.post<BaseResponse<LoginResponseDto>>('/auth/login-verify-otp', {
-        email,
-        password,
-        otp
-      });
+      const res = await authService.verifyLoginOtp(email, password, otp);
 
       const isSuccess = res.success ?? res.isSuccess;
 
@@ -418,12 +372,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   /**
-   * 🔑 LUỒNG KHÔI PHỤC MẬT KHẨU / ĐỔI MẬT KHẨU (FORGOT & RESET PASSWORD 3-STEP WIZARD)
+   * 🔑 BƯỚC 1 KHÔI PHỤC MẬT KHẨU: Yêu cầu gửi OTP
+   * Gọi Service: `authService.sendPasswordResetOtp(email)`
    */
   const sendPasswordResetOtp = React.useCallback(async (email: string): Promise<void> => {
     setIsLoading(true);
     try {
-      const res = await api.post<OtpResponse>('/auth/password-recovery/request', { email });
+      const res = await authService.sendPasswordResetOtp(email);
       const isSuccess = res.success ?? res.isSuccess ?? true;
       if (!isSuccess) {
         throw new Error(res.message || 'Failed to send password reset OTP.');
@@ -437,12 +392,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   /**
-   * 🔑 BƯỚC 2: Xác thực mã OTP 6 chữ số khôi phục mật khẩu.
+   * 🔑 BƯỚC 2 KHÔI PHỤC MẬT KHẨU: Xác thực mã OTP 6 chữ số
+   * Gọi Service: `authService.verifyPasswordResetOtp(email, otp)`
    */
   const verifyPasswordResetOtp = React.useCallback(async (email: string, otp: string): Promise<string> => {
     setIsLoading(true);
     try {
-      const res = await api.post<OtpResponse<string>>('/auth/password-recovery/verify', { email, otp });
+      const res = await authService.verifyPasswordResetOtp(email, otp);
       const isSuccess = res.success ?? res.isSuccess ?? true;
       if (!isSuccess || !res.data) {
         throw new Error(res.message || 'Password reset OTP verification failed.');
@@ -457,7 +413,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   /**
-   * 🔑 BƯỚC 3: Đặt mật khẩu mới.
+   * 🔑 BƯỚC 3 KHÔI PHỤC MẬT KHẨU: Đặt mật khẩu mới
+   * Gọi Service: `authService.resetPassword(...)`
    */
   const resetPassword = React.useCallback(async (
     email: string,
@@ -466,11 +423,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   ): Promise<void> => {
     setIsLoading(true);
     try {
-      const res = await api.post<OtpResponse>('/auth/password-recovery/reset', {
-        email,
-        newPassword,
-        verificationToken
-      });
+      const res = await authService.resetPassword(email, newPassword, verificationToken);
       const isSuccess = res.success ?? res.isSuccess ?? true;
       if (!isSuccess) {
         throw new Error(res.message || 'Password reset failed.');
@@ -494,7 +447,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   /**
-   * 🔔 HÀM HIỂN THỊ TOAST THÔNG BÁO NỔI GÓC MÀN HÌNH (CÓ ANTI-SPAM THROTTLE)
+   * 🔔 HÀM HIỂN THỊ TOAST THÔNG BÁO NỔI GÓC MÀN HÌNH
    */
   const showToast = React.useCallback((message: string, type: 'success' | 'error' | 'info' = 'info') => {
     if (!message || !message.trim()) return;

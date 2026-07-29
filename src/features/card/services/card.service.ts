@@ -6,6 +6,10 @@ import type {
   ParkingCard,
   UpdatableCardStatus,
 } from '../types/card';
+import {
+  fetchActiveParkingSessionDtos,
+  type ActiveParkingSessionDto,
+} from '@/features/vehicles/services/active-parking-session.service';
 
 type BaseResponse<T> = {
   success?: boolean;
@@ -21,12 +25,6 @@ type CardDto = {
   cardType?: string | null;
   cardStatus?: string | null;
   createdAt?: string | null;
-};
-
-type ActiveParkingSessionDto = {
-  id?: number | null;
-  cardId?: number | null;
-  licensePlateIn?: string | null;
 };
 
 const mapCardType = (value: unknown): ParkingCard['cardType'] => {
@@ -71,7 +69,7 @@ const mapCardDto = (card: CardDto): ParkingCard => ({
   createdAt: String(card.createdAt ?? new Date().toISOString()),
 });
 
-const enrichCardsWithActiveSessions = (
+export const enrichCardsWithActiveSessions = (
   cards: ParkingCard[],
   activeSessions: ActiveParkingSessionDto[]
 ): ParkingCard[] => {
@@ -100,16 +98,6 @@ const enrichCardsWithActiveSessions = (
         : card.vehiclePlate,
     };
   });
-};
-
-const fetchActiveParkingSessionsForCards = async (): Promise<
-  ActiveParkingSessionDto[]
-> => {
-  const response = await api.get<
-    BaseResponse<ActiveParkingSessionDto[]> | ActiveParkingSessionDto[]
-  >('/parking-sessions/active');
-
-  return Array.isArray(response) ? response : getResponseData(response);
 };
 
 const getApiErrorMessage = (error: unknown): string => {
@@ -164,14 +152,22 @@ const getResponseData = <T>(response: BaseResponse<T> | T): T => {
   return response as T;
 };
 
-export const fetchCards = async (): Promise<ParkingCard[]> => {
+export const fetchCardsBase = async (): Promise<ParkingCard[]> => {
   try {
     const response = await api.get<BaseResponse<CardDto[]> | CardDto[]>('/cards');
     const data = Array.isArray(response) ? response : getResponseData(response);
+    return data.map(mapCardDto);
+  } catch (error) {
+    throw new Error(getApiErrorMessage(error));
+  }
+};
 
-    const cards = data.map(mapCardDto);
-    const activeSessions = await fetchActiveParkingSessionsForCards();
-
+export const fetchCards = async (): Promise<ParkingCard[]> => {
+  try {
+    const [cards, activeSessions] = await Promise.all([
+      fetchCardsBase(),
+      fetchActiveParkingSessionDtos(),
+    ]);
     return enrichCardsWithActiveSessions(cards, activeSessions);
   } catch (error) {
     throw new Error(getApiErrorMessage(error));

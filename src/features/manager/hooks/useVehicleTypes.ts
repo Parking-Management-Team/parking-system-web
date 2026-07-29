@@ -1,13 +1,17 @@
-import { useState, useEffect, useCallback } from 'react';
-import { api, ApiError } from '@/lib/api/client';
+/**
+ * ═══════════════════════════════════════════════════════════════════════════════
+ * 📌 FILE: useVehicleTypes.ts - HOOK QUẢN LÝ LOẠI PHƯƠNG TIỆN
+ * ═══════════════════════════════════════════════════════════════════════════════
+ * 
+ * 🎯 MỤC ĐÍCH FILE:
+ * Quản lý React State và các thao tác CRUD Loại xe (Ô tô, Xe máy, Xe điện...).
+ * Gọi API thông qua Tầng Service: `managerService.vehicleTypes.*`
+ * ═══════════════════════════════════════════════════════════════════════════════
+ */
 
-type VehicleType = {
-  id: number;
-  name: string;
-  description?: string;
-  vehicleTypeStatus: string;
-  bufferRatio?: number;
-};
+import { useState, useEffect, useCallback } from 'react';
+import { ApiError } from '@/lib/api/client';
+import { managerService, VehicleTypeDto as VehicleType } from '../services/manager.service';
 
 const getApiErrorMessage = (error: unknown): string => {
   if (error instanceof ApiError && error.data && typeof error.data === 'object') {
@@ -15,7 +19,7 @@ const getApiErrorMessage = (error: unknown): string => {
     if (typeof body.message === 'string' && body.message.trim()) return body.message;
     if (typeof body.title === 'string' && body.title.trim()) return body.title;
   }
-  return error instanceof Error ? error.message : 'Request failed.';
+  return error instanceof Error ? error.message : 'Yêu cầu thất bại.';
 };
 
 export function useVehicleTypes() {
@@ -23,16 +27,15 @@ export function useVehicleTypes() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  /**
+   * Gọi Service lấy danh sách các loại xe
+   */
   const fetchVehicleTypes = useCallback(async () => {
     setIsLoading(true);
     setError(null);
     try {
-      const res = await api.get<{ data: VehicleType[] } | VehicleType[]>('/vehicle-types');
-      if (Array.isArray(res)) {
-        setVehicleTypes(res);
-      } else if (res && typeof res === 'object' && 'data' in res && Array.isArray(res.data)) {
-        setVehicleTypes(res.data);
-      }
+      const data = await managerService.vehicleTypes.getAll();
+      setVehicleTypes(data);
     } catch (err) {
       setError(getApiErrorMessage(err));
     } finally {
@@ -44,21 +47,23 @@ export function useVehicleTypes() {
     fetchVehicleTypes();
   }, [fetchVehicleTypes]);
 
+  /**
+   * Gọi Service lấy chi tiết 1 loại xe theo ID
+   */
   const getVehicleTypeById = useCallback(async (id: number) => {
     try {
-      const res = await api.get<{ data: VehicleType } | VehicleType>(`/vehicle-types/${id}`);
-      if (res && typeof res === 'object' && 'data' in res) {
-        return res.data as VehicleType;
-      }
-      return res as VehicleType;
+      return await managerService.vehicleTypes.getById(id);
     } catch (err) {
       throw new Error(getApiErrorMessage(err));
     }
   }, []);
 
+  /**
+   * Gọi Service tạo loại xe mới
+   */
   const createVehicleType = useCallback(async (data: { name: string; description?: string; vehicleTypeStatus?: string; bufferRatio?: number }) => {
     try {
-      const res = await api.post<{ data: VehicleType } | VehicleType>('/vehicle-types', data);
+      const res = await managerService.vehicleTypes.create(data);
       await fetchVehicleTypes();
       return res;
     } catch (err) {
@@ -66,9 +71,12 @@ export function useVehicleTypes() {
     }
   }, [fetchVehicleTypes]);
 
+  /**
+   * Gọi Service cập nhật thông tin loại xe
+   */
   const updateVehicleType = useCallback(async (id: number, data: { name: string; description?: string; vehicleTypeStatus?: string; bufferRatio?: number }) => {
     try {
-      const res = await api.put<{ data: VehicleType } | VehicleType>(`/vehicle-types/${id}`, data);
+      const res = await managerService.vehicleTypes.update(id, data);
       await fetchVehicleTypes();
       return res;
     } catch (err) {
@@ -76,9 +84,12 @@ export function useVehicleTypes() {
     }
   }, [fetchVehicleTypes]);
 
+  /**
+   * Gọi Service xóa loại xe theo ID
+   */
   const deleteVehicleType = useCallback(async (id: number) => {
     try {
-      await api.delete(`/vehicle-types/${id}`);
+      await managerService.vehicleTypes.delete(id);
       await fetchVehicleTypes();
       return true;
     } catch (err) {

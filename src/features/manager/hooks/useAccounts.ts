@@ -1,22 +1,19 @@
+/**
+ * ═══════════════════════════════════════════════════════════════════════════════
+ * 📌 FILE: useAccounts.ts - HOOK QUẢN LÝ TÀI KHOẢN DÀNH CHO MANAGER
+ * ═══════════════════════════════════════════════════════════════════════════════
+ * 
+ * 🎯 MỤC ĐÍCH FILE:
+ * Quản lý React State và tương tác dữ liệu Tài khoản người dùng (Search, Filter, Deactivate, Delete).
+ * Gọi API thông qua Tầng Service: `managerService.accounts.*`
+ * ═══════════════════════════════════════════════════════════════════════════════
+ */
+
 import { useState, useEffect, useCallback } from 'react';
-import { api, ApiError } from '@/lib/api/client';
+import { ApiError } from '@/lib/api/client';
+import { managerService, ManagerAccountDto as Account } from '../services/manager.service';
 
-/**
- * Type đại diện cho Tài khoản người dùng trong Manager Feature
- */
-type Account = {
-  id: number;
-  email: string;
-  fullName: string;
-  phoneNumber?: string;
-  role: string;
-  isActive: boolean;
-  createdAt?: string;
-};
-
-/**
- * Type bộ lọc tài khoản
- */
+/** Type bộ lọc tài khoản */
 type AccountFilter = {
   search?: string;
   role?: string;
@@ -37,8 +34,6 @@ const getApiErrorMessage = (error: unknown): string => {
 
 /**
  * Custom Hook: useAccounts (Dành cho Quản lý)
- *
- * Chức năng: Lấy danh sách tài khoản, tìm kiếm/lọc, vô hiệu hóa (deactivate) và xóa tài khoản.
  */
 export function useAccounts() {
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -47,19 +42,13 @@ export function useAccounts() {
   const [filter, setFilter] = useState<AccountFilter>({});
 
   /**
-   * Gọi API lấy danh sách tài khoản và áp dụng bộ lọc client-side
+   * Gọi Service lấy danh sách tài khoản và áp dụng bộ lọc client-side
    */
   const fetchAccounts = useCallback(async () => {
     setIsLoading(true);
     setError(null);
     try {
-      const res = await api.get<{ data: Account[] } | Account[]>('/accounts');
-      let data: Account[] = [];
-      if (Array.isArray(res)) {
-        data = res;
-      } else if (res && typeof res === 'object' && 'data' in res && Array.isArray(res.data)) {
-        data = res.data;
-      }
+      const data = await managerService.accounts.getAll();
 
       // Áp dụng các điều kiện lọc
       let filtered = data;
@@ -91,11 +80,11 @@ export function useAccounts() {
   }, [fetchAccounts]);
 
   /**
-   * Thao tác ngưng hoạt động tài khoản (POST /accounts/{id}/deactivate)
+   * Thao tác ngưng hoạt động tài khoản
    */
   const deactivateAccount = useCallback(async (id: number) => {
     try {
-      await api.post(`/accounts/${id}/deactivate`, {});
+      await managerService.accounts.deactivate(id);
       await fetchAccounts();
       return true;
     } catch (err) {
@@ -104,11 +93,11 @@ export function useAccounts() {
   }, [fetchAccounts]);
 
   /**
-   * Thao tác xóa tài khoản (DELETE /accounts/{id})
+   * Thao tác xóa tài khoản
    */
   const deleteAccount = useCallback(async (id: number) => {
     try {
-      await api.delete(`/accounts/${id}`);
+      await managerService.accounts.delete(id);
       await fetchAccounts();
       return true;
     } catch (err) {

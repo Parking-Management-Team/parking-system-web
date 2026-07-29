@@ -2,8 +2,7 @@
 
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { useParkingSessions } from '../hooks/useParkingSessions';
-import { api } from '@/lib/api/client';
-import { BaseResponse, PagedResult } from '@/lib/types/building.types';
+import { parkingSessionService, BuildingItemDto as BuildingItem } from '../services/parkingSession.service';
 import {
   Search,
   Building as BuildingIcon,
@@ -16,12 +15,6 @@ import {
   CreditCard,
   Hash
 } from 'lucide-react';
-
-interface BuildingItem {
-  id: number;
-  name: string;
-  code: string;
-}
 
 export default function ParkingSessionWorkspace() {
   const {
@@ -42,16 +35,10 @@ export default function ParkingSessionWorkspace() {
   const [toDate, setToDate] = useState('');
   const [buildings, setBuildings] = useState<BuildingItem[]>([]);
 
-
-
-  // Load buildings
+  // Load buildings via Service
   useEffect(() => {
-    api.get<BaseResponse<PagedResult<BuildingItem>>>('/Buildings/paged?pageIndex=1&pageSize=100')
-      .then(res => {
-        if (res.success && res.data?.items) {
-          setBuildings(res.data.items);
-        }
-      })
+    parkingSessionService.getBuildingsPaged(1, 100)
+      .then(items => setBuildings(items))
       .catch(err => console.error('Error fetching buildings:', err));
   }, []);
 

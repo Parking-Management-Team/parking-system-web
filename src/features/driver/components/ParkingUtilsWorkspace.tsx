@@ -536,24 +536,48 @@ export default function ParkingUtilsWorkspace() {
     }
   }, [mainTab, fetchHistoryData]);
 
-  // Walk-in counter tick
+  // Walk-in / Active Session counter tick with Pricing Engine integration
   useEffect(() => {
     let timer: NodeJS.Timeout;
-    if (sessionsTab === 'walkin' && activeSession) {
+    if (activeSession && activeSession.checkInTime) {
+      const checkInDate = new Date(activeSession.checkInTime);
       const matchedVehicle = vehicles.find(v => v.licensePlate === activeSession.licensePlateIn);
-      const isMotor = matchedVehicle?.vehicleTypeId === 1 || activeSession.slotCode?.startsWith('M');
-      const rate = isMotor ? 5000 : 20000;
+      const vehicleTypeId = matchedVehicle?.vehicleTypeId || (activeSession.slotCode?.startsWith('M') ? 1 : 2);
+
+      const updatePriceFromPolicy = async () => {
+        const now = new Date();
+        const diffSecs = Math.max(0, Math.floor((now.getTime() - checkInDate.getTime()) / 1000));
+        setWalkinDuration(diffSecs);
+
+        try {
+          const res = await calculatePrice({
+            vehicleTypeId,
+            checkInTime: formatLocalVNTime(checkInDate),
+            checkOutTime: formatLocalVNTime(now),
+          });
+          if (res && res.totalAmount !== undefined) {
+            setWalkinCost(res.totalAmount);
+          }
+        } catch {
+          const isMotor = vehicleTypeId === 1;
+          const rate = isMotor ? 5000 : 20000;
+          setWalkinCost((diffSecs / 3600) * rate);
+        }
+      };
+
+      updatePriceFromPolicy();
 
       timer = setInterval(() => {
-        setWalkinDuration(prev => {
-          const next = prev + 1;
-          setWalkinCost((next / 3600) * rate);
-          return next;
-        });
+        const now = new Date();
+        const diffSecs = Math.max(0, Math.floor((now.getTime() - checkInDate.getTime()) / 1000));
+        setWalkinDuration(diffSecs);
+        if (diffSecs % 5 === 0) {
+          updatePriceFromPolicy();
+        }
       }, 1000);
     }
     return () => clearInterval(timer);
-  }, [sessionsTab, activeSession, vehicles]);
+  }, [activeSession, vehicles, calculatePrice]);
 
   const maxBookingDate = useMemo(() => {
     const d = new Date();
@@ -1643,7 +1667,7 @@ export default function ParkingUtilsWorkspace() {
                         </div>
                         <div className="text-right flex items-center gap-2">
                           <span className="text-base font-black text-emerald-700">
-                            {Math.round(activeSession.totalFee ?? walkinCost).toLocaleString('vi-VN')} đ
+                            {Math.round(walkinCost || activeSession.totalFee || 0).toLocaleString('vi-VN')} đ
                           </span>
                           {activeSession.penaltyFee && activeSession.penaltyFee > 0 ? (
                             <span className="text-sm font-extrabold text-red-600">

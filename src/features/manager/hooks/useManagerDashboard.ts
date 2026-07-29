@@ -1,36 +1,22 @@
+/**
+ * ═══════════════════════════════════════════════════════════════════════════════
+ * 📌 FILE: useManagerDashboard.ts - HOOK ĐIỀU HÀNH TRANG DASHBOARD DÀNH CHO MANAGER
+ * ═══════════════════════════════════════════════════════════════════════════════
+ * 
+ * 🎯 MỤC ĐÍCH FILE:
+ * Tải và quản lý toàn bộ dữ liệu thời gian thực (realtime) cho trang Dashboard Manager:
+ * - Gọi các API thông qua Tầng Service: `managerService.dashboard.*`
+ * - Tính toán thống kê tổng quan (DashboardStats), biểu đồ doanh thu theo ngày (chartData) và hoạt động vào/ra mới nhất (activities).
+ * - Tự động polling cập nhật dữ liệu mỗi 30 giây.
+ * ═══════════════════════════════════════════════════════════════════════════════
+ */
+
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { api } from '@/lib/api/client';
-import { Building, BaseResponse, PagedResult } from '@/lib/types/building.types';
+import { Building } from '@/lib/types/building.types';
 import { FloorResponse, ZoneResponse, ParkingSessionDto } from '@/features/parking-map/types';
 import type { DashboardStats, ActivityLog } from '../index';
+import { managerService, RevenueStatisticDto } from '../services/manager.service';
 
-/**
- * Interface biểu diễn dữ liệu thống kê doanh thu nhận về từ API /Revenue
- */
-export interface RevenueStatisticDto {
-  id: number;
-  buildingId: number;
-  buildingName: string;
-  startDate: string;
-  endDate: string;
-  periodType: string;
-  vehicleTypeId?: number;
-  vehicleTypeName: string;
-  totalRevenue: number;
-  totalBookings: number;
-  totalSessions: number;
-  totalSubscriptions: number;
-}
-
-/**
- * Custom Hook: useManagerDashboard
- *
- * Chức năng:
- * - Tải và quản lý toàn bộ dữ liệu thời gian thực (realtime) cho trang Dashboard Manager.
- * - Gọi các API: Tòa nhà (/Buildings), Tầng (/Floors), Khu vực (/Zones), Phiên đỗ xe active (/parking-sessions/active), Doanh thu (/Revenue).
- * - Xử lý tính toán thống kê tổng quan (DashboardStats), biểu đồ doanh thu theo ngày (chartData) và hoạt động vào/ra mới nhất (activities).
- * - Tự động polling cập nhật dữ liệu mỗi 30 giây.
- */
 export function useManagerDashboard() {
   // Danh sách tòa nhà quản lý
   const [buildings, setBuildings] = useState<Building[]>([]);
@@ -49,21 +35,11 @@ export function useManagerDashboard() {
   const [loading, setLoading] = useState(true);
 
   /**
-   * Lấy danh sách các phiên đỗ xe đang active từ API
+   * Lấy danh sách các phiên đỗ xe đang active từ Service
    */
   const fetchActiveSessions = useCallback(async () => {
     try {
-      const sessionRes = await api.get<any>('/parking-sessions/active').catch(() => null);
-      let loadedSessions: ParkingSessionDto[] = [];
-      if (sessionRes) {
-        if (sessionRes.success && Array.isArray(sessionRes.data)) {
-          loadedSessions = sessionRes.data;
-        } else if (Array.isArray(sessionRes)) {
-          loadedSessions = sessionRes;
-        } else if (sessionRes.data && Array.isArray(sessionRes.data)) {
-          loadedSessions = sessionRes.data;
-        }
-      }
+      const loadedSessions = await managerService.dashboard.getActiveSessions();
       setActiveSessions(loadedSessions);
     } catch (err) {
       console.error('Lỗi khi tải phiên gửi xe active:', err);
@@ -71,27 +47,13 @@ export function useManagerDashboard() {
   }, []);
 
   /**
-   * Lấy thống kê doanh thu theo ngày cho tòa nhà đang chọn
+   * Lấy thống kê doanh thu theo ngày từ Service cho tòa nhà đang chọn
    */
   const fetchRevenue = useCallback(async (buildingId: number | null) => {
     if (!buildingId) return;
     try {
-      const res = await api.get<any>(
-        `/Revenue?BuildingId=${buildingId}&PeriodType=DAILY&pageIndex=1&pageSize=30`
-      );
-
-      let data: any = null;
-      if (res && res.success && res.data) {
-        data = res.data;
-      } else if (res && res.items) {
-        data = res;
-      }
-
-      if (data && data.items) {
-        setRevenueList(data.items);
-      } else {
-        setRevenueList([]);
-      }
+      const items = await managerService.dashboard.getRevenue(buildingId);
+      setRevenueList(items);
     } catch (err) {
       console.error('Lỗi khi tải thống kê doanh thu:', err);
       setRevenueList([]);
@@ -99,34 +61,22 @@ export function useManagerDashboard() {
   }, []);
 
   /**
-   * Tải toàn bộ cấu trúc hạ tầng (Tòa nhà, Tầng, Khu vực) và các phiên đỗ xe lần đầu
+   * Tải toàn bộ cấu trúc hạ tầng (Tòa nhà, Tầng, Khu vực) và các phiên đỗ xe lần đầu thông qua Service
    */
   const fetchDashboardData = useCallback(async () => {
     setLoading(true);
     try {
       // 1. Tải danh sách Tòa nhà
-      const resBld = await api.get<BaseResponse<PagedResult<Building>>>('/Buildings/paged?pageIndex=1&pageSize=100');
-      let loadedBuildings: Building[] = [];
-      if (resBld.success && resBld.data?.items) {
-        loadedBuildings = resBld.data.items;
-        setBuildings(loadedBuildings);
-      }
+      const loadedBuildings = await managerService.dashboard.getBuildings();
+      setBuildings(loadedBuildings);
 
       // 2. Tải danh sách Tầng
-      const resFloors = await api.get<BaseResponse<FloorResponse[]>>('/Floors');
-      let loadedFloors: FloorResponse[] = [];
-      if (resFloors.success && resFloors.data) {
-        loadedFloors = resFloors.data;
-        setFloors(loadedFloors);
-      }
+      const loadedFloors = await managerService.dashboard.getFloors();
+      setFloors(loadedFloors);
 
       // 3. Tải danh sách Khu vực (Zones)
-      const resZones = await api.get<BaseResponse<ZoneResponse[]>>('/Zones');
-      let loadedZones: ZoneResponse[] = [];
-      if (resZones.success && resZones.data) {
-        loadedZones = resZones.data;
-        setZones(loadedZones);
-      }
+      const loadedZones = await managerService.dashboard.getZones();
+      setZones(loadedZones);
 
       // 4. Tải các phiên đỗ xe active
       await fetchActiveSessions();

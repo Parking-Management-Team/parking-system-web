@@ -15,7 +15,7 @@ const mapAccessTypeToFrontend = (accessType?: number): 'GENERAL' | 'MONTHLY' => 
 };
 
 const mapStatusToFrontend = (status: number | string): 'Active' | 'Inactive' => {
-  if (status === 0 || status === 'Inactive') return 'Inactive';
+  if (status === 5 || status === 'OutOfService' || status === 'Inactive') return 'Inactive';
   return 'Active';
 };
 

@@ -20,7 +20,7 @@ const mapStatusToFrontend = (status: number | string): 'Active' | 'Inactive' => 
 };
 
 const mapStatusToBackend = (status: 'Active' | 'Inactive'): number => {
-  return status === 'Active' ? 1 : 0; // 1 = Active, 0 = Inactive
+  return status === 'Active' ? 0 : 5; // 0 = Available (Active), 5 = OutOfService (Inactive)
 };
 
 const extractErrorMessage = (error: any, defaultMsg: string): string => {
@@ -643,7 +643,8 @@ export function useFacilities() {
         vehicleTypeId: Number(formZoneVehicleTypeId),
         accessType: mapAccessTypeToBackend(formZoneAccessType),
         capacity: formZoneSlotCapacity,
-        bookingLimitRate: formZoneBookingLimitRate
+        bookingLimitRate: formZoneBookingLimitRate,
+        status: mapStatusToBackend(formZoneStatus)
       });
       if (res.success) {
         setIsAddZoneOpen(false);
@@ -684,7 +685,8 @@ export function useFacilities() {
         vehicleTypeId: Number(formZoneVehicleTypeId),
         accessType: mapAccessTypeToBackend(formZoneAccessType),
         capacity: formZoneSlotCapacity,
-        bookingLimitRate: formZoneBookingLimitRate
+        bookingLimitRate: formZoneBookingLimitRate,
+        status: mapStatusToBackend(formZoneStatus)
       });
       if (res.success) {
         setIsEditZoneOpen(false);

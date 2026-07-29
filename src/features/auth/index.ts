@@ -28,3 +28,7 @@ export { useOtpCooldown } from './hooks/useOtpCooldown';
 
 // Types
 export type { User } from './context/AuthContext';
+
+// Services
+export { authService } from './services/auth.service';
+
